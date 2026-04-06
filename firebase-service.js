@@ -67,6 +67,16 @@ function startFirestoreListeners() {
         if (doc.exists) customerDatabase = doc.data().clients || [];
     });
     
+    // 5. GLOBAL SETTINGS (AUTH)
+    db.collection("mangamar_directory").doc("settings").onSnapshot((doc) => {
+        if (doc.exists) {
+            window.adminPassword = doc.data().adminPassword || "manga321";
+        } else {
+            // First time initialization
+            db.collection("mangamar_directory").doc("settings").set({ adminPassword: "manga321" });
+        }
+    });
+    
     // NOTE: The expensive mangamar_customers listener has been DELETED to protect your quota!
 }
 

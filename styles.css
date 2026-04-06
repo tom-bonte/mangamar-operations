@@ -1,5 +1,58 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+/* ==========================================
+   SESSION AUTHENTICATION GATES
+   ========================================== */
+body:not(.logged-in) .auth-hide {
+    display: none !important;
+}
+body:not(.logged-in) .auth-lock {
+    pointer-events: none !important;
+    opacity: 0.6 !important;
+    filter: grayscale(100%);
+}
 
+body:not(.logged-in) #manage-boat-modal input,
+body:not(.logged-in) #manage-boat-modal select,
+body:not(.logged-in) #manage-boat-modal textarea {
+    pointer-events: none !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+}
+
+/* Freeze all data buttons in boat manifest to just be static tags */
+body:not(.logged-in) #manage-boat-modal button:not([onclick="closeManageBoatModal()"]):not(.nav-back-btn):not(.nav-fwd-btn) {
+    pointer-events: none !important;
+}
+
+/* Explicitly hide the destructive or edit-only action buttons */
+body:not(.logged-in) #manage-boat-modal button[onclick^="removeGroup"],
+body:not(.logged-in) #manage-boat-modal button[onclick^="removeGuest"],
+body:not(.logged-in) #manage-boat-modal button[onclick^="openEditGuestModal"],
+body:not(.logged-in) #manage-boat-modal #btn-delete-boat,
+body:not(.logged-in) #manage-boat-modal button[onclick^="copyStaffDni"],
+body:not(.logged-in) #manage-boat-modal button[onclick^="openCustomerProfile"] {
+    display: none !important;
+}
+
+/* Disable pointer events on any interactable span in the modal to prevent copying/clicking */
+body:not(.logged-in) #manage-boat-modal span.cursor-pointer {
+    pointer-events: none !important;
+    color: inherit !important;
+}
+
+/* Hide the SVG arrows for combo boxes */
+body:not(.logged-in) #manage-boat-modal .pointer-events-none.absolute.inset-y-0.right-0 {
+    display: none !important;
+}
+
+/* Hide the search bar row at the bottom of groups entirely */
+body:not(.logged-in) #manage-boat-modal .add-guest-row {
+    display: none !important;
+}
 body {
     font-family: 'Inter', sans-serif;
 }
@@ -62,9 +115,6 @@ body {
 
 /* MODERN TV DASHBOARD STYLES */
 .tv-card {
-    background: rgba(30, 41, 59, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(12px);
     transition: transform 0.3s ease;
 }
 .tv-gas-badge {

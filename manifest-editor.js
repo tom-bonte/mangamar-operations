@@ -16,6 +16,8 @@ window.triggerAutoSave = function() {
 // 5. MODAL & DYNAMIC TABLES 
 // ==========================================
 function openManageBoatModal(trip, boatId, time, dateStr, isNavBackForward = false) {
+    if (!window.isLoggedIn && !trip) return;
+    
     if (typeof isNavBackForward !== 'boolean') isNavBackForward = false;
     recordModalHistory({ type: 'boat', args: [trip, boatId, time, dateStr], isNavBackForward });
     selectedGuestsForGroup = []; // Reset selection when opening a new modal
@@ -82,7 +84,7 @@ function renderCaptainDropdown() {
         <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Capitán del Barco</label>
         <div class="flex gap-2">
             <select id="input-captain" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-700 cursor-pointer" onchange="activeBoatItem.captain = this.value; renderCaptainDropdown();">
-                <option value="">Seleccionar Capitán...</option>
+                <option value="">${window.isLoggedIn ? 'Seleccionar Capitán...' : 'Sin Asignar'}</option>
                 ${options}
             </select>
             <button onclick="copyStaffDni('capitanes', document.getElementById('input-captain').value)" title="Copiar DNI del Capitán" class="bg-slate-100 border border-slate-200 text-slate-500 hover:text-blue-600 px-3 rounded-lg transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
@@ -180,7 +182,7 @@ function renderGroups() {
                 <div class="flex items-center gap-3 flex-1">
                     <span class="text-xs font-black text-slate-500 uppercase tracking-widest">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
                     <select id="guide-select-${groupIndex}" class="px-3 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-800 w-1/2 cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
-                        <option value="">Seleccionar...</option>
+                        <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Guía'}</option>
                         ${guideOpts}
                     </select>
                     <button onclick="copyStaffDni('guias', document.getElementById('guide-select-${groupIndex}').value)" title="Copiar DNI del Guía" class="text-slate-400 hover:text-blue-600 transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
@@ -196,10 +198,10 @@ function renderGroups() {
                             <th class="p-3 w-40">Nombre</th>
                             <th class="p-3 w-36 text-center">Titulación</th>
                             <th class="p-3 w-56 text-center">Extras</th>
-                            <th class="p-3 w-16 text-center">Señal</th>
-                            <th class="p-3 w-12 text-center">DNI</th>
-                            <th class="p-3 w-16 text-center">Contacto</th>
-                            <th class="p-3 w-20 text-center">Acciones</th>
+                            <th class="p-3 w-16 text-center ${window.isLoggedIn ? '' : 'hidden'}">Señal</th>
+                            <th class="p-3 w-12 text-center ${window.isLoggedIn ? '' : 'hidden'}">DNI</th>
+                            <th class="p-3 w-16 text-center ${window.isLoggedIn ? '' : 'hidden'}">Contacto</th>
+                            <th class="p-3 w-20 text-center ${window.isLoggedIn ? '' : 'hidden'}">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -304,14 +306,14 @@ function renderGroups() {
                 </div>`;
 
             html += `
-                <tr draggable="true"
+                <tr draggable="${window.isLoggedIn ? 'true' : 'false'}"
                     id="guest-row-${groupIndex}-${guestIndex}"
-                    onmousedown="this.draggable = !event.target.closest('button, input, select, .absolute')"
+                    onmousedown="if(window.isLoggedIn) { this.draggable = !event.target.closest('button, input, select, .absolute'); }"
                     ondragstart="event.dataTransfer.setData('diverInfo', JSON.stringify({fromGroup: ${groupIndex}, guestIdx: ${guestIndex}}))"
                     ondragover="event.preventDefault(); this.classList.add('bg-blue-100')"
                     ondragleave="this.classList.remove('bg-blue-100')"
                     ondrop="event.preventDefault(); this.classList.remove('bg-blue-100'); handleDiverMove(event, ${groupIndex}, ${guestIndex})"
-                    class="border-b border-slate-100 transition-colors h-12 cursor-move ${isSelectedForGroup ? 'bg-blue-50/40' : 'hover:bg-slate-50'}">
+                    class="border-b border-slate-100 transition-colors h-12 ${window.isLoggedIn ? 'cursor-move' : 'cursor-default'} ${isSelectedForGroup ? 'bg-blue-50/40' : 'hover:bg-slate-50'}">
                     <td class="p-3 text-center align-middle">${tagHtml}</td>
                     <td class="p-3 text-sm font-bold text-slate-800 align-middle max-w-[140px]">${nameHtml}</td>
                     <td class="p-3 text-center align-middle">${titHtml}</td>
@@ -329,10 +331,10 @@ function renderGroups() {
                             </button>
                         </div>
                     </td>
-                    <td class="p-3 text-center align-middle">${senalHtml}</td>
-                    <td class="p-3 text-center align-middle">${dniHtml}</td>
-                    <td class="p-3 text-center align-middle whitespace-nowrap">${contactHtml}</td>
-                    <td class="p-3 text-center align-middle whitespace-nowrap">
+                    <td class="p-3 text-center align-middle ${window.isLoggedIn ? '' : 'hidden'}">${senalHtml}</td>
+                    <td class="p-3 text-center align-middle ${window.isLoggedIn ? '' : 'hidden'}">${dniHtml}</td>
+                    <td class="p-3 text-center align-middle whitespace-nowrap ${window.isLoggedIn ? '' : 'hidden'}">${contactHtml}</td>
+                    <td class="p-3 text-center align-middle whitespace-nowrap ${window.isLoggedIn ? '' : 'hidden'}">
                         ${guest.dni ? `<button onclick="openCustomerProfile('${guest.dni}', '${guest.nombre.replace(/'/g, "\\'")}')" class="text-slate-300 hover:text-emerald-500 transition-colors mr-2" title="Ficha del Cliente / Cuenta"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg></button>` : ''}
                         <button onclick="openEditGuestModal(${groupIndex}, ${guestIndex})" class="text-slate-300 hover:text-blue-500 transition-colors mr-2" title="Editar Info"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
                         <button onclick="removeGuest(${groupIndex}, ${guestIndex})" class="text-slate-300 hover:text-red-500 transition-colors" title="Eliminar Cliente"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
@@ -342,7 +344,7 @@ function renderGroups() {
         });
 
         html += `
-                <tr class="bg-blue-50/30 focus-within:z-50 relative">
+                <tr class="bg-blue-50/30 focus-within:z-50 relative add-guest-row">
                     <td class="p-3 text-center text-blue-400 text-sm font-black">+</td>
                     <td colspan="6" class="p-2 relative">
                         <input type="text" id="search-${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="searchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" autocomplete="off">
@@ -359,7 +361,7 @@ function renderGroups() {
     triggerAutoSave(); 
 }
 
-function addGroup() { activeBoatItem.groups.push({ guide: '', guests: [] }); renderGroups(); }
+function addGroup() { if(!window.isLoggedIn) return; activeBoatItem.groups.push({ guide: '', guests: [] }); renderGroups(); }
 
 function removeGroup(groupIndex) { 
     showAppConfirm("¿Eliminar este grupo entero?", () => { 
@@ -378,6 +380,7 @@ function updateGuide(groupIndex, value) {
 }
 
 function removeGuest(groupIndex, guestIndex) { 
+    if(!window.isLoggedIn) return;
     const dni = activeBoatItem.groups[groupIndex].guests[guestIndex].dni;
     activeBoatItem.groups[groupIndex].guests.splice(guestIndex, 1); 
     updateModalSubtitle(); 
@@ -386,6 +389,7 @@ function removeGuest(groupIndex, guestIndex) {
 }
 
 function cycleGas(groupIndex, guestIndex) {
+    if(!window.isLoggedIn) return;
     const states = ['15L Aire', '12L Aire', '15L EAN28', '12L EAN28', '15L EAN32', '12L EAN32'];
     const current = activeBoatItem.groups[groupIndex].guests[guestIndex].gas || '15L Aire';
     const nextGas = states[(states.indexOf(current) + 1) % states.length];
@@ -403,6 +407,7 @@ function cycleGas(groupIndex, guestIndex) {
 }
 
 function cycleRental(groupIndex, guestIndex) {
+    if(!window.isLoggedIn) return;
     const current = activeBoatItem.groups[groupIndex].guests[guestIndex].rental || 0;
     let nextRental = 0;
     if (current === 0) nextRental = 1;
@@ -424,6 +429,7 @@ function cycleRental(groupIndex, guestIndex) {
 }
 
 window.toggleBono = function(groupIndex, guestIndex) {
+    if(!window.isLoggedIn) return;
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
     guest.hasBono = !guest.hasBono;
 
@@ -637,6 +643,7 @@ window.executeRelink = function(groupIndex, guestIndex, encodedData) {
 let editingLocalGuestInfo = null;
 
 function openEditGuestModal(groupIndex, guestIndex) {
+    if(!window.isLoggedIn) return;
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
     
     // If they have a DNI, open the powerful CRM global modal
@@ -904,6 +911,7 @@ async function saveBoatData() {
 }
 
 function deleteBoatData() {
+    if(!window.isLoggedIn) return;
     if(!activeBoatItem || (activeBoatItem.isVisor && !activeBoatItem.isVisorEdited)) return;
     document.getElementById('delete-confirm-modal').classList.remove('hidden');
 }
@@ -970,6 +978,7 @@ function getGroupColorClass(groupName) {
 }
 
 function toggleGuestSelection(groupIndex, guestIndex) {
+    if(!window.isLoggedIn) return;
     const idx = selectedGuestsForGroup.findIndex(s => s.groupIndex === groupIndex && s.guestIndex === guestIndex);
     if (idx > -1) selectedGuestsForGroup.splice(idx, 1);
     else selectedGuestsForGroup.push({groupIndex, guestIndex});

@@ -21,3 +21,9 @@ let activeBoatItem = null;
 let customerDatabase = []; // Holds the list of all past customers
 let monthlySiteFilters = []; // Remembers which dive sites are selected in Monthly View
 let staffDatabase = { capitanes: [], guias: [] }; // Holds Mangamar Staff
+
+// ==========================================
+// SESSION AUTHENTICATION
+// ==========================================
+window.isLoggedIn = false;
+window.adminPassword = "manga321";

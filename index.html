@@ -39,7 +39,7 @@
 
     <header class="bg-orange-100/90 backdrop-blur-md text-slate-800 px-6 py-3 shadow-sm border-b border-orange-100 flex justify-between items-center z-50 shrink-0 sticky top-0">
         <div class="flex items-center gap-4 w-1/3">
-            <div class="relative group cursor-pointer z-[100]">
+            <div class="relative group cursor-pointer z-[100] auth-hide">
                 <div class="flex items-center gap-2 py-1 pr-2 rounded-lg hover:bg-slate-50 transition-colors">
                     <div class="w-9 h-9 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center font-black text-white shadow-sm ring-1 ring-orange-500/20">M</div>
                     <div class="flex flex-col">
@@ -64,7 +64,7 @@
         <nav class="flex items-center justify-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 backdrop-blur-sm">
             <button onclick="switchView('daily')" id="btn-view-daily" class="px-6 py-2 rounded-lg text-sm font-black transition-all bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20">Diario</button>
             <button onclick="switchView('monthly')" id="btn-view-monthly" class="px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50">Mensual</button>
-            <button onclick="switchView('staff')" id="btn-view-staff" class="px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50">Staff</button>
+            <button onclick="switchView('staff')" id="btn-view-staff" class="px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50 auth-hide">Staff</button>
         </nav>
 
         <div class="flex items-center justify-end w-1/3 gap-4">
@@ -72,7 +72,23 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg> Visor
             </a>
             <div class="w-px h-6 bg-slate-200"></div>
-            <button onclick="document.getElementById('help-modal').classList.remove('hidden')" class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 hover:scale-105 font-black text-sm flex items-center justify-center transition-all" title="Ayuda">?</button>
+            <button onclick="document.getElementById('help-modal').classList.remove('hidden')" class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 hover:scale-105 font-black text-sm flex items-center justify-center transition-all auth-hide" title="Ayuda">?</button>
+            <div class="relative">
+                <button id="auth-btn-logged-out" onclick="document.getElementById('login-modal').classList.remove('hidden')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900 transition-colors">
+                    <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Iniciar Sesión
+                </button>
+                <div id="auth-btn-logged-in" class="hidden">
+                    <button onclick="toggleAuthDropdown()" class="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-orange-600 transition-colors group">
+                        <div class="w-5 h-5 bg-white text-orange-600 rounded flex items-center justify-center font-black text-xs">M</div> 
+                        Mangamar 
+                        <svg class="w-4 h-4 opacity-50 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="auth-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-20">
+                        <button onclick="changeAdminPassword()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 whitespace-nowrap"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg> Cambiar contraseña</button>
+                        <button onclick="logout()" class="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 whitespace-nowrap"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Cerrar sesión</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -95,26 +111,26 @@
                             </div>
                         </div>
                         <div id="mini-calendar-grid" class="grid grid-cols-7 text-center gap-y-1"></div>
-                    </div> <button onclick="openTodayDiversModal()" class="w-full mt-6 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm font-black hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> Día de Hoy
+                     </div> <button onclick="openTodayDiversModal()" class="w-full mt-6 py-2.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-lg text-sm font-black hover:bg-orange-100 transition-colors flex items-center justify-center gap-2 shadow-sm group auth-hide">
+                                <svg class="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> Día de Hoy
                             </button>
 
-                            <button onclick="openTVView()" class="w-full mt-2 py-2.5 bg-slate-900 text-white border border-slate-700 rounded-lg text-sm font-black hover:bg-black transition-colors flex items-center justify-center gap-2 shadow-lg group">
+                            <button onclick="openTVView()" class="w-full mt-2 py-2.5 bg-slate-900 text-orange-500 border border-slate-800 rounded-lg text-sm font-black hover:bg-black transition-colors flex items-center justify-center gap-2 shadow-lg group auth-hide">
                                 <svg class="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> 
-                                    Pizarra TV
-                                </button>
+                                Pizarra TV
+                            </button>
                                 
-                            <button onclick="openWhatsAppModal()" class="w-full mt-2 py-2.5 bg-[#25D366]/10 text-[#075E54] border border-[#25D366]/30 rounded-lg text-sm font-black hover:bg-[#25D366]/20 transition-colors flex items-center justify-center gap-2 shadow-sm group">
-                                <svg class="w-5 h-5 text-[#25D366] group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.885-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            <button onclick="openWhatsAppModal()" class="w-full mt-2 py-2.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-sm font-black hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2 shadow-sm group auth-hide">
+                                <svg class="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.885-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                                 Disponibilidad
                             </button>
 
-                            <button onclick="openCrmModal()" class="w-full mt-2 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-black hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm group">
-                                <svg class="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <button onclick="openCrmModal()" class="w-full mt-2 py-2.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-lg text-sm font-black hover:bg-purple-100 transition-colors flex items-center justify-center gap-2 shadow-sm group auth-hide">
+                                <svg class="w-5 h-5 text-purple-600 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                                 Directorio CRM
                             </button>
 
-                    <button onclick="debugClearAllDivers()" class="w-full mt-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <button onclick="debugClearAllDivers()" class="w-full mt-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 shadow-sm auth-hide">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> TEST: Vaciar Salidas
                     </button>
                 </div>
@@ -297,7 +313,7 @@
                 
                 <div class="flex justify-between items-end mb-4">
                     <h3 class="font-black text-slate-800 text-lg uppercase tracking-tight">Grupos y Guías</h3>
-                    <button onclick="addGroup()" class="px-5 py-2 bg-blue-50 border border-blue-200 text-blue-600 font-black rounded-lg hover:bg-blue-100 transition-colors text-sm shadow-sm flex items-center gap-2">
+                    <button onclick="addGroup()" class="px-5 py-2 bg-blue-50 border border-blue-200 text-blue-600 font-black rounded-lg hover:bg-blue-100 transition-colors text-sm shadow-sm flex items-center gap-2 auth-hide">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg> Añadir Grupo
                     </button>
                 </div>
@@ -306,7 +322,7 @@
             </div>
 
             <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 rounded-b-2xl shrink-0">
-                <button id="btn-delete-boat" onclick="deleteBoatData()" class="px-4 py-3 rounded-lg text-sm font-bold text-red-500 bg-white border border-red-200 hover:bg-red-50 transition-colors shadow-sm hidden flex items-center gap-1"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Eliminar Salida</button>
+                <button id="btn-delete-boat" onclick="deleteBoatData()" class="px-4 py-3 rounded-lg text-sm font-bold text-red-500 bg-white border border-red-200 hover:bg-red-50 transition-colors shadow-sm hidden flex items-center gap-1 auth-hide"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Eliminar Salida</button>
                 <div class="flex gap-3 flex-1 justify-end">
                     <button onclick="closeManageBoatModal()" class="px-8 py-3 rounded-lg text-sm font-black text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm">Cerrar</button>
                 </div>
@@ -1273,6 +1289,37 @@
                 </div>
             </div>
             
+        </div>
+    </div>
+
+    <div id="login-modal" class="fixed inset-0 z-[600] hidden bg-slate-900/80 backdrop-blur-sm p-4 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center border border-slate-200">
+            <svg class="w-12 h-12 mx-auto text-slate-800 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+            <h3 class="text-2xl font-black text-slate-800 mb-2">Acceso al Visor</h3>
+            <p class="text-sm text-slate-500 mb-6 font-medium">Selecciona tu centro e introduce la contraseña.</p>
+            
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-black text-slate-700 mb-1">Usuario / Centro</label>
+                    <select class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none appearance-none cursor-not-allowed">
+                        <option>Mangamar Dive Center</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-black text-slate-700 mb-1">Contraseña</label>
+                    <div class="relative">
+                        <input type="password" id="login-password-input" placeholder="••••••••" class="w-full px-4 py-3 pr-10 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500" onkeydown="if(event.key === 'Enter') attemptLogin()">
+                        <button onclick="toggleLoginPasswordView(this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.522 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-8">
+                <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="flex-1 py-3 bg-slate-50 text-slate-700 rounded-xl font-bold hover:bg-slate-100 transition-all border border-slate-200">Cancelar</button>
+                <button onclick="attemptLogin()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md">Entrar</button>
+            </div>
         </div>
     </div>
 </body>
