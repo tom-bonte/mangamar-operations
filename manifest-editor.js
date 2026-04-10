@@ -867,28 +867,34 @@ async function saveBoatData() {
             historyWrites++;
         });
 
-        // B. Add/Update history for divers CURRENTLY in this boat
-        flatGuests.forEach(gst => {
-            if (gst.dni) { 
-                const historyRef = db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(activeBoatItem.id);
-                historyBatch.set(historyRef, {
-                    date: activeBoatItem.date,
-                    time: activeBoatItem.time,
-                    site: activeBoatItem.site,
-                    assignedBoat: activeBoatItem.assignedBoat,
-                    gas: gst.gas || '15L Aire',
-                    rental: gst.rental || 0,
-                    insurance: gst.insurance || 0,
-                    course: gst.course || null,           // 🎓 SAVES THE FULL COURSE NAME
-                    baseCourse: gst.baseCourse || null,   // 🎓 SAVES EXACT MAPPED NAME
-                    courseBadge: gst.courseBadge || null, // 🎓 SAVES THE SHORT UI BADGE
-                    coursePrice: gst.coursePrice || 0,    // 🎓 SAVES THE LOCKED PRICE
-                    hasBono: gst.hasBono || false,
-                    paymentStatus: gst.paymentStatus || 'pending',
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp() 
-                }, { merge: true });
-                historyWrites++;
-            }
+        // B. Fetch existing network history profiles to ensure we don't accidentally overwrite payment states via autosave
+        const validGuests = flatGuests.filter(g => g.dni);
+        const checkPromises = validGuests.map(gst => db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(activeBoatItem.id).get());
+        const historicSnaps = await Promise.all(checkPromises);
+        
+        validGuests.forEach((gst, idx) => {
+            const historyRef = historicSnaps[idx].ref;
+            const curDoc = historicSnaps[idx];
+            // CRITICAL BUGFIX: Detect if the invoice was already liquidated manually in the CRM, never overwrite to pending.
+            const persistentState = (curDoc.exists && curDoc.data().paymentStatus) ? curDoc.data().paymentStatus : (gst.paymentStatus || 'pending');
+
+            historyBatch.set(historyRef, {
+                date: activeBoatItem.date,
+                time: activeBoatItem.time,
+                site: activeBoatItem.site,
+                assignedBoat: activeBoatItem.assignedBoat,
+                gas: gst.gas || '15L Aire',
+                rental: gst.rental || 0,
+                insurance: gst.insurance || 0,
+                course: gst.course || null,           
+                baseCourse: gst.baseCourse || null,   
+                courseBadge: gst.courseBadge || null, 
+                coursePrice: gst.coursePrice || 0,    
+                hasBono: gst.hasBono || false,
+                paymentStatus: persistentState,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+            }, { merge: true });
+            historyWrites++;
         });
         if (historyWrites > 0) await historyBatch.commit();
         

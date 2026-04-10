@@ -297,9 +297,9 @@ window.generateWhatsAppText = function() {
             const showSpots = document.getElementById('wa-toggle-plazas').checked;
             
             if (showSpots) {
-                output += `🚤 ${cxTime} - ${siteName} (${emoji} ${freeSpots} ${txt[waCurrentLang].spots})\n`;
+                output += `${cxTime} - ${siteName} (${emoji} ${freeSpots} ${txt[waCurrentLang].spots})\n`;
             } else {
-                output += `🚤 ${cxTime} - ${siteName}\n`;
+                output += `${cxTime} - ${siteName}\n`;
             }
         });
         output += `\n`;

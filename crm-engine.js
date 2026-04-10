@@ -17,9 +17,16 @@ window.switchFichaTab = function(tabId) {
     // 2. Activate selected
     const activeBtn = document.getElementById(`tab-btn-${tabId}`);
     activeBtn.className = 'pb-3 text-sm font-black text-blue-600 border-b-[3px] border-blue-600 transition-all';
-    
     document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
     document.getElementById(`tab-content-${tabId}`).classList.add('block');
+    
+    // 3. Update nav history dynamically if current view is a user profile
+    if (window.modalHistory && window.modalHistoryIndex >= 0) {
+        const curr = window.modalHistory[window.modalHistoryIndex];
+        if (curr && curr.type === 'customer') {
+            curr.targetTab = tabId;
+        }
+    }
 };
 
 function calculateDivePrice(historyItem) {
@@ -321,7 +328,9 @@ window.togglePaymentStatus = async function(dni, boatId, currentStatus) {
 
 window.openCustomerProfile = async function(dni, nombre, isNavBackForward = false, targetTab = 'caja') {
     if (typeof isNavBackForward !== 'boolean') isNavBackForward = false;
-    recordModalHistory({ type: 'customer', args: [dni, nombre], isNavBackForward });
+    recordModalHistory({ type: 'customer', args: [dni, nombre], targetTab, isNavBackForward });
+    
+    window.historialClearSelection(); // Clear multiple selection on newly opened profile
     
     const customerInfo = customerDatabase.find(c => c.dni === dni) || { telefono: '', email: '', discount: 0 };
     const contactStr = [customerInfo.telefono, customerInfo.email].filter(Boolean).join(' • ');
@@ -355,7 +364,7 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
                 expiryStr = insObj.expiry || '';
             }
             
-            if (!isRed && (!typeStr || typeStr === '0' || typeStr === '---' || typeStr.toLowerCase() === 'no' || typeStr.toLowerCase() === 'none')) {
+            if (!isRed && (!typeStr || typeStr === '0' || typeStr === '---' || typeStr.toLowerCase() === 'no' || typeStr.toLowerCase() === 'none' || typeStr.toLowerCase() === 's/n')) {
                 isRed = true;
                 displaySeg = 'Sin seguro en vigor';
             } else if (!isRed) {
@@ -476,7 +485,8 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
                     if (cleanIns === '1Y') dateObj.setFullYear(dateObj.getFullYear() + 1);
                     activeInsExpiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
                 }
-            } else if (cleanIns === 'Propio' || cleanIns === 'INC') {
+            } else if (cleanIns !== '0' && cleanIns !== 0) {
+                // Treat custom/external texts like 'DAN Sport Bronze Pro', 'Propio', 'INC' implicitly as active policies:
                 isCovered = true;
                 p.insurance = 0;
             }
@@ -527,18 +537,18 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
 
             let bonoClass = data.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200';
 
-            let insClass = 'bg-diagonal-red text-transparent border-red-200';
-            let insText = '';
+            let insClass = 'px-1.5 min-w-[36px] bg-red-500 text-white border-red-600';
+            let insText = 'Seg 🛑';
             if (cleanIns === 'INC') {
-                insClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+                insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
                 insText = 'INC'; 
             } else if (cleanIns !== '0' && cleanIns !== 0) {
                 if (isCovered) {
-                    insClass = 'bg-emerald-100 text-emerald-700 border-emerald-300';
-                    insText = `✔ ${cleanIns}`; 
+                    insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+                    insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔'; 
                 } else {
-                    insClass = 'bg-amber-500 text-white border-amber-600 font-bold shadow-sm';
-                    insText = cleanIns; 
+                    insClass = 'px-1.5 min-w-[36px] bg-blue-500 text-white border-blue-600 font-bold shadow-sm';
+                    insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg 💳 (${cleanIns})` : 'Seg 💳'; 
                 }
             }
 
@@ -546,8 +556,16 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
                 ? `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors shrink-0 w-full shadow-sm">Pagado</button>`
                 : `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'pending')" class="px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 shrink-0 w-full shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendiente</button>`;
 
+            let isSel = window.activeHistorialSelection && window.activeHistorialSelection.find(x => x.docId === doc.id);
+            let checkIcon = isSel ? 
+                `<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
+                `<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
+
             html += `
-            <tr class="group border-b border-slate-100 hover:bg-blue-50 transition-colors h-12 ${isPaid ? 'opacity-70 hover:opacity-100' : ''}">
+            <tr class="group border-b border-slate-100 hover:bg-blue-50 transition-colors h-12 ${isPaid ? 'opacity-70 hover:opacity-100' : ''}" data-doc-id="${doc.id}">
+                <td class="py-2 px-3 align-middle text-center" onclick="toggleHistorialRowSelection(this, '${doc.id}', '${dni}', ${p.total}, '${data.paymentStatus}', '${data.date.substring(0, 7)}')">
+                    <div class="cursor-pointer inline-block" title="Seleccionar fila">${checkIcon}</div>
+                </td>
                 <td class="py-2 px-3 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
                     <div class="flex items-baseline gap-2">
                         <span class="text-xs font-black text-slate-800 group-hover:text-blue-700 transition-colors">${data.date}</span>
@@ -559,7 +577,7 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
                     <div class="flex items-center justify-start gap-1">
                         <div class="w-12 h-6 flex justify-center items-center rounded border text-[9px] font-black whitespace-nowrap ${gasColor}">${gasShortText}</div>
                         <div class="w-7 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${rentalClass}">${rentalText}</div>
-                        <div class="w-7 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${insClass}">${insText}</div>
+                        <div class="h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${insClass}">${insText}</div>
                         <div class="w-6 h-6 flex justify-center items-center rounded border text-[10px] font-bold shrink-0 ${bonoClass}" title="${data.hasBono ? 'Usa Bono' : 'Sin Bono'}">B</div>
                     </div>
                 </td>
@@ -584,7 +602,7 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
         if (pendingTotal > 0 || deposit > 0) {
             html += `
             <tr class="bg-slate-50/80 border-t-2 border-slate-200">
-                <td colspan="3" class="py-2 px-3 text-right font-black text-slate-500 uppercase tracking-widest text-[9px] align-middle">Deuda Pendiente</td>
+                <td colspan="4" class="py-2 px-3 text-right font-black text-slate-500 uppercase tracking-widest text-[9px] align-middle">Deuda Pendiente</td>
                 <td class="py-2 px-3 text-right font-black text-slate-700 text-sm align-middle">${pendingTotal} €</td>
                 <td></td>
             </tr>`;
@@ -592,7 +610,7 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
             if (deposit > 0) {
                 html += `
                 <tr class="bg-emerald-50/50 border-t border-emerald-100">
-                    <td colspan="3" class="py-2 px-3 text-right font-black text-emerald-600 uppercase tracking-widest text-[9px] align-middle">Señal / Anticipo</td>
+                    <td colspan="4" class="py-2 px-3 text-right font-black text-emerald-600 uppercase tracking-widest text-[9px] align-middle">Señal / Anticipo</td>
                     <td class="py-2 px-3 text-right font-black text-emerald-600 text-sm align-middle">- ${deposit} €</td>
                     <td></td>
                 </tr>`;
@@ -600,14 +618,14 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
             
             html += `
             <tr class="${totalAPagar <= 0 && pendingTotal > 0 ? 'bg-emerald-100' : 'bg-amber-50'} border-t ${totalAPagar <= 0 && pendingTotal > 0 ? 'border-emerald-200' : 'border-amber-200'}">
-                <td colspan="3" class="py-3 px-3 text-right font-black ${totalAPagar <= 0 && pendingTotal > 0 ? 'text-emerald-700' : 'text-amber-700'} uppercase tracking-widest text-[11px] align-middle">A Pagar Hoy</td>
+                <td colspan="4" class="py-3 px-3 text-right font-black ${totalAPagar <= 0 && pendingTotal > 0 ? 'text-emerald-700' : 'text-amber-700'} uppercase tracking-widest text-[11px] align-middle">A Pagar Hoy</td>
                 <td class="py-3 px-3 text-right font-black ${totalAPagar <= 0 && pendingTotal > 0 ? 'text-emerald-600' : 'text-amber-600'} text-xl align-middle">${totalAPagar <= 0 ? '0' : totalAPagar} €</td>
                 <td></td>
             </tr>`;
         } else if (grandTotal > 0) {
              html += `
             <tr class="bg-slate-50 border-t-2 border-slate-200">
-                <td colspan="3" class="py-3 px-3 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px] align-middle">Total Historial (Pagado)</td>
+                <td colspan="4" class="py-3 px-3 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px] align-middle">Total Historial (Pagado)</td>
                 <td class="py-3 px-3 text-right font-black text-slate-400 text-lg align-middle">${grandTotal} €</td>
                 <td></td>
             </tr>`;
@@ -655,42 +673,64 @@ window.openCustomerProfile = async function(dni, nombre, isNavBackForward = fals
 // Handles switching tabs in the Today's Divers view
 window.activeJointSelection = [];
 window.currentTodayDiversData = []; // Cache of natural order
-window.todaySortMode = 'none'; // 'none', 'name', 'boat'
+window.todaySortMode = 'asc'; // 'asc', 'desc'
 
 window.toggleTodaySort = function() {
-    if (todaySortMode === 'none') todaySortMode = 'name';
-    else if (todaySortMode === 'name') todaySortMode = 'boat';
-    else todaySortMode = 'none';
+    window.todaySortMode = window.todaySortMode === 'asc' ? 'desc' : 'asc';
 
     const btn = document.getElementById('btn-today-sort');
-    const labels = { 'none': 'Natural', 'name': 'Nombre', 'boat': 'Barco' };
-    btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg> Sort: ${labels[todaySortMode]}`;
+    btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${window.todaySortMode === 'asc' ? 'M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12' : 'M3 4h13M3 8h9m-9 4h6m4 4l4 4m0 0l4-4m-4 4V4'}"></path></svg> Sort: ${window.todaySortMode === 'asc' ? 'A-Z' : 'Z-A'}`;
     
     // Refresh the currently active tab
-    const activeTab = document.getElementById('tab-today-pending').classList.contains('bg-white') ? 'pending' : 'all';
+    const activeTab = document.getElementById('tab-primary-global').classList.contains('bg-white') ? 'global' : 'today';
     switchTodayTab(activeTab);
 };
 
-window.switchTodayTab = async function(tabId) {
-    const btnAll = document.getElementById('tab-today-all');
-    const btnPending = document.getElementById('tab-today-pending');
-    const listEl = document.getElementById('today-divers-list');
+window.todayFilterMode = 'pending';
+
+window.setTodayFilter = function(mode) {
+    window.todayFilterMode = mode;
+    const btnPending = document.getElementById('sub-filter-pending');
+    const btnPaid = document.getElementById('sub-filter-paid');
     
+    if (mode === 'pending') {
+        btnPending.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-amber-200 bg-amber-50 text-amber-700 tracking-wider shadow-sm transition-all";
+        btnPaid.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-emerald-600 transition-all tracking-wider";
+    } else {
+        btnPaid.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 tracking-wider shadow-sm transition-all";
+        btnPending.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-amber-600 transition-all tracking-wider";
+    }
+    
+    switchTodayTab('today');
+};
+
+window.switchTodayTab = async function(tabId) {
+    const btnToday = document.getElementById('tab-primary-today');
+    const btnGlobal = document.getElementById('tab-primary-global');
+    const listEl = document.getElementById('today-divers-list');
+    const subnav = document.getElementById('subnav-today');
+    
+    // Default inactive states
+    btnToday.className = 'px-4 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all';
+    btnGlobal.className = 'px-4 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all flex items-center gap-1.5';
+    btnGlobal.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> Todos los Clientes`;
+
     // UI Switch
-    if (tabId === 'all') {
-        btnAll.className = 'px-4 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow-sm transition-all';
-        btnPending.className = 'px-4 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all flex items-center gap-1.5';
+    if (tabId === 'today') {
+        btnToday.className = 'px-4 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow-sm transition-all';
+        subnav.classList.remove('hidden');
         
-        // Fetch and show only debtors for today
+        // Fetch and show local boat divers
         if(currentTodayDiversData.length === 0) {
             listEl.innerHTML = '<div class="p-6 text-center text-slate-500 italic text-sm">No hay clientes registrados en los barcos de hoy.</div>';
         } else {
-            listEl.innerHTML = '<div class="p-10 text-center text-slate-500 font-bold flex flex-col items-center"><svg class="animate-spin h-8 w-8 text-blue-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Buscando cobros pendientes...</div>';
+            listEl.innerHTML = '<div class="p-10 text-center text-slate-500 font-bold flex flex-col items-center"><svg class="animate-spin h-8 w-8 text-blue-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analizando perfiles...</div>';
             
             try {
                 const pendingDnis = currentTodayDiversData.map(d => d.dni);
                 let pendingHtml = '';
-                let totalPendingDebt = 0;
+                let visibleCount = 0;
+                let visibleDebt = 0;
                 let debtors = [];
 
                 if (pendingDnis.length > 0) {
@@ -753,58 +793,70 @@ window.switchTodayTab = async function(tabId) {
                             }
                         });
                         
-                        if (debt > 0) {
-                            const deposit = c && c.deposit ? c.deposit : 0;
-                            const finalDebt = Math.max(0, debt - deposit);
-                            if (finalDebt > 0) {
-                                totalPendingDebt += finalDebt;
-                                debtors.push({ dni, nombre, debt: finalDebt, divesList });
-                            }
+                        const deposit = c && c.deposit ? c.deposit : 0;
+                        const finalDebt = Math.max(0, debt - deposit);
+                        const isClean = finalDebt === 0;
+                        
+                        let shouldShow = false;
+                        if (window.todayFilterMode === 'paid') {
+                            shouldShow = isClean;
+                        } else {
+                            shouldShow = !isClean; // Everyone who hasn't fully paid for today and cleared all debt
+                        }
+
+                        if (shouldShow) {
+                            visibleCount++;
+                            visibleDebt += finalDebt;
+                            debtors.push({ dni, nombre, debt: finalDebt, isClean: isClean });
                         }
                     });
                 }
 
-                debtors.sort((a,b) => a.nombre.localeCompare(b.nombre));
+                debtors.sort((a,b) => window.todaySortMode === 'asc' ? a.nombre.localeCompare(b.nombre) : b.nombre.localeCompare(a.nombre));
 
                 debtors.forEach(d => {
                     let isSel = window.activeJointSelection && window.activeJointSelection.find(x => x.dni === d.dni);
-                    let avatarHtml = isSel ? 
-                        `<div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center transition-colors shadow-inner cursor-pointer" onclick="toggleDiverJointSelection(this, '${d.dni}', '${d.nombre.replace(/'/g, "\\'")}', '${d.debt}')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
-                        `<div class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600 flex items-center justify-center transition-colors shadow-inner cursor-pointer" onclick="toggleDiverJointSelection(this, '${d.dni}', '${d.nombre.replace(/'/g, "\\'")}', '${d.debt}')"><span class="font-black text-xs">€</span></div>`;
+                    
+                    let avatarHtml = `<div class="w-6 h-6 mx-auto rounded-full bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center opacity-50"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
+                    if (!d.isClean) {
+                        avatarHtml = isSel ? 
+                           `<div class="w-6 h-6 mx-auto rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner cursor-pointer" onclick="toggleDiverJointSelection(this, '${d.dni}', '${d.nombre.replace(/'/g, "\\'")}', '${d.debt}')"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
+                           `<div class="w-6 h-6 mx-auto rounded-full bg-slate-100 text-slate-400 border border-slate-200 group hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500 flex items-center justify-center transition-all shadow-inner cursor-pointer" onclick="toggleDiverJointSelection(this, '${d.dni}', '${d.nombre.replace(/'/g, "\\'")}', '${d.debt}')"><svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
+                    }
 
                     pendingHtml += `
-                    <div class="flex justify-between items-center p-3 border-b border-slate-100 transition-colors group relative hover:bg-slate-50">
+                    <div class="flex justify-between items-center p-3 border-b border-slate-100 transition-colors group relative hover:bg-slate-50 ${d.isClean ? 'opacity-60' : ''}">
                         <div class="flex items-center gap-3 flex-1">
                             ${avatarHtml}
                             <div class="cursor-pointer flex-1" onclick="openCustomerProfile('${d.dni}', '${d.nombre.replace(/'/g, "\\'")}')">
-                                <div class="font-bold text-slate-800 text-sm group-hover:text-amber-600 transition-colors">${d.nombre} <span class="text-xs text-slate-500 font-mono ml-2 font-normal">${d.dni}</span></div>
+                                <div class="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">${d.nombre} <span class="text-xs text-slate-500 font-mono ml-2 font-normal">${d.dni}</span></div>
                             </div>
                         </div>
                         <div class="flex items-center gap-4 text-right">
-                            <div class="text-lg font-black text-slate-800 cursor-pointer" onclick="openCustomerProfile('${d.dni}', '${d.nombre.replace(/'/g, "\\'")}')">${d.debt} €</div>
+                            <div class="text-lg font-black ${d.isClean ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-slate-800'} cursor-pointer" onclick="openCustomerProfile('${d.dni}', '${d.nombre.replace(/'/g, "\\'")}')">${d.isClean ? 'Liquidado' : d.debt + ' €'}</div>
                         </div>
                     </div>`;
                 });
 
                 if (pendingHtml === '') {
-                    listEl.innerHTML = '<div class="p-10 text-center text-emerald-600 font-black"><div class="text-4xl mb-2">🎉</div>¡Todos los buceadores de hoy han pagado!</div>';
+                    listEl.innerHTML = `<div class="p-10 text-center text-slate-400 font-bold italic">${window.todayFilterMode === 'paid' ? 'No hay clientes cobrados aún hoy.' : '¡Todos los clientes de hoy han pagado! o el barco está vacío.'}</div>`;
                 } else {
                     listEl.innerHTML = `
                         <div class="bg-slate-800 text-white p-4 flex justify-between items-center sticky top-0 z-10 shadow-md">
-                            <span class="text-xs font-black uppercase tracking-widest text-slate-400">Total Pendiente (Hoy):</span>
-                            <span class="text-xl font-black text-blue-400">${totalPendingDebt} €</span>
+                            <span class="text-xs font-black uppercase tracking-widest text-slate-400">Total ${window.todayFilterMode === 'paid' ? 'Cobrado' : 'Pendiente'} (Hoy):</span>
+                            <span class="text-xl font-black ${window.todayFilterMode === 'paid' ? 'text-emerald-400' : 'text-blue-400'}">${window.todayFilterMode === 'paid' ? visibleCount + ' Clientes' : visibleDebt + ' €'}</span>
                         </div>
                         ${pendingHtml}
                     `;
                 }
             } catch (e) {
                 console.error("FIREBASE ERROR:", e);
-                listEl.innerHTML = '<div class="p-8 text-center text-red-500 font-bold">Error de red al cargar deudas.</div>';
+                listEl.innerHTML = '<div class="p-8 text-center text-red-500 font-bold">Error de red al cargar perfiles.</div>';
             }
         }
     } else {
-        btnPending.className = 'px-4 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow-sm transition-all flex items-center gap-1.5 ring-1 ring-amber-200';
-        btnAll.className = 'px-4 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all';
+        btnGlobal.className = 'px-4 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow-sm transition-all flex items-center gap-1.5 ring-1 ring-amber-200';
+        subnav.classList.add('hidden');
         
         listEl.innerHTML = '<div class="p-10 text-center text-slate-500 font-bold flex flex-col items-center"><svg class="animate-spin h-8 w-8 text-amber-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Buscando deudas globales...</div>';
         
@@ -900,14 +952,14 @@ window.switchTodayTab = async function(tabId) {
                 });
             }
 
-            debtors.sort((a,b) => a.nombre.localeCompare(b.nombre)); // Sort alphabetically
+            debtors.sort((a,b) => window.todaySortMode === 'asc' ? a.nombre.localeCompare(b.nombre) : b.nombre.localeCompare(a.nombre));
 
             debtors.forEach(d => {
                 const divesStr = d.divesList.join(' • ');
                 let isSel = window.activeJointSelection && window.activeJointSelection.find(x => x.dni === d.dni);
                 let avatarHtml = isSel ? 
-                    `<div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center transition-colors shadow-inner cursor-pointer" onclick="toggleDiverJointSelection(this, '${d.dni}', '${d.nombre.replace(/'/g, "\\'")}', '${d.debt}')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
-                    `<div class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-amber-100 hover:text-amber-600 flex items-center justify-center transition-colors shadow-inner cursor-pointer" onclick="toggleDiverJointSelection(this, '${d.dni}', '${d.nombre.replace(/'/g, "\\'")}', '${d.debt}')"><span class="font-black text-xs">€</span></div>`;
+                    `<div class="w-6 h-6 mx-auto rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner cursor-pointer" onclick="toggleDiverJointSelection(this, '${d.dni}', '${d.nombre.replace(/'/g, "\\'")}', '${d.debt}')"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
+                    `<div class="w-6 h-6 mx-auto rounded-full bg-slate-100 text-slate-400 border border-slate-200 group hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500 flex items-center justify-center transition-all shadow-inner cursor-pointer" onclick="toggleDiverJointSelection(this, '${d.dni}', '${d.nombre.replace(/'/g, "\\'")}', '${d.debt}')"><svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
 
                 pendingHtml += `
                 <div class="flex justify-between items-center p-3 border-b border-slate-100 transition-colors group relative hover:bg-amber-50">
@@ -979,7 +1031,7 @@ window.openTodayDiversModal = function(isNavBackForward = false) {
     });
     
     window.currentTodayDiversData = Array.from(uniqueDivers.values());
-    switchTodayTab('all');
+    switchTodayTab('today');
 
     document.getElementById('today-divers-modal').classList.remove('hidden');
     document.getElementById('global-diver-search').value = '';
@@ -1261,12 +1313,12 @@ window.toggleDiverJointSelection = function(el, dni, nombre, debt) {
     let idx = window.activeJointSelection.findIndex(x => x.dni === dni);
     if(idx > -1) {
         window.activeJointSelection.splice(idx, 1);
-        el.className = 'w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-amber-100 hover:text-amber-600 flex items-center justify-center transition-colors shadow-inner cursor-pointer';
-        el.innerHTML = '<span class="font-black text-xs">€</span>';
+        el.className = 'w-6 h-6 mx-auto rounded-full bg-slate-100 text-slate-400 border border-slate-200 group hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500 flex items-center justify-center transition-all shadow-inner cursor-pointer';
+        el.innerHTML = '<svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>';
     } else {
         window.activeJointSelection.push({ dni, nombre, debt: parseFloat(debt) });
-        el.className = 'w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center transition-colors shadow-inner cursor-pointer';
-        el.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>';
+        el.className = 'w-6 h-6 mx-auto rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner cursor-pointer';
+        el.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>';
     }
     
     updateJointCheckoutBar();
@@ -1512,45 +1564,84 @@ window.liquidarFacturaActual = async function() {
     window.showAppConfirm("¿Confirmas que este documento está cobrado? Esto marcará todas sus inmersiones como completadas.", async () => {
         const btn = document.getElementById('btn-factura-liquidar');
         const originalHtml = btn.innerHTML;
-        btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Procesando...`;
-        btn.classList.add('opacity-50', 'pointer-events-none');
+        // 🌟 0ms INSTANT SUPER-FAST UI FEEDBACK 🌟
+        // Uncouple state immediately
+        const modalRefIds = window.currentJointFacturaRefs ? [...window.currentJointFacturaRefs] : [];
+        const activeDocs = window.activeFichaPendingDocs ? [...window.activeFichaPendingDocs] : [];
+        const currentType = window.currentFacturaType;
+        const currentSelection = window.activeJointSelection ? [...window.activeJointSelection] : [];
+        const currentFicha = window.activeFichaDni;
+        const profileEl = document.getElementById('profile-modal-name') ? document.getElementById('profile-modal-name').innerText : '';
+        const todayModalOpen = document.getElementById('today-divers-modal').classList.contains('hidden') === false;
+        const activeTab = document.getElementById('tab-today-pending')?.classList.contains('bg-white') ? 'pending' : 'all';
+
+        // 1. INSTANT UX MUTATION
+        closeFacturaModal();
+        showToast("✅ Documento liquidado correctamente.");
         
-        try {
-            if (window.currentFacturaType === 'joint' && window.currentJointFacturaRefs) {
-                // Batch update the group invoice logic directly
-                const batchPromises = window.currentJointFacturaRefs.map(ref => ref.update({ paymentStatus: 'paid' }));
-                await Promise.all(batchPromises);
-                
-                // Clear any leftover deposit (since entire debt was fully collected in a joint pool)
-                const depositPromises = window.activeJointSelection.map(c => db.collection('mangamar_customers').doc(c.dni).update({ deposit: 0 }));
-                await Promise.all(depositPromises);
-                
-                window.activeJointSelection = [];
-            } else if (window.currentFacturaType === 'individual' && window.activeFichaDni && window.activeFichaPendingDocs) {
-                const batchPromises = window.activeFichaPendingDocs.map(docId => db.collection('mangamar_customers').doc(window.activeFichaDni).collection('history').doc(docId).update({ paymentStatus: 'paid' }));
-                await Promise.all(batchPromises);
-                await db.collection('mangamar_customers').doc(window.activeFichaDni).update({ deposit: 0 });
+        if (todayModalOpen) {
+            // Optimistically delete the rows from the Dia de Hoy list instantly!
+            const listRoot = document.getElementById('today-divers-list');
+            if (listRoot) {
+                currentSelection.forEach(c => {
+                    // Iterate direct children divs of listRoot
+                    Array.from(listRoot.children).forEach(div => {
+                        if (div.innerHTML.includes(c.dni)) {
+                            div.classList.add('opacity-0', 'transition-all', 'duration-300', 'scale-95');
+                            setTimeout(() => div.remove(), 300);
+                        }
+                    });
+                });
             }
-            
-            showToast("Documento liquidado y archivado correctamente.", "success");
-            closeFacturaModal();
-            
-            // Refresh underlying background UI dynamically
-            if (document.getElementById('today-divers-modal').classList.contains('hidden') === false) {
-                const activeTab = document.getElementById('tab-today-pending').classList.contains('bg-white') ? 'pending' : 'all';
-                switchTodayTab(activeTab);
-                updateJointCheckoutBar();
-            } else if (window.activeFichaDni) {
-                openCustomerProfile(window.activeFichaDni, document.getElementById('profile-modal-name').innerText); // Reload user specifically
-            }
-            
-        } catch(e) {
-            console.error(e);
-            showToast("Error al liquidar el documento.");
-        } finally {
-            btn.innerHTML = originalHtml;
-            btn.classList.remove('opacity-50', 'pointer-events-none');
+            window.activeJointSelection = [];
+            updateJointCheckoutBar();
+        } else if (currentFicha) {
+            window.activeFichaPendingDocs = [];
+            openCustomerProfile(currentFicha, profileEl); 
         }
+
+        // 2. BACKGROUND DATABASE SYNC
+        (async () => {
+            try {
+                if (currentType === 'joint' && modalRefIds.length > 0) {
+                    const batch = db.batch();
+                    modalRefIds.forEach(ref => {
+                        batch.update(ref, { paymentStatus: 'paid' });
+                    });
+                    await batch.commit();
+                    
+                    let masterChanged = false;
+                    currentSelection.forEach(c => {
+                        let cxIdx = customerDatabase.findIndex(cust => cust.dni === c.dni);
+                        if(cxIdx !== -1) { customerDatabase[cxIdx].deposit = 0; masterChanged = true; }
+                    });
+                    if (masterChanged) {
+                        await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                    }
+                } else if (currentType === 'individual' && currentFicha && activeDocs.length > 0) {
+                    const batch = db.batch();
+                    activeDocs.forEach(docId => {
+                        const ref = db.collection('mangamar_customers').doc(currentFicha).collection('history').doc(docId);
+                        batch.update(ref, { paymentStatus: 'paid' });
+                    });
+                    await batch.commit();
+                    
+                    let cxIdx = customerDatabase.findIndex(cust => cust.dni === currentFicha);
+                    if(cxIdx !== -1) { 
+                        customerDatabase[cxIdx].deposit = 0; 
+                        await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                    }
+                }
+                
+                // Refresh final background integrity safely AFTER Firebase digests the commit
+                if (todayModalOpen) {
+                    switchTodayTab(activeTab);
+                } 
+            } catch(e) {
+                console.error("Delayed checkout failed:", e);
+                showToast("Fallo de red transparente.", "error");
+            }
+        })();
     });
 };
 
@@ -1935,4 +2026,242 @@ window.executeDeleteCustomer = async function() {
         btn.disabled = false;
         document.getElementById('delete-customer-modal-content').classList.add('scale-95', 'opacity-0');
     }
+};
+
+// ==========================================
+// 1X. HISTORIAL MULTI-SELECT Bulk Actions
+// ==========================================
+
+window.activeHistorialSelection = [];
+
+window.historialClearSelection = function() {
+    window.activeHistorialSelection = [];
+    window.updateHistorialActionBar();
+    if(document.getElementById('historial-select-all-btn')) {
+        document.getElementById('historial-select-all-btn').innerHTML = '<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>';
+        document.getElementById('historial-select-all-btn').classList.remove('bg-blue-500', 'text-white');
+        document.getElementById('historial-select-all-btn').classList.add('bg-slate-200');
+    }
+};
+
+window.toggleHistorialRowSelection = function(el, docId, dni, total, status, monthKey) {
+    if (!window.activeHistorialSelection) window.activeHistorialSelection = [];
+    let idx = window.activeHistorialSelection.findIndex(x => x.docId === docId);
+    
+    // Find the enclosing check badge wrapper
+    const badge = el.querySelector('div.w-6');
+    if (!badge) return;
+    
+    if (idx > -1) {
+        window.activeHistorialSelection.splice(idx, 1);
+        badge.className = 'w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 flex items-center justify-center transition-colors shadow-inner';
+        badge.innerHTML = '<svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>';
+    } else {
+        window.activeHistorialSelection.push({ docId, dni, total: parseFloat(total), status, monthKey });
+        badge.className = 'w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner';
+        badge.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>';
+    }
+    
+    window.updateHistorialActionBar();
+};
+
+window.updateHistorialActionBar = function() {
+    const bar = document.getElementById('historial-action-bar');
+    if (!bar) return;
+    
+    if (!window.activeHistorialSelection || window.activeHistorialSelection.length === 0) {
+        bar.classList.add('hidden');
+        return;
+    }
+    
+    let total = 0;
+    window.activeHistorialSelection.forEach(item => {
+        total += item.total;
+    });
+    
+    bar.classList.remove('hidden');
+    document.getElementById('historial-action-count').innerText = `${window.activeHistorialSelection.length} seleccionado${window.activeHistorialSelection.length > 1 ? 's' : ''}`;
+    document.getElementById('historial-action-total').innerText = `${total.toFixed(2)} €`;
+    
+    // Update select-all button state loosely
+    const tbody = document.getElementById('profile-history-list');
+    const validRows = tbody.querySelectorAll('tr[data-doc-id]');
+    const selectAllBtn = document.getElementById('historial-select-all-btn');
+    if(selectAllBtn && validRows.length > 0) {
+        if(window.activeHistorialSelection.length === validRows.length) {
+            selectAllBtn.innerHTML = '<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>';
+            selectAllBtn.classList.remove('bg-slate-200');
+            selectAllBtn.classList.add('bg-blue-500', 'text-white');
+        } else {
+            selectAllBtn.innerHTML = '<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>';
+            selectAllBtn.classList.remove('bg-blue-500', 'text-white');
+            selectAllBtn.classList.add('bg-slate-200');
+        }
+    }
+};
+
+window.historialToggleSelectAll = function() {
+    const tbody = document.getElementById('profile-history-list');
+    const rows = tbody.querySelectorAll('tr[data-doc-id]'); // that filters out the generic footer sum rows!
+    
+    if (!window.activeHistorialSelection) window.activeHistorialSelection = [];
+    
+    const isAllSelected = window.activeHistorialSelection.length > 0 && window.activeHistorialSelection.length === rows.length;
+    
+    if (isAllSelected) {
+        // Deselect all
+        historialClearSelection();
+        // Reset DOM natively to clear state instantly
+        rows.forEach(r => {
+            const el = r.querySelector('td:first-child');
+            if(!el) return;
+            const badge = el.querySelector('div.w-6');
+            if(badge) {
+                badge.className = 'w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 flex items-center justify-center transition-colors shadow-inner';
+                badge.innerHTML = '<svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>';
+            }
+        });
+    } else {
+        // Select all
+        window.activeHistorialSelection = [];
+        rows.forEach(r => {
+            const docId = r.getAttribute('data-doc-id');
+            // We unfortunately don't have the DNI, Total, etc. cleanly available directly in the DOM state here without re-parsing,
+            // EXCEPT if we simulate clicks!
+            const el = r.querySelector('td:first-child');
+            if(el) {
+                // If the badge is not already selected (blue), click it! Or just re-build the array.
+                // Re-parsing is safer. We have window.activeFichaDives!
+                const matched = window.activeFichaDives.find(d => d.doc.id === docId);
+                if(matched) {
+                    window.activeHistorialSelection.push({ docId: matched.doc.id, dni: window.activeFichaDni, total: matched.p.total, status: matched.data.paymentStatus, monthKey: matched.data.date.substring(0, 7) });
+                    const badge = el.querySelector('div.w-6');
+                    if(badge) {
+                        badge.className = 'w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner';
+                        badge.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>';
+                    }
+                }
+            }
+        });
+        window.updateHistorialActionBar();
+    }
+};
+
+window.historialBulkPay = async function() {
+    if (!window.activeHistorialSelection || window.activeHistorialSelection.length === 0) return;
+    
+    // Filter to only those pending
+    const itemsToPay = window.activeHistorialSelection.filter(item => item.status === 'pending');
+    if (itemsToPay.length === 0) {
+        showToast("Todo está pagado");
+        return;
+    }
+    
+    showAppConfirm(`¿Marcar las ${itemsToPay.length} inmersiones seleccionadas como pagadas?`, async () => {
+        try {
+            const batch = db.batch();
+            itemsToPay.forEach(item => {
+                const ref = db.collection('mangamar_customers').doc(item.dni).collection('history').doc(item.docId);
+                batch.update(ref, { paymentStatus: 'paid' });
+            });
+            await batch.commit();
+            showToast("✅ Marcados como pagado");
+            
+            // Reload the profile silently!
+            const nombre = document.getElementById('profile-modal-name').innerText;
+            openCustomerProfile(window.activeFichaDni, nombre, false, 'historial');
+            closeAppConfirm();
+        } catch(e) {
+            console.error(e);
+            showAppAlert("Error al actualizar estados.");
+        }
+    });
+};
+
+window.historialBulkMarkPending = async function() {
+    if (!window.activeHistorialSelection || window.activeHistorialSelection.length === 0) return;
+    
+    // Filter to only those paid
+    const itemsToUnpay = window.activeHistorialSelection.filter(item => item.status === 'paid');
+    if (itemsToUnpay.length === 0) return;
+    
+    showAppConfirm(`¿Marcar las ${itemsToUnpay.length} inmersiones seleccionadas de nuevo a pendiente?`, async () => {
+        try {
+            const batch = db.batch();
+            itemsToUnpay.forEach(item => {
+                const ref = db.collection('mangamar_customers').doc(item.dni).collection('history').doc(item.docId);
+                batch.update(ref, { paymentStatus: 'pending' });
+            });
+            await batch.commit();
+            showToast("⚠️ Marcados de nuevo como pendiente");
+            
+            // Reload the profile silently!
+            const nombre = document.getElementById('profile-modal-name').innerText;
+            openCustomerProfile(window.activeFichaDni, nombre, false, 'historial');
+            closeAppConfirm();
+        } catch(e) {
+            console.error(e);
+            showAppAlert("Error al actualizar estados.");
+        }
+    });
+};
+
+window.historialBulkDelete = async function() {
+    if (!window.activeHistorialSelection || window.activeHistorialSelection.length === 0) return;
+    
+    const items = window.activeHistorialSelection;
+    
+    showAppConfirm(`⚠️ ATENCIÓN: ¿Anular ${items.length} registro(s) seleccionado(s) permanentemente?\n\nEsto borrará todos los cobros seleccionados de la ficha Y SACARÁ FÍSICAMENTE a la persona de esos marcos en el calendario.`, async () => {
+        try {
+            showToast("⏳ Eliminando registros, por favor espera...");
+            const dni = items[0].dni;
+            
+            // Collect all unique months we need to touch in `mangamar_monthly`
+            const updatesByMonth = {};
+            
+            for (const item of items) {
+                // Delete from Customer history subcollection natively via await inline to avoid complex batch limits if doing tons
+                await db.collection('mangamar_customers').doc(dni).collection('history').doc(item.docId).delete();
+                
+                // Find trip in the global array to pluck it
+                const trip = internalTrips.find(t => t.id === item.docId);
+                if(trip) {
+                    if (!updatesByMonth[item.monthKey]) updatesByMonth[item.monthKey] = {};
+                    let clonedTrip = JSON.parse(JSON.stringify(trip));
+                    if (clonedTrip.groups) clonedTrip.groups.forEach(g => {
+                        if (g.guests) g.guests = g.guests.filter(guest => guest.dni !== dni);
+                    });
+                    if (clonedTrip.guests) clonedTrip.guests = clonedTrip.guests.filter(guest => guest.dni !== dni);
+                    
+                    updatesByMonth[item.monthKey][`allocations.${item.docId}`] = clonedTrip;
+                }
+            }
+            
+            // Exectute all monthly manifest updates
+            const monthKeys = Object.keys(updatesByMonth);
+            if(monthKeys.length > 0) {
+                const batch = db.batch();
+                monthKeys.forEach(mk => {
+                    batch.update(db.collection('mangamar_monthly').doc(mk), updatesByMonth[mk]);
+                });
+                await batch.commit();
+            }
+            
+            if (window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(dni);
+            
+            showToast("✅ Eliminados con éxito");
+            
+            // Reload the profile silently!
+            const nombre = document.getElementById('profile-modal-name').innerText;
+            openCustomerProfile(window.activeFichaDni, nombre, false, 'historial');
+            closeAppConfirm();
+            
+            if(!document.getElementById('today-divers-modal').classList.contains('hidden')) {
+                openTodayDiversModal(); 
+            }
+        } catch(e) {
+            console.error(e);
+            showAppAlert("Error al eliminar los registros conjuntamente.");
+        }
+    });
 };
