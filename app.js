@@ -1,3 +1,5 @@
+console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
+
 // ==========================================
 // 1. INITIALIZATION & NAVIGATION
 // ==========================================
@@ -319,16 +321,21 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     if(!previewHtml || guestCount === 0) previewHtml = `<div class="text-[10px] text-slate-400 italic text-center">Sin grupos</div>`;
 
     const topBarColor = siteColorConfig.split(' ')[0] || 'bg-slate-200';
-    const capacity = boatId === 'shore' ? '-' : 12;
+    const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.plazas) || parseInt(trip.pax) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 12));
+    const capacity = boatId === 'shore' ? '-' : capacityNum;
     
     col.draggable = true;
     col.ondragstart = (e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', trip.id); };
 
     let capName = trip.captain || 'Sin Asignar';
     let isShore = boatId === 'shore';
-    let capacityNum = 12; 
     let percent = isShore ? 0 : Math.min(100, Math.round((guestCount / capacityNum) * 100));
-    let barColor = guestCount >= 12 ? 'bg-red-500' : (guestCount >= 10 ? 'bg-amber-400' : 'bg-blue-500');
+    
+    let barColor = 'bg-blue-500';
+    if (!isShore) {
+        if (guestCount >= capacityNum) barColor = 'bg-red-500';
+        else if (guestCount >= capacityNum - 2) barColor = 'bg-amber-400';
+    }
 
     let cardBaseClass = isConflict ? "bg-red-50 border-red-500 shadow-md border-2" : "bg-white border-slate-200 shadow-sm border hover:shadow-md hover:border-blue-300";
     
@@ -346,16 +353,15 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         ${isConflict ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
         <div class="h-1.5 w-full shrink-0 ${topBarColor}"></div> 
         <div class="p-2.5 flex-1 flex flex-col justify-between overflow-hidden gap-1">
-            
             <div class="flex items-center gap-1.5 overflow-hidden min-w-0 shrink-0 w-full">
                 <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${siteColorConfig} truncate leading-tight shrink-0 max-w-[70%]">${trip.site || 'Sin Destino'}</span>
                 ${hasVisorTag ? `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>` : ''}
             </div>
 
             <div class="flex-1 flex flex-col justify-center min-w-0 w-full px-0.5">
-                <div class="text-[9px] truncate">
+                ${isShore ? '' : `<div class="text-[9px] truncate">
                     <span class="font-bold text-slate-400">Cap:</span> <span class="font-bold text-slate-700">${capName}</span>
-                </div>
+                </div>`}
                 <div class="text-[9px] truncate">
                     <span class="font-bold text-slate-400">Guía:</span> <span class="font-bold text-slate-700">${guideNames}</span>
                 </div>
@@ -363,7 +369,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
             <div class="mt-auto flex flex-col gap-1 w-full shrink-0">
                 <div class="flex justify-between items-end px-0.5">
-                    <span class="text-[10px] font-black ${guestCount >= 12 ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum}</span>
+                    <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum}</span>
                 </div>
                 ${!isShore ? `
                 <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -558,6 +564,60 @@ window.toggleAuthDropdown = function() {
     if(dd) dd.classList.toggle('hidden');
 };
 
+
 document.addEventListener('DOMContentLoaded', () => {
     window.checkSessionOnLoad();
 });
+
+// Admin Tools
+window.openResyncPrompt = function() {
+    const input = document.getElementById('resync-date-input');
+    input.value = currentDate; // Default to currently viewed date
+    document.getElementById('resync-modal').classList.remove('hidden');
+};
+
+window.submitResync = async function() {
+    const dateInput = document.getElementById('resync-date-input').value;
+    if (!dateInput) {
+        showAppAlert("Por favor, selecciona una fecha.");
+        return;
+    }
+
+    try {
+        const monthKey = dateInput.substring(0, 7);
+        const internalRef = db.collection('mangamar_monthly').doc(monthKey);
+        const docSnap = await internalRef.get();
+        
+        let restoredCount = 0;
+        let updateBatch = {};
+
+        if (docSnap.exists) {
+            const allocations = docSnap.data().allocations || {};
+            for (const id in allocations) {
+                if (allocations[id]._deleted) {
+                    // Check if the original Visor trip is scheduled for the selected date
+                    const masterTrip = visorTrips.find(v => v.id === id);
+                    if (masterTrip && masterTrip.date === dateInput) {
+                        updateBatch[`allocations.${id}`] = firebase.firestore.FieldValue.delete();
+                        restoredCount++;
+                    } else if (!masterTrip) {
+                        // If it's a completely orphaned tombstone (Visor deleted it entirely), clean it up too
+                        updateBatch[`allocations.${id}`] = firebase.firestore.FieldValue.delete();
+                    }
+                }
+            }
+        }
+
+        if (restoredCount > 0) {
+            await internalRef.update(updateBatch);
+            showToast(`✅ ¡Hecho! ${restoredCount} salidas del Visor restauradas para el ${dateInput}.`);
+        } else {
+            showToast(`ℹ️ No se encontraron salidas borradas para el ${dateInput}.`);
+        }
+        
+        document.getElementById('resync-modal').classList.add('hidden');
+    } catch (e) {
+        console.error("Error resyncing:", e);
+        showAppAlert("Error al intentar restaurar las salidas.");
+    }
+};

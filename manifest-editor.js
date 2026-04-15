@@ -39,8 +39,7 @@ function openManageBoatModal(trip, boatId, time, dateStr, isNavBackForward = fal
     document.getElementById('input-time').disabled = activeBoatItem.isVisor; // Bloquear hora si viene del Visor
     
     const delBtn = document.getElementById('btn-delete-boat');
-    if (activeBoatItem.isVisor && !activeBoatItem.isVisorEdited) delBtn.classList.add('hidden');
-    else delBtn.classList.remove('hidden');
+    delBtn.classList.remove('hidden'); // UNLOCK SUPERUSER DELETE FOR ALL TRIPS
 
     if (boatId === 'shore') {
         document.getElementById('destino-container').classList.add('hidden');
@@ -55,7 +54,18 @@ function openManageBoatModal(trip, boatId, time, dateStr, isNavBackForward = fal
         const siteSelect = document.getElementById('input-site');
         siteSelect.innerHTML = ALL_SITES.map(s => `<option value="${s}">${s}</option>`).join('');
         siteSelect.value = activeBoatItem.site || SITES_INTERNAL[0]; 
-        siteSelect.disabled = false; siteSelect.classList.remove('bg-slate-200', 'cursor-not-allowed', 'opacity-70');
+        
+        if (activeBoatItem.isVisor) {
+            siteSelect.disabled = true;
+            siteSelect.classList.add('bg-slate-200', 'cursor-not-allowed', 'opacity-70');
+            // Adding a small visual hint that it's controlled by Visor
+            siteSelect.title = "El punto de buceo está controlado por el Visor de la Reserva.";
+        } else {
+            siteSelect.disabled = false;
+            siteSelect.classList.remove('bg-slate-200', 'cursor-not-allowed', 'opacity-70');
+            siteSelect.title = "";
+        }
+        
         renderCaptainDropdown();
     }
     
@@ -83,7 +93,7 @@ function renderCaptainDropdown() {
     capContainer.innerHTML = `
         <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Capitán del Barco</label>
         <div class="flex gap-2">
-            <select id="input-captain" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-700 cursor-pointer" onchange="activeBoatItem.captain = this.value; renderCaptainDropdown();">
+            <select id="input-captain" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-700 cursor-pointer" onchange="activeBoatItem.captain = this.value; renderCaptainDropdown(); window.triggerAutoSave();">
                 <option value="">${window.isLoggedIn ? 'Seleccionar Capitán...' : 'Sin Asignar'}</option>
                 ${options}
             </select>
@@ -102,7 +112,8 @@ function closeManageBoatModal() { document.getElementById('manage-boat-modal').c
 
 function updateModalSubtitle() {
     let total = 0; activeBoatItem.groups.forEach(g => total += g.guests.length);
-    let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : '12 Plazas Ocupadas';
+    let capacityNum = parseInt(activeBoatItem.plazas) || parseInt(activeBoatItem.pax) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
+    let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : `${capacityNum} Plazas Ocupadas`;
     document.getElementById('modal-boat-subtitle').innerText = `${activeBoatItem.time} • ${total}/${capText}`;
 }
 
@@ -892,6 +903,7 @@ async function saveBoatData() {
                 coursePrice: gst.coursePrice || 0,    
                 hasBono: gst.hasBono || false,
                 paymentStatus: persistentState,
+                certStatus: (gst.course || gst.baseCourse) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
                 timestamp: firebase.firestore.FieldValue.serverTimestamp() 
             }, { merge: true });
             historyWrites++;
@@ -916,24 +928,45 @@ async function saveBoatData() {
     }
 }
 
+// Full manual save override with UI state management
+window.manualSaveBoatData = async function() {
+    if (!activeBoatItem) return;
+    const btn = document.getElementById('btn-manual-save');
+    const originalContent = btn.innerHTML;
+    
+    try {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
+        
+        await saveBoatData();
+        
+        btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg> Guardado`;
+        
+        setTimeout(() => {
+            closeManageBoatModal();
+            showToast("✅ Salida guardada con éxito");
+        }, 300);
+        
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+        showAppAlert("No se pudo guardar la salida. Comprueba tu conexión.");
+    }
+}
+
 function deleteBoatData() {
     if(!window.isLoggedIn) return;
-    if(!activeBoatItem || (activeBoatItem.isVisor && !activeBoatItem.isVisorEdited)) return;
+    if(!activeBoatItem) return; // Allow deletion of all trips, including Visor trips
     document.getElementById('delete-confirm-modal').classList.remove('hidden');
 }
 
 async function confirmDeleteBoatData() {
     try {
-        const monthKey = activeBoatItem.date.substring(0, 7);
+        let originalTrip = mergedAllocations.find(t => t.id === activeBoatItem.id && t.isInternalTrip) || mergedAllocations.find(t => t.id === activeBoatItem.id);
+        const internalTargetMonth = originalTrip && originalTrip._sourceDocId ? originalTrip._sourceDocId : activeBoatItem.date.substring(0, 7);
         
-        // 1. Wipe ghost history for anyone currently assigned to this deleted boat
         const historyBatch = db.batch();
         let historyWrites = 0;
-        
-        // CRITICAL FIX: Look at the internal shadow trip, not the empty Visor trip
-        let originalTrip = mergedAllocations.find(t => t.id === activeBoatItem.id && t.isInternalTrip);
-        if (!originalTrip) originalTrip = mergedAllocations.find(t => t.id === activeBoatItem.id);
-        
         if (originalTrip && originalTrip.guests) {
             originalTrip.guests.forEach(g => {
                 if (g.dni) {
@@ -943,11 +976,21 @@ async function confirmDeleteBoatData() {
                 }
             });
         }
+        let mainUpdate;
+        if (activeBoatItem.isVisor) {
+            // SOFT DELETE IN INTERNAL DB: Place a tombstone so firebase-service knows to hide it
+            mainUpdate = db.collection(INTERNAL_DB).doc(internalTargetMonth).set(
+                { allocations: { [activeBoatItem.id]: { _deleted: true } } }, 
+                { merge: true }
+            );
+        } else {
+            // HARD DELETE: Physically remove the internal key from the Firestore map
+            mainUpdate = db.collection(INTERNAL_DB).doc(internalTargetMonth).update({
+                [`allocations.${activeBoatItem.id}`]: firebase.firestore.FieldValue.delete()
+            });
+        }
         
-        // 2. Delete boat from schedule
-        const mainUpdate = db.collection(INTERNAL_DB).doc(monthKey).update({ [`allocations.${activeBoatItem.id}`]: firebase.firestore.FieldValue.delete() });
-        
-        // Run both safely
+        // ENFORCE READ-ONLY: We no longer touch reservations_monthly ever.
         await Promise.all([mainUpdate, historyWrites > 0 ? historyBatch.commit() : Promise.resolve()]);
         
         // --- GARBAGE COLLECTOR TRIGGER ---
@@ -1222,6 +1265,7 @@ window.saveTitCourse = function() {
 
     document.getElementById('tit-popup').classList.add('hidden');
     renderGroups();
+    triggerAutoSave();
 };
 
 window.clearTitCourse = function() {
@@ -1237,4 +1281,5 @@ window.clearTitCourse = function() {
     
     document.getElementById('tit-popup').classList.add('hidden');
     renderGroups();
+    triggerAutoSave();
 };

@@ -36,7 +36,6 @@
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden font-sans">
-
     <header class="bg-orange-100/90 backdrop-blur-md text-slate-800 px-6 py-3 shadow-sm border-b border-orange-100 flex justify-between items-center z-50 shrink-0 sticky top-0">
         <div class="flex items-center gap-4 w-1/3">
             <div class="relative group cursor-pointer z-[100] auth-hide">
@@ -49,13 +48,26 @@
                 </div>
                 
                 <div class="absolute left-0 top-full mt-0 w-56 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                    <div class="bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden divide-y divide-slate-100 ring-1 ring-black/5">
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5">
                         <button onclick="openPriceModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Lista de Precios
                         </button>
-                        <button onclick="openTodayDiversModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> Día de Hoy
-                        </button>
+                        <div class="group/admin relative">
+                            <button class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-red-600 flex items-center gap-3 transition-colors justify-between">
+                                <span class="flex items-center gap-3"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Herramientas (Admin)</span>
+                                <svg class="w-4 h-4 text-slate-400 group-hover/admin:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg>
+                            </button>
+                            <div class="absolute left-full top-0 ml-2 w-56 opacity-0 invisible group-hover/admin:opacity-100 group-hover/admin:visible transition-all z-50">
+                                <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5">
+                                    <button onclick="debugClearAllDivers()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Test: Vaciar Salidas
+                                    </button>
+                                    <button onclick="openResyncPrompt()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Re-Sync Visor
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -139,10 +151,6 @@
                                 <svg class="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                                 Previsión Nitrox
                             </button>
-
-                    <button onclick="debugClearAllDivers()" class="w-full mt-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 shadow-sm auth-hide">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> TEST: Vaciar Salidas
-                    </button>
                 </div>
             </aside>
             <div class="flex-1 overflow-y-auto p-6">
@@ -335,6 +343,7 @@
                 <button id="btn-delete-boat" onclick="deleteBoatData()" class="px-4 py-3 rounded-lg text-sm font-bold text-red-500 bg-white border border-red-200 hover:bg-red-50 transition-colors shadow-sm hidden flex items-center gap-1 auth-hide"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Eliminar Salida</button>
                 <div class="flex gap-3 flex-1 justify-end">
                     <button onclick="closeManageBoatModal()" class="px-8 py-3 rounded-lg text-sm font-black text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm">Cerrar</button>
+                    <button id="btn-manual-save" onclick="manualSaveBoatData()" class="px-8 py-3 rounded-lg text-sm font-black text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-md active:scale-95 flex items-center gap-2">Guardar y Cerrar</button>
                 </div>
             </div>
         </div>
@@ -977,12 +986,18 @@
                         <div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
                             <button onclick="switchTodayTab('today')" id="tab-primary-today" class="px-4 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow-sm transition-all">Clientes Hoy</button>
                             <button onclick="switchTodayTab('global')" id="tab-primary-global" class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Todos los Clientes</button>
+                            <button onclick="switchTodayTab('certs')" id="tab-primary-certs" class="px-4 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-pink-500"></span> Certificaciones</button>
                         </div>
                     </div>
                     <!-- Sub-filter just for Clientes Hoy -->
                     <div id="subnav-today" class="flex gap-2 self-end mt-1">
                         <button onclick="setTodayFilter('pending')" id="sub-filter-pending" class="px-3 py-1 text-[10px] font-black rounded-lg border border-amber-200 bg-amber-50 text-amber-700 tracking-wider shadow-sm transition-all">PENDIENTES</button>
                         <button onclick="setTodayFilter('paid')" id="sub-filter-paid" class="px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-emerald-600 transition-all tracking-wider">PAGADOS</button>
+                    </div>
+                    <!-- Sub-filter just for Certificaciones -->
+                    <div id="subnav-certs" class="flex gap-2 self-end mt-1 hidden">
+                        <button onclick="setCertsFilter('pendiente')" id="sub-filter-certs-pending" class="px-3 py-1 text-[10px] font-black rounded-lg border border-pink-200 bg-pink-50 text-pink-700 tracking-wider shadow-sm transition-all">PENDIENTES</button>
+                        <button onclick="setCertsFilter('procesado')" id="sub-filter-certs-processed" class="px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-emerald-600 transition-all tracking-wider">PROCESADOS</button>
                     </div>
                 </div>
                 <div id="today-divers-list" class="divide-y divide-slate-100 flex-1 overflow-y-auto"></div>
@@ -1043,17 +1058,17 @@
     </div>
 </div>
 
-    <script src="config.js"></script>
-    <script src="state.js"></script>
-    <script src="firebase-service.js"></script>
-    <script src="utils.js"></script>
-    <script src="whatsapp-exporter.js"></script>
-    <script src="tv-board.js"></script>
-    <script src="staff-manager.js"></script>
-    <script src="pricing-engine.js"></script>
-    <script src="crm-engine.js"></script>
-    <script src="manifest-editor.js"></script>
-    <script src="app.js"></script>
+    <script src="config.js?v=8"></script>
+    <script src="state.js?v=8"></script>
+    <script src="firebase-service.js?v=8"></script>
+    <script src="utils.js?v=8"></script>
+    <script src="whatsapp-exporter.js?v=8"></script>
+    <script src="tv-board.js?v=8"></script>
+    <script src="staff-manager.js?v=8"></script>
+    <script src="pricing-engine.js?v=8"></script>
+    <script src="crm-engine.js?v=8"></script>
+    <script src="manifest-editor.js?v=8"></script>
+    <script src="app.js?v=8"></script>
 
     <div id="whatsapp-export-modal" onclick="if(event.target===this) document.getElementById('whatsapp-export-modal').classList.add('hidden')" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 cursor-pointer">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 overflow-hidden flex flex-col h-[85vh]">
@@ -1448,6 +1463,27 @@
             <div class="flex gap-3 mt-8">
                 <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="flex-1 py-3 bg-slate-50 text-slate-700 rounded-xl font-bold hover:bg-slate-100 transition-all border border-slate-200">Cancelar</button>
                 <button onclick="attemptLogin()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Re-Sync Visor Modal -->
+    <div id="resync-modal" class="fixed inset-0 z-[600] hidden bg-slate-900/80 backdrop-blur-sm p-4 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center border border-slate-200">
+            <svg class="w-12 h-12 mx-auto text-blue-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            <h3 class="text-2xl font-black text-slate-800 mb-2">Re-Sync Visor</h3>
+            <p class="text-sm text-slate-500 mb-6 font-medium">Selecciona una fecha para restaurar salidas del Visor que hayan sido borradas localmente.</p>
+            
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-black text-slate-700 mb-1">Fecha a Restaurar</label>
+                    <input type="date" id="resync-date-input" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase">
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-8">
+                <button onclick="document.getElementById('resync-modal').classList.add('hidden')" class="flex-1 py-3 bg-slate-50 text-slate-700 rounded-xl font-bold hover:bg-slate-100 transition-all border border-slate-200">Cancelar</button>
+                <button onclick="submitResync()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md">Restaurar</button>
             </div>
         </div>
     </div>

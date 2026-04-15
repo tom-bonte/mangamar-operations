@@ -12,6 +12,9 @@ const db = firebase.firestore();
 let unsubscribeVisor = null;
 let unsubscribeInternal = null;
 
+// We track internal tombstones here so the merge process can filter out Visor trips
+window.hiddenVisorTrips = new Set();
+
 const VISOR_DB = "reservations_monthly";
 const INTERNAL_DB = "mangamar_monthly";
 const MANGAMAR_CODE = "M"; // We only care about Mangamar's trips from the Visor
@@ -31,7 +34,14 @@ function startFirestoreListeners() {
             const monthData = doc.data().allocations || {};
             for (const id in monthData) {
                 if (monthData[id].center === MANGAMAR_CODE) {
-                    visorData.push({ id, ...monthData[id], isVisorTrip: true });
+                    if (monthData[id]._deleted) continue; // ENFORCE INVINNCIBLE SOFT DELETE FOR VISOR
+                    
+                    // --- 🛡️ MONTH-GUARD PROTECTION ---
+                    // Ignore trips that are mathematically 'marooned' in the wrong month folder
+                    const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
+                    if (tripMonth && tripMonth !== doc.id) continue;
+
+                    visorData.push({ id, ...monthData[id], isVisorTrip: true, _sourceDocId: doc.id });
                 }
             }
         });
@@ -42,11 +52,22 @@ function startFirestoreListeners() {
     // 2. INTERNAL DATABASE (TRIPS)
     unsubscribeInternal = db.collection(INTERNAL_DB).onSnapshot((snapshot) => {
         const internalData = [];
+        window.hiddenVisorTrips.clear();
         snapshot.forEach((doc) => {
             if (doc.id === 'setup' || doc.id === 'staff') return; // Ignore non-trip docs
             const monthData = doc.data().allocations || {};
             for (const id in monthData) {
-                internalData.push({ id, ...monthData[id], isInternalTrip: true });
+                if (monthData[id]._deleted) {
+                    window.hiddenVisorTrips.add(id); // Track tombstone
+                    continue; // ENFORCE INVINNCIBLE SOFT DELETE
+                }
+                
+                // --- 🛡️ MONTH-GUARD PROTECTION ---
+                // Ignore trips that are mathematically 'marooned' in the wrong month folder
+                const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
+                if (tripMonth && tripMonth !== doc.id) continue;
+
+                internalData.push({ id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id });
             }
         });
         internalTrips = internalData;
@@ -85,9 +106,51 @@ function startFirestoreListeners() {
  * array so the UI can paint them seamlessly on Ares and Kaiser.
  */
 function mergeAndRender() {
-    // 1. Create a map of active Visor trips for quick lookup
-    const visorMap = new Map();
-    visorTrips.forEach(v => visorMap.set(v.id, v));
+    // Filter out Visor trips that have been hidden via internal tombstones
+    const visibleVisorTrips = visorTrips.filter(t => !window.hiddenVisorTrips.has(t.id));
+    
+    // 1. Convert Visor and Internal data to Maps for easy lookup
+    const visorMap = new Map(visibleVisorTrips.map(t => [t.id, t]));
+    const internalMap = new Map(internalTrips.map(t => [t.id, t]));
+
+    // --- NEW: AUTO-HEALING MIGRATION ---
+    // Detect orphaned Visor shadows (Internal has it, Visor doesn't). 
+    // We only want to heal 'boat_' prefixed IDs. Pure internal trips start with 'internal_' and must NOT be migrated.
+    const orphans = internalTrips.filter(t => t.id && t.id.startsWith('boat_') && !visorMap.has(t.id) && t.assignedBoat !== 'shore' && t.assignedBoat !== 'aula');
+    
+    orphans.forEach(orphan => {
+        // Detect if Visor just moved the site (Visor has a trip at same date/time)
+        const renamedVisorTrip = visorTrips.find(v => {
+            if (v.date !== orphan.date || v.time !== orphan.time) return false;
+            // Target is available if it has no shadow, or its shadow is completely empty
+            const shadow = internalMap.get(v.id);
+            return !shadow || !shadow.guests || shadow.guests.length === 0;
+        });
+        
+        if (renamedVisorTrip && !orphan._migrated) {
+            console.log("♻️ Auto-migrating renamed Visor trip!", orphan.id, "->", renamedVisorTrip.id);
+            orphan._migrated = true; // prevent re-triggering in same loop
+            
+            const monthKey = orphan.date.substring(0, 7);
+            const ref = db.collection(INTERNAL_DB).doc(monthKey);
+            
+            // Inherit the new site from the Visor
+            const updatedPayload = { ...orphan };
+            updatedPayload.site = renamedVisorTrip.site; 
+            
+            // Swift database rewrite: Delete old ID, Save to new ID
+            ref.update({
+                [`allocations.${renamedVisorTrip.id}`]: updatedPayload,
+                [`allocations.${orphan.id}`]: firebase.firestore.FieldValue.delete()
+            }).catch(e => console.error("Auto-migration failed:", e));
+            
+            // Instantly mutate in RAM so UI doesn't flicker
+            orphan.id = renamedVisorTrip.id;
+            orphan.site = renamedVisorTrip.site; // CRITICAL FIX: Make sure the local RAM immediately takes the new site name
+            visorMap.set(renamedVisorTrip.id, renamedVisorTrip);
+            internalMap.set(renamedVisorTrip.id, updatedPayload);
+        }
+    });
 
     // 2. Align Internal "shadow" trips with their Visor masters
     const alignedInternalTrips = internalTrips.map(internal => {
@@ -96,9 +159,9 @@ function mergeAndRender() {
             return {
                 ...internal,
                 date: visorMaster.date, // Force sync the date if Visor moved it
-                time: visorMaster.time  // Force sync the time if Visor moved it
-                // Note: We deliberately DO NOT sync the 'site', so Mangamar 
-                // retains the ability to internally override the dive destination!
+                time: visorMaster.time,  // Force sync the time if Visor moved it
+                plazas: visorMaster.pax, // FIX: Use 'pax' instead of 'plazas'
+                site: visorMaster.site   // FIX: Allow Visor to overwrite the site to reflect destination changes!
             };
         }
         return internal;
@@ -113,8 +176,20 @@ function mergeAndRender() {
         }).join(' ');
     };
 
+    // --- EFFECTIVE GARBAGE COLLECTION FIX FOR MAROONED PHANTOMS ---
+    alignedInternalTrips.forEach(t => {
+        const correctMonth = t.date ? t.date.substring(0, 7) : null;
+        // If a trip's actual date doesn't match the month document it lives in, it's an immortal marooned clone!
+        if (correctMonth && t._sourceDocId && correctMonth !== t._sourceDocId) {
+            console.log(`🧹 Vaporizing marooned clone ${t.id} from wrong document ${t._sourceDocId}`);
+            db.collection(INTERNAL_DB).doc(t._sourceDocId).update({
+                [`allocations.${t.id}`]: firebase.firestore.FieldValue.delete()
+            }).catch(e => console.error("Hard vaporization failed:", e));
+        }
+    });
+
     // 3. Combine both arrays and format ALL names to Title Case
-    mergedAllocations = [...visorTrips, ...alignedInternalTrips];
+    mergedAllocations = [...visibleVisorTrips, ...alignedInternalTrips];
     mergedAllocations.forEach(trip => {
         if (trip.guests) {
             trip.guests.forEach(g => { if (g.nombre) g.nombre = fixNameCaps(g.nombre); });
