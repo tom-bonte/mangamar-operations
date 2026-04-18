@@ -134,8 +134,37 @@ function startFirestoreListeners() {
             db.collection("mangamar_directory").doc("settings").set({ adminPassword: "manga321" });
         }
     });
-    
+    // 6. GLOBAL GROUPS (MULTI-DAY PERSISTENT GROUPS)
+    window.globalGroups = [];
+    db.collection("mangamar_groups").onSnapshot((snapshot) => {
+        const groups = [];
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.endDate && data.endDate < todayStr) {
+                // Background cleanup of expired groups
+                db.collection("mangamar_groups").doc(doc.id).delete()
+                  .catch(e => console.error("Auto-cleanup group error", e));
+            } else {
+                groups.push({ firebaseId: doc.id, ...data });
+            }
+        });
+        window.globalGroups = groups;
+    });
+
     // NOTE: The expensive mangamar_customers listener has been DELETED to protect your quota!
+}
+
+window.saveGlobalGroup = async function(groupData) {
+    if (!groupData.id) {
+        groupData.id = 'grp_' + Date.now();
+    }
+    try {
+        await db.collection("mangamar_groups").doc(groupData.id).set(groupData, { merge: true });
+    } catch (e) {
+        console.error("Error saving group to Firebase:", e);
+    }
 }
 
 /**

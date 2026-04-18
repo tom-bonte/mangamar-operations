@@ -4,7 +4,7 @@
 
 window.switchFichaTab = function (tabId) {
     // 1. Reset all buttons
-    ['historial', 'caja', 'resumen', 'ficha'].forEach(id => {
+    ['historial', 'pagos', 'caja', 'resumen', 'ficha'].forEach(id => {
         const btn = document.getElementById(`tab-btn-${id}`);
         if (btn) btn.className = 'pb-3 text-sm font-bold text-slate-500 border-b-[3px] border-transparent hover:text-slate-800 transition-all';
         const content = document.getElementById(`tab-content-${id}`);
@@ -16,9 +16,14 @@ window.switchFichaTab = function (tabId) {
 
     // 2. Activate selected
     const activeBtn = document.getElementById(`tab-btn-${tabId}`);
-    activeBtn.className = 'pb-3 text-sm font-black text-blue-600 border-b-[3px] border-blue-600 transition-all';
-    document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
-    document.getElementById(`tab-content-${tabId}`).classList.add('block');
+    if (activeBtn) activeBtn.className = 'pb-3 text-sm font-black text-blue-600 border-b-[3px] border-blue-600 transition-all';
+    
+    const targetTab = document.getElementById(`tab-content-${tabId}`);
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
+        if (tabId === 'factura') targetTab.classList.add('flex');
+        else targetTab.classList.add('block');
+    }
 
     // 3. Update nav history dynamically if current view is a user profile
     if (window.modalHistory && window.modalHistoryIndex >= 0) {
@@ -30,14 +35,19 @@ window.switchFichaTab = function (tabId) {
 };
 
 function calculateDivePrice(historyItem) {
-    let dive = 0, tasa = 0, gas = 0, rental = 0, insurance = 0;
+    if (historyItem.type === 'producto' || historyItem.type === 'servicio' || historyItem.type === 'pago') {
+        const val = parseFloat(historyItem.customPrice) || 0;
+        return { dive: 0, tasa: 0, gas: 0, rental: 0, insurance: 0, computer: 0, course: 0, custom: val, total: val };
+    }
+
+    let dive = 0, tasa = 0, gas = 0, rental = 0, insurance = 0, computer = 0;
 
     // 1. Dive Site Price (Split Tasa)
-    const site = historyItem.site;
+    const site = historyItem.site || '';
     if (['Cala', 'Shore', 'Aula'].includes(site)) dive = 40;
     else if (site === 'Naranjito') dive = 45;
     else if (site === 'Fuera') { dive = 50; tasa = 10; }
-    else { dive = 44; tasa = 5; } // Reserva Marina
+    else if (site) { dive = 44; tasa = 5; } // Reserva Marina
 
     if (historyItem.hasBono) dive = 0; // BONUS DEDUCTION
 
@@ -54,8 +64,14 @@ function calculateDivePrice(historyItem) {
     else if (historyItem.insurance === '1M') insurance = 24;
     else if (historyItem.insurance === '1Y') insurance = 45;
 
-    return { dive, tasa, gas, rental, insurance, total: dive + tasa + gas + rental + insurance };
+    // 5. Computer Rental (uses stored price or fallback)
+    if (historyItem.computer) {
+        computer = historyItem.computerPrice || 7;
+    }
+
+    return { dive, tasa, gas, rental, insurance, computer, course: 0, custom: 0, total: dive + tasa + gas + rental + insurance + computer };
 }
+window.calculateDivePrice = calculateDivePrice;
 
 // ==========================================
 // 8. GLOBAL SEARCH & TODAY'S DIVERS
@@ -88,24 +104,32 @@ function searchGlobalDivers(query) {
 
 // This function acts as a 2-way sync. It deletes the debt from the Ficha, 
 // AND reaches into the actual boat schedule to rip the diver out.
-window.deleteHistoryItem = async function (dni, boatId, monthKey) {
-    showAppConfirm("⚠️ ¿Estás seguro de que quieres anular este registro?\n\nEsto ELIMINARÁ el cobro de la ficha Y SACARÁ físicamente a esta persona del barco en el calendario.", async () => {
+window.deleteHistoryItem = async function (dni, boatId, monthKey, itemType = 'buceo') {
+    const isPago = itemType === 'pago';
+    const isProd = itemType === 'producto' || itemType === 'servicio';
+    const alertMsg = isPago ? 
+        "⚠️ ¿Estás seguro de que quieres anular este PAGO?\n\nEsto ajustará el balance del cliente y eliminará el registro de los ingresos." : 
+        (isProd ? "⚠️ ¿Estás seguro de que quieres anular este PRODUCTO/SERVICIO de la cuenta?" : "⚠️ ¿Estás seguro de que quieres anular este buceo?\n\nEsto ELIMINARÁ el cobro de la ficha Y SACARÁ físicamente a esta persona del barco en el calendario.");
+
+    showAppConfirm(alertMsg, async () => {
         try {
             // 1. Shred the receipt in the Ficha
             await db.collection('mangamar_customers').doc(dni).collection('history').doc(boatId).delete();
 
-            // 2. Rip them out of the physical boat in the calendar
-            const trip = internalTrips.find(t => t.id === boatId);
-            if (trip) {
-                let clonedTrip = JSON.parse(JSON.stringify(trip));
-                clonedTrip.groups.forEach(g => {
-                    g.guests = g.guests.filter(guest => guest.dni !== dni);
-                });
-                clonedTrip.guests = clonedTrip.guests.filter(guest => guest.dni !== dni);
+            // 2. ONLY rip them out of the physical boat if it was actually a boat trip
+            if (!isPago && !isProd) {
+                const trip = internalTrips.find(t => t.id === boatId);
+                if (trip) {
+                    let clonedTrip = JSON.parse(JSON.stringify(trip));
+                    clonedTrip.groups.forEach(g => {
+                        g.guests = g.guests.filter(guest => guest.dni !== dni);
+                    });
+                    clonedTrip.guests = clonedTrip.guests.filter(guest => guest.dni !== dni);
 
-                await db.collection('mangamar_monthly').doc(monthKey).update({
-                    [`allocations.${boatId}`]: clonedTrip
-                });
+                    await db.collection('mangamar_monthly').doc(monthKey).update({
+                        [`allocations.${boatId}`]: clonedTrip
+                    });
+                }
             }
 
             // --- GARBAGE COLLECTOR TRIGGER ---
@@ -113,37 +137,69 @@ window.deleteHistoryItem = async function (dni, boatId, monthKey) {
 
             // 3. Refresh the UI dynamically
             const nombre = document.getElementById('profile-modal-name').innerText;
-            openCustomerProfile(dni, nombre);
+            const contextLayer = document.getElementById('tab-content-caja').classList.contains('hidden') ? 
+                (document.getElementById('tab-content-pagos').classList.contains('hidden') ? 'historial' : 'pagos') : 'caja';
+            openCustomerProfile(dni, nombre, false, contextLayer);
 
             if (!document.getElementById('today-divers-modal').classList.contains('hidden')) {
                 openTodayDiversModal();
             }
 
-            showToast("Registro anulado y cliente eliminado del barco.");
+            showToast("Registro anulado con éxito.");
         } catch (e) {
             console.error(e);
-            showAppAlert("Error al eliminar el registro.");
+            showAppAlert("Error de conexión al eliminar.");
         }
     });
-}
+};
 
-// Global scrub that hits both the calendar arrays AND the customer Fichas
-window.debugClearAllDivers = async function () {
-    showAppConfirm("⚠️ TEST MODO DIOS: ¿VACIAR clientes de TODOS los barcos y BORRAR todos los historiales de cobro?", async () => {
+window.executeAdvancedWipe = async function () {
+    const wipeDivers = document.getElementById('wipe-opt-divers').checked;
+    const wipeTrips = document.getElementById('wipe-opt-trips').checked;
+    const wipeStaff = document.getElementById('wipe-opt-staff').checked;
+    const wipeGroups = document.getElementById('wipe-opt-groups').checked;
+
+    if (!wipeDivers && !wipeTrips && !wipeStaff && !wipeGroups) {
+        showAppAlert("No has seleccionado nada para borrar.");
+        return;
+    }
+
+    showAppConfirm("⚠️ ADVERTENCIA: Esta acción eliminará los datos seleccionados de forma irreversible de la base de datos.", async () => {
+        document.getElementById('debug-wipe-modal').classList.add('hidden');
         showToast("⏳ Purgando base de datos... (puede tardar unos segundos)");
 
-        // 1. Wipe all Calendar Boats
         const updatesByMonth = {};
-        internalTrips.forEach(t => {
-            const monthKey = t.date.substring(0, 7);
-            if (!updatesByMonth[monthKey]) updatesByMonth[monthKey] = {};
+        
+        if (wipeDivers || wipeTrips || wipeStaff) {
+            internalTrips.forEach(t => {
+                const monthKey = t.date.substring(0, 7);
+                if (!updatesByMonth[monthKey]) updatesByMonth[monthKey] = {};
 
-            const cloned = JSON.parse(JSON.stringify(t));
-            if (cloned.groups) cloned.groups.forEach(g => g.guests = []);
-            cloned.guests = [];
+                if (wipeTrips && !t.isVisor) {
+                    updatesByMonth[monthKey][`allocations.${t.id}`] = firebase.firestore.FieldValue.delete();
+                    return; // Skip further modifications for this trip because it's deleted
+                }
 
-            updatesByMonth[monthKey][`allocations.${t.id}`] = cloned;
-        });
+                const cloned = JSON.parse(JSON.stringify(t));
+                let modified = false;
+
+                if (wipeStaff) {
+                    cloned.captain = '';
+                    if (cloned.groups) cloned.groups.forEach(g => g.guide = '');
+                    modified = true;
+                }
+
+                if (wipeDivers) {
+                    if (cloned.groups) cloned.groups.forEach(g => g.guests = []);
+                    cloned.guests = [];
+                    modified = true;
+                }
+
+                if (modified) {
+                    updatesByMonth[monthKey][`allocations.${t.id}`] = cloned;
+                }
+            });
+        }
 
         try {
             const monthKeys = Object.keys(updatesByMonth);
@@ -151,176 +207,269 @@ window.debugClearAllDivers = async function () {
                 const batch = db.batch();
                 monthKeys.forEach(mk => {
                     const ref = db.collection('mangamar_monthly').doc(mk);
-                    batch.update(ref, updatesByMonth[mk]);
+                    if (Object.keys(updatesByMonth[mk]).length > 0) {
+                        batch.update(ref, updatesByMonth[mk]);
+                    }
                 });
                 await batch.commit();
             }
 
-            // 2. Aggressively wipe ALL Customer Fichas using collectionGroup
-            // This ensures NO ghost history docs survive, even if they aren't in the master directory
-            const allHistorySnap = await db.collectionGroup('history').get();
+            if (wipeDivers) {
+                const allHistorySnap = await db.collectionGroup('history').get();
+                const deletePromises = [];
+                allHistorySnap.forEach(hDoc => { deletePromises.push(hDoc.ref.delete()); });
+                await Promise.all(deletePromises);
+            }
 
-            const deletePromises = [];
-            allHistorySnap.forEach(hDoc => {
-                deletePromises.push(hDoc.ref.delete());
-            });
+            if (wipeGroups) {
+                const allGroupsSnap = await db.collection("mangamar_groups").get();
+                const groupDelPromises = [];
+                allGroupsSnap.forEach(gDoc => { groupDelPromises.push(gDoc.ref.delete()); });
+                await Promise.all(groupDelPromises);
+            }
 
-            await Promise.all(deletePromises);
-
-            showToast("✅ Barcos vaciados e historiales reseteados a 0€.");
-
-            // Force a complete refresh so that state.js memory Arrays don't accidentally hold onto old debt data
-            setTimeout(() => {
-                window.location.reload();
-            }, 800);
-
+            showToast("✅ Purga completada exitosamente.");
+            setTimeout(() => window.location.reload(), 1500);
         } catch (e) {
             console.error(e);
-            showAppAlert("Error al vaciar la base de datos.");
+            showAppAlert("Error al procesar la purga de la base de datos.");
         }
     });
-}
+};
 
 // ==========================================
 // 12. PAYMENT & PENDING ORDERS ENGINE
 // ==========================================
 
+window.activePaymentContext = null;
+
+window.promptPaymentGateway = function(dni, totalDebt, docIds, mode) {
+    window.activePaymentContext = {
+        dni, totalDebt, docIds, mode, originalDeposit: 0
+    };
+
+    const profile = customerDatabase.find(c => c.dni === dni);
+    if (profile && profile.deposit) {
+        window.activePaymentContext.originalDeposit = profile.deposit;
+    }
+
+    document.getElementById('payment-engine-amount').value = totalDebt;
+    document.getElementById('payment-engine-total-label').innerText = `${totalDebt}€`;
+    
+    // Reset inputs
+    document.querySelector('input[name="payMethod"][value="Tarjeta"]').checked = true;
+    document.getElementById('payment-engine-partial-label').classList.add('hidden');
+    
+    // Listener for partial payment UI
+    const amtInput = document.getElementById('payment-engine-amount');
+    amtInput.oninput = function() {
+        const val = parseFloat(this.value) || 0;
+        if (val < totalDebt) {
+            document.getElementById('payment-engine-partial-label').classList.remove('hidden');
+        } else {
+            document.getElementById('payment-engine-partial-label').classList.add('hidden');
+        }
+    };
+
+    // Show modal
+    const modal = document.getElementById('payment-engine-modal');
+    modal.classList.remove('hidden');
+    setTimeout(() => modal.classList.remove('opacity-0'), 10);
+};
+
+window.executePaymentGateway = async function() {
+    const ctx = window.activePaymentContext;
+    if (!ctx) return;
+
+    const amountStr = document.getElementById('payment-engine-amount').value;
+    const amountPaid = parseFloat(amountStr);
+    const method = document.querySelector('input[name="payMethod"]:checked').value;
+
+    if (isNaN(amountPaid) || amountPaid <= 0) {
+        showAppAlert("Introduce un monto válido mayor a 0.");
+        return;
+    }
+
+    const btn = document.getElementById('payment-engine-btn');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = `<svg class="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Procesando...`;
+    btn.disabled = true;
+
+    // --- 1. OPTIMISTIC UI UPDATE ---
+    let isPartial = amountPaid < ctx.totalDebt;
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    if (window.activeFichaDives) {
+        if (isPartial) {
+            window.activeFichaDives.unshift({
+                doc: { id: "temp_pago_" + Date.now() },
+                data: {
+                    type: 'pago',
+                    description: `Abono Parcial (${method})`,
+                    customPrice: -Math.abs(amountPaid),
+                    paymentStatus: 'pending',
+                    paymentMethod: method,
+                    date: dateStr,
+                }
+            });
+        } else {
+            // Mark all items as paid locally
+            ctx.docIds.forEach(id => {
+                let dive = window.activeFichaDives.find(i => i.doc.id === id);
+                if (dive) dive.data.paymentStatus = 'paid';
+            });
+            // AND insert the final missing payment to balance the transaction exactly
+            window.activeFichaDives.unshift({
+                doc: { id: "temp_pago_" + Date.now() },
+                data: {
+                    type: 'pago',
+                    description: `Liquidación de Cuenta (${method})`,
+                    customPrice: -Math.abs(amountPaid),
+                    paymentStatus: 'paid',
+                    paymentMethod: method,
+                    date: dateStr,
+                }
+            });
+        }
+    }
+
+    showToast(`✅ Pago de ${amountPaid}€ procesado correctamente.`);
+    document.getElementById('payment-engine-modal').classList.add('opacity-0');
+    setTimeout(() => {
+        document.getElementById('payment-engine-modal').classList.add('hidden');
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+        window.activePaymentContext = null;
+    }, 300);
+
+    // Reload the UI instantly!
+    if (window.activeFichaDni === ctx.dni) {
+        const currentName = document.getElementById('profile-modal-name').innerText;
+        const contextLayer = document.getElementById('tab-content-caja').classList.contains('hidden') ? 'historial' : 'caja';
+        openCustomerProfile(ctx.dni, currentName, false, contextLayer);
+    } else if (!document.getElementById('today-divers-modal').classList.contains('hidden')) {
+        openTodayDiversModal();
+    }
+
+    // --- 2. ASYNC BACKGROUND SYNC ---
+    (async () => {
+        try {
+            const batch = db.batch();
+            const historyRef = db.collection('mangamar_customers').doc(ctx.dni).collection('history');
+            let shouldClearDeposit = false;
+
+            if (isPartial) {
+                const newPagoRef = historyRef.doc();
+                batch.set(newPagoRef, {
+                    type: 'pago',
+                    description: `Abono Parcial (${method})`,
+                    customPrice: -Math.abs(amountPaid),
+                    paymentStatus: 'pending',
+                    paymentMethod: method,
+                    date: dateStr,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                ctx.docIds.forEach(docId => {
+                    const diveObj = window.activeFichaDives ? window.activeFichaDives.find(d => d.doc.id === docId) : null;
+                    const isPagoItem = diveObj && diveObj.data && diveObj.data.type === 'pago';
+                    
+                    let updatePayload = {
+                        paymentStatus: 'paid',
+                        paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    
+                    // ONLY overwrite the payment method if it's a dive/product.
+                    // Legacy Abonos correctly retain their original payment methods (Efectivo/Tarjeta)
+                    if (!isPagoItem) {
+                        updatePayload.paymentMethod = method;
+                    }
+                    
+                    batch.update(historyRef.doc(docId), updatePayload);
+                });
+                
+                // ADDITION: Always create a tracking token for the actual liquidation cash flow
+                // This guarantees the accounting dashboard only ever sees exact payments.
+                const liquidacionRef = historyRef.doc();
+                batch.set(liquidacionRef, {
+                    type: 'pago',
+                    description: `Liquidación de Cuenta (${method})`,
+                    customPrice: -Math.abs(amountPaid),
+                    paymentStatus: 'paid', // Immediately settled since it balanced the account
+                    paymentMethod: method,
+                    date: dateStr,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                if (ctx.mode === 'bulk') shouldClearDeposit = true;
+            }
+
+            await batch.commit();
+
+            if (shouldClearDeposit) {
+                const custIndex = customerDatabase.findIndex(c => c.dni === ctx.dni);
+                if (custIndex !== -1) {
+                    customerDatabase[custIndex].deposit = 0;
+                    await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                }
+            }
+        } catch (e) {
+            console.error("Background payment sync failed:", e);
+            showToast("⚠️ Conexión inestable. El pago se sincronizará cuando vuelva la red.");
+        }
+    })();
+};
+
 // Toggles a dive between "paid" and "pending" in the database instantly using optimistic UI
 window.togglePaymentStatus = async function (dni, boatId, currentStatus) {
-    const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
-
-    // 1. Optimistic DOM Update: Switch the button and row opacity
-    const buttonElement = document.querySelector(`button[onclick="togglePaymentStatus('${dni}', '${boatId}', '${currentStatus}')"]`);
-    if (buttonElement) {
-        if (newStatus === 'paid') {
-            buttonElement.outerHTML = `<button onclick="togglePaymentStatus('${dni}', '${boatId}', 'paid')" class="px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors shrink-0 w-full shadow-sm">Pagado</button>`;
-        } else {
-            buttonElement.outerHTML = `<button onclick="togglePaymentStatus('${dni}', '${boatId}', 'pending')" class="px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 shrink-0 w-full shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendiente</button>`;
+    if (currentStatus === 'pending') {
+        const dive = window.activeFichaDives ? window.activeFichaDives.find(d => d.doc.id === boatId) : null;
+        // fallback to querying if we don't have activeFichaDives
+        let debt = dive ? dive.p.total : 0;
+        
+        // If we are in Dia De Hoy, calculate the total dynamically for that row
+        if (!dive) {
+           const rowTotalText = event.currentTarget.closest('tr')?.querySelector('.text-amber-600')?.innerText;
+           debt = rowTotalText ? parseFloat(rowTotalText) : 0;
         }
 
-        // Find the TR safely: it could be directly in the table or nested
-        const row = document.getElementById('profile-history-list')?.querySelector(`button[onclick*="'${boatId}'"]`)?.closest('tr');
-        if (row) {
-            if (newStatus === 'paid') {
-                row.classList.add('opacity-70', 'hover:opacity-100');
-            } else {
-                row.classList.remove('opacity-70', 'hover:opacity-100');
-            }
-        }
-    }
-
-    // 2. Optimistic Data Model Update & Math Recalculation
-    if (window.activeFichaDives) {
-        const dive = window.activeFichaDives.find(d => d.doc.id === boatId);
-        if (dive) {
-            dive.data.paymentStatus = newStatus;
-
-            let pendingTotal = 0;
-            let grandTotal = 0;
-            window.activeFichaDives.forEach(item => {
-                grandTotal += item.p.total;
-                if (item.data.paymentStatus !== 'paid') pendingTotal += item.p.total;
-            });
-
-            const profile = customerDatabase.find(c => c.dni === dni);
-            const deposit = profile && profile.deposit ? profile.deposit : 0;
-            const totalAPagar = pendingTotal - deposit;
-
-            // Re-mount Caja fields
-            const elDeuda = document.getElementById('ficha-caja-deuda');
-            if (elDeuda) {
-                elDeuda.innerText = `${pendingTotal} €`;
-                const totalEl = document.getElementById('ficha-caja-total');
-                const btnLiq = document.getElementById('btn-liquidar');
-
-                if (totalAPagar <= 0 && pendingTotal === 0) {
-                    totalEl.innerText = "0 €";
-                    totalEl.className = "text-3xl font-black text-slate-300 tracking-tighter";
-                    btnLiq.classList.add('opacity-50', 'pointer-events-none');
-                } else if (totalAPagar <= 0 && pendingTotal > 0) {
-                    totalEl.innerText = "0 € (Pagado)";
-                    totalEl.className = "text-3xl font-black text-emerald-500 tracking-tighter";
-                    btnLiq.classList.remove('opacity-50', 'pointer-events-none');
+        window.promptPaymentGateway(dni, debt, [boatId], 'single');
+    } else {
+        // Simple Undo: Paid -> Pending (no money exchanged, just reversing a mistake)
+        showAppConfirm("¿Deshacer cobro y volver a marcar como Pendiente?", async () => {
+            try {
+                await db.collection('mangamar_customers').doc(dni).collection('history').doc(boatId).update({
+                    paymentStatus: 'pending',
+                    paymentMethod: firebase.firestore.FieldValue.delete(),
+                    paidAt: firebase.firestore.FieldValue.delete()
+                });
+                showToast("Dato restaurado a Pendiente.");
+                
+                if (window.activeFichaDni === dni) {
+                    const currentName = document.getElementById('profile-modal-name').innerText;
+                    const contextLayer = document.getElementById('tab-content-caja').classList.contains('hidden') ? 'historial' : 'caja';
+                    openCustomerProfile(dni, currentName, false, contextLayer);
                 } else {
-                    totalEl.innerText = `${totalAPagar} €`;
-                    totalEl.className = "text-3xl font-black text-amber-600 tracking-tighter";
-                    btnLiq.classList.remove('opacity-50', 'pointer-events-none');
+                    openTodayDiversModal();
                 }
+            } catch (e) {
+                console.error(e);
+                showAppAlert("Error al deshacer cobro.");
             }
-
-            window.activeFichaPendingDocs = window.activeFichaDives.filter(d => d.data.paymentStatus === 'pending').map(d => d.doc.id);
-
-            // Re-mount History Footer
-            const tbody = document.getElementById('profile-history-list');
-            if (tbody) {
-                const summaryRows = Array.from(tbody.querySelectorAll('tr.bg-slate-50\\/80, tr.bg-emerald-50\\/50, tr.bg-amber-50, tr.bg-emerald-100, tr.bg-slate-50'));
-                summaryRows.forEach(r => r.remove());
-
-                let footerHtml = '';
-                if (pendingTotal > 0 || deposit > 0) {
-                    footerHtml += `
-                    <tr class="bg-slate-50/80 border-t-2 border-slate-200">
-                        <td colspan="3" class="py-2 px-3 text-right font-black text-slate-500 uppercase tracking-widest text-[9px] align-middle">Deuda Pendiente</td>
-                        <td class="py-2 px-3 text-right font-black text-slate-700 text-sm align-middle">${pendingTotal} €</td>
-                        <td></td>
-                    </tr>`;
-                    if (deposit > 0) {
-                        footerHtml += `
-                        <tr class="bg-emerald-50/50 border-t border-emerald-100">
-                            <td colspan="3" class="py-2 px-3 text-right font-black text-emerald-600 uppercase tracking-widest text-[9px] align-middle">Señal / Anticipo</td>
-                            <td class="py-2 px-3 text-right font-black text-emerald-600 text-sm align-middle">- ${deposit} €</td>
-                            <td></td>
-                        </tr>`;
-                    }
-                    footerHtml += `
-                    <tr class="${totalAPagar <= 0 && pendingTotal > 0 ? 'bg-emerald-100' : 'bg-amber-50'} border-t ${totalAPagar <= 0 && pendingTotal > 0 ? 'border-emerald-200' : 'border-amber-200'}">
-                        <td colspan="3" class="py-3 px-3 text-right font-black ${totalAPagar <= 0 && pendingTotal > 0 ? 'text-emerald-700' : 'text-amber-700'} uppercase tracking-widest text-[11px] align-middle">A Pagar Hoy</td>
-                        <td class="py-3 px-3 text-right font-black ${totalAPagar <= 0 && pendingTotal > 0 ? 'text-emerald-600' : 'text-amber-600'} text-xl align-middle">${totalAPagar <= 0 ? '0' : totalAPagar} €</td>
-                        <td></td>
-                    </tr>`;
-                } else if (grandTotal > 0) {
-                    footerHtml += `
-                    <tr class="bg-slate-50 border-t-2 border-slate-200">
-                        <td colspan="3" class="py-3 px-3 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px] align-middle">Total Historial (Pagado)</td>
-                        <td class="py-3 px-3 text-right font-black text-slate-400 text-lg align-middle">${grandTotal} €</td>
-                        <td></td>
-                    </tr>`;
-                }
-                tbody.insertAdjacentHTML('beforeend', footerHtml);
-            }
-        }
-    }
-
-    // 3. Background DB Update
-    try {
-        await db.collection('mangamar_customers').doc(dni).collection('history').doc(boatId).update({
-            paymentStatus: newStatus
         });
-        showToast(newStatus === 'paid' ? "✅ Marcado como Pagado" : "⚠️ Marcado como Pendiente");
-
-        // Refresh the pending list if it's currently open in the background behind the modal
-        if (!document.getElementById('today-divers-modal').classList.contains('hidden')) {
-            switchTodayTab(document.getElementById('tab-today-pending').classList.contains('bg-white') ? 'pending' : 'all');
-        }
-    } catch (e) {
-        console.error("Error updating payment status", e);
-        showAppAlert("Error al actualizar el estado de pago. Refrescando visuales.");
-
-        // Fallback: Hard reload if the database write failed over the network
-        const nombre = document.getElementById('profile-modal-name').innerText;
-        let activeTab = 'caja';
-        ['historial', 'caja', 'resumen', 'ficha'].forEach(id => {
-            if (!document.getElementById(`tab-content-${id}`).classList.contains('hidden')) activeTab = id;
-        });
-        openCustomerProfile(dni, nombre, false, activeTab);
     }
-}
+};
 
 window.openCustomerProfile = async function (dni, nombre, isNavBackForward = false, targetTab = 'caja') {
     if (typeof isNavBackForward !== 'boolean') isNavBackForward = false;
     recordModalHistory({ type: 'customer', args: [dni, nombre], targetTab, isNavBackForward });
 
     window.historialClearSelection(); // Clear multiple selection on newly opened profile
+    if (window.closeFacturaView) window.closeFacturaView(); // Ensure details view is always closed
+    if (!isNavBackForward) window.fichaDisplayLimit = 15; // Reset pagination for fresh loads
 
     const customerInfo = customerDatabase.find(c => c.dni === dni) || { telefono: '', email: '', discount: 0 };
     const contactStr = [customerInfo.telefono, customerInfo.email].filter(Boolean).join(' • ');
@@ -417,8 +566,13 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
         }
 
         let html = '';
+        let pagosHtml = '';
+        let pendingServiciosHTML = '';
+        let pendingProductosHTML = '';
+        let pendingPagosHTML = '';
         let grandTotal = 0;
         let pendingTotal = 0;
+        let pagosTotalSum = 0;
 
         let docsArray = [];
         snapshot.forEach(doc => docsArray.push(doc));
@@ -481,26 +635,42 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
                 p.insurance = 0;
             }
 
-            if (customerInfo.discount > 0) {
+            if (customerInfo.discount > 0 && customerInfo.discountType !== 'fixed') {
                 p.dive = p.dive * (1 - (customerInfo.discount / 100));
                 if (p.course) p.course = p.course * (1 - (customerInfo.discount / 100));
             }
 
-            p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0);
+            p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0) + (p.computer || 0) + (p.custom || 0);
             processedDives.push({ doc, data, p, cleanIns, isCovered, isCourseCovered });
         });
 
         processedDives.reverse();
 
-        processedDives.forEach(item => {
+        // Apply fixed € discount across the whole total (not per-dive)
+        let fixedDiscountAmount = 0;
+        if (customerInfo.discount > 0 && customerInfo.discountType === 'fixed') {
+            fixedDiscountAmount = customerInfo.discount;
+        }
+        let positivePendingTotal = 0;
+        let negativePendingTotal = 0;
+
+        if (typeof window.fichaDisplayLimit === 'undefined') window.fichaDisplayLimit = 15;
+
+        processedDives.forEach((item, index) => {
             const { doc, data, p, cleanIns, isCovered, isCourseCovered } = item;
-            grandTotal += p.total;
+
+            // Only sum up non-pago operational values for the overall lifetime value metric 
+            if (data.type !== 'pago') grandTotal += p.total;
 
             const isPaid = data.paymentStatus === 'paid';
             if (!isPaid) pendingTotal += p.total;
 
             let breakdownHtml = '';
-            if (data.course) {
+            if (data.type === 'producto' || data.type === 'servicio') {
+                breakdownHtml = `<span class="text-slate-500 font-bold">${p.custom}€ ${data.description}</span>`;
+            } else if (data.type === 'pago') {
+                breakdownHtml = `<span class="text-emerald-500 font-black">${p.custom}€ Aplicado a cuenta</span>`;
+            } else if (data.course) {
                 let displayCourse = data.baseCourse || data.course.split(' | ')[0];
                 if (!isCourseCovered) breakdownHtml += `<span class="text-pink-600 font-black">${p.course}€ ${displayCourse}</span>`;
                 else breakdownHtml += `<span class="text-pink-400 font-bold">✔ Curso Incl.</span>`;
@@ -508,23 +678,27 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
                 breakdownHtml = `<span class="text-slate-500">${p.dive}€ Inm.</span>`;
             }
 
-            if (p.tasa > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-amber-600 font-bold">${p.tasa}€ Tasa</span>`;
-            const extrasTotal = p.gas + p.rental + p.insurance;
-            if (extrasTotal > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-slate-400">${extrasTotal}€ Ext.</span>`;
+            if (!data.type) {
+                if (p.tasa > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-amber-600 font-bold">${p.tasa}€ Tasa</span>`;
+                const extrasTotal = p.gas + p.rental + p.insurance;
+                if (extrasTotal > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-slate-400">${extrasTotal}€ Ext.</span>`;
+                if (p.computer > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-cyan-600 font-bold">${p.computer}€ <span style="font-variant:small-caps">Comp</span></span>`;
+            }
 
             const isNitrox = (data.gas || '').includes('EAN');
             const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
-            const gasShortText = (data.gas || '15L Aire').replace('L ', ' ').replace('Aire', 'Air').replace('EAN', 'Nx');
+            const gasShortText = (data.gas || '15L Aire').replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
 
-            let rentalClass = 'bg-diagonal-yellow text-transparent border-yellow-200';
-            let rentalText = '';
-            if (data.rental === 1) rentalClass = 'bg-half-yellow border-yellow-400';
-            else if (data.rental === 2) rentalClass = 'bg-full-yellow border-yellow-500';
+            let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
+            let rentalText = 'Eq';
+            if (data.rental === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; }
+            else if (data.rental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
             else if (data.rental === 'INC') {
                 rentalClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
                 rentalText = 'INC';
             }
 
+            const compHistClass = data.computer ? 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner' : 'bg-slate-50 text-slate-200 border-slate-100';
             let bonoClass = data.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200';
 
             let insClass = 'px-1.5 min-w-[36px] bg-red-500 text-white border-red-600';
@@ -551,11 +725,25 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
                 `<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
                 `<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
 
-            html += `
-            <tr class="group border-b border-slate-100 hover:bg-blue-50 transition-colors h-12 ${isPaid ? 'opacity-70 hover:opacity-100' : ''}" data-doc-id="${doc.id}">
-                <td class="py-2 px-3 align-middle text-center" onclick="toggleHistorialRowSelection(this, '${doc.id}', '${dni}', ${p.total}, '${data.paymentStatus}', '${data.date.substring(0, 7)}')">
-                    <div class="cursor-pointer inline-block" title="Seleccionar fila">${checkIcon}</div>
+            let centerColsHTML = '';
+            if (data.type === 'producto' || data.type === 'servicio' || data.type === 'pago') {
+                const isProd = data.type === 'producto';
+                const isPago = data.type === 'pago';
+                let tagStr = isPago ? 'PAGO' : (isProd ? 'PROD' : 'SERV');
+                let tagColor = isPago ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : (isProd ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200');
+                
+                centerColsHTML = `
+                <td class="py-2 px-3 align-middle whitespace-nowrap">
+                    <span class="text-xs font-black text-slate-800">${data.date}</span>
                 </td>
+                <td class="py-2 px-3 align-middle w-full" colspan="2">
+                    <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <span class="px-1.5 ${tagColor} rounded text-[9px] uppercase font-black shadow-sm border">${tagStr}</span> 
+                        ${data.description}
+                    </div>
+                </td>`;
+            } else {
+                centerColsHTML = `
                 <td class="py-2 px-3 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
                     <div class="flex items-baseline gap-2">
                         <span class="text-xs font-black text-slate-800 group-hover:text-blue-700 transition-colors">${data.date}</span>
@@ -567,27 +755,157 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
                     <div class="flex items-center justify-start gap-1">
                         <div class="w-12 h-6 flex justify-center items-center rounded border text-[9px] font-black whitespace-nowrap ${gasColor}">${gasShortText}</div>
                         <div class="w-7 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${rentalClass}">${rentalText}</div>
+                        <div class="w-9 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${compHistClass}">Comp</div>
                         <div class="h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${insClass}">${insText}</div>
                         <div class="w-6 h-6 flex justify-center items-center rounded border text-[10px] font-bold shrink-0 ${bonoClass}" title="${data.hasBono ? 'Usa Bono' : 'Sin Bono'}">B</div>
                     </div>
-                </td>
-                <td class="py-2 px-3 text-right align-middle w-full">
-                    <div class="flex items-center justify-end gap-3 w-full">
-                        <div class="text-[9px] text-right truncate hidden sm:block">${breakdownHtml}</div>
-                        <div class="font-black text-slate-800 text-sm whitespace-nowrap shrink-0">= ${p.total} €</div>
-                        <div class="w-[85px] shrink-0 flex justify-end">${statusBtn}</div>
-                    </div>
-                </td>
-                <td class="py-2 px-3 text-center align-middle shrink-0">
-                    <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar cobro y sacar del barco"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                </td>
-            </tr>`;
+                </td>`;
+            }
+
+            if (data.type === 'pago') {
+                pagosTotalSum += Math.abs(parseFloat(data.customPrice) || 0);
+                if (index < window.fichaDisplayLimit) {
+                    pagosHtml += `
+                    <tr class="group border-b border-slate-100 hover:bg-emerald-50 transition-colors h-12" data-doc-id="${doc.id}">
+                        <td class="py-2 px-3 align-middle text-center"></td>
+                        <td class="py-2 px-3 align-middle whitespace-nowrap">
+                            <span class="text-xs font-black text-slate-800">${data.date}</span>
+                        </td>
+                        <td class="py-2 px-3 align-middle w-full text-xs font-bold text-slate-600">
+                            ${data.description}
+                        </td>
+                        <td class="py-2 px-3 align-middle text-right shrink-0 whitespace-nowrap text-sm font-black text-emerald-600">
+                            -${Math.abs(parseFloat(data.customPrice) || 0)} €
+                        </td>
+                    <td class="py-2 px-3 text-center align-middle shrink-0">
+                        <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', 'pago')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar pago"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                    </td>
+                </tr>`;
+                }
+            } else {
+                if (index < window.fichaDisplayLimit) {
+                    html += `
+                    <tr class="group border-b border-slate-100 hover:bg-blue-50 transition-colors h-12 ${isPaid ? 'opacity-70 hover:opacity-100' : ''}" data-doc-id="${doc.id}">
+                        <td class="py-2 px-3 align-middle text-center" onclick="toggleHistorialRowSelection(this, '${doc.id}', '${dni}', ${p.total}, '${data.paymentStatus}', '${data.date.substring(0, 7)}')">
+                            <div class="cursor-pointer inline-block" title="Seleccionar fila">${checkIcon}</div>
+                        </td>
+                        ${centerColsHTML}
+                        <td class="py-2 px-3 text-right align-middle w-full">
+                            <div class="flex items-center justify-end gap-4 w-full">
+                                <div class="font-black text-slate-800 text-sm whitespace-nowrap shrink-0">${p.total} €</div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <button onclick="window.generateFactura('${doc.id}')" class="px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-colors shadow-sm flex items-center justify-center h-[26px]" title="Ver Detalles Visuales">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                        Detalles
+                                    </button>
+                                    <div class="w-[85px] flex justify-end h-[26px]">${statusBtn}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-2 px-3 text-center align-middle shrink-0">
+                            <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', '${data.type || 'buceo'}')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                        </td>
+                    </tr>`;
+                }
+            }
+
+            // --- BUILD CAJA PENDING OUTPUT ---
+            if (!isPaid) {
+                let conceptName = '';
+                let conceptBadge = '';
+                if (data.type === 'producto' || data.type === 'servicio') {
+                    conceptName = data.description;
+                    const isProd = data.type === 'producto';
+                    conceptBadge = `<span class="px-1 ${isProd ? 'bg-indigo-100 text-indigo-700' : 'bg-fuchsia-100 text-fuchsia-700'} rounded text-[8px] uppercase font-black mr-2">${isProd ? 'PROD' : 'SERV'}</span>`;
+                } else if (data.type === 'pago') {
+                    conceptName = data.description;
+                    conceptBadge = `<span class="px-1 bg-emerald-100 text-emerald-700 rounded text-[8px] uppercase font-black mr-2">PAGO</span>`;
+                } else {
+                    conceptName = `${data.site || 'Inmersión'}`;
+                    conceptBadge = `<span class="px-1 bg-sky-100 text-sky-700 rounded text-[8px] uppercase font-black mr-2">BUCEO</span>`;
+                }
+
+                const pendingRow = `
+                <tr class="group border-b border-slate-50 hover:bg-slate-50 transition-colors h-10">
+                    <td class="py-2 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider align-middle whitespace-nowrap">${data.date}</td>
+                    <td class="py-2 px-3 align-middle w-full">
+                        <div class="font-bold text-slate-700 text-xs flex items-center leading-tight">
+                            ${conceptBadge}${conceptName}
+                        </div>
+                        <div class="text-[9px] text-slate-400 mt-0.5 truncate max-w-[200px] sm:max-w-xs">${breakdownHtml.replace(/font-black/g, 'font-bold')}</div>
+                    </td>
+                    <td class="py-2 px-3 align-middle text-right whitespace-nowrap">
+                        <div class="font-black ${data.type === 'pago' ? 'text-emerald-500' : 'text-amber-600'} text-sm">${p.total} €</div>
+                    </td>
+                    <td class="py-2 px-3 align-middle w-8 text-center shrink-0">
+                        <button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="p-1.5 text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 rounded transition-colors" title="Marcar Pagado"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></button>
+                    </td>
+                </tr>`;
+
+                if (data.type === 'producto') {
+                    pendingProductosHTML += pendingRow;
+                    positivePendingTotal += p.total;
+                } else if (data.type === 'pago') {
+                    pendingPagosHTML += pendingRow;
+                    negativePendingTotal += p.total;
+                } else {
+                    pendingServiciosHTML += pendingRow;
+                    positivePendingTotal += p.total;
+                }
+            }
         });
+
+        // UPDATE CAJA LIST
+        const cajaListEl = document.getElementById('caja-pending-list');
+        if (cajaListEl) {
+            let finalCajaHTML = '';
+            let totalPendingCount = 0;
+            if (pendingServiciosHTML) {
+                finalCajaHTML += `<tr class="bg-slate-50 border-y border-slate-100"><td colspan="4" class="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Servicios / Buceos</td></tr>` + pendingServiciosHTML;
+                totalPendingCount += (pendingServiciosHTML.match(/<tr class="group/g) || []).length;
+            }
+            if (pendingProductosHTML) {
+                finalCajaHTML += `<tr class="bg-slate-50 border-y border-slate-100"><td colspan="4" class="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Productos</td></tr>` + pendingProductosHTML;
+                totalPendingCount += (pendingProductosHTML.match(/<tr class="group/g) || []).length;
+            }
+            
+            const profileCaja = customerDatabase.find(c => c.dni === dni);
+            const depositCaja = profileCaja && profileCaja.deposit ? profileCaja.deposit : 0;
+            
+            if (pendingPagosHTML || fixedDiscountAmount > 0 || depositCaja > 0) {
+                 finalCajaHTML += `
+                 <tr class="bg-slate-50 border-y border-slate-100"><td colspan="2" class="px-3 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Subtotal:</td><td class="px-3 py-2 text-slate-700 text-right font-bold text-sm whitespace-nowrap">${positivePendingTotal} €</td><td></td></tr>
+                 ${pendingPagosHTML}`;
+                 
+                 if (fixedDiscountAmount > 0) {
+                    finalCajaHTML += `<tr class="bg-rose-50/50 border-t border-rose-100"><td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-rose-500 tracking-widest text-right">Descuento Global:</td><td class="px-3 py-1.5 text-rose-600 text-right font-bold text-xs whitespace-nowrap">-${fixedDiscountAmount} €</td><td></td></tr>`;
+                 }
+                 
+                 if (depositCaja > 0) {
+                    finalCajaHTML += `<tr class="bg-emerald-50/50 border-t border-emerald-100"><td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-emerald-600 tracking-widest text-right">Depósito a Cuenta:</td><td class="px-3 py-1.5 text-emerald-600 text-right font-bold text-xs whitespace-nowrap">-${depositCaja} €</td><td></td></tr>`;
+                 }
+
+                 const finalDebtObj = Math.max(0, positivePendingTotal + negativePendingTotal - depositCaja - fixedDiscountAmount);
+                 
+                 finalCajaHTML += `<tr class="bg-amber-50 border-t-2 border-amber-200"><td colspan="2" class="px-3 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td><td class="px-3 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">${finalDebtObj} €</td><td></td></tr>
+                 `;
+            } else if (positivePendingTotal > 0) {
+                 finalCajaHTML += `
+                 <tr class="bg-amber-50 border-t-2 border-amber-200"><td colspan="2" class="px-3 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td><td class="px-3 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">${positivePendingTotal} €</td><td></td></tr>
+                 `;
+            }
+
+            if (!finalCajaHTML) {
+                finalCajaHTML = `<tr><td colspan="4" class="p-8 text-center"><div class="text-3xl mb-2">🎉</div><div class="text-sm font-bold text-slate-400">Sin cargos pendientes</div></td></tr>`;
+            }
+            cajaListEl.innerHTML = finalCajaHTML;
+            document.getElementById('caja-pending-count').innerText = `${totalPendingCount} items`;
+        }
 
         // --- NEW DYNAMIC MATH FOOTER ---
         const profile = customerDatabase.find(c => c.dni === dni);
         const deposit = profile && profile.deposit ? profile.deposit : 0;
-        let totalAPagar = pendingTotal - deposit;
+        let totalAPagar = Math.max(0, pendingTotal - deposit - fixedDiscountAmount);
 
         if (pendingTotal > 0 || deposit > 0) {
             html += `
@@ -600,7 +918,7 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
             if (deposit > 0) {
                 html += `
                 <tr class="bg-emerald-50/50 border-t border-emerald-100">
-                    <td colspan="4" class="py-2 px-3 text-right font-black text-emerald-600 uppercase tracking-widest text-[9px] align-middle">Señal / Anticipo</td>
+                    <td colspan="4" class="py-2 px-3 text-right font-black text-emerald-600 uppercase tracking-widest text-[9px] align-middle">Depósito</td>
                     <td class="py-2 px-3 text-right font-black text-emerald-600 text-sm align-middle">- ${deposit} €</td>
                     <td></td>
                 </tr>`;
@@ -621,7 +939,33 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
             </tr>`;
         }
 
+        if (processedDives.length > window.fichaDisplayLimit) {
+            const moreBtn = `
+            <tr>
+                <td colspan="6" class="p-6 text-center">
+                    <button onclick="window.fichaDisplayLimit += 15; window.openCustomerProfile(window.activeFichaDni, document.getElementById('profile-modal-name').innerText, true);" class="px-6 py-2.5 bg-slate-50 border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 font-black text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 mx-auto">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        Cargar Más (${processedDives.length - window.fichaDisplayLimit} ocultos)
+                    </button>
+                </td>
+            </tr>`;
+            html += moreBtn;
+            if (pagosHtml) pagosHtml += moreBtn;
+        }
+
         document.getElementById('profile-history-list').innerHTML = html;
+        
+        if (pagosTotalSum > 0) {
+            const headerSumHtml = `
+            <tr class="bg-emerald-50 border-b-2 border-emerald-200 sticky top-0 z-10 shadow-sm">
+                <td colspan="3" class="py-4 px-3 text-right font-black text-emerald-700 uppercase tracking-widest text-[11px] align-middle">Total Historial (Pagos Realizados)</td>
+                <td class="py-4 px-3 text-right font-black text-emerald-600 text-lg align-middle">-${pagosTotalSum} €</td>
+                <td></td>
+            </tr>`;
+            pagosHtml = headerSumHtml + pagosHtml;
+        }
+        
+        document.getElementById('profile-pagos-list').innerHTML = pagosHtml || '<tr><td colspan="5" class="p-8 text-center text-slate-500 italic">No hay pagos registrados.</td></tr>';
         if (document.getElementById('ficha-tab-dives') && document.getElementById('ficha-tab-dives').innerText === '---') {
             document.getElementById('ficha-tab-dives').innerText = processedDives.length + ' (Historial)';
         }
@@ -630,6 +974,26 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
         if (elDeuda) {
             elDeuda.innerText = `${pendingTotal} €`;
             document.getElementById('ficha-caja-senal').innerText = `- ${deposit} €`;
+
+            // Restore discount type toggle UI — use global state to avoid loop
+            const discType = customerInfo.discountType || 'percent';
+            window.activeDiscountType = discType;
+            const discVal = customerInfo.discount || 0;
+            document.getElementById('ficha-caja-discount').value = discVal;
+            // Only update the button visuals, do NOT call setDiscountType (avoids recursion)
+            const btnPct = document.getElementById('disc-type-pct');
+            const btnEur = document.getElementById('disc-type-eur');
+            if (btnPct && btnEur) {
+                if (discType === 'fixed') {
+                    btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
+                    btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
+                    document.getElementById('ficha-caja-discount').removeAttribute('max');
+                } else {
+                    btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
+                    btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
+                    document.getElementById('ficha-caja-discount').max = 100;
+                }
+            }
 
             const totalEl = document.getElementById('ficha-caja-total');
             const btnLiq = document.getElementById('btn-liquidar');
@@ -802,11 +1166,13 @@ window.switchTodayTab = async function (tabId) {
                                 }
                             } else if (cleanIns === 'Propio' || cleanIns === 'INC') { p.insurance = 0; }
 
-                            p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0);
+                            p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0) + (p.computer || 0) + (p.custom || 0);
 
                             if (data.paymentStatus === 'pending') {
                                 debt += p.total;
-                                divesList.push(`${data.date.substring(5)} ${data.assignedBoat.charAt(0).toUpperCase() + data.assignedBoat.slice(1)}`);
+                                if (data.assignedBoat) {
+                                    divesList.push(`${data.date.substring(5)} ${data.assignedBoat.charAt(0).toUpperCase() + data.assignedBoat.slice(1)}`);
+                                }
                             }
                         });
 
@@ -950,7 +1316,7 @@ window.switchTodayTab = async function (tabId) {
                             p.insurance = 0;
                         }
 
-                        p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0);
+                        p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0) + (p.computer || 0);
 
                         // 3. Only add it to their total debt if this specific dive is unpaid
                         if (data.paymentStatus === 'pending') {
@@ -1255,8 +1621,55 @@ window.updateGuestDeposit = async function (dni, amount, groupIndex, guestIndex)
             renderGroups();
         } catch (e) {
             console.error(e);
-            showAppAlert("Error al guardar la señal");
+            showAppAlert("Error al guardar el depósito");
         }
+    }
+};
+
+window.addCustomCajaConcept = async function() {
+    const typeStr = document.getElementById('caja-new-type').value;
+    const desc = document.getElementById('caja-new-desc').value.trim();
+    const priceStr = document.getElementById('caja-new-price').value;
+    const price = parseFloat(priceStr);
+
+    if (!desc) { showAppAlert("La descripción es obligatoria."); return; }
+    if (isNaN(price) || price < 0) { showAppAlert("Introduce un precio válido."); return; }
+
+    const btn = event.currentTarget || event.target;
+    if (!btn) return;
+    
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = `<svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Añadiendo...`;
+    btn.disabled = true;
+
+    try {
+        const d = new Date();
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        
+        await db.collection('mangamar_customers').doc(window.activeFichaDni).collection('history').add({
+            type: typeStr,
+            description: desc,
+            customPrice: price,
+            paymentStatus: 'pending',
+            date: dateStr,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        document.getElementById('caja-new-desc').value = '';
+        document.getElementById('caja-new-price').value = '';
+        showToast(`✅ ${typeStr === 'producto' ? 'Producto' : 'Servicio'} añadido a la cuenta.`);
+        
+        // Re-render
+        if (window.activeFichaDni) {
+            const currentName = document.getElementById('profile-modal-name').innerText;
+            openCustomerProfile(window.activeFichaDni, currentName, false, 'caja');
+        }
+    } catch (e) {
+        console.error(e);
+        showAppAlert("Error al añadir concepto.");
+    } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
     }
 };
 
@@ -1266,71 +1679,26 @@ window.liquidarCuenta = async function () {
 
     if (pendingDocs.length === 0) return;
 
-    showAppConfirm("¿Liquidar cuenta completa y marcar todas las inmersiones como pagadas?", () => {
+    const totalElText = document.getElementById('ficha-caja-total').innerText.replace(' €', '');
+    const totalDebt = parseFloat(totalElText) || 0;
 
-        // --- 1. OPTIMISTIC UI: Instant Visual Feedback (0.01 seconds) ---
-        const custIndex = customerDatabase.findIndex(c => c.dni === dni);
-        if (custIndex !== -1) customerDatabase[custIndex].deposit = 0; // Wipe local deposit
-
-        const totalEl = document.getElementById('ficha-caja-total');
-        if (totalEl) {
-            totalEl.innerText = "0 € (Pagado)";
-            totalEl.className = "text-3xl font-black text-emerald-500 tracking-tighter";
-            document.getElementById('ficha-caja-deuda').innerText = "0 €";
-            document.getElementById('ficha-caja-senal').innerText = "- 0 €";
-            document.getElementById('btn-liquidar').classList.add('opacity-50', 'pointer-events-none');
-        }
-
-        // Magically turn all "Pendiente" buttons to "Pagado" instantly without refreshing
-        document.querySelectorAll('#profile-history-list tr').forEach(row => {
-            const btn = row.querySelector('button[onclick*="togglePaymentStatus"]');
-            if (btn && btn.innerText.toLowerCase().includes('pendiente')) {
-                row.classList.add('opacity-70', 'hover:opacity-100');
-                const match = btn.getAttribute('onclick').match(/togglePaymentStatus\('[^']+',\s*'([^']+)'/);
-                const boatId = match ? match[1] : '';
-                btn.parentElement.innerHTML = `<button onclick="togglePaymentStatus('${dni}', '${boatId}', 'paid')" class="px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors shrink-0 w-full shadow-sm">Pagado</button>`;
-            }
-        });
-
-        // Clear local memory
-        window.activeFichaPendingDocs = [];
-        closeAppConfirm();
-        showToast("✅ Cuenta liquidada con éxito.");
-
-        // --- 2. BACKGROUND SYNC: Silently process Firebase without freezing the screen ---
-        (async () => {
-            try {
-                const batch = db.batch();
-                pendingDocs.forEach(docId => {
-                    const ref = db.collection('mangamar_customers').doc(dni).collection('history').doc(docId);
-                    batch.update(ref, { paymentStatus: 'paid' });
-                });
-                await batch.commit();
-
-                if (custIndex !== -1) {
-                    await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
-                }
-
-                // Silently update the background "Día de Hoy" tab if it's open
-                if (!document.getElementById('today-divers-modal').classList.contains('hidden')) {
-                    window.switchTodayTab(document.getElementById('tab-today-pending').classList.contains('bg-white') ? 'pending' : 'all');
-                }
-            } catch (e) {
-                console.error("Error en sincronización en 2do plano", e);
-                showToast("⚠️ Conexión inestable. El pago se sincronizará cuando vuelva la red.");
-            }
-        })();
-    });
+    window.promptPaymentGateway(dni, totalDebt, pendingDocs, 'bulk');
 };
 
-window.generateFactura = function () {
+window.generateFactura = function (targetDocId = null) {
     window.currentFacturaType = 'individual';
     const dni = window.activeFichaDni;
     if (!dni || !window.activeFichaDives) return;
 
-    const pendingDives = window.activeFichaDives.filter(item => item.data.paymentStatus === 'pending');
+    let pendingDives = [];
+    if (targetDocId) {
+        pendingDives = window.activeFichaDives.filter(item => item.doc.id === targetDocId);
+    } else {
+        pendingDives = window.activeFichaDives.filter(item => item.data.paymentStatus === 'pending');
+    }
+
     if (pendingDives.length === 0) {
-        showToast("No hay importes pendientes para incluir en el resumen.", "error");
+        showToast("No hay datos para construir el resumen.", "error");
         return;
     }
 
@@ -1354,6 +1722,7 @@ window.generateFactura = function () {
     let totalIva21 = 0;
     let totalExento = 0;
     let totalFactura = 0;
+    let totalPago = 0;
 
     function addFacturaItem(map, name, price) {
         if (price <= 0) return;
@@ -1367,25 +1736,39 @@ window.generateFactura = function () {
     pendingDives.forEach(item => {
         const p = item.p;
 
+        if (item.data.type === 'pago') {
+            totalPago += Math.abs(parseFloat(p.custom) || 0);
+            return;
+        }
+
+        if (item.data.type === 'producto' || item.data.type === 'servicio') {
+            const prefix = item.data.type === 'producto' ? 'Producto: ' : 'Servicio: ';
+            addFacturaItem(itemsMap, prefix + item.data.description, p.custom);
+            return;
+        }
+
         let diveName = 'Inmersión';
         if (['Cala', 'Shore', 'Aula'].includes(item.data.site)) diveName = 'Inmersión (Cala/Costa)';
         else if (item.data.site === 'Naranjito') diveName = 'Inmersión (Naranjito)';
         else if (item.data.site === 'Fuera') diveName = 'Inmersión (Fuera)';
         else diveName = 'Inmersión (Reserva Marina)';
 
+        let isPercentDiscount = profile.discount > 0 && profile.discountType !== 'fixed';
         let discountVal = parseFloat(profile.discount) || 0;
-        let appliedDiveStr = (discountVal > 0) ? `${diveName} (${discountVal}% Dto)` : diveName;
-        addFacturaItem(itemsMap, appliedDiveStr, p.dive * (1 - (discountVal / 100)));
+        
+        let appliedDiveStr = isPercentDiscount ? `${diveName} (${discountVal}% Dto)` : diveName;
+        addFacturaItem(itemsMap, appliedDiveStr, p.dive);
 
         if (item.data.course && p.course > 0) {
             let courseNameStr = 'Curso: ' + (item.data.baseCourse || item.data.course.split(' | ')[0]);
-            let appliedCourseStr = (discountVal > 0) ? `${courseNameStr} (${discountVal}% Dto)` : courseNameStr;
-            addFacturaItem(itemsMap, appliedCourseStr, p.course * (1 - (discountVal / 100)));
+            let appliedCourseStr = isPercentDiscount ? `${courseNameStr} (${discountVal}% Dto)` : courseNameStr;
+            addFacturaItem(itemsMap, appliedCourseStr, p.course);
         }
 
         if (p.gas > 0) addFacturaItem(itemsMap, 'Suplemento Gas (Nitrox)', p.gas);
         if (p.rental > 0) addFacturaItem(itemsMap, 'Alquiler Equipamiento', p.rental);
         if (p.insurance > 0) addFacturaItem(itemsMap, 'Seguro de Buceo', p.insurance);
+        if (p.computer > 0) addFacturaItem(itemsMap, 'Alquiler Ordenador', p.computer);
 
         if (p.tasa > 0) {
             let tasaName = item.data.site === 'Fuera' ? 'Tasa (Puerto Cerrado)' : 'Tasa (Reserva Marina)';
@@ -1426,6 +1809,7 @@ window.generateFactura = function () {
         </tr>`;
     });
 
+
     Object.values(exentoMap).forEach(item => {
         let itemTotal = item.price * item.qty;
         totalExento += itemTotal;
@@ -1442,6 +1826,48 @@ window.generateFactura = function () {
         </tr>`;
     });
 
+    // Apply fixed € discount as a separate global item
+    if (!targetDocId && profile.discount > 0 && profile.discountType === 'fixed') {
+        let discountAmount = -parseFloat(profile.discount);
+        let dBase = discountAmount / 1.21;
+        let dIva = dBase * 0.21;
+        
+        totalBase21 += dBase;
+        totalIva21 += dIva;
+        totalFactura += discountAmount;
+
+        facturaHtml += `
+        <tr class="border-b border-slate-100 bg-rose-50/50">
+            <td class="py-3 px-2 text-sm font-bold text-rose-600">Descuento Global Aplicado</td>
+            <td class="py-3 px-2 text-sm font-bold text-rose-600 text-center">1</td>
+            <td class="py-3 px-2 text-sm font-bold text-rose-600 text-right">${dBase.toFixed(2)} €</td>
+            <td class="py-3 px-2 text-sm font-black text-rose-600 text-right">${discountAmount.toFixed(2)} €</td>
+        </tr>`;
+    }
+
+    if (!targetDocId && totalPago > 0) {
+        totalFactura -= totalPago;
+        facturaHtml += `
+        <tr class="border-b border-emerald-100 bg-emerald-50/50">
+            <td class="py-3 px-2 text-sm font-bold text-emerald-600">Abono Parcial Aplicado</td>
+            <td class="py-3 px-2 text-sm font-bold text-emerald-600 text-center">1</td>
+            <td class="py-3 px-2 text-sm font-bold text-emerald-600 text-right">-</td>
+            <td class="py-3 px-2 text-sm font-black text-emerald-600 text-right">-${totalPago.toFixed(2)} €</td>
+        </tr>`;
+    }
+
+    const depositAmount = parseFloat(profile.deposit) || 0;
+    if (!targetDocId && depositAmount > 0) {
+        totalFactura -= depositAmount;
+        facturaHtml += `
+        <tr class="border-b border-emerald-100 bg-emerald-50/50">
+            <td class="py-3 px-2 text-sm font-bold text-emerald-600">Depósito Entregado a Cuenta</td>
+            <td class="py-3 px-2 text-sm font-bold text-emerald-600 text-center">1</td>
+            <td class="py-3 px-2 text-sm font-bold text-emerald-600 text-right">-</td>
+            <td class="py-3 px-2 text-sm font-black text-emerald-600 text-right">-${depositAmount.toFixed(2)} €</td>
+        </tr>`;
+    }
+
     document.getElementById('factura-items').innerHTML = facturaHtml || '<tr><td colspan="4" class="p-4 text-center">No hay inmersiones para facturar</td></tr>';
 
     document.getElementById('factura-base-21').innerText = totalBase21.toFixed(2) + ' €';
@@ -1449,39 +1875,64 @@ window.generateFactura = function () {
     document.getElementById('factura-exento').innerText = totalExento.toFixed(2) + ' €';
     document.getElementById('factura-total').innerText = totalFactura.toFixed(2) + ' €';
 
-    document.getElementById('factura-modal').classList.remove('hidden');
-    // Hide customer profile temporarily so it doesn't leak out of borders behind fact
-    document.getElementById('customer-profile-modal').classList.add('opacity-0');
+    const targetTab = document.getElementById('tab-content-factura');
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
+        targetTab.classList.add('flex');
+    }
 
     // Add print utility class for isolated printing
     document.body.classList.add('print-factura');
 };
 
-window.closeFacturaModal = function () {
-    document.getElementById('factura-modal').classList.add('hidden');
-    document.getElementById('customer-profile-modal').classList.remove('opacity-0');
-    document.getElementById('today-divers-modal').classList.remove('opacity-0');
+window.closeFacturaView = function () {
+    const targetTab = document.getElementById('tab-content-factura');
+    if (targetTab) {
+        targetTab.classList.add('hidden');
+        targetTab.classList.remove('flex');
+    }
     document.body.classList.remove('print-factura');
-    if (window.originalAppTitle) document.title = window.originalAppTitle;
 };
 
 window.updateCustomerDiscount = async function (val) {
     if (!window.activeFichaDni) return;
     let disc = parseFloat(val) || 0;
-    if (disc < 0) disc = 0; if (disc > 100) disc = 100;
+    if (disc < 0) disc = 0;
+
+    // Get the current type from the global state variable
+    const discType = window.activeDiscountType || 'percent';
 
     let cx = customerDatabase.find(c => c.dni === window.activeFichaDni);
-    if (cx) cx.discount = disc;
+    if (cx) { cx.discount = disc; cx.discountType = discType; }
 
     try {
-        await db.collection('mangamar_customers').doc(window.activeFichaDni).update({ discount: disc });
+        await db.collection('mangamar_customers').doc(window.activeFichaDni).update({ discount: disc, discountType: discType });
     } catch (e) {
-        // Assume doc might not exist if it's purely from historic data, so map properly inside customer DB
-        await db.collection('mangamar_customers').doc(window.activeFichaDni).set({ discount: disc }, { merge: true });
+        await db.collection('mangamar_customers').doc(window.activeFichaDni).set({ discount: disc, discountType: discType }, { merge: true });
     }
 
     const currName = document.getElementById('profile-modal-name').innerText;
     openCustomerProfile(window.activeFichaDni, currName); // Re-calculate everything
+}
+
+window.setDiscountType = function(type) {
+    window.activeDiscountType = type; // save state globally
+    const btnPct = document.getElementById('disc-type-pct');
+    const btnEur = document.getElementById('disc-type-eur');
+    if (!btnPct || !btnEur) return;
+
+    if (type === 'percent' || type === 'pct') {
+        btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
+        btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
+        document.getElementById('ficha-caja-discount').max = 100;
+    } else {
+        btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
+        btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
+        document.getElementById('ficha-caja-discount').removeAttribute('max');
+    }
+    // User manually toggled type — save immediately if there's a value
+    const val = document.getElementById('ficha-caja-discount').value;
+    if (parseFloat(val) > 0) updateCustomerDiscount(val);
 }
 
 window.toggleDiverJointSelection = function (el, dni, nombre, debt) {
@@ -1798,7 +2249,10 @@ window.liquidarFacturaActual = async function () {
                     const batch = db.batch();
                     activeDocs.forEach(docId => {
                         const ref = db.collection('mangamar_customers').doc(currentFicha).collection('history').doc(docId);
-                        batch.update(ref, { paymentStatus: 'paid' });
+                        batch.update(ref, { 
+                            paymentStatus: 'paid', 
+                            paidAt: firebase.firestore.FieldValue.serverTimestamp() 
+                        });
                     });
                     await batch.commit();
 
@@ -1848,7 +2302,10 @@ window.openCrmModal = function (isNavBackForward = false) {
     renderCrmTable();
 };
 
+window.crmDisplayLimit = 30;
+
 window.c_onCrmSearch = function (val) {
+    window.crmDisplayLimit = 30; // reset on search
     crmSearchStr = val.toLowerCase().trim();
     if (document.getElementById('crm-search-input').value !== val) document.getElementById('crm-search-input').value = val;
     if (document.getElementById('crm-search-input-mobile').value !== val) document.getElementById('crm-search-input-mobile').value = val;
@@ -1856,6 +2313,7 @@ window.c_onCrmSearch = function (val) {
 };
 
 window.c_sortCrm = function (key) {
+    window.crmDisplayLimit = 30; // reset on sort
     if (crmSortKey === key) {
         crmSortDesc = !crmSortDesc;
     } else {
@@ -1911,7 +2369,10 @@ window.renderCrmTable = function () {
     }
 
     let html = '';
-    const renderLimit = Math.min(filtered.length, 300);
+    
+    if (typeof window.crmDisplayLimit === 'undefined') window.crmDisplayLimit = 30;
+    const renderLimit = Math.min(filtered.length, window.crmDisplayLimit);
+    
     for (let i = 0; i < renderLimit; i++) {
         const c = filtered[i];
         const name = window.getFullName(c) || 'Sin Nombre';
@@ -1995,8 +2456,14 @@ window.renderCrmTable = function () {
         </div>`;
     }
 
-    if (filtered.length > 300) {
-        html += `<div class="p-6 text-center text-slate-400 text-xs font-bold bg-slate-50 border-t border-slate-100">+ ${filtered.length - 300} resultados adicionales. Por favor afina tu búsqueda.</div>`;
+    if (filtered.length > window.crmDisplayLimit) {
+        html += `
+        <div class="col-span-full p-6 flex justify-center w-full bg-slate-50 border-t border-slate-100 mt-2">
+            <button onclick="window.crmDisplayLimit += 30; window.renderCrmTable();" class="px-6 py-2.5 bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 font-black text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                Cargar Más (${filtered.length - window.crmDisplayLimit} ocultos)
+            </button>
+        </div>`;
     }
 
     listEl.innerHTML = html;
@@ -2128,7 +2595,7 @@ window.saveCustomerEdits = async function () {
 
         // Soft refresh local visuals ONLY if Ficha is already open
         if (!document.getElementById('customer-profile-modal').classList.contains('hidden')) {
-            openCustomerProfile(dni, window.getFullName(customerDatabase[index]));
+            openCustomerProfile(dni, window.getFullName(customerDatabase[index]), false, 'ficha');
         }
 
         if (!document.getElementById('crm-modal').classList.contains('hidden')) renderCrmTable();
@@ -2151,57 +2618,51 @@ window.promptDeleteCustomer = function () {
     }, 10);
 };
 
-window.executeDeleteCustomer = async function () {
+window.executeDeleteCustomer = function () {
     if (!window.activeFichaDni) return;
     const dni = window.activeFichaDni;
 
-    try {
-        const btn = document.getElementById('btn-confirm-delete');
-        btn.innerHTML = '<svg class="animate-spin h-5 w-5 mx-auto text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
-        btn.disabled = true;
+    const btn = document.getElementById('btn-confirm-delete');
+    btn.innerHTML = '<svg class="animate-spin h-5 w-5 mx-auto text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+    btn.disabled = true;
 
-        // 1. Delete history subcollection
-        const histSnap = await db.collection('mangamar_customers').doc(dni).collection('history').get();
-        if (!histSnap.empty) {
-            const batch = db.batch();
-            histSnap.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
+    // Instant local memory and UI update
+    customerDatabase = customerDatabase.filter(c => c.dni !== dni);
+    if (typeof window.renderCrmTable === 'function') window.renderCrmTable();
+
+    // Close modals instantly
+    window.closeGlobalModal('delete-customer-modal');
+    window.closeGlobalModal('customer-profile-modal');
+    showToast("Cliente eliminado (procesando en red).");
+    
+    // Background execution
+    (async () => {
+        try {
+            // 1. Delete history subcollection
+            const histSnap = await db.collection('mangamar_customers').doc(dni).collection('history').get();
+            if (!histSnap.empty) {
+                const batch = db.batch();
+                histSnap.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+            }
+
+            // 2. Delete main document
+            await db.collection('mangamar_customers').doc(dni).delete();
+
+            // 3. Remove from master_list
+            let docSnap = await db.collection('mangamar_directory').doc('master_list').get();
+            if (docSnap.exists) {
+                let data = docSnap.data().clients || [];
+                let updated = data.filter(c => c.dni !== dni);
+                await db.collection('mangamar_directory').doc('master_list').set({ clients: updated }, { merge: true });
+            }
+        } catch (e) {
+            console.error("Error background deleting customer:", e);
+        } finally {
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Borrar Cliente';
+            btn.disabled = false;
         }
-
-        // 2. Delete main document
-        await db.collection('mangamar_customers').doc(dni).delete();
-
-        // 3. Remove from master_list
-        let docSnap = await db.collection('mangamar_directory').doc('master_list').get();
-        if (docSnap.exists) {
-            let data = docSnap.data().clients || [];
-            let updated = data.filter(c => c.dni !== dni);
-            await db.collection('mangamar_directory').doc('master_list').set({ clients: updated }, { merge: true });
-
-            // 4. Update memory natively
-            customerDatabase = updated;
-        }
-
-        // Close UI windows
-        window.closeGlobalModal('delete-customer-modal');
-        window.closeGlobalModal('customer-profile-modal');
-
-        // Return to CRM and re-render
-        if (!document.getElementById('crm-modal').classList.contains('hidden')) {
-            renderCrmTable();
-        }
-
-        showToast("🗑️ Cliente borrado permanentemente.");
-
-    } catch (e) {
-        console.error("Error al borrar el cliente", e);
-        showAppAlert("Ocurrió un error al borrar el cliente. Por favor, revisa tu conexión.");
-    } finally {
-        const btn = document.getElementById('btn-confirm-delete');
-        btn.innerHTML = 'Eliminar';
-        btn.disabled = false;
-        document.getElementById('delete-customer-modal-content').classList.add('scale-95', 'opacity-0');
-    }
+    })();
 };
 
 // ==========================================
@@ -2338,7 +2799,10 @@ window.historialBulkPay = async function () {
             const batch = db.batch();
             itemsToPay.forEach(item => {
                 const ref = db.collection('mangamar_customers').doc(item.dni).collection('history').doc(item.docId);
-                batch.update(ref, { paymentStatus: 'paid' });
+                batch.update(ref, { 
+                    paymentStatus: 'paid', 
+                    paidAt: firebase.firestore.FieldValue.serverTimestamp() 
+                });
             });
             await batch.commit();
             showToast("✅ Marcados como pagado");
@@ -2440,4 +2904,324 @@ window.historialBulkDelete = async function () {
             showAppAlert("Error al eliminar los registros conjuntamente.");
         }
     });
+};
+
+// ==========================================
+// 19. CONTABILIDAD (Cash Flow Accounting)
+// ==========================================
+
+window.activeContabilidadData = {
+    tarjeta: [],
+    bizum: [],
+    efectivo: []
+};
+window.currentContaMonth = new Date(); // Start at current dynamic month
+
+window.openContabilidadView = function(isNavBackForward = false) {
+    if (typeof closeSidebarOnMobile === 'function') closeSidebarOnMobile();
+    
+    if (typeof window.recordModalHistory === 'function' && !isNavBackForward) {
+        window.recordModalHistory({ type: 'contabilidad', isNavBackForward });
+    }
+
+    // Don't close main views, this is an overlay modal
+    const view = document.getElementById('contabilidad-modal');
+    const inner = document.getElementById('conta-modal-inner');
+    view.classList.remove('hidden');
+    
+    setTimeout(() => {
+        view.classList.remove('opacity-0');
+        if (inner) {
+            inner.classList.replace('scale-95', 'scale-100');
+            inner.classList.replace('opacity-0', 'opacity-100');
+        }
+    }, 10);
+
+    fetchContabilidadMonth();
+};
+
+window.closeContabilidadView = function() {
+    const view = document.getElementById('contabilidad-modal');
+    const inner = document.getElementById('conta-modal-inner');
+    view.classList.add('opacity-0');
+    if (inner) {
+        inner.classList.replace('scale-100', 'scale-95');
+        inner.classList.replace('opacity-100', 'opacity-0');
+    }
+    setTimeout(() => {
+        view.classList.add('hidden');
+    }, 300);
+};
+
+window.changeContabilidadMonth = function(delta) {
+    currentContaMonth.setMonth(currentContaMonth.getMonth() + delta);
+    fetchContabilidadMonth();
+};
+
+window.fetchContabilidadMonth = async function() {
+    const monthNames = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+    const monthNum = currentContaMonth.getMonth();
+    const yearNum = currentContaMonth.getFullYear();
+    document.getElementById('contabilidad-month-label').innerText = `${monthNames[monthNum]} ${yearNum}`;
+
+    document.getElementById('conta-index-warning').innerHTML = '';
+    document.getElementById('conta-total-tarjeta').innerText = '...';
+    document.getElementById('conta-total-efectivo').innerText = '...';
+    document.getElementById('conta-total-bizum').innerText = '...';
+    document.getElementById('conta-table-body').innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400 text-sm font-bold"><div class="flex flex-col items-center justify-center"><svg class="w-6 h-6 animate-spin text-blue-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Cargando...</div></td></tr>`;
+
+    // Active boundaries 
+    const startObj = new Date(yearNum, monthNum, 1, 0, 0, 0);
+    const endObj = new Date(yearNum, monthNum + 1, 0, 23, 59, 59);
+    
+    const startStr = `${yearNum}-${String(monthNum + 1).padStart(2, '0')}-01`;
+    const endStr = `${yearNum}-${String(monthNum + 1).padStart(2, '0')}-31`;
+
+    try {
+        // DUAL FALLBACK QUERY STRATEGY:
+        // Query 1: Extract all explicitly cash-flow documented items in this month window.
+        // Query 2: Extract all old/legacy items assigned sequentially via the old dive 'date' method.
+        const q1 = db.collectionGroup('history').where('paidAt', '>=', startObj).where('paidAt', '<=', endObj).get();
+        const q2 = db.collectionGroup('history').where('date', '>=', startStr).where('date', '<=', endStr).get();
+        
+        let snapshots = [];
+        try {
+            const results = await Promise.allSettled([q1, q2]);
+            const rejections = results.filter(r => r.status === 'rejected');
+            
+            if (rejections.length > 0) {
+                let errHtml = `Error de Índice Firebase.<br><span class="text-xs text-red-400 font-normal">La base de datos se está optimizando o requiere índices. (Tardan ~5 minutos en activarse).</span><br><br>`;
+                
+                let linkCount = 0;
+                rejections.forEach((rej, idx) => {
+                    console.error("Index Error:", rej.reason);
+                    const errUrlMatch = String(rej.reason).match(/https:\/\/console\.firebase\.google\.com[^\s]*/);
+                    if (errUrlMatch) {
+                        linkCount++;
+                        errHtml += `<a href="${errUrlMatch[0]}" target="_blank" class="px-5 py-2 inline-block bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 shadow-sm mt-2">🚀 Crear Índice ${linkCount}</a><br>`;
+                    }
+                });
+                
+                if (linkCount > 0) {
+                    const warnDiv = document.getElementById('conta-index-warning');
+                    if (warnDiv) {
+                        warnDiv.innerHTML = `<div class="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6 shadow-sm"><span class="font-bold text-amber-800 block mb-2">⚠️ Modo Inicialización Parcial</span><div class="text-[11px] text-amber-700 leading-relaxed max-w-2xl">Firebase está generando los índices en sus servidores. Mientras tanto, la app funcionará mediante un escaneo maestro del directorio (puede tardar un poco dependiendo de tu base de clientes).<br><br>${errHtml}</div></div>`;
+                    }
+                    
+                    // BRUTE FORCE FALLBACK
+                    const allSnaps = [];
+                    // Ensure window.customerDatabase exists. If it doesn't, this will crash the try block and go to generalErr (which is safe)
+                    const batchPromises = window.customerDatabase.map(c => db.collection('mangamar_customers').doc(c.dni).collection('history').get());
+                    const bruteResults = await Promise.all(batchPromises);
+                    bruteResults.forEach(res => {
+                         res.forEach(doc => allSnaps.push(doc));
+                    });
+                    snapshots = [allSnaps, []]; 
+                } else {
+                     throw new Error(rejections[0].reason);
+                }
+            } else {
+                 snapshots = results.map(r => r.value);
+            }
+        } catch (generalErr) {
+            console.error("Query execution error:", generalErr);
+            document.getElementById('conta-table-body').innerHTML = `<tr><td colspan="4" class="p-8 text-center text-red-600 text-sm font-bold"><div class="flex flex-col items-center justify-center">Error al consultar datos. Comprueba la conexión o consola.</div></td></tr>`;
+            return;
+        }
+
+        // Deduplicate
+        const uniqueDocs = new Map();
+        snapshots[0].forEach(doc => uniqueDocs.set(doc.ref.path, doc));
+        snapshots[1].forEach(doc => uniqueDocs.set(doc.ref.path, doc));
+
+        activeContabilidadData = { tarjeta: [], bizum: [], efectivo: [] };
+        let subTarj = 0; let subBiz = 0; let subEfe = 0;
+
+        const groupedDocs = new Map();
+
+        uniqueDocs.forEach(docSnap => {
+            const data = docSnap.data();
+            
+            // Validate it's paid revenue
+            if (data.paymentStatus !== 'paid' && data.type !== 'pago') return;
+
+            // HORIZON CUTOFF: Prevent double counting for any checkout done after the strict ledger patch (April 18, 2026)
+            const isStrictLedgerEra = data.paidAt && (data.paidAt.toDate ? data.paidAt.toDate().getTime() : new Date(data.paidAt).getTime()) >= new Date('2026-04-18T00:00:00Z').getTime();
+            
+            // If we are in the strict ledger era, ONLY 'pago' tokens are allowed to represent revenue.
+            // Dives/Products with paymentStatus='paid' are ignored because they are covered by a 'pago' token.
+            if (isStrictLedgerEra && data.type !== 'pago') return;
+
+            // Is it legally within the requested month?
+            let isCurrentMonth = false;
+            let displayDate = data.date;
+            let paidTimeKey = 'legacy'; // Key to group multi-activity checkouts
+            
+            if (data.paidAt) {
+                 // Has formal timestamp
+                 const paidObj = data.paidAt.toDate ? data.paidAt.toDate() : new Date(data.paidAt);
+                 if (paidObj >= startObj && paidObj <= endObj) {
+                     isCurrentMonth = true;
+                     displayDate = paidObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                     paidTimeKey = paidObj.getTime();
+                 }
+            } else {
+                 // Fallback to legacy date
+                 if (data.date && data.date >= startStr && data.date <= endStr) {
+                     isCurrentMonth = true;
+                     const parts = data.date.split('-');
+                     displayDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                 }
+            }
+
+            if (!isCurrentMonth) return;
+
+            // Calculate precise monetary extraction
+            let amount = 0;
+            if (data.type === 'pago') {
+                amount = Math.abs(parseFloat(data.customPrice) || 0);
+            } else {
+                amount = parseFloat(window.calculateDivePrice(data).total) || 0;
+            }
+            
+            if (amount <= 0) return;
+
+            if (!docSnap.ref.parent || !docSnap.ref.parent.parent) return;
+            const safeMethod = (data.paymentMethod || 'efectivo').toLowerCase().trim();
+            const parentDni = docSnap.ref.parent.parent.id;
+            
+            let conceptDisplay = '';
+            let groupSubIdentifier = ''; // Make atomic pagos unique in UI list
+
+            if (data.type === 'pago') {
+                conceptDisplay = data.description || 'Abono Parcial';
+                groupSubIdentifier = '_' + docSnap.id;
+            } else if (data.type === 'producto' || data.type === 'servicio') {
+                conceptDisplay = data.description;
+            } else {
+                conceptDisplay = data.site || 'Inmersión';
+            }
+
+            const groupKey = `${parentDni}_${safeMethod}_${paidTimeKey}${groupSubIdentifier}`;
+
+            if (groupedDocs.has(groupKey)) {
+                 const existing = groupedDocs.get(groupKey);
+                 existing.amount += amount;
+                 existing.count += 1;
+                 if (existing.count === 2) {
+                     existing.concept = existing.concept + " (y otros)";
+                 } else if (existing.concept.includes("Abono Parcial") || !existing.concept.includes("Liquidación")) {
+                      existing.concept = `Liquidación Múltiple (${existing.count} conceptos)`;
+                 } else if (existing.concept.includes("Liquidación")) {
+                      existing.concept = `Liquidación Múltiple (${existing.count} conceptos)`;
+                 }
+            } else {
+                 groupedDocs.set(groupKey, {
+                     id: docSnap.id,
+                     dni: parentDni,
+                     date: displayDate,
+                     amount: amount,
+                     concept: conceptDisplay,
+                     method: safeMethod,
+                     count: 1
+                 });
+            }
+        });
+
+        groupedDocs.forEach(record => {
+            if (record.method === 'tarjeta') { activeContabilidadData.tarjeta.push(record); subTarj += record.amount; }
+            else if (record.method === 'bizum') { activeContabilidadData.bizum.push(record); subBiz += record.amount; }
+            else { activeContabilidadData.efectivo.push(record); subEfe += record.amount; }
+        });
+
+        const numFormat = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        document.getElementById('conta-total-tarjeta').innerText = numFormat.format(subTarj) + ' €';
+        document.getElementById('conta-total-efectivo').innerText = numFormat.format(subEfe) + ' €';
+        document.getElementById('conta-total-bizum').innerText = numFormat.format(subBiz) + ' €';
+
+        document.getElementById('conta-table-body').innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400 text-sm font-bold">Haz clic en un origen arriba para ver el desglose</td></tr>`;
+        document.getElementById('conta-table-dot').classList.add('hidden');
+        document.getElementById('conta-table-title').innerText = "Selecciona un método";
+        document.getElementById('conta-table-count').innerText = "";
+
+        // Reset ring highlights
+        ['tarjeta', 'efectivo', 'bizum'].forEach(m => document.getElementById('conta-card-' + m).classList.remove('ring-blue-500', 'ring-emerald-500', 'ring-teal-500', 'bg-blue-50/50', 'bg-emerald-50/50', 'bg-teal-50/50'));
+
+    } catch (e) {
+        console.error("General error loading accounting:", e);
+        showToast("Error de lectura de base de datos.", "error");
+    }
+};
+
+window.openContabilidadCustomerProfile = function(dni, nameFallback) {
+    document.getElementById('contabilidad-modal').classList.add('hidden');
+    window._returnToContabilidadOnProfileClose = true;
+    window.openCustomerProfile(dni, nameFallback, false, 'historial');
+};
+
+window.selectContabilidadMethod = function(method) {
+    // Styling toggle
+    ['tarjeta', 'efectivo', 'bizum'].forEach(m => document.getElementById('conta-card-' + m).classList.remove('ring-blue-500', 'ring-emerald-500', 'ring-teal-500', 'bg-blue-50/50', 'bg-emerald-50/50', 'bg-teal-50/50'));
+    
+    let ringClass = 'ring-emerald-500'; let bgClass = 'bg-emerald-50/50'; let dotClass = 'bg-emerald-500';
+    if (method === 'tarjeta') { ringClass = 'ring-blue-500'; bgClass = 'bg-blue-50/50'; dotClass = 'bg-blue-500'; }
+    if (method === 'bizum') { ringClass = 'ring-teal-500'; bgClass = 'bg-teal-50/50'; dotClass = 'bg-teal-500'; }
+
+    const card = document.getElementById('conta-card-' + method);
+    card.classList.add(ringClass, bgClass);
+
+    const dot = document.getElementById('conta-table-dot');
+    dot.className = `w-2 h-2 rounded-full ${dotClass}`;
+
+    document.getElementById('conta-table-title').innerText = `Desglose: ${method.charAt(0).toUpperCase() + method.slice(1)}`;
+    
+    const records = activeContabilidadData[method] || [];
+    document.getElementById('conta-table-count').innerText = `${records.length} cobros`;
+
+    // Sort by Date descending naturally
+    try {
+        records.sort((a,b) => {
+            const dA = a.date ? a.date.split('/').reverse().join('') : '0';
+            const dB = b.date ? b.date.split('/').reverse().join('') : '0';
+            return (dB - dA);
+        });
+    } catch(err) {
+        console.warn("Could not sort records organically", err);
+    }
+
+    let html = '';
+    try {
+        records.forEach(r => {
+            const cInfo = customerDatabase.find(c => c.dni === r.dni) || {};
+            const fullName = window.getFullName(cInfo).trim() || cInfo.nombre || r.dni;
+            
+            let typeBadge = '';
+            if (r.concept.includes('Abono') || r.concept.includes('PAGO')) {
+                typeBadge = `<span class="px-1 bg-emerald-100 text-emerald-700 rounded text-[8px] uppercase font-black mr-2">ABONO</span>`;
+            }
+
+            html += `
+            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                <td class="py-2.5 px-4 text-xs font-bold text-slate-500 align-middle shrink-0 w-32">${r.date}</td>
+                <td class="py-2.5 px-4 align-middle">
+                     <div class="text-[11px] font-black tracking-widest text-[#242b3d] leading-tight cursor-pointer hover:text-blue-600 transition-colors" onclick="window.openContabilidadCustomerProfile('${r.dni}', '${fullName.replace(/'/g, "\\'")}')">${fullName.toUpperCase()}</div>
+                     <div class="text-[9px] font-medium text-slate-400 mt-0.5">${r.dni}</div>
+                </td>
+                <td class="py-2.5 px-4 align-middle">
+                     <div class="text-[11px] font-bold text-slate-600 flex items-center leading-tight">${typeBadge}${r.concept}</div>
+                </td>
+                <td class="py-2.5 px-4 align-middle text-right shrink-0 w-32">
+                     <div class="font-black text-slate-800 text-sm whitespace-nowrap">${r.amount.toFixed(2)} €</div>
+                </td>
+            </tr>`;
+        });
+    } catch(err) {
+        html = `<tr><td colspan="4" class="p-8 text-center text-red-500 font-mono text-xs whitespace-pre-wrap">${err.stack}</td></tr>`;
+    }
+
+    if (records.length === 0) {
+        html = `<tr><td colspan="4" class="p-8 text-center"><div class="text-3xl mb-2">💸</div><div class="text-sm font-bold text-slate-400">Sin ingresos registrados en este canal</div></td></tr>`;
+    }
+    
+    document.getElementById('conta-table-body').innerHTML = html;
 };

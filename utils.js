@@ -55,6 +55,8 @@ function executeNavState(state) {
         if (typeof openCrmModal === 'function') openCrmModal(true);
     } else if (state.type === 'staff') {
         if (typeof openStaffViewsModal === 'function') openStaffViewsModal(true);
+    } else if (state.type === 'contabilidad') {
+        if (typeof openContabilidadView === 'function') openContabilidadView(true);
     }
 }
 
@@ -76,6 +78,7 @@ window.hideAllNavModals = function() {
     document.getElementById('manage-boat-modal').classList.add('hidden');
     document.getElementById('crm-modal').classList.add('hidden');
     document.getElementById('staff-views-modal')?.classList.add('hidden');
+    document.getElementById('contabilidad-modal')?.classList.add('hidden');
 };
 
 window.clearModalHistory = function() {

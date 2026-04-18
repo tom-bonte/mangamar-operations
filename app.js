@@ -302,7 +302,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     let previewHtml = (trip.groups || []).map(group => {
         const guideName = (group.guide || 'Sin Guía').toUpperCase();
         const guestsHtml = (group.guests || []).map(g => {
-            const gasShort = (g.gas || '15L Aire').replace('L ', '').replace('Aire', 'Air').replace('EAN', 'Nx');
+            const gasShort = (g.gas || '15L Aire').replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
                         <button onclick="if(!window.isLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
                                 class="truncate pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer flex-1 text-left auth-lock">
@@ -321,7 +321,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     if(!previewHtml || guestCount === 0) previewHtml = `<div class="text-[10px] text-slate-400 italic text-center">Sin grupos</div>`;
 
     const topBarColor = siteColorConfig.split(' ')[0] || 'bg-slate-200';
-    const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.plazas) || parseInt(trip.pax) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 12));
+    const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.maxDives) || parseInt(trip.plazas) || parseInt(trip.pax) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 12));
     const capacity = boatId === 'shore' ? '-' : capacityNum;
     
     col.draggable = true;
@@ -453,6 +453,7 @@ window.handleDrop = async function(event, targetBoat, targetTime) {
         groups: updatedTrip.groups || [], 
         guests: updatedTrip.guests || []
     };
+    if (updatedTrip.maxDives) payload.maxDives = updatedTrip.maxDives;
 
     try {
         showToast("⏳ Moviendo salida...");

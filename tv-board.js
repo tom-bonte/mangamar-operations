@@ -51,10 +51,11 @@ window.openTVView = function() {
                                 ${groupGuests.map(g => {
                                     const fullGas = g.gas || '15L Aire';
                                     const isNx = fullGas.includes('EAN');
+                                    const displayGas = fullGas.replace(/Aire/i, 'Air').replace(/EAN\s*(\d+)/i, '$1%');
                                     return `
                                     <div class="flex justify-between items-center py-1">
                                         <span class="text-xl font-black text-slate-700 uppercase tracking-tight truncate pr-4">${g.nombre}</span>
-                                        <span class="tv-gas-badge ${isNx ? 'tv-gas-nitrox' : 'tv-gas-air'}">${fullGas}</span>
+                                        <span class="tv-gas-badge ${isNx ? 'tv-gas-nitrox' : 'tv-gas-air'}">${displayGas}</span>
                                     </div>`;
                                 }).join('')}
                             </div>

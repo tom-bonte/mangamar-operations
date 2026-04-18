@@ -36,8 +36,32 @@ function openManageBoatModal(trip, boatId, time, dateStr, isNavBackForward = fal
     
     document.getElementById('input-boat').value = activeBoatItem.assignedBoat || 'ares';
     document.getElementById('input-time').value = activeBoatItem.time || '09:00';
-    document.getElementById('input-time').disabled = activeBoatItem.isVisor; // Bloquear hora si viene del Visor
+    document.getElementById('input-time').disabled = activeBoatItem.isVisor;
+
+    // Max Plazas field — only for internal trips
+    const maxDivesContainer = document.getElementById('input-maxdives-container');
+    const maxDivesInput = document.getElementById('input-maxdives');
+    if (activeBoatItem.isVisor || boatId === 'shore') {
+        if (maxDivesContainer) maxDivesContainer.classList.add('hidden');
+    } else {
+        if (maxDivesContainer) maxDivesContainer.classList.remove('hidden');
+        if (maxDivesInput) maxDivesInput.value = activeBoatItem.maxDives || '';
+    }
     
+    // Dynamic Options for Boat
+    const inputBoat = document.getElementById('input-boat');
+    if (activeBoatItem.isVisor) {
+        inputBoat.disabled = true; // Visor boats cannot be changed.
+    } else {
+        inputBoat.disabled = false;
+        // Restrict Shore mapping: Boats stay boats, Shore stays Shore
+        const currentBoat = activeBoatItem.assignedBoat || boatId;
+        Array.from(inputBoat.options).forEach(opt => {
+            if (currentBoat === 'shore') opt.disabled = (opt.value !== 'shore');
+            else opt.disabled = (opt.value === 'shore');
+        });
+    }
+
     const delBtn = document.getElementById('btn-delete-boat');
     delBtn.classList.remove('hidden'); // UNLOCK SUPERUSER DELETE FOR ALL TRIPS
 
@@ -52,7 +76,8 @@ function openManageBoatModal(trip, boatId, time, dateStr, isNavBackForward = fal
         document.getElementById('activity-container').classList.add('hidden');
         
         const siteSelect = document.getElementById('input-site');
-        siteSelect.innerHTML = ALL_SITES.map(s => `<option value="${s}">${s}</option>`).join('');
+        const boatSites = ALL_SITES.filter(s => s !== 'Shore' && s !== 'Aula');
+        siteSelect.innerHTML = boatSites.map(s => `<option value="${s}">${s}</option>`).join('');
         siteSelect.value = activeBoatItem.site || SITES_INTERNAL[0]; 
         
         if (activeBoatItem.isVisor) {
@@ -112,7 +137,7 @@ function closeManageBoatModal() { document.getElementById('manage-boat-modal').c
 
 function updateModalSubtitle() {
     let total = 0; activeBoatItem.groups.forEach(g => total += g.guests.length);
-    let capacityNum = parseInt(activeBoatItem.plazas) || parseInt(activeBoatItem.pax) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
+    let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.plazas) || parseInt(activeBoatItem.pax) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
     let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : `${capacityNum} Plazas Ocupadas`;
     document.getElementById('modal-boat-subtitle').innerText = `${activeBoatItem.time} • ${total}/${capText}`;
 }
@@ -209,7 +234,7 @@ function renderGroups() {
                             <th class="p-3 w-40">Nombre</th>
                             <th class="p-3 w-36 text-center">Titulación</th>
                             <th class="p-3 w-56 text-center">Extras</th>
-                            <th class="p-3 w-16 text-center ${window.isLoggedIn ? '' : 'hidden'}">Señal</th>
+                            <th class="p-3 w-16 text-center ${window.isLoggedIn ? '' : 'hidden'}">Depósito</th>
                             <th class="p-3 w-12 text-center ${window.isLoggedIn ? '' : 'hidden'}">DNI</th>
                             <th class="p-3 w-16 text-center ${window.isLoggedIn ? '' : 'hidden'}">Contacto</th>
                             <th class="p-3 w-20 text-center ${window.isLoggedIn ? '' : 'hidden'}">Acciones</th>
@@ -222,8 +247,7 @@ function renderGroups() {
             let nameHtml = '';
             if (guest.isRelinking) {
                 nameHtml = `<div class="relative">
-                    <input type="text" id="relink-${groupIndex}-${guestIndex}" class="w-full px-2 py-1 border border-red-300 rounded focus:ring-2 focus:ring-red-500" placeholder="Buscar en DB..." oninput="searchRelink(${groupIndex}, ${guestIndex}, this.value)" autocomplete="off">
-                    <div id="relink-dropdown-${groupIndex}-${guestIndex}" class="absolute z-[100] left-0 right-0 bg-white border border-slate-200 rounded shadow-2xl mt-1 hidden max-h-48 overflow-y-auto"></div>
+                    <input type="text" id="relink-${groupIndex}-${guestIndex}" class="w-full px-2 py-1 border border-red-300 rounded focus:ring-2 focus:ring-red-500" placeholder="Buscar en DB..." oninput="searchRelink(${groupIndex}, ${guestIndex}, this.value)" onkeydown="checkRelinkEnter(event, ${groupIndex}, ${guestIndex})" autocomplete="off">
                 </div>`;
             } else {
                 let manualDot = guest.isManual ? `<button onclick="activateRelink(${groupIndex}, ${guestIndex})" title="Cliente Manual - Click para enlazar a la Base de Datos" class="w-2.5 h-2.5 rounded-full bg-red-500 hover:bg-red-700 animate-pulse mr-2 inline-block shrink-0 shadow-sm"></button>` : '';
@@ -260,14 +284,18 @@ function renderGroups() {
             const gasCurrent = guest.gas || '15L Aire';
             const isNitrox = gasCurrent.includes('EAN');
             const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
-            const gasShortText = gasCurrent.replace('L ', ' ').replace('Aire', 'Air').replace('EAN', 'Nx');
+            const gasShortText = gasCurrent.replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
 
             const rentalCurrent = guest.rental || 0;
-            let rentalClass = 'bg-diagonal-yellow text-transparent border-yellow-200';
-            let rentalText = '';
-            if (rentalCurrent === 1) rentalClass = 'bg-half-yellow border-yellow-400';
-            if (rentalCurrent === 2) rentalClass = 'bg-full-yellow border-yellow-500';
+            let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
+            let rentalText = 'Eq';
+            if (rentalCurrent === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; rentalText = 'Eq'; }
+            if (rentalCurrent === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; rentalText = 'Eq'; }
             if (rentalCurrent === 'INC') { rentalClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner'; rentalText = 'INC'; }
+
+            // Computer rental button
+            const compCurrent = guest.computer || 0;
+            const compClass = compCurrent ? 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner' : 'bg-slate-50 text-slate-300 border-slate-200 hover:bg-slate-100';
 
             let globalIns = null;
             if (guest.dni && !guest.course) {
@@ -313,7 +341,7 @@ function renderGroups() {
             }
             let senalHtml = 
                 `<div class="relative flex items-center justify-center">
-                    <input type="number" value="${customerDeposit}" onchange="updateGuestDeposit('${guest.dni || ''}', this.value, ${groupIndex}, ${guestIndex})" class="w-12 px-1 py-1 text-center bg-white border border-slate-200 rounded text-[10px] font-black text-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-inner" style="-moz-appearance: textfield;" title="Señal / Anticipo">
+                    <input type="number" value="${customerDeposit}" onchange="updateGuestDeposit('${guest.dni || ''}', this.value, ${groupIndex}, ${guestIndex})" class="w-12 px-1 py-1 text-center bg-white border border-slate-200 rounded text-[10px] font-black text-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-inner" style="-moz-appearance: textfield;" title="Depósito / Anticipo">
                 </div>`;
 
             html += `
@@ -329,12 +357,15 @@ function renderGroups() {
                     <td class="p-3 text-sm font-bold text-slate-800 align-middle max-w-[140px]">${nameHtml}</td>
                     <td class="p-3 text-center align-middle">${titHtml}</td>
                     <td class="p-3 align-middle">
-                        <div class="flex items-center justify-center gap-2">
+                        <div class="flex items-center justify-center gap-1.5">
                             <button id="btn-gas-${groupIndex}-${guestIndex}" onclick="cycleGas(${groupIndex}, ${guestIndex})" class="w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}">
                                 ${gasShortText}
                             </button>
                             <button id="btn-rental-${groupIndex}-${guestIndex}" onclick="cycleRental(${groupIndex}, ${guestIndex})" class="w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black shrink-0 ${rentalClass}">
                                 ${rentalText}
+                            </button>
+                            <button id="btn-comp-${groupIndex}-${guestIndex}" onclick="toggleComputer(${groupIndex}, ${guestIndex})" class="w-10 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black shrink-0 ${compClass}" title="Alquiler Ordenador">
+                                Comp
                             </button>
                             ${insHtml}
                             <button id="btn-bono-${groupIndex}-${guestIndex}" onclick="toggleBono(${groupIndex}, ${guestIndex})" class="w-8 h-7 flex justify-center items-center rounded border transition-colors text-[11px] font-black shrink-0 ${bonoClass}" title="Usa Bono">
@@ -358,8 +389,7 @@ function renderGroups() {
                 <tr class="bg-blue-50/30 focus-within:z-50 relative add-guest-row">
                     <td class="p-3 text-center text-blue-400 text-sm font-black">+</td>
                     <td colspan="6" class="p-2 relative">
-                        <input type="text" id="search-${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="searchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" autocomplete="off">
-                        <div id="dropdown-${groupIndex}" class="absolute z-[100] left-2 right-2 bg-white border border-slate-200 rounded-xl shadow-2xl mt-1 hidden max-h-64 overflow-y-auto"></div>
+                        <input type="text" id="search-${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="searchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" autocomplete="off" onblur="setTimeout(() => { const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
                     </td>
                 </tr>
         `;
@@ -412,7 +442,7 @@ function cycleGas(groupIndex, guestIndex) {
         const isNitrox = nextGas.includes('EAN');
         const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
         btn.className = `w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}`;
-        btn.innerText = nextGas.replace('L ', ' ').replace('Aire', 'Air').replace('EAN', 'Nx');
+        btn.innerText = nextGas.replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
     }
     triggerAutoSave();
 }
@@ -430,11 +460,11 @@ function cycleRental(groupIndex, guestIndex) {
     // Targeted DOM Update
     const btn = document.getElementById(`btn-rental-${groupIndex}-${guestIndex}`);
     if (btn) {
-        let rentalClass = 'bg-diagonal-yellow text-transparent border-yellow-200';
-        if (nextRental === 1) rentalClass = 'bg-half-yellow border-yellow-400';
-        if (nextRental === 2) rentalClass = 'bg-full-yellow border-yellow-500';
+        let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
+        if (nextRental === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; }
+        if (nextRental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
         btn.className = `w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black shrink-0 ${rentalClass}`;
-        btn.innerText = '';
+        btn.innerHTML = 'Eq';
     }
     triggerAutoSave();
 }
@@ -449,6 +479,26 @@ window.toggleBono = function(groupIndex, guestIndex) {
     if (btn) {
         const bonoClass = guest.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200 hover:bg-slate-50';
         btn.className = `w-8 h-7 flex justify-center items-center rounded border transition-colors text-[11px] font-black shrink-0 ${bonoClass}`;
+    }
+    triggerAutoSave();
+};
+
+window.toggleComputer = function(groupIndex, guestIndex) {
+    if(!window.isLoggedIn) return;
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    guest.computer = guest.computer ? 0 : 1;
+
+    // Auto-look up the price from the price list
+    const compPriceItem = (window.dynamicPrices || []).find(p => 
+        p.name && p.name.toLowerCase().includes('ordenador')
+    );
+    guest.computerPrice = compPriceItem ? compPriceItem.price : 7; // fallback 7€
+
+    // Targeted DOM Update
+    const btn = document.getElementById(`btn-comp-${groupIndex}-${guestIndex}`);
+    if (btn) {
+        const compClass = guest.computer ? 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner' : 'bg-slate-50 text-slate-300 border-slate-200 hover:bg-slate-100';
+        btn.className = `w-10 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black shrink-0 ${compClass}`;
     }
     triggerAutoSave();
 };
@@ -604,7 +654,7 @@ function activateRelink(groupIndex, guestIndex) {
 }
 
 function searchRelink(groupIndex, guestIndex, query) {
-    const dropdown = document.getElementById(`relink-dropdown-${groupIndex}-${guestIndex}`);
+    const dropdown = getGlobalDropdown();
     query = query.toLowerCase().trim();
     if (query.length < 2) { dropdown.classList.add('hidden'); return; }
 
@@ -615,28 +665,63 @@ function searchRelink(groupIndex, guestIndex, query) {
 
     if (results.length === 0) {
         dropdown.innerHTML = `<div class="px-4 py-2 text-xs text-slate-500 italic">No encontrado</div>`;
-        dropdown.classList.remove('hidden'); return;
+    } else {
+        dropdown.innerHTML = results.map(c => {
+            const fullName = getFullName(c);
+            const conflict = checkDiverConflict(c.dni, fullName, groupIndex, guestIndex);
+            if (conflict.conflict) {
+                return `<div class="px-3 py-2 bg-slate-50 border-b border-slate-100 opacity-60 cursor-not-allowed flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-slate-500 text-xs">${fullName}</div>
+                        <div class="text-[10px] text-slate-400">${c.titulacion || '-'} • ${c.dni}</div>
+                    </div>
+                </div>`;
+            } else {
+                const encodedData = encodeURIComponent(JSON.stringify(c));
+                return `<div class="px-3 py-2 bg-white hover:bg-blue-50 cursor-pointer border-b border-slate-100 text-left global-ac-item" onmousedown="executeRelink(${groupIndex}, ${guestIndex}, '${encodedData}')">
+                    <div class="font-bold text-slate-800 text-xs">${fullName}</div>
+                    <div class="text-[10px] text-slate-500">${c.titulacion || '-'} • ${c.dni}</div>
+                </div>`;
+            }
+        }).join('');
     }
-    dropdown.innerHTML = results.map(c => {
-        const fullName = getFullName(c);
-        const conflict = checkDiverConflict(c.dni, fullName, groupIndex, guestIndex);
-        if (conflict.conflict) {
-            return `<div class="px-3 py-2 bg-slate-50 border-b border-slate-100 opacity-60 cursor-not-allowed flex justify-between items-center">
-                <div>
-                    <div class="font-bold text-slate-500 text-xs">${fullName}</div>
-                    <div class="text-[10px] text-slate-400">${c.titulacion || '-'} • ${c.dni}</div>
-                </div>
-                <span class="text-[9px] font-black text-slate-500 bg-slate-100 px-2 py-1 rounded">En ${conflict.where}</span>
-            </div>`;
-        } else {
-            const encodedData = encodeURIComponent(JSON.stringify(c));
-            return `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-slate-100 text-left" onclick="executeRelink(${groupIndex}, ${guestIndex}, '${encodedData}')">
-                <div class="font-bold text-slate-800 text-xs">${fullName}</div>
-                <div class="text-[10px] text-slate-500">${c.titulacion || '-'} • ${c.dni}</div>
-            </div>`;
-        }
-    }).join('');
+
+    const inputRect = document.getElementById(`relink-${groupIndex}-${guestIndex}`).getBoundingClientRect();
+    dropdown.style.top = inputRect.bottom + 'px';
+    dropdown.style.left = inputRect.left + 'px';
+    dropdown.style.width = inputRect.width + 'px';
     dropdown.classList.remove('hidden');
+}
+
+function checkRelinkEnter(event, groupIndex, guestIndex) {
+    const dropdown = document.getElementById('global-autocomplete');
+    const items = dropdown && !dropdown.classList.contains('hidden') ? Array.from(dropdown.querySelectorAll('.global-ac-item')) : [];
+
+    if (items.length > 0 && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+        event.preventDefault();
+        let focusedIdx = items.findIndex(el => el.classList.contains('bg-blue-100'));
+        if(focusedIdx > -1) {
+            items[focusedIdx].classList.remove('bg-blue-100');
+            items[focusedIdx].classList.add('bg-white');
+        }
+        
+        if (event.key === 'ArrowDown') focusedIdx = (focusedIdx + 1) % items.length;
+        if (event.key === 'ArrowUp') focusedIdx = (focusedIdx - 1 + items.length) % items.length;
+        
+        items[focusedIdx].classList.remove('bg-white');
+        items[focusedIdx].classList.add('bg-blue-100');
+        items[focusedIdx].scrollIntoView({ block: "nearest" });
+        return;
+    }
+
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        if (items.length > 0) {
+            let focusedItem = items.find(el => el.classList.contains('bg-blue-100'));
+            if (focusedItem) focusedItem.dispatchEvent(new MouseEvent('mousedown'));
+            else items[0].dispatchEvent(new MouseEvent('mousedown'));
+        }
+    }
 }
 
 window.executeRelink = function(groupIndex, guestIndex, encodedData) {
@@ -692,8 +777,19 @@ window.saveLocalGuestEdit = function() {
     renderGroups(); updateModalSubtitle();
 };
 
+function getGlobalDropdown() {
+    let dropdown = document.getElementById('global-autocomplete');
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.id = 'global-autocomplete';
+        dropdown.className = 'fixed bg-white border border-slate-200 rounded-xl shadow-2xl mt-1 hidden max-h-64 overflow-y-auto z-[999999]';
+        document.body.appendChild(dropdown);
+    }
+    return dropdown;
+}
+
 function searchCustomers(groupIndex, query) {
-    const dropdown = document.getElementById(`dropdown-${groupIndex}`);
+    const dropdown = getGlobalDropdown();
     query = query.toLowerCase().trim();
     if (query.length < 2) { dropdown.classList.add('hidden'); return; }
 
@@ -704,29 +800,33 @@ function searchCustomers(groupIndex, query) {
 
     if (results.length === 0) {
         dropdown.innerHTML = `<div class="px-4 py-3 text-sm text-slate-500 italic">No encontrado.<br><span class="text-xs">Presiona <b>Enter</b> para añadir manualmente.</span></div>`;
-        dropdown.classList.remove('hidden'); return;
+    } else {
+        dropdown.innerHTML = results.map(c => {
+            const fullName = getFullName(c);
+            const conflict = checkDiverConflict(c.dni, fullName);
+            
+            if (conflict.conflict) {
+                return `<div class="px-4 py-3 bg-slate-50 border-b border-slate-100 opacity-60 cursor-not-allowed flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-slate-500 text-sm">${fullName}</div>
+                        <div class="text-xs text-slate-400 font-medium">${c.titulacion || '-'} • ${c.dni}</div>
+                    </div>
+                    <span class="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-1 rounded">En ${conflict.where}</span>
+                </div>`;
+            } else {
+                const encodedData = encodeURIComponent(JSON.stringify(c));
+                return `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer border-b border-slate-100 transition-colors global-ac-item" onmousedown="selectCustomer(${groupIndex}, '${encodedData}')">
+                    <div class="font-bold text-slate-800 text-sm">${fullName}</div>
+                    <div class="text-xs text-slate-500 font-medium">${c.titulacion || '-'} • ${c.dni}</div>
+                </div>`;
+            }
+        }).join('');
     }
 
-    dropdown.innerHTML = results.map(c => {
-        const fullName = getFullName(c);
-        const conflict = checkDiverConflict(c.dni, fullName);
-        
-        if (conflict.conflict) {
-            return `<div class="px-4 py-2 bg-slate-50 border-b border-slate-100 opacity-60 cursor-not-allowed flex justify-between items-center">
-                <div>
-                    <div class="font-bold text-slate-500 text-sm">${fullName}</div>
-                    <div class="text-xs text-slate-400 font-medium">${c.titulacion || '-'} • ${c.dni}</div>
-                </div>
-                <span class="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-1 rounded">En ${conflict.where}</span>
-            </div>`;
-        } else {
-            const encodedData = encodeURIComponent(JSON.stringify(c));
-            return `<div class="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors" onclick="selectCustomer(${groupIndex}, '${encodedData}')">
-                <div class="font-bold text-slate-800 text-sm">${fullName}</div>
-                <div class="text-xs text-slate-500 font-medium">${c.titulacion || '-'} • ${c.dni}</div>
-            </div>`;
-        }
-    }).join('');
+    const inputRect = document.getElementById(`search-${groupIndex}`).getBoundingClientRect();
+    dropdown.style.top = inputRect.bottom + 'px';
+    dropdown.style.left = inputRect.left + 'px';
+    dropdown.style.width = inputRect.width + 'px';
     dropdown.classList.remove('hidden');
 }
 
@@ -735,12 +835,41 @@ window.selectCustomer = function(groupIndex, encodedData) {
     const fullName = getFullName(data);
     const tag = findActiveTagForGuest(data.dni, fullName); // Auto-sync group!
     activeBoatItem.groups[groupIndex].guests.push({ nombre: fullName, titulacion: data.titulacion || '', telefono: data.telefono || '', email: data.email || '', dni: data.dni || '', gas: '15L Aire', isManual: false, bookingTag: tag });
+    const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden');
     updateModalSubtitle(); renderGroups(); 
 };
 
 function checkEnter(event, groupIndex) {
+    const dropdown = getGlobalDropdown();
+    const items = dropdown && !dropdown.classList.contains('hidden') ? Array.from(dropdown.querySelectorAll('.global-ac-item')) : [];
+
+    if (items.length > 0 && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+        event.preventDefault();
+        let focusedIdx = items.findIndex(el => el.classList.contains('bg-blue-100'));
+        if(focusedIdx > -1) {
+            items[focusedIdx].classList.remove('bg-blue-100');
+            items[focusedIdx].classList.add('bg-white');
+        }
+        
+        if (event.key === 'ArrowDown') focusedIdx = (focusedIdx + 1) % items.length;
+        if (event.key === 'ArrowUp') focusedIdx = (focusedIdx - 1 + items.length) % items.length;
+        
+        items[focusedIdx].classList.remove('bg-white');
+        items[focusedIdx].classList.add('bg-blue-100');
+        items[focusedIdx].scrollIntoView({ block: "nearest" });
+        return;
+    }
+
     if (event.key === 'Enter') {
         event.preventDefault();
+        if (items.length > 0) {
+            let focusedItem = items.find(el => el.classList.contains('bg-blue-100'));
+            if (focusedItem) focusedItem.dispatchEvent(new MouseEvent('mousedown'));
+            else items[0].dispatchEvent(new MouseEvent('mousedown')); // Defaults to top option if none selected
+            return;
+        }
+
+        // Manual entry fallback
         const input = document.getElementById(`search-${groupIndex}`);
         const fullName = input.value.trim();
         if (fullName !== '') {
@@ -753,10 +882,6 @@ function checkEnter(event, groupIndex) {
     }
 }
 
-document.addEventListener('click', function(event) {
-    if (!event.target.closest('td')) document.querySelectorAll('[id^="dropdown-"], [id^="relink-dropdown-"]').forEach(el => el.classList.add('hidden'));
-});
-
 // --- SAVING & DELETING DATA ---
 async function saveBoatData() {
     if (!activeBoatItem) return;
@@ -764,6 +889,13 @@ async function saveBoatData() {
     // Guardar los cambios de Barco y Hora antes de evaluar el resto
     activeBoatItem.assignedBoat = document.getElementById('input-boat').value;
     activeBoatItem.time = document.getElementById('input-time').value;
+
+    // Save max dives capacity for internal trips
+    if (!activeBoatItem.isVisor) {
+        const maxDivesVal = parseInt(document.getElementById('input-maxdives').value);
+        if (maxDivesVal > 0) activeBoatItem.maxDives = maxDivesVal;
+        else delete activeBoatItem.maxDives;
+    }
 
     activeBoatItem.captain = activeBoatItem.assignedBoat === 'shore' ? '' : document.getElementById('input-captain').value;
     activeBoatItem.site = activeBoatItem.assignedBoat === 'shore' ? document.getElementById('input-activity').value : document.getElementById('input-site').value;
@@ -815,6 +947,7 @@ async function saveBoatData() {
         date: activeBoatItem.date, time: activeBoatItem.time, assignedBoat: activeBoatItem.assignedBoat,
         site: activeBoatItem.site, captain: activeBoatItem.captain, groups: activeBoatItem.groups, guests: flatGuests 
     };
+    if (activeBoatItem.maxDives) payload.maxDives = activeBoatItem.maxDives;
     
     try {
         await saveInternalBoatData(activeBoatItem.id, activeBoatItem.date, payload);
@@ -896,6 +1029,8 @@ async function saveBoatData() {
                 assignedBoat: activeBoatItem.assignedBoat,
                 gas: gst.gas || '15L Aire',
                 rental: gst.rental || 0,
+                computer: gst.computer || 0,
+                computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
                 insurance: gst.insurance || 0,
                 course: gst.course || null,           
                 baseCourse: gst.baseCourse || null,   
@@ -934,23 +1069,21 @@ window.manualSaveBoatData = async function() {
     const btn = document.getElementById('btn-manual-save');
     const originalContent = btn.innerHTML;
     
+    // UI Feedback & Immediate Close
+    btn.disabled = true;
+    showToast("⏳ Guardando salida internamente...");
+    closeManageBoatModal();
+    
     try {
-        btn.disabled = true;
-        btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
-        
         await saveBoatData();
-        
-        btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg> Guardado`;
-        
-        setTimeout(() => {
-            closeManageBoatModal();
-            showToast("✅ Salida guardada con éxito");
-        }, 300);
-        
+        showToast("✅ Salida guardada con éxito");
     } catch (err) {
-        btn.disabled = false;
-        btn.innerHTML = originalContent;
+        console.error(err);
         showAppAlert("No se pudo guardar la salida. Comprueba tu conexión.");
+    } finally {
+        // Restore button just in case they open the modal again
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
     }
 }
 
@@ -1038,6 +1171,21 @@ function toggleGuestSelection(groupIndex, guestIndex) {
 function findActiveTagForGuest(guestDni, guestName) {
     if(!guestDni && !guestName) return null;
     let foundTag = null;
+    
+    // 1. Check Global Groups over active date range
+    if (window.globalGroups && window.globalGroups.length > 0) {
+        const currentDate = activeBoatItem.date;
+        const activeGlobalGroup = window.globalGroups.find(g => {
+            if (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate) {
+                if (guestDni && g.members && g.members.includes(guestDni)) return true;
+                if (guestName && g.members && g.members.includes(guestName.toLowerCase())) return true;
+            }
+            return false;
+        });
+        if (activeGlobalGroup) return activeGlobalGroup.name;
+    }
+    
+    // 2. Fallback: Check local trips for same day
     const todaysTrips = mergedAllocations.filter(t => t.date === activeBoatItem.date);
     todaysTrips.forEach(t => {
         if(t.guests) t.guests.forEach(g => {
@@ -1052,6 +1200,27 @@ function findActiveTagForGuest(guestDni, guestName) {
 
 function openGroupLinkModal() {
     document.getElementById('group-name-input').value = '';
+    
+    if (window.groupFlatpickr) window.groupFlatpickr.destroy();
+    let defaultRange = activeBoatItem && activeBoatItem.date ? [activeBoatItem.date, activeBoatItem.date] : [];
+    window.groupFlatpickr = flatpickr("#group-date-range", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        defaultDate: defaultRange,
+        locale: {
+            firstDayOfWeek: 1,
+            rangeSeparator: " hasta ",
+            weekdays: {
+                shorthand: ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"],
+                longhand: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+            },
+            months: {
+                shorthand: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],
+                longhand: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+            }
+        }
+    });
+
     let existingTags = new Set();
     
     // Find all active tags today to build the clickable shortcut buttons
@@ -1078,21 +1247,56 @@ function openGroupLinkModal() {
     setTimeout(() => document.getElementById('group-name-input').focus(), 100);
 }
 
-function confirmGroupLink(groupName) {
+async function confirmGroupLink(groupName) {
     let finalName = groupName;
+    let isSinGrupo = false;
+    
     if (!finalName || finalName.trim() === '') {
         // If "Sin Nombre", generate a silent random tag so they share a color on THIS boat
         finalName = 'anon_' + Math.random().toString(36).substr(2, 5); 
+        isSinGrupo = true;
     } else {
         finalName = finalName.trim();
+        
+        // --- GLOBAL GROUP LOGIC ---
+        const rangeStr = document.getElementById('group-date-range').value || '';
+        const dates = rangeStr.split(' hasta ');
+        const startDate = dates[0] || '';
+        const endDate = dates[1] || dates[0] || '';
+        
+        if (startDate && endDate) {
+            let groupObj = window.globalGroups.find(g => g.name.toLowerCase() === finalName.toLowerCase());
+            
+            if (!groupObj) {
+                groupObj = { id: 'grp_' + Date.now(), name: finalName, startDate: startDate, endDate: endDate, members: [] };
+            } else {
+                if (startDate < groupObj.startDate) groupObj.startDate = startDate;
+                if (endDate > groupObj.endDate) groupObj.endDate = endDate;
+            }
+            
+            selectedGuestsForGroup.forEach(s => {
+                const guest = activeBoatItem.groups[s.groupIndex].guests[s.guestIndex];
+                if (guest.dni && !groupObj.members.includes(guest.dni)) {
+                    groupObj.members.push(guest.dni);
+                } else if (!guest.dni && guest.nombre && !groupObj.members.includes(guest.nombre)) {
+                    // Fallback to strict name matching if DNI missing
+                    groupObj.members.push(guest.nombre.toLowerCase());
+                }
+            });
+            
+            if (window.saveGlobalGroup) window.saveGlobalGroup(groupObj);
+        }
     }
     
     selectedGuestsForGroup.forEach(s => {
-        activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag = finalName;
+        if (isSinGrupo) delete activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag;
+        else activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag = finalName;
     });
+    
     selectedGuestsForGroup = []; 
     document.getElementById('group-link-modal').classList.add('hidden');
     renderGroups(); 
+    triggerAutoSave();
 }
 
 function unlinkSelected() {
@@ -1280,6 +1484,118 @@ window.clearTitCourse = function() {
     if (guest.insurance === 'INC') guest.insurance = 0;
     
     document.getElementById('tit-popup').classList.add('hidden');
+    renderGroups();
+    triggerAutoSave();
+};
+
+/* =========================================================================
+   BULK INSERTION (Global Groups Modal)
+   ========================================================================= */
+
+window.openBulkAddModal = function() {
+    const listEl = document.getElementById('bulk-groups-accordion');
+    listEl.innerHTML = '';
+    
+    // Filter globalGroups that span the activeBoatItem.date
+    const currentDate = activeBoatItem.date;
+    const activeGroups = (window.globalGroups || []).filter(g => {
+        return g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate;
+    });
+
+    if (activeGroups.length === 0) {
+        listEl.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">No hay grupos globales activos configurados para esta fecha.</div>';
+    } else {
+        activeGroups.forEach(grp => {
+            // Find member data from Master List
+            const membersHtml = grp.members.map(memberKey => {
+                // If it's a DNI, look up. Otherwise, just print the name.
+                let displayName = memberKey;
+                let displayDni = '';
+                
+                const masterMatch = customerDatabase.find(c => c.dni === memberKey || (c.dni && c.dni.toLowerCase() === memberKey.toLowerCase()));
+                if (masterMatch) {
+                    displayName = getFullName(masterMatch);
+                    displayDni = masterMatch.dni || '';
+                } else if (!memberKey.match(/^[0-9xyzXYZ]/)) {
+                    // It's just a raw name
+                    displayName = memberKey.charAt(0).toUpperCase() + memberKey.slice(1);
+                }
+
+                // Make sure they are not ALREADY in the boat
+                const alreadyInBoat = activeBoatItem.groups.some(bgrp => 
+                    bgrp.guests && bgrp.guests.some(g => (g.dni && g.dni === displayDni) || (g.nombre && g.nombre.toLowerCase() === displayName.toLowerCase()))
+                );
+
+                if (alreadyInBoat) return ''; // Skip rendering if already in boat
+
+                return `
+                <label class="flex items-center gap-3 p-2 hover:bg-slate-50 cursor-pointer rounded-lg border border-transparent hover:border-slate-100 transition-all">
+                    <input type="checkbox" value="${encodeURIComponent(JSON.stringify({nombre: displayName, dni: displayDni}))}" data-group="${grp.name}" class="bulk-member-checkbox w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500">
+                    <div>
+                        <div class="text-sm font-bold text-slate-800">${displayName}</div>
+                        ${displayDni ? `<div class="text-[10px] text-slate-400 font-black tracking-widest">${displayDni}</div>` : ''}
+                    </div>
+                </label>`;
+            }).filter(h => h !== '').join('');
+
+            if (membersHtml === '') return; // All members already in boat
+
+            listEl.innerHTML += `
+            <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <div class="bg-slate-50/50 px-4 py-3 border-b border-slate-200 flex justify-between items-center cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                    <h4 class="font-black text-slate-800 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full ${getGroupColorClass(grp.name).split(' ')[0]}"></span>
+                        ${grp.name}
+                    </h4>
+                    <div class="flex items-center gap-3">
+                        <button onclick="event.stopPropagation(); const p = this.closest('.bg-white.rounded-xl'); const cbxs = p.querySelectorAll('.bulk-member-checkbox'); cbxs.forEach(c=>c.checked=true); confirmBulkAdd();" class="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded text-[10px] uppercase font-black tracking-widest hover:bg-blue-600 hover:text-white hover:border-blue-700 transition-all shadow-sm">Insertar Todos</button>
+                        <span class="text-xs font-bold text-slate-400 font-mono tracking-widest">${grp.members.length} Miem.</span>
+                    </div>
+                </div>
+                <div class="p-3 space-y-1 hidden">
+                    ${membersHtml}
+                </div>
+            </div>`;
+        });
+        
+        if (listEl.innerHTML === '') {
+            listEl.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">Todos los miembros de los grupos activos ya están en el barco.</div>';
+        }
+    }
+
+    document.getElementById('bulk-add-modal').classList.remove('hidden');
+};
+
+window.confirmBulkAdd = function() {
+    const checkboxes = document.querySelectorAll('.bulk-member-checkbox:checked');
+    if (checkboxes.length === 0) {
+        document.getElementById('bulk-add-modal').classList.add('hidden');
+        return;
+    }
+
+    if (!activeBoatItem.groups || activeBoatItem.groups.length === 0) {
+        activeBoatItem.groups = [{ guide: '', guests: [] }];
+    }
+    const targetGroupIdx = 0; 
+    
+    checkboxes.forEach(chk => {
+        const data = JSON.parse(decodeURIComponent(chk.value));
+        const groupTag = chk.getAttribute('data-group');
+        const tit = data.dni ? customerDatabase.find(c => c.dni === data.dni)?.titulacion || '' : '';
+        
+        activeBoatItem.groups[targetGroupIdx].guests.push({
+            nombre: data.nombre,
+            dni: data.dni || '',
+            titulacion: tit,
+            telefono: '',
+            email: '',
+            gas: '15L Aire',
+            isManual: false,
+            bookingTag: groupTag
+        });
+    });
+
+    document.getElementById('bulk-add-modal').classList.add('hidden');
     renderGroups();
     triggerAutoSave();
 };

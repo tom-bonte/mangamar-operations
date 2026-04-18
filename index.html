@@ -7,20 +7,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link rel="stylesheet" href="styles.css">
 <style>
 @media print {
     @page { margin: 0; }
-    body.print-factura > *:not(#factura-modal) {
-        display: none !important;
+    body.print-factura * {
+        visibility: hidden;
     }
-    body.print-factura #factura-modal {
-        display: block !important;
-        position: relative !important;
+    body.print-factura #tab-content-factura, body.print-factura #tab-content-factura * {
+        visibility: visible;
+    }
+    body.print-factura #tab-content-factura {
+        position: absolute !important;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
         background: white !important;
-    }
-    body.print-factura #factura-document {
-        display: block !important;
     }
 
     body.print-tv > *:not(#tv-view-modal) {
@@ -59,7 +65,7 @@
                             </button>
                             <div class="absolute left-full top-0 ml-2 w-56 opacity-0 invisible group-hover/admin:opacity-100 group-hover/admin:visible transition-all z-50">
                                 <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5">
-                                    <button onclick="debugClearAllDivers()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors">
+                                    <button onclick="document.getElementById('debug-wipe-modal').classList.remove('hidden')" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Test: Vaciar Salidas
                                     </button>
                                     <button onclick="openResyncPrompt()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors">
@@ -151,6 +157,11 @@
                                 <svg class="w-4 h-4 text-green-600 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                                 Previsión Nitrox
                             </button>
+
+                            <button onclick="openContabilidadView()" class="w-full mt-2 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm font-black hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm group auth-hide">
+                                <svg class="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                Contabilidad
+                            </button>
                 </div>
             </aside>
             <div class="flex-1 overflow-y-auto p-6">
@@ -170,6 +181,82 @@
                 </div>
             </div>
         </main>
+
+        <div id="contabilidad-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 transition-all duration-300" onclick="if(event.target === this) closeGlobalModal(this)">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="conta-modal-inner">
+            
+            <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 sticky top-0 z-10 shadow-sm">
+                <div class="w-10"></div>
+                <div class="flex items-center bg-slate-50 rounded-xl border border-slate-200 p-1">
+                    <button onclick="changeContabilidadMonth(-1)" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                    <div id="contabilidad-month-label" class="px-6 py-2 text-sm font-black text-slate-700 tracking-widest uppercase truncate min-w-[150px] text-center">...</div>
+                    <button onclick="changeContabilidadMonth(1)" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                </div>
+                <button onclick="closeContabilidadView()" class="w-10 h-10 p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto w-full p-4 md:p-8">
+                <header class="mb-8">
+                    <h1 class="text-3xl font-black text-slate-800 uppercase tracking-tight mb-2">Contabilidad</h1>
+                    <p class="text-slate-500 font-bold">Resumen de ingresos líquidos</p>
+                </header>
+                <div id="conta-index-warning"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div onclick="selectContabilidadMethod('tarjeta')" class="cursor-pointer bg-white rounded-2xl p-6 border-2 border-transparent hover:border-slate-300 shadow-sm transition-all text-center flex flex-col items-center group relative ring-2 ring-transparent" id="conta-card-tarjeta">
+                        <div class="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4 group-hover:-translate-y-1 transition-transform">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                        </div>
+                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Tarjeta</h4>
+                        <div class="text-3xl font-black text-slate-800" id="conta-total-tarjeta">0 €</div>
+                    </div>
+                    
+                    <div onclick="selectContabilidadMethod('efectivo')" class="cursor-pointer bg-white rounded-2xl p-6 border-2 border-transparent hover:border-slate-300 shadow-sm transition-all text-center flex flex-col items-center group relative ring-2 ring-transparent" id="conta-card-efectivo">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-4 group-hover:-translate-y-1 transition-transform">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Efectivo</h4>
+                        <div class="text-3xl font-black text-slate-800" id="conta-total-efectivo">0 €</div>
+                    </div>
+
+                    <div onclick="selectContabilidadMethod('bizum')" class="cursor-pointer bg-white rounded-2xl p-6 border-2 border-transparent hover:border-slate-300 shadow-sm transition-all text-center flex flex-col items-center group relative ring-2 ring-transparent" id="conta-card-bizum">
+                        <div class="w-12 h-12 bg-teal-50 text-teal-500 rounded-full flex items-center justify-center mb-4 group-hover:-translate-y-1 transition-transform">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Bizum</h4>
+                        <div class="text-3xl font-black text-slate-800" id="conta-total-bizum">0 €</div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                    <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <div class="flex items-center gap-2">
+                             <div class="w-2 h-2 rounded-full bg-blue-500 hidden" id="conta-table-dot"></div>
+                             <h4 class="text-sm font-black text-slate-800 tracking-widest uppercase" id="conta-table-title">Selecciona un método</h4>
+                        </div>
+                        <div class="text-xs font-bold text-slate-400" id="conta-table-count"></div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-white sticky top-0 border-b border-slate-100 z-10 shadow-sm">
+                                <tr>
+                                    <th class="py-3 px-4 font-bold text-[10px] uppercase tracking-wider text-slate-400 w-32">Fecha Ocurrencia</th>
+                                    <th class="py-3 px-4 font-bold text-[10px] uppercase tracking-wider text-slate-400">Cliente</th>
+                                    <th class="py-3 px-4 font-bold text-[10px] uppercase tracking-wider text-slate-400">Concepto</th>
+                                    <th class="py-3 px-4 font-bold text-[10px] uppercase tracking-wider text-slate-400 text-right w-32">Importe</th>
+                                </tr>
+                            </thead>
+                            <tbody id="conta-table-body" class="divide-y divide-slate-100">
+                                <tr><td colspan="4" class="p-8 text-center"><div class="text-slate-400 text-sm font-bold mx-auto">Haz clic en un origen arriba para ver el desglose</div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
 
         <main id="view-monthly" class="absolute inset-0 flex transition-opacity duration-300 z-0 opacity-0 pointer-events-none bg-slate-50">
             <aside class="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto">
@@ -259,7 +346,7 @@
     </div>
 
     <div id="manage-boat-modal" onclick="if(event.target === this) closeManageBoatModal()" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm transition-opacity p-4 cursor-pointer">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 flex flex-col h-[85vh] min-h-[600px] md:h-[750px] overflow-hidden cursor-auto">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 flex flex-col h-[95vh] min-h-[600px] overflow-hidden cursor-auto">
             <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl shrink-0">
                 <div class="flex items-center gap-4">
                     <div class="flex gap-1 nav-btn-grp">
@@ -280,7 +367,7 @@
             </div>
             
             <div class="p-6 overflow-y-auto flex-1">
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-3 gap-4 mb-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Barco Asignado</label>
                         <select id="input-boat" onchange="triggerAutoSave()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-700 cursor-pointer">
@@ -300,6 +387,10 @@
                             <option value="16:30">16:30</option>
                             <option value="18:00">18:00</option>
                         </select>
+                    </div>
+                    <div id="input-maxdives-container">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Max Plazas</label>
+                        <input type="number" id="input-maxdives" min="1" max="30" onchange="triggerAutoSave()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-700" placeholder="12">
                     </div>
                 </div>
                 <div id="destino-container" class="mb-4">
@@ -331,9 +422,14 @@
                 
                 <div class="flex justify-between items-end mb-4">
                     <h3 class="font-black text-slate-800 text-lg uppercase tracking-tight">Grupos y Guías</h3>
-                    <button onclick="addGroup()" class="px-5 py-2 bg-blue-50 border border-blue-200 text-blue-600 font-black rounded-lg hover:bg-blue-100 transition-colors text-sm shadow-sm flex items-center gap-2 auth-hide">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg> Añadir Grupo
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="openBulkAddModal()" class="px-5 py-2 bg-emerald-50 border border-emerald-200 text-emerald-600 font-black rounded-lg hover:bg-emerald-100 transition-colors text-sm shadow-sm flex items-center gap-2 auth-hide">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> Insertar Grupo
+                        </button>
+                        <button onclick="addGroup()" class="px-5 py-2 bg-blue-50 border border-blue-200 text-blue-600 font-black rounded-lg hover:bg-blue-100 transition-colors text-sm shadow-sm flex items-center gap-2 auth-hide">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg> Añadir Base
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="groups-container" class="space-y-6 pb-64"></div>
@@ -343,7 +439,7 @@
                 <button id="btn-delete-boat" onclick="deleteBoatData()" class="px-4 py-3 rounded-lg text-sm font-bold text-red-500 bg-white border border-red-200 hover:bg-red-50 transition-colors shadow-sm hidden flex items-center gap-1 auth-hide"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Eliminar Salida</button>
                 <div class="flex gap-3 flex-1 justify-end">
                     <button onclick="closeManageBoatModal()" class="px-8 py-3 rounded-lg text-sm font-black text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm">Cerrar</button>
-                    <button id="btn-manual-save" onclick="manualSaveBoatData()" class="px-8 py-3 rounded-lg text-sm font-black text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-md active:scale-95 flex items-center gap-2">Guardar y Cerrar</button>
+                    <button id="btn-manual-save" onclick="manualSaveBoatData()" class="px-8 py-3 rounded-lg text-sm font-black text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-md active:scale-95 flex items-center gap-2">Guardar</button>
                 </div>
             </div>
         </div>
@@ -417,8 +513,8 @@
                             <p><b>Global (DNI):</b> Si el cliente existe en el Directorio, sus cambios (Seguro, Nombre, Precio) impactarán globalmente.<br><b>Temporal (Sin DNI):</b> Si añades a un cliente a un barco escribiéndolo a mano y presionas ENTER, no impactará la base de datos hasta que uses el <b>clic en el "El Punto Rojo 🔴"</b> para enlazarlo permanentemente con un registro real.</p>
                         </div>
                         <div>
-                            <h4 class="font-black text-slate-800 mb-1 lg:text-base">💰 Liquidar Cuenta y Señales</h4>
-                            <p>Dentro de la <b>Ficha del Cliente</b>, la pestaña CAJA muestra su saldo y su histórico de inmersiones. Puedes registrar "Señales" anticipadas o usar el botón <b>Liquidar (Pagar)</b> que restaura a cero sus deudas basándose en tu lista de Tarifas.</p>
+                            <h4 class="font-black text-slate-800 mb-1 lg:text-base">💰 Liquidar Cuenta y Depósitos</h4>
+                            <p>Dentro de la <b>Ficha del Cliente</b>, la pestaña CAJA muestra su saldo y su histórico de inmersiones. Puedes registrar "Depósitos" anticipados o usar el botón <b>Liquidar (Pagar)</b> que restaura a cero sus deudas basándose en tu lista de Tarifas.</p>
                         </div>
                         <div>
                             <h4 class="font-black text-slate-800 mb-1 lg:text-base">🗑️ Eliminar/Borrar Cliente</h4>
@@ -442,7 +538,7 @@
                                 <li><b>Gas:</b> Clic cambia entre 15L Aire, 12L Aire, y Nitrox.</li>
                                 <li><b>Equipo:</b> Clic cambia entre Sin Alquiler, Pieza Suelta, y Equipo Completo.</li>
                                 <li><b>Seguro:</b> Clic cambia entre Sin Seguro, Diario, Semanal, Mensual, y Anual.</li>
-                                <li><b>Señal:</b> Clic en el Euro para definir pagos o añadir notas breves.</li>
+                                <li><b>Depósito:</b> Clic en el Euro para definir pagos o añadir notas breves.</li>
                             </ul>
                         </div>
                     </div>
@@ -476,7 +572,7 @@
                         </div>
                         <div>
                             <h4 class="font-black text-slate-800 mb-1 lg:text-base">💰 Checkout & Prepaid Deposits</h4>
-                            <p>Inside the Client File, the CAJA tab calculates outstanding debts based on entire manifest history. Add partial pre-payments ("Señal") or click Checkout to totally wipe out the debt to 0 automatically tracking it as a completed payment.</p>
+                            <p>Inside the Client File, the CAJA tab calculates outstanding debts based on entire manifest history. Add partial pre-payments ("Deposit") or click Checkout to totally wipe out the debt to 0 automatically tracking it as a completed payment.</p>
                         </div>
                         <div>
                             <h4 class="font-black text-slate-800 mb-1 lg:text-base">🗑️ Delete Customers Permanently</h4>
@@ -549,17 +645,106 @@
                 <h3 class="text-xl font-black text-slate-800">Agrupar Buceadores</h3>
                 <button onclick="document.getElementById('group-link-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
-            <div class="mb-6">
+            <div class="mb-4">
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nombre del Grupo</label>
                 <input type="text" id="group-name-input" placeholder="Ej: Familia Smith..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-6">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Rango de Fechas</label>
+                <input type="text" id="group-date-range" placeholder="Seleccionar fechas..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
             </div>
             <div id="active-groups-container" class="mb-6 hidden">
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Grupos Activos Hoy</label>
                 <div id="active-groups-list" class="flex flex-wrap gap-2"></div>
             </div>
             <div class="flex gap-3 mt-8">
-                <button onclick="confirmGroupLink('')" class="flex-1 py-3 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Sin Nombre</button>
-                <button onclick="confirmGroupLink(document.getElementById('group-name-input').value)" class="flex-1 py-3 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm">Crear Grupo</button>
+                <button onclick="confirmGroupLink('')" class="flex-1 py-3 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Sin Grupo</button>
+                <button onclick="confirmGroupLink(document.getElementById('group-name-input').value)" class="flex-1 py-3 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm">Guardar Grupo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Add Modal -->
+    <div id="bulk-add-modal" class="fixed inset-0 z-[250] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 p-6 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4 shrink-0">
+                <h3 class="text-xl font-black text-slate-800">Insertar desde Grupo</h3>
+                <button onclick="document.getElementById('bulk-add-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            
+            <div class="mb-4 shrink-0">
+                <p class="text-sm text-slate-500 font-medium">Selecciona un grupo activo en la fecha de esta salida, elige a los buceadores y añádelos todos de golpe.</p>
+            </div>
+
+            <div id="bulk-groups-accordion" class="flex-1 overflow-y-auto space-y-3 mb-6 pr-2 custom-scrollbar">
+                <!-- Javascript will populate this -->
+            </div>
+
+            <div class="flex gap-3 shrink-0 pt-4 border-t border-slate-100 mt-auto">
+                <button onclick="document.getElementById('bulk-add-modal').classList.add('hidden')" class="flex-1 py-3 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Cancelar</button>
+                <button onclick="confirmBulkAdd()" class="flex-1 py-3 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Añadir Seleccionados
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Wipe Modal -->
+    <div id="debug-wipe-modal" class="fixed inset-0 z-[300] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
+            <div class="bg-gradient-to-br from-red-500 to-red-600 px-6 py-5 flex items-center justify-between border-b border-red-700/50">
+                <h3 class="text-xl font-black text-white flex items-center gap-2"><svg class="w-6 h-6 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Purga de Autocorrección</h3>
+                <button onclick="document.getElementById('debug-wipe-modal').classList.add('hidden')" class="text-red-200 hover:text-white transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            <div class="p-6">
+                <p class="text-sm font-medium text-slate-500 mb-6 leading-relaxed">Selecciona los elementos que deseas purgar de forma permanente. Las salidas de Visor siempre se conservan, pero puedes vaciar su contenido (guías, grupos y clientes) para dejarlas en estado virgen.</p>
+                <div class="mb-4">
+                    <label class="flex items-start gap-3 p-3 bg-red-50 border border-red-300 rounded-xl cursor-pointer hover:bg-red-100 transition-colors shadow-sm relative overflow-hidden">
+                        <div class="absolute inset-0 bg-pattern-stripes opacity-10 pointer-events-none"></div>
+                        <div class="pt-0.5 relative z-10"><input type="checkbox" id="wipe-opt-all" onchange="const b=this.checked; ['wipe-opt-divers', 'wipe-opt-trips', 'wipe-opt-staff', 'wipe-opt-groups'].forEach(id=>document.getElementById(id).checked=b);" class="w-5 h-5 text-red-600 rounded border-red-400 focus:ring-red-600 cursor-pointer shadow-sm"></div>
+                        <div class="flex flex-col relative z-10">
+                            <span class="text-sm font-black text-red-800 uppercase tracking-tight">Seleccionar Todo (Bomba Nuclear)</span>
+                            <span class="text-xs text-red-600 font-medium leading-snug">Activa instantáneamente las 4 opciones inferiores.</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="space-y-2.5 mb-8 pl-8 border-l-2 border-slate-100 ml-4">
+                    <label class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors group">
+                        <div class="pt-0.5"><input type="checkbox" id="wipe-opt-divers" class="w-5 h-5 text-red-500 rounded border-slate-300 focus:ring-red-500 cursor-pointer"></div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-slate-800">Participantes y Deuda Activa</span>
+                            <span class="text-xs text-slate-500 font-medium leading-snug">Vacía TODOS los clientes de los barcos y borra sus historiales de cobros pendientes.</span>
+                        </div>
+                    </label>
+                    <label class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors group">
+                        <div class="pt-0.5"><input type="checkbox" id="wipe-opt-trips" class="w-5 h-5 text-red-500 rounded border-slate-300 focus:ring-red-500 cursor-pointer"></div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-slate-800">Eliminar Salidas Locales (Añadidas con +)</span>
+                            <span class="text-xs text-slate-500 font-medium leading-snug">Borra definitivamente las salidas creadas manualmente. Visor no se ve afectado.</span>
+                        </div>
+                    </label>
+                    <label class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors group">
+                        <div class="pt-0.5"><input type="checkbox" id="wipe-opt-staff" class="w-5 h-5 text-red-500 rounded border-slate-300 focus:ring-red-500 cursor-pointer"></div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-slate-800">Desasignar Guías y Capitanes</span>
+                            <span class="text-xs text-slate-500 font-medium leading-snug">Deja en blanco el staff de todas las salidas.</span>
+                        </div>
+                    </label>
+                    <label class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors group">
+                        <div class="pt-0.5"><input type="checkbox" id="wipe-opt-groups" class="w-5 h-5 text-red-500 rounded border-slate-300 focus:ring-red-500 cursor-pointer"></div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-slate-800">Destruir Grupos Globales</span>
+                            <span class="text-xs text-slate-500 font-medium leading-snug">Borra las agrupaciones multi-día de la memoria persistente.</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('debug-wipe-modal').classList.add('hidden')" class="px-6 py-3 rounded-xl text-sm font-black text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">Cancelar</button>
+                    <button onclick="executeAdvancedWipe()" class="flex-1 py-3 rounded-xl text-sm font-black text-white bg-red-600 border border-red-700 hover:bg-red-500 transition-colors shadow flex items-center justify-center gap-2">
+                        EJECUTAR BOMBARDERO
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -718,7 +903,7 @@
 
     <!-- Edit Customer Profile Modal -->
     <div id="customer-profile-modal" class="fixed inset-0 z-[300] hidden flex flex-col md:flex-row items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) window.closeGlobalModal(this)">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 overflow-hidden flex flex-col h-[85vh] min-h-[600px] md:h-[750px]">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] min-h-[600px] md:h-[90vh] relative">
             <div class="p-6 pb-4 border-b border-slate-100 flex justify-between items-start bg-white shrink-0">
                 <div class="flex gap-4 items-center">
                     <div class="flex gap-1 nav-btn-grp">
@@ -737,9 +922,10 @@
             </div>
             
             <div class="flex px-6 pt-3 bg-slate-50 border-b border-slate-200 gap-6 shrink-0">
-                <button onclick="switchFichaTab('caja')" id="tab-btn-caja" class="pb-3 text-sm font-black text-blue-600 border-b-[3px] border-blue-600 transition-all">💰 Caja</button>
-                <button onclick="switchFichaTab('historial')" id="tab-btn-historial" class="pb-3 text-sm font-bold text-slate-500 border-b-[3px] border-transparent hover:text-slate-800 transition-all">🗓️ Historial</button>
-                <button onclick="switchFichaTab('ficha')" id="tab-btn-ficha" class="pb-3 text-sm font-bold text-slate-500 border-b-[3px] border-transparent hover:text-slate-800 transition-all">📇 Ficha</button>
+                <button onclick="switchFichaTab('caja')" id="tab-btn-caja" class="pb-3 text-sm font-black text-blue-600 border-b-[3px] border-blue-600 transition-all">💰 Estado de Cuenta</button>
+                <button onclick="switchFichaTab('historial')" id="tab-btn-historial" class="pb-3 text-sm font-bold text-slate-500 border-b-[3px] border-transparent hover:text-slate-800 transition-all">🤿 Servicios y Productos</button>
+                <button onclick="switchFichaTab('pagos')" id="tab-btn-pagos" class="pb-3 text-sm font-bold text-slate-500 border-b-[3px] border-transparent hover:text-slate-800 transition-all">💶 Pagos Realizados</button>
+                <button onclick="switchFichaTab('ficha')" id="tab-btn-ficha" class="pb-3 text-sm font-bold text-slate-500 border-b-[3px] border-transparent hover:text-slate-800 transition-all">📇 Perfíl</button>
             </div>
 
             <div class="flex-1 overflow-y-auto bg-white relative p-6">
@@ -795,42 +981,122 @@
                     </div>
                 </div>
 
+                <div id="tab-content-pagos" class="hidden">
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3 w-10"></th>
+                                    <th class="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Fecha & Hora</th>
+                                    <th class="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Método</th>
+                                    <th class="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Importe</th>
+                                    <th class="p-3 w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="profile-pagos-list" class="divide-y divide-slate-100 bg-white">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div id="tab-content-caja" class="hidden">
-                    <div class="max-w-md mx-auto">
-                        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
-                            <h4 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">Estado de Cuenta</h4>
-                            <div class="space-y-4">
-                                <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                                    <span class="text-sm font-bold text-slate-500">Deuda Acumulada</span>
-                                    <span id="ficha-caja-deuda" class="text-lg font-black text-slate-700">0 €</span>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 max-w-6xl mx-auto">
+                        <!-- LEFT COLUMN: Summary & Payment -->
+                        <div class="lg:col-span-4 space-y-6">
+                            <!-- ESTADO DE CUENTA -->
+                            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">Estado de Cuenta</h4>
+                                <div class="space-y-4">
+                                    <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                                        <span class="text-sm font-bold text-slate-500">Deuda Acumulada</span>
+                                        <span id="ficha-caja-deuda" class="text-lg font-black text-slate-700">0 €</span>
+                                    </div>
+                                    <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-bold text-slate-500">Descuento</span>
+                                            <div class="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                                                <button id="disc-type-pct" onclick="setDiscountType('percent')" class="px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all">%</button>
+                                                <button id="disc-type-eur" onclick="setDiscountType('fixed')" class="px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all">€</button>
+                                            </div>
+                                        </div>
+                                        <input type="number" id="ficha-caja-discount" class="w-20 px-2 py-1 flex items-center justify-center bg-slate-50 border border-slate-200 rounded text-right text-sm font-black text-rose-500 focus:outline-none focus:ring-1 focus:ring-amber-500" value="0" min="0" onchange="updateCustomerDiscount(this.value)" placeholder="0">
+                                    </div>
+                                    <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                                        <span class="text-sm font-bold text-slate-500">Depósito</span>
+                                        <span id="ficha-caja-senal" class="text-lg font-black text-emerald-600">- 0 €</span>
+                                    </div>
+                                    <div class="flex justify-between items-baseline pt-2">
+                                        <span class="text-sm font-black text-slate-800">Total a Pagar</span>
+                                        <span id="ficha-caja-total" class="text-4xl font-black text-amber-600 tracking-tighter">0 €</span>
+                                    </div>
                                 </div>
-                                <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                                    <span class="text-sm font-bold text-slate-500">Descuento (%)</span>
-                                    <input type="number" id="ficha-caja-discount" class="w-16 px-2 py-1 flex items-center justify-center bg-slate-50 border border-slate-200 rounded text-right text-sm font-black text-rose-500 focus:outline-none focus:ring-1 focus:ring-amber-500" value="0" min="0" max="100" onchange="updateCustomerDiscount(this.value)" placeholder="0">
-                                </div>
-                                <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                                    <span class="text-sm font-bold text-slate-500">Señal / Anticipo</span>
-                                    <span id="ficha-caja-senal" class="text-lg font-black text-emerald-600">- 0 €</span>
-                                </div>
-                                <div class="flex justify-between items-baseline pt-2">
-                                    <span class="text-sm font-black text-slate-800">Total a Pagar</span>
-                                    <span id="ficha-caja-total" class="text-4xl font-black text-amber-600 tracking-tighter">0 €</span>
+                                <div class="mt-6 flex flex-col gap-3">
+                                    <button onclick="liquidarCuenta()" id="btn-liquidar" class="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Liquidar Cuenta
+                                    </button>
+                                    <button onclick="generateFactura()" class="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl transition-all flex justify-center items-center gap-2 border border-slate-200 shadow-sm">
+                                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Generar Resumen Visual
+                                    </button>
                                 </div>
                             </div>
                             
-                            <div class="mt-8 flex flex-col gap-3">
-                                <button onclick="liquidarCuenta()" id="btn-liquidar" class="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Liquidar Cuenta
-                                </button>
-                                
-                                <button onclick="generateFactura()" class="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl transition-all flex justify-center items-center gap-2 border border-slate-200 shadow-sm">
-                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> 
-                                    Generar Resumen Visual
-                                </button>
+                            <!-- AÑADIR CONCEPTO FORM -->
+                            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">Añadir Concepto</h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Tipo</label>
+                                        <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-lg">
+                                            <button id="btn-type-service" onclick="this.className='w-full py-1.5 text-xs font-bold rounded bg-white text-blue-600 shadow-sm'; document.getElementById('btn-type-product').className='w-full py-1.5 text-xs font-bold rounded text-slate-500 hover:text-slate-800'; document.getElementById('caja-new-type').value='servicio';" class="w-full py-1.5 text-xs font-bold rounded bg-white text-blue-600 shadow-sm">Servicio</button>
+                                            <button id="btn-type-product" onclick="this.className='w-full py-1.5 text-xs font-bold rounded bg-white text-blue-600 shadow-sm'; document.getElementById('btn-type-service').className='w-full py-1.5 text-xs font-bold rounded text-slate-500 hover:text-slate-800'; document.getElementById('caja-new-type').value='producto';" class="w-full py-1.5 text-xs font-bold rounded text-slate-500 hover:text-slate-800">Producto</button>
+                                            <input type="hidden" id="caja-new-type" value="servicio">
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <div class="col-span-2">
+                                            <label class="block text-xs font-bold text-slate-500 mb-1">Descripción</label>
+                                            <input type="text" id="caja-new-desc" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej. Camiseta M">
+                                        </div>
+                                        <div class="col-span-1">
+                                            <label class="block text-xs font-bold text-slate-500 mb-1">Precio (€)</label>
+                                            <input type="number" id="caja-new-price" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 text-right focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0">
+                                        </div>
+                                    </div>
+                                    <button onclick="window.addCustomCajaConcept()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-lg shadow transition-all flex justify-center items-center gap-2 text-sm mt-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg> Añadir a Cuenta
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- RIGHT COLUMN: PENDING ITEMS TABLE -->
+                        <div class="lg:col-span-8 bg-white border border-slate-200 rounded-2xl flex flex-col shadow-sm overflow-hidden h-full max-h-[70vh]">
+                            <div class="bg-slate-50 border-b border-slate-200 px-5 py-4 flex items-center justify-between shrink-0">
+                                <h3 class="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    Cargos Pendientes
+                                </h3>
+                                <div class="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-sm" id="caja-pending-count">0 items</div>
+                            </div>
+                            <div class="flex-1 overflow-y-auto w-full custom-scrollbar">
+                                <table class="w-full text-left border-collapse min-w-[400px]">
+                                    <thead class="bg-white sticky top-0 border-b border-slate-100 z-10 shadow-sm">
+                                        <tr>
+                                            <th class="py-2.5 px-3 font-bold text-[10px] uppercase tracking-wider text-slate-400 w-24">Fecha</th>
+                                            <th class="py-2.5 px-3 font-bold text-[10px] uppercase tracking-wider text-slate-400">Concepto</th>
+                                            <th class="py-2.5 px-3 font-bold text-[10px] uppercase tracking-wider text-slate-400 text-right w-24">Total</th>
+                                            <th class="py-2.5 px-3 font-bold text-[10px] uppercase tracking-wider text-slate-400 w-8 text-center"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="caja-pending-list" class="divide-y divide-slate-100">
+                                        <!-- Javascript populates this -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
+                
 
                 <div id="tab-content-ficha" class="hidden space-y-6">
                     <!-- INFORMACIÓN PERSONAL -->
@@ -903,11 +1169,76 @@
                 </div>
 
             </div>
-        </div>
+        
+        <div id="tab-content-factura" class="hidden absolute inset-0 z-50 bg-slate-50 flex-col overflow-hidden pb-8">
+                    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0 sticky top-0 z-10 shadow-sm">
+                        <button onclick="window.closeFacturaView()" class="p-2 text-slate-500 hover:text-slate-800 transition-colors flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <h3 class="text-sm font-black text-slate-800 tracking-widest uppercase">Vista Previa - Resumen</h3>
+                        <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-black hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> Imprimir / PDF</button>
+                    </div>
+                    
+                    <div id="factura-content" class="p-8 md:p-12 bg-white flex flex-col flex-1 overflow-y-auto print:p-0">
+                        <div class="flex justify-between items-start border-b-2 border-amber-500 pb-8 mb-8">
+                            <div class="text-slate-800">
+                                <h1 class="text-3xl font-black tracking-tight mb-2 uppercase text-amber-600">MANGAMAR DIVE CENTER</h1>
+                                <p class="text-sm font-bold">NIF: B73785420</p>
+                                <p class="text-sm">PASEO DIMAS ORTEGA , LOCAL 17 / 19</p>
+                                <p class="text-sm">30370 CABO DE PALOS</p>
+                                <p class="text-sm">MURCIA, España</p>
+                            </div>
+                            <div class="text-right">
+                                <h2 class="text-3xl font-black text-amber-200 uppercase tracking-wider mb-4">Resumen de Cuenta</h2>
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left min-w-[250px] shadow-sm">
+                                    <p class="text-[10px] font-black tracking-widest text-slate-400 border-b border-slate-200 pb-1 mb-2 uppercase">Cliente</p>
+                                    <p id="factura-cx-name" class="font-bold text-slate-800 text-lg leading-tight uppercase"></p>
+                                    <p id="factura-cx-dni" class="text-sm text-slate-600 font-mono mt-1"></p>
+                                    <p id="factura-date" class="text-sm text-slate-500 mt-2 font-medium"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <table class="w-full text-left mb-8">
+                            <thead>
+                                <tr class="border-b-2 border-amber-200 bg-amber-50 text-amber-800">
+                                    <th class="py-3 px-3 text-xs font-black uppercase tracking-widest">Concepto</th>
+                                    <th class="py-3 px-3 text-xs font-black uppercase tracking-widest text-center">Cant</th>
+                                    <th class="py-3 px-3 text-xs font-black uppercase tracking-widest text-right whitespace-nowrap">Precio Unitario</th>
+                                    <th class="py-3 px-3 text-xs font-black uppercase tracking-widest text-right whitespace-nowrap">Total (con IVA)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="factura-items" class="divide-y divide-slate-100">
+                            </tbody>
+                        </table>
+
+                        <div class="ml-auto w-full max-w-sm mt-8">
+                            <div class="bg-slate-50 rounded-xl border border-slate-200 p-5 space-y-3">
+                                <div class="flex justify-between items-center text-sm font-bold text-slate-600">
+                                    <span>Base Imponible (21%)</span>
+                                    <span id="factura-base-21">0.00 €</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm font-bold text-slate-600 pb-3 border-b border-slate-200">
+                                    <span>IVA (21%)</span>
+                                    <span id="factura-iva-amount">0.00 €</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm font-bold text-slate-600 pt-1">
+                                    <span>Exento IVA (Tasas)</span>
+                                    <span id="factura-exento">0.00 €</span>
+                                </div>
+                                <div class="flex justify-between items-end pt-3 border-t-2 border-amber-500 mt-2">
+                                    <span class="text-sm font-black uppercase tracking-widest text-slate-800">Total a Pagar</span>
+                                    <span id="factura-total" class="text-2xl font-black text-amber-600">0.00 €</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    </div>
     </div>
 
     <div id="price-list-modal" class="fixed inset-0 z-[400] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) closePriceModal()">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl border border-slate-200 overflow-hidden flex flex-col h-[80vh]">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] md:h-[90vh]">
             <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
                     <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Tarifas Mangamar
@@ -935,7 +1266,7 @@
     </div>
 
     <div id="today-divers-modal" class="fixed inset-0 z-[400] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) window.closeGlobalModal(this)">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 overflow-hidden flex flex-col h-[85vh] min-h-[600px] md:h-[750px]">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] min-h-[600px] md:h-[90vh] relative">
             <div class="p-6 border-b border-slate-100 bg-slate-50 shrink-0">
                 <div class="flex justify-between items-center mb-4">
                     <div class="flex items-center gap-4">
@@ -1067,11 +1398,77 @@
     <script src="staff-manager.js?v=8"></script>
     <script src="pricing-engine.js?v=8"></script>
     <script src="crm-engine.js?v=8"></script>
+    <div id="payment-engine-modal" class="fixed inset-0 z-[700] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div class="p-6 border-b border-slate-100 bg-slate-50 relative flex flex-col items-center">
+                <div class="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center border border-slate-200 mb-2">
+                    <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <h3 class="text-lg font-black text-slate-800 text-center tracking-tight">Pasarela de Pago</h3>
+                <p class="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest" id="payment-engine-subtitle">Liquidar</p>
+                <button onclick="document.getElementById('payment-engine-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:bg-slate-200 hover:text-slate-700 p-2 rounded-full transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Method Selection -->
+                <div>
+                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Método de Pago</label>
+                    <div class="grid grid-cols-3 gap-3" id="payment-engine-methods">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="payMethod" value="Tarjeta" class="peer sr-only" checked>
+                            <div class="py-3 px-2 rounded-xl border border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 text-slate-500 text-center transition-all shadow-sm">
+                                <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                                <span class="text-[10px] font-black uppercase">Tarjeta</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="payMethod" value="Efectivo" class="peer sr-only">
+                            <div class="py-3 px-2 rounded-xl border border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 text-slate-500 text-center transition-all shadow-sm">
+                                <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                <span class="text-[10px] font-black uppercase">Efectivo</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="payMethod" value="Bizum" class="peer sr-only">
+                            <div class="py-3 px-2 rounded-xl border border-slate-200 peer-checked:border-cyan-500 peer-checked:bg-cyan-50 peer-checked:text-cyan-700 text-slate-500 text-center transition-all shadow-sm">
+                                <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                <span class="text-[10px] font-black uppercase">Bizum</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Amount Input -->
+                <div>
+                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Monto A Pagar</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-400">€</span>
+                        <input type="number" id="payment-engine-amount" class="w-full pl-12 pr-4 py-4 text-3xl font-black bg-slate-50 text-slate-800 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                    </div>
+                    <div class="flex justify-between items-center mt-2 px-1">
+                        <span class="text-xs font-bold text-slate-400">Deuda actual: <span id="payment-engine-total-label" class="text-rose-500 border-b border-rose-500 border-dashed pb-[1px] cursor-pointer" onclick="document.getElementById('payment-engine-amount').value = window.activePaymentContext.totalDebt">0€</span></span>
+                        <span class="text-[10px] font-black text-amber-500 uppercase hidden" id="payment-engine-partial-label">Pago Parcial</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Area -->
+            <div class="p-6 border-t border-slate-100 bg-slate-50">
+                <button onclick="window.executePaymentGateway()" id="payment-engine-btn" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black text-lg rounded-xl shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.23)] transition-all flex justify-center items-center gap-2">
+                    Confirmar Cobro
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <script src="manifest-editor.js?v=8"></script>
     <script src="app.js?v=8"></script>
 
     <div id="whatsapp-export-modal" onclick="if(event.target===this) document.getElementById('whatsapp-export-modal').classList.add('hidden')" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 cursor-pointer">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 overflow-hidden flex flex-col h-[85vh]">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[85vh]">
             <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                 <div class="flex items-center gap-4">
                     <h3 class="text-lg font-black text-slate-800">Exportar Disponibilidad WhatsApp</h3>
@@ -1270,83 +1667,10 @@
         </div>
     </div>
 
-    <div id="factura-modal" class="fixed inset-0 z-[600] hidden bg-slate-900/90 overflow-y-auto p-4 md:p-8 flex justify-center items-start print:block print:bg-white print:p-0 print:absolute print:inset-0 print:z-auto print:overflow-visible h-full w-full">
-        <div class="bg-white max-w-4xl w-full shadow-2xl rounded-none md:rounded-2xl border-0 md:border border-slate-200 print:shadow-none print:border-none print:m-0 print:p-0 print:w-full print:max-w-none flex flex-col overflow-hidden" id="factura-document">
-            <!-- Modal actions (hidden on print) -->
-            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 no-print shrink-0">
-                <h3 class="text-lg font-black text-slate-800">Vista Previa - Resumen</h3>
-                <div class="flex gap-4">
-                    <button onclick="liquidarFacturaActual()" id="btn-factura-liquidar" class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Marcar como Pagado</button>
-                    <button onclick="window.print()" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-sm text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> Imprimir / Guardar PDF</button>
-                    <button onclick="closeFacturaModal()" class="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-lg font-bold text-sm hover:bg-slate-300 transition-all shadow-sm">Cerrar</button>
-                </div>
-            </div>
-            
-            <!-- Printable content -->
-            <div id="factura-content" class="p-8 md:p-12 bg-white flex flex-col flex-1 print:p-12">
-                <!-- Header: Company & Customer Info -->
-                <div class="flex justify-between items-start border-b-2 border-amber-500 pb-8 mb-8">
-                    <div class="text-slate-800">
-                        <h1 class="text-3xl font-black tracking-tight mb-2 uppercase text-amber-600">MANGAMAR DIVE CENTER</h1>
-                        <p class="text-sm font-bold">NIF: B73785420</p>
-                        <p class="text-sm">PASEO DIMAS ORTEGA , LOCAL 17 / 19</p>
-                        <p class="text-sm">30370 CABO DE PALOS</p>
-                        <p class="text-sm">MURCIA, España</p>
-                    </div>
-                    <div class="text-right">
-                        <h2 class="text-3xl font-black text-amber-200 uppercase tracking-wider mb-4">Resumen de Cuenta</h2>
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left min-w-[250px]">
-                            <p class="text-[10px] font-black tracking-widest text-slate-400 border-b border-slate-200 pb-1 mb-2 uppercase">Cliente</p>
-                            <p id="factura-cx-name" class="font-bold text-slate-800 text-lg leading-tight uppercase"></p>
-                            <p id="factura-cx-dni" class="text-sm text-slate-600 font-mono mt-1"></p>
-                            <p id="factura-date" class="text-sm text-slate-500 mt-2 font-medium"></p>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Invoice Table -->
-                <table class="w-full text-left mb-8">
-                    <thead>
-                        <tr class="border-b-2 border-amber-200 bg-amber-50 text-amber-800">
-                            <th class="py-3 px-2 text-xs font-black uppercase tracking-widest">Concepto</th>
-                            <th class="py-3 px-2 text-xs font-black uppercase tracking-widest text-center">Cant</th>
-                            <th class="py-3 px-2 text-xs font-black uppercase tracking-widest text-right">Precio Unitario</th>
-                            <th class="py-3 px-2 text-xs font-black uppercase tracking-widest text-right">Total (con IVA)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="factura-items" class="divide-y divide-slate-100">
-                        <!-- Populated dynamically -->
-                    </tbody>
-                </table>
-
-                <!-- Invoice Totals -->
-                <div class="ml-auto w-full max-w-sm">
-                    <div class="bg-slate-50 rounded-xl border border-slate-200 p-5 space-y-3">
-                        <div class="flex justify-between items-center text-sm font-bold text-slate-600">
-                            <span>Base Imponible (21%)</span>
-                            <span id="factura-base-21">0.00 €</span>
-                        </div>
-                        <div class="flex justify-between items-center text-sm font-bold text-slate-600 pb-3 border-b border-slate-200">
-                            <span>IVA (21%)</span>
-                            <span id="factura-iva-amount">0.00 €</span>
-                        </div>
-                        <div class="flex justify-between items-center text-sm font-bold text-slate-600 pt-1">
-                            <span>Exento IVA (Tasas)</span>
-                            <span id="factura-exento">0.00 €</span>
-                        </div>
-                        <div class="flex justify-between items-end pt-3 border-t-2 border-amber-500 mt-2">
-                            <span class="text-sm font-black uppercase tracking-widest text-slate-800">Total a Pagar</span>
-                            <span id="factura-total" class="text-2xl font-black text-amber-600">0.00 €</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-    </div>
     <!-- Staff Views Modal -->
     <div id="staff-views-modal" onclick="if(event.target===this) closeStaffViewsModal()" class="fixed inset-0 z-[60] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer">
-        <div class="bg-white rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto">
+        <div class="bg-white rounded-2xl w-[98vw] max-w-[1600px] h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto">
             <!-- Header -->
             <div class="px-8 py-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center bg-white shrink-0 gap-4">
                 <div class="flex items-center gap-6 w-full sm:w-auto">
@@ -1401,7 +1725,7 @@
 
     <!-- Nitrox Forecast Modal -->
     <div id="nitrox-forecast-modal" onclick="if(event.target===this) closeNitroxForecastModal()" class="fixed inset-0 z-[60] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer">
-        <div class="bg-white rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto">
+        <div class="bg-white rounded-2xl w-[98vw] max-w-[1600px] h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto">
             <!-- Header -->
             <div class="px-8 py-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-green-50 shrink-0 gap-4">
                 <div>
