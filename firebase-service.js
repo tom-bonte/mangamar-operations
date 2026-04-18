@@ -85,7 +85,44 @@ function startFirestoreListeners() {
 
     // 4. CUSTOMER MASTER DIRECTORY (ONLY 1 READ!)
     db.collection("mangamar_directory").doc("master_list").get().then((doc) => {
-        if (doc.exists) customerDatabase = doc.data().clients || [];
+        if (doc.exists) {
+            let rawClients = doc.data().clients || [];
+            let dedupMap = new Map();
+            let nonDniClients = [];
+            
+            rawClients.forEach(c => {
+                if (c.dni && c.dni.trim() !== '') {
+                    const key = c.dni.trim().toUpperCase();
+                    c.dni = key; // Normalize DNI inline
+                    
+                    if (dedupMap.has(key)) {
+                        let existing = dedupMap.get(key);
+                        // Merge: Newer form (c) overwrites existing, UNLESS new value is empty
+                        let merged = { ...existing };
+                        for (let prop in c) {
+                            if (c[prop] !== undefined && c[prop] !== null && c[prop] !== '') {
+                                merged[prop] = c[prop];
+                            }
+                        }
+                        dedupMap.set(key, merged);
+                    } else {
+                        dedupMap.set(key, c);
+                    }
+                } else {
+                    nonDniClients.push(c);
+                }
+            });
+            
+            const cleanClients = [...dedupMap.values(), ...nonDniClients];
+            customerDatabase = cleanClients;
+            
+            // Auto-heal: If duplicates were fixed, silently save the sanitized list to the master directory
+            if (cleanClients.length < rawClients.length) {
+                console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicate customer records.`);
+                db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
+                  .catch(e => console.error("Error auto-healing CRM:", e));
+            }
+        }
     });
     
     // 5. GLOBAL SETTINGS (AUTH)
