@@ -1316,12 +1316,14 @@ window.switchTodayTab = async function (tabId) {
                             p.insurance = 0;
                         }
 
-                        p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0) + (p.computer || 0);
+                        p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0) + (p.computer || 0) + (p.custom || 0);
 
                         // 3. Only add it to their total debt if this specific dive is unpaid
                         if (data.paymentStatus === 'pending') {
                             debt += p.total;
-                            divesList.push(`${data.date.substring(5)} ${data.assignedBoat.charAt(0).toUpperCase() + data.assignedBoat.slice(1)}`);
+                            if (data.assignedBoat) {
+                                divesList.push(`${data.date.substring(5)} ${data.assignedBoat.charAt(0).toUpperCase() + data.assignedBoat.slice(1)}`);
+                            }
                         }
                     });
 
@@ -1565,7 +1567,7 @@ window.openTodayDiversModal = function (isNavBackForward = false) {
         allGuests.forEach(g => {
             if (g.dni) {
                 if (!uniqueDivers.has(g.dni)) uniqueDivers.set(g.dni, { nombre: g.nombre, dni: g.dni, boats: [], hasBono: false });
-                uniqueDivers.get(g.dni).boats.push(`${t.time} ${t.assignedBoat.toUpperCase()}`);
+                uniqueDivers.get(g.dni).boats.push(`${t.time} ${(t.assignedBoat || 'Sin Barco').toUpperCase()}`);
                 // If they are marked as using a bono on ANY boat today, tag them
                 if (g.hasBono) uniqueDivers.get(g.dni).hasBono = true;
             }
