@@ -379,6 +379,7 @@ function renderGroups() {
                     <td class="p-3 text-center align-middle whitespace-nowrap ${window.isLoggedIn ? '' : 'hidden'}">
                         ${guest.dni ? `<button onclick="openCustomerProfile('${guest.dni}', '${guest.nombre.replace(/'/g, "\\'")}')" class="text-slate-300 hover:text-emerald-500 transition-colors mr-2" title="Ficha del Cliente / Cuenta"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg></button>` : ''}
                         <button onclick="openEditGuestModal(${groupIndex}, ${guestIndex})" class="text-slate-300 hover:text-blue-500 transition-colors mr-2" title="Editar Info"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                        ${guest.note ? `<div class="relative group/note inline-block mr-2"><button onclick="toggleGuestNote(${groupIndex}, ${guestIndex})" class="text-amber-400 hover:text-amber-600 transition-colors"><svg class="w-4 h-4 inline" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></button><div class="absolute bottom-full right-0 mb-1.5 w-max max-w-[180px] bg-slate-800 text-white text-[10px] font-semibold rounded-lg px-2.5 py-1.5 shadow-lg opacity-0 group-hover/note:opacity-100 transition-opacity pointer-events-none z-50 whitespace-pre-wrap break-words">${guest.note}</div></div>` : `<button onclick="toggleGuestNote(${groupIndex}, ${guestIndex})" title="Añadir nota" class="text-slate-200 hover:text-amber-400 transition-colors mr-2"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></button>`}
                         <button onclick="removeGuest(${groupIndex}, ${guestIndex})" class="text-slate-300 hover:text-red-500 transition-colors" title="Eliminar Cliente"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                     </td>
                 </tr>
@@ -862,25 +863,32 @@ function checkEnter(event, groupIndex) {
 
     if (event.key === 'Enter') {
         event.preventDefault();
-        if (items.length > 0) {
-            let focusedItem = items.find(el => el.classList.contains('bg-blue-100'));
-            if (focusedItem) focusedItem.dispatchEvent(new MouseEvent('mousedown'));
-            else items[0].dispatchEvent(new MouseEvent('mousedown')); // Defaults to top option if none selected
+        
+        // Only auto-select if the user has EXPLICITLY highlighted an item with arrow keys
+        const focusedItem = items.find(el => el.classList.contains('bg-blue-100'));
+        if (focusedItem) {
+            focusedItem.dispatchEvent(new MouseEvent('mousedown'));
             return;
         }
+        
+        // Hide the dropdown — user chose not to select any result
+        const d = document.getElementById('global-autocomplete');
+        if (d) d.classList.add('hidden');
 
-        // Manual entry fallback
+        // Manual entry: add with red dot (isManual: true)
         const input = document.getElementById(`search-${groupIndex}`);
         const fullName = input.value.trim();
         if (fullName !== '') {
             const conflict = checkDiverConflict(null, fullName);
             if (conflict.conflict) { showAppAlert(`Imposible: Asignado en ${conflict.where}`); return; }
-            const tag = findActiveTagForGuest(null, fullName); // Auto-sync group!
+            const tag = findActiveTagForGuest(null, fullName);
             activeBoatItem.groups[groupIndex].guests.push({ nombre: fullName, titulacion: '', telefono: '', email: '', dni: '', gas: '15L Aire', isManual: true, bookingTag: tag });
+            input.value = '';
             updateModalSubtitle(); renderGroups();
         }
     }
 }
+
 
 // --- SAVING & DELETING DATA ---
 async function saveBoatData() {
@@ -1644,3 +1652,54 @@ window.confirmBulkAdd = function() {
     renderGroups();
     triggerAutoSave();
 };
+// ==========================================
+// DIVER NOTE FEATURE
+// ==========================================
+window.toggleGuestNote = function(groupIndex, guestIndex) {
+    if (!window.isLoggedIn) return;
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+
+    // Store context for when Save is clicked
+    window._noteContext = { groupIndex, guestIndex };
+
+    // Populate and open the custom modal
+    document.getElementById('guest-note-name').textContent = guest.nombre;
+    document.getElementById('guest-note-input').value = guest.note || '';
+    document.getElementById('guest-note-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('guest-note-input').focus(), 100);
+};
+
+window.closeGuestNoteModal = function() {
+    document.getElementById('guest-note-modal').classList.add('hidden');
+    window._noteContext = null;
+};
+
+window.saveGuestNote = function() {
+    if (!window._noteContext) return;
+    const { groupIndex, guestIndex } = window._noteContext;
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    const trimmed = document.getElementById('guest-note-input').value.trim();
+
+    if (trimmed) {
+        guest.note = trimmed;
+    } else {
+        delete guest.note;
+    }
+
+    closeGuestNoteModal();
+    renderGroups();
+    triggerAutoSave();
+};
+
+// Allow Escape key to close the note modal
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('guest-note-modal').classList.contains('hidden')) {
+        closeGuestNoteModal();
+    }
+});
+
+// Allow Enter (without Shift) to save the note
+document.getElementById('guest-note-input') && document.getElementById('guest-note-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveGuestNote(); }
+});
+
