@@ -885,6 +885,17 @@ function checkEnter(event, groupIndex) {
 // --- SAVING & DELETING DATA ---
 async function saveBoatData() {
     if (!activeBoatItem) return;
+    if (window.isDeletingTrip) {
+        console.warn("⚠️ Save aborted globally because a deletion is in progress!");
+        return;
+    }
+
+    // RACE CONDITION PREVENTION: Abort any saves (manual or auto) if the user is currently deleting the trip
+    const deleteModal = document.getElementById('delete-confirm-modal');
+    if (deleteModal && !deleteModal.classList.contains('hidden')) {
+        console.warn("⚠️ Save aborted because delete modal is open! Preventing ghost trip revival.");
+        return;
+    }
 
     // Guardar los cambios de Barco y Hora antes de evaluar el resto
     activeBoatItem.assignedBoat = document.getElementById('input-boat').value;
@@ -1090,10 +1101,12 @@ window.manualSaveBoatData = async function() {
 function deleteBoatData() {
     if(!window.isLoggedIn) return;
     if(!activeBoatItem) return; // Allow deletion of all trips, including Visor trips
+    window.isDeletingTrip = true; // Lock the autosave engine
     document.getElementById('delete-confirm-modal').classList.remove('hidden');
 }
 
 async function confirmDeleteBoatData() {
+    if (typeof autoSaveTimeout !== 'undefined') clearTimeout(autoSaveTimeout);
     try {
         let originalTrip = mergedAllocations.find(t => t.id === activeBoatItem.id && t.isInternalTrip) || mergedAllocations.find(t => t.id === activeBoatItem.id);
         const internalTargetMonth = originalTrip && originalTrip._sourceDocId ? originalTrip._sourceDocId : activeBoatItem.date.substring(0, 7);
@@ -1109,22 +1122,54 @@ async function confirmDeleteBoatData() {
                 }
             });
         }
-        let mainUpdate;
-        if (activeBoatItem.isVisor) {
-            // SOFT DELETE IN INTERNAL DB: Place a tombstone so firebase-service knows to hide it
-            mainUpdate = db.collection(INTERNAL_DB).doc(internalTargetMonth).set(
-                { allocations: { [activeBoatItem.id]: { _deleted: true } } }, 
-                { merge: true }
-            );
-        } else {
-            // HARD DELETE: Physically remove the internal key from the Firestore map
-            mainUpdate = db.collection(INTERNAL_DB).doc(internalTargetMonth).update({
-                [`allocations.${activeBoatItem.id}`]: firebase.firestore.FieldValue.delete()
+        const targetMonths = new Set();
+        targetMonths.add(activeBoatItem.date.substring(0, 7)); // Always include the target month of the date
+        if (window.internalTrips) {
+            window.internalTrips.forEach(t => {
+                if (t.id === activeBoatItem.id && t._sourceDocId) {
+                    targetMonths.add(t._sourceDocId);
+                }
             });
         }
+
+        const deletePromises = [];
+        targetMonths.forEach(monthKey => {
+            console.log(`🗑️ [HARD DELETE] Eliminando salida internamente de forma permanente: ${activeBoatItem.id} en ${INTERNAL_DB}/${monthKey}`);
+            
+            // USE PHYSICAL DELETION
+            const updatePayload = {};
+            updatePayload[`allocations.${activeBoatItem.id}`] = firebase.firestore.FieldValue.delete();
+            
+            deletePromises.push(
+                db.collection(INTERNAL_DB).doc(monthKey).update(updatePayload)
+                .catch(err => {
+                    console.warn(`Hard delete skipped for doc ${monthKey} (maybe it doesnt exist):`, err);
+                })
+            );
+        });
+
+        // Track tombstone for Visor trips (since we can't delete them from master DB)
+        if (activeBoatItem.isVisorTrip || activeBoatItem.isVisor) {
+            window.hiddenVisorTrips.add(activeBoatItem.id);
+        }
         
-        // ENFORCE READ-ONLY: We no longer touch reservations_monthly ever.
-        await Promise.all([mainUpdate, historyWrites > 0 ? historyBatch.commit() : Promise.resolve()]);
+        // INSTANT RAM FLUSH: Remove from local array so UI doesn't lag
+        if (window.internalTrips) {
+            window.internalTrips = window.internalTrips.filter(t => t.id !== activeBoatItem.id);
+        }
+        
+        // Force an immediate UI re-render before waiting for Firebase round-trip
+        if (typeof window.mergeAndRender === 'function') {
+            window.mergeAndRender();
+        }
+
+        await Promise.all(deletePromises);
+
+        // Update history Batch
+        if (historyWrites > 0) await historyBatch.commit();
+        
+        // Unlock the autosave engine
+        window.isDeletingTrip = false;
         
         // --- GARBAGE COLLECTOR TRIGGER ---
         if (originalTrip && originalTrip.guests) {
@@ -1137,7 +1182,7 @@ async function confirmDeleteBoatData() {
         document.getElementById('delete-confirm-modal').classList.add('hidden');
         closeManageBoatModal();
     } catch (e) {
-        console.error(e); showAppAlert("Error al eliminar la salida.");
+        console.error(e); showAppAlert("Error al eliminar la salida: " + e.message);
     }
 }
 

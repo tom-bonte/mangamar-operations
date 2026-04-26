@@ -187,7 +187,7 @@ function renderDailyGrid() {
     const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
     
     // We establish the 4 columns: Time, Ares, Kaiser, Shore
-    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-6 pb-12 px-2';
+    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-6 pb-12 px-2 min-w-[800px] md:min-w-0';
 
     const timeCol = document.createElement('div');
     timeCol.className = 'flex flex-col gap-4 pt-[60px]';

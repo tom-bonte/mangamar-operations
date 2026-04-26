@@ -11,6 +11,18 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Mobile Drag and Drop Polyfill -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            MobileDragDrop.polyfill({
+                dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride
+            });
+            window.addEventListener('touchmove', function() {}, {passive: false});
+        });
+    </script>
 <style>
 @media print {
     @page { margin: 0; }
@@ -43,8 +55,8 @@
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden font-sans">
-    <header class="bg-orange-100/90 backdrop-blur-md text-slate-800 px-6 py-3 shadow-sm border-b border-orange-100 flex justify-between items-center z-50 shrink-0 sticky top-0">
-        <div class="flex items-center gap-4 w-1/3">
+    <header class="bg-orange-100/90 backdrop-blur-md text-slate-800 px-3 md:px-6 py-3 shadow-sm border-b border-orange-100 flex flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-0 z-50 shrink-0 sticky top-0">
+        <div class="flex items-center gap-4 w-[50%] md:w-1/3">
             <div class="relative group cursor-pointer z-[100] auth-hide">
                 <div class="flex items-center gap-2 py-1 pr-2 rounded-lg hover:bg-slate-50 transition-colors">
                     <img src="favicon_mangamar.ico" class="w-12 h-12 object-contain" alt="Mangamar Logo">
@@ -86,20 +98,20 @@
             <button onclick="switchView('staff')" id="btn-view-staff" class="px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50 auth-hide">Staff</button>
         </nav>
 
-        <div class="flex items-center justify-end w-1/3 gap-4">
-            <a href="https://reserva-marina-visor.netlify.app/" target="_blank" class="text-xs font-bold text-slate-500 hover:text-orange-600 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-orange-50">
+        <div class="flex items-center justify-end w-[50%] md:w-1/3 gap-2 md:gap-4 order-2 md:order-last">
+            <a href="https://reserva-marina-visor.netlify.app/" target="_blank" class="text-xs font-bold text-slate-500 hover:text-orange-600 transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-orange-50">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg> Visor
             </a>
-            <div class="w-px h-6 bg-slate-200"></div>
-            <button onclick="document.getElementById('help-modal').classList.remove('hidden')" class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 hover:scale-105 font-black text-sm flex items-center justify-center transition-all auth-hide" title="Ayuda">?</button>
-            <div class="relative">
-                <button id="auth-btn-logged-out" onclick="document.getElementById('login-modal').classList.remove('hidden')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900 transition-colors">
-                    <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Iniciar Sesión
+            <div class="w-px h-6 bg-slate-200 hidden md:block"></div>
+            <button onclick="document.getElementById('help-modal').classList.remove('hidden')" class="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 hover:scale-105 font-black text-sm flex items-center justify-center transition-all auth-hide" title="Ayuda">?</button>
+            <div class="relative shrink-0">
+                <button id="auth-btn-logged-out" onclick="document.getElementById('login-modal').classList.remove('hidden')" class="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 bg-slate-800 text-white rounded-lg text-xs md:text-sm font-bold shadow-sm hover:bg-slate-900 transition-colors">
+                    <svg class="w-4 h-4 text-slate-300 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Iniciar Sesión
                 </button>
                 <div id="auth-btn-logged-in" class="hidden">
-                    <button onclick="toggleAuthDropdown()" class="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-orange-600 transition-colors group">
+                    <button onclick="toggleAuthDropdown()" class="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 bg-orange-500 text-white rounded-lg text-xs md:text-sm font-bold shadow-sm hover:bg-orange-600 transition-colors group">
                         Mangamar 
-                        <svg class="w-4 h-4 opacity-50 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     <div id="auth-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-20">
                         <button onclick="changeAdminPassword()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 whitespace-nowrap"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg> Cambiar contraseña</button>
@@ -108,12 +120,18 @@
                 </div>
             </div>
         </div>
+
+        <nav class="flex items-center justify-between md:justify-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 backdrop-blur-sm order-last md:order-none w-full md:w-auto">
+            <button onclick="switchView('daily')" id="btn-view-daily" class="px-4 md:px-6 py-2 rounded-lg text-sm font-black transition-all bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 flex-1 md:flex-none">Diario</button>
+            <button onclick="switchView('monthly')" id="btn-view-monthly" class="px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50 flex-1 md:flex-none">Mensual</button>
+            <button onclick="switchView('staff')" id="btn-view-staff" class="px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50 auth-hide flex-1 md:flex-none">Staff</button>
+        </nav>
     </header>
 
     <div class="flex-1 overflow-hidden relative">
         
-        <main id="view-daily" class="absolute inset-0 flex transition-opacity duration-300 z-10 bg-slate-50">
-            <aside class="w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto">
+        <main id="view-daily" class="absolute inset-0 flex flex-col md:flex-row transition-opacity duration-300 z-10 bg-slate-50">
+            <aside class="w-full md:w-80 bg-white border-b md:border-r md:border-b-0 border-slate-200 flex flex-col shrink-0 overflow-y-auto max-h-[40vh] md:max-h-full">
                 <div class="p-6">
                     <div class="flex items-center gap-2 mb-6">
                         <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -177,7 +195,9 @@
                             <button onclick="changeDate(1)" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
                         </div>
                     </header>
-                    <div id="daily-grid-container" class="grid grid-cols-[60px_1fr_1fr_1fr] gap-6 pb-12 px-2"></div>
+                    <div class="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+                        <div id="daily-grid-container" class="grid grid-cols-[60px_1fr_1fr_1fr] gap-6 pb-12 px-2 min-w-[800px] md:min-w-0"></div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -258,8 +278,8 @@
           </div>
         </div>
 
-        <main id="view-monthly" class="absolute inset-0 flex transition-opacity duration-300 z-0 opacity-0 pointer-events-none bg-slate-50">
-            <aside class="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto">
+        <main id="view-monthly" class="absolute inset-0 flex flex-col md:flex-row transition-opacity duration-300 z-0 opacity-0 pointer-events-none bg-slate-50">
+            <aside class="w-full md:w-72 bg-white border-b md:border-r md:border-b-0 border-slate-200 flex flex-col shrink-0 overflow-y-auto max-h-[30vh] md:max-h-full">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-black text-slate-800 tracking-tight uppercase text-sm">Filtros (Destinos)</h3>
@@ -629,7 +649,7 @@
             <h3 class="text-xl font-black text-slate-800 mb-2">¿Eliminar esta salida?</h3>
             <p class="text-sm text-slate-500 font-medium mb-6">Esta acción es irreversible y la salida desaparecerá del calendario.</p>
             <div class="flex gap-3">
-                <button onclick="document.getElementById('delete-confirm-modal').classList.add('hidden')" class="flex-1 py-3 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Cancelar</button>
+                <button onclick="window.isDeletingTrip = false; document.getElementById('delete-confirm-modal').classList.add('hidden')" class="flex-1 py-3 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Cancelar</button>
                 <button onclick="confirmDeleteBoatData()" class="flex-1 py-3 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-sm">Sí, Eliminar</button>
             </div>
         </div>
@@ -1389,15 +1409,15 @@
     </div>
 </div>
 
-    <script src="config.js?v=8"></script>
-    <script src="state.js?v=8"></script>
-    <script src="firebase-service.js?v=8"></script>
-    <script src="utils.js?v=8"></script>
-    <script src="whatsapp-exporter.js?v=8"></script>
-    <script src="tv-board.js?v=8"></script>
-    <script src="staff-manager.js?v=8"></script>
-    <script src="pricing-engine.js?v=8"></script>
-    <script src="crm-engine.js?v=8"></script>
+    <script src="config.js?v=9"></script>
+    <script src="state.js?v=9"></script>
+    <script src="firebase-service.js?v=13"></script>
+    <script src="utils.js?v=9"></script>
+    <script src="whatsapp-exporter.js?v=9"></script>
+    <script src="tv-board.js?v=9"></script>
+    <script src="staff-manager.js?v=9"></script>
+    <script src="pricing-engine.js?v=9"></script>
+    <script src="crm-engine.js?v=9"></script>
     <div id="payment-engine-modal" class="fixed inset-0 z-[700] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto" onclick="event.stopPropagation()">
             <!-- Header -->
@@ -1464,8 +1484,8 @@
         </div>
     </div>
     
-    <script src="manifest-editor.js?v=8"></script>
-    <script src="app.js?v=8"></script>
+    <script src="manifest-editor.js?v=12"></script>
+    <script src="app.js?v=10"></script>
 
     <div id="whatsapp-export-modal" onclick="if(event.target===this) document.getElementById('whatsapp-export-modal').classList.add('hidden')" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 cursor-pointer">
         <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[85vh]">

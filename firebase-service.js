@@ -35,7 +35,7 @@ function startFirestoreListeners() {
             for (const id in monthData) {
                 if (monthData[id].center === MANGAMAR_CODE) {
                     if (monthData[id]._deleted) continue; // ENFORCE INVINNCIBLE SOFT DELETE FOR VISOR
-                    
+
                     // --- 🛡️ MONTH-GUARD PROTECTION ---
                     // Ignore trips that are mathematically 'marooned' in the wrong month folder
                     const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
@@ -45,7 +45,7 @@ function startFirestoreListeners() {
                 }
             }
         });
-        visorTrips = visorData;
+        window.visorTrips = visorTrips = visorData;
         mergeAndRender();
     });
 
@@ -56,12 +56,13 @@ function startFirestoreListeners() {
         snapshot.forEach((doc) => {
             if (doc.id === 'setup' || doc.id === 'staff') return; // Ignore non-trip docs
             const monthData = doc.data().allocations || {};
+
             for (const id in monthData) {
                 if (monthData[id]._deleted) {
                     window.hiddenVisorTrips.add(id); // Track tombstone
                     continue; // ENFORCE INVINNCIBLE SOFT DELETE
                 }
-                
+
                 // --- 🛡️ MONTH-GUARD PROTECTION ---
                 // Ignore trips that are mathematically 'marooned' in the wrong month folder
                 const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
@@ -70,7 +71,7 @@ function startFirestoreListeners() {
                 internalData.push({ id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id });
             }
         });
-        internalTrips = internalData;
+        window.internalTrips = internalTrips = internalData;
         mergeAndRender();
     });
 
@@ -78,8 +79,8 @@ function startFirestoreListeners() {
     db.collection(INTERNAL_DB).doc("staff").onSnapshot((doc) => {
         if (doc.exists) {
             staffDatabase = doc.data();
-            if(typeof renderStaffView === 'function') renderStaffView();
-            if(typeof renderGroups === 'function' && activeBoatItem) renderGroups(); // Redraw dropdowns if modal is open
+            if (typeof renderStaffView === 'function') renderStaffView();
+            if (typeof renderGroups === 'function' && activeBoatItem) renderGroups(); // Redraw dropdowns if modal is open
         }
     });
 
@@ -89,12 +90,12 @@ function startFirestoreListeners() {
             let rawClients = doc.data().clients || [];
             let dedupMap = new Map();
             let nonDniClients = [];
-            
+
             rawClients.forEach(c => {
                 if (c.dni && c.dni.trim() !== '') {
                     const key = c.dni.trim().toUpperCase();
                     c.dni = key; // Normalize DNI inline
-                    
+
                     if (dedupMap.has(key)) {
                         let existing = dedupMap.get(key);
                         // Merge: Newer form (c) overwrites existing, UNLESS new value is empty
@@ -112,19 +113,19 @@ function startFirestoreListeners() {
                     nonDniClients.push(c);
                 }
             });
-            
+
             const cleanClients = [...dedupMap.values(), ...nonDniClients];
             customerDatabase = cleanClients;
-            
+
             // Auto-heal: If duplicates were fixed, silently save the sanitized list to the master directory
             if (cleanClients.length < rawClients.length) {
                 console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicate customer records.`);
                 db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
-                  .catch(e => console.error("Error auto-healing CRM:", e));
+                    .catch(e => console.error("Error auto-healing CRM:", e));
             }
         }
     });
-    
+
     // 5. GLOBAL SETTINGS (AUTH)
     db.collection("mangamar_directory").doc("settings").onSnapshot((doc) => {
         if (doc.exists) {
@@ -139,13 +140,13 @@ function startFirestoreListeners() {
     db.collection("mangamar_groups").onSnapshot((snapshot) => {
         const groups = [];
         const todayStr = new Date().toISOString().split('T')[0];
-        
+
         snapshot.forEach((doc) => {
             const data = doc.data();
             if (data.endDate && data.endDate < todayStr) {
                 // Background cleanup of expired groups
                 db.collection("mangamar_groups").doc(doc.id).delete()
-                  .catch(e => console.error("Auto-cleanup group error", e));
+                    .catch(e => console.error("Auto-cleanup group error", e));
             } else {
                 groups.push({ firebaseId: doc.id, ...data });
             }
@@ -156,7 +157,7 @@ function startFirestoreListeners() {
     // NOTE: The expensive mangamar_customers listener has been DELETED to protect your quota!
 }
 
-window.saveGlobalGroup = async function(groupData) {
+window.saveGlobalGroup = async function (groupData) {
     if (!groupData.id) {
         groupData.id = 'grp_' + Date.now();
     }
@@ -171,45 +172,45 @@ window.saveGlobalGroup = async function(groupData) {
  * Merges the read-only Visor trips and the read/write Internal trips into a single 
  * array so the UI can paint them seamlessly on Ares and Kaiser.
  */
-function mergeAndRender() {
+window.mergeAndRender = function mergeAndRender() {
     // Filter out Visor trips that have been hidden via internal tombstones
-    const visibleVisorTrips = visorTrips.filter(t => !window.hiddenVisorTrips.has(t.id));
-    
+    const visibleVisorTrips = (window.visorTrips || []).filter(t => !window.hiddenVisorTrips.has(t.id));
+
     // 1. Convert Visor and Internal data to Maps for easy lookup
     const visorMap = new Map(visibleVisorTrips.map(t => [t.id, t]));
-    const internalMap = new Map(internalTrips.map(t => [t.id, t]));
+    const internalMap = new Map((window.internalTrips || []).map(t => [t.id, t]));
 
     // --- NEW: AUTO-HEALING MIGRATION ---
     // Detect orphaned Visor shadows (Internal has it, Visor doesn't). 
     // We only want to heal 'boat_' prefixed IDs. Pure internal trips start with 'internal_' and must NOT be migrated.
-    const orphans = internalTrips.filter(t => t.id && t.id.startsWith('boat_') && !visorMap.has(t.id) && t.assignedBoat !== 'shore' && t.assignedBoat !== 'aula');
-    
+    const orphans = (window.internalTrips || []).filter(t => t.id && t.id.startsWith('boat_') && !visorMap.has(t.id) && t.assignedBoat !== 'shore' && t.assignedBoat !== 'aula');
+
     orphans.forEach(orphan => {
         // Detect if Visor just moved the site (Visor has a trip at same date/time)
-        const renamedVisorTrip = visorTrips.find(v => {
+        const renamedVisorTrip = (window.visorTrips || []).find(v => {
             if (v.date !== orphan.date || v.time !== orphan.time) return false;
             // Target is available if it has no shadow, or its shadow is completely empty
             const shadow = internalMap.get(v.id);
             return !shadow || !shadow.guests || shadow.guests.length === 0;
         });
-        
+
         if (renamedVisorTrip && !orphan._migrated) {
             console.log("♻️ Auto-migrating renamed Visor trip!", orphan.id, "->", renamedVisorTrip.id);
             orphan._migrated = true; // prevent re-triggering in same loop
-            
+
             const monthKey = orphan.date.substring(0, 7);
             const ref = db.collection(INTERNAL_DB).doc(monthKey);
-            
+
             // Inherit the new site from the Visor
             const updatedPayload = { ...orphan };
-            updatedPayload.site = renamedVisorTrip.site; 
-            
+            updatedPayload.site = renamedVisorTrip.site;
+
             // Swift database rewrite: Delete old ID, Save to new ID
             ref.update({
                 [`allocations.${renamedVisorTrip.id}`]: updatedPayload,
                 [`allocations.${orphan.id}`]: firebase.firestore.FieldValue.delete()
             }).catch(e => console.error("Auto-migration failed:", e));
-            
+
             // Instantly mutate in RAM so UI doesn't flicker
             orphan.id = renamedVisorTrip.id;
             orphan.site = renamedVisorTrip.site; // CRITICAL FIX: Make sure the local RAM immediately takes the new site name
@@ -219,7 +220,7 @@ function mergeAndRender() {
     });
 
     // 2. Align Internal "shadow" trips with their Visor masters
-    const alignedInternalTrips = internalTrips.map(internal => {
+    const alignedInternalTrips = (window.internalTrips || []).map(internal => {
         if (visorMap.has(internal.id)) {
             const visorMaster = visorMap.get(internal.id);
             return {
@@ -268,7 +269,7 @@ function mergeAndRender() {
             });
         }
     });
-    
+
     // 4. Check if the UI rendering functions exist, then paint both grids
     if (typeof renderDailyGrid === 'function') {
         renderDailyGrid();
@@ -289,10 +290,24 @@ async function saveInternalBoatData(id, date, boatInfoPayload) {
     try {
         // 'merge: true' ensures we safely insert/update this specific trip ID 
         // without accidentally overwriting the rest of the month's schedule
-        await db.collection(INTERNAL_DB).doc(monthKey).set(
-            { allocations: { [id]: boatInfoPayload } }, 
-            { merge: true }
-        );
+        
+        // --- 🛡️ ANTI-RACE CONDITION (Deep Dot-Notation Merge) ---
+        // Converts the nested payload into dot-notation to PREVENT Firebase from entirely
+        // replacing the allocation object, which inadvertently wipes the `_deleted` tombstone.
+        const updatePayload = {};
+        for (const key in boatInfoPayload) {
+            updatePayload[`allocations.${id}.${key}`] = boatInfoPayload[key];
+        }
+
+        await db.collection(INTERNAL_DB).doc(monthKey).update(updatePayload)
+        .catch(err => {
+            console.warn(`Doc missing, falling back to set for ${monthKey}`, err);
+            return db.collection(INTERNAL_DB).doc(monthKey).set(
+                { allocations: { [id]: boatInfoPayload } }, 
+                { merge: true }
+            );
+        });
+        
         console.log("Datos guardados en Firestore correctamente.");
     } catch (e) {
         console.error("Error al guardar:", e);
