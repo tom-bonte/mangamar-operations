@@ -247,7 +247,7 @@ function renderGroups() {
             let nameHtml = '';
             if (guest.isRelinking) {
                 nameHtml = `<div class="relative">
-                    <input type="text" id="relink-${groupIndex}-${guestIndex}" class="w-full px-2 py-1 border border-red-300 rounded focus:ring-2 focus:ring-red-500" placeholder="Buscar en DB..." oninput="searchRelink(${groupIndex}, ${guestIndex}, this.value)" onkeydown="checkRelinkEnter(event, ${groupIndex}, ${guestIndex})" autocomplete="off">
+                    <input type="text" id="relink-${groupIndex}-${guestIndex}" class="w-full px-2 py-1 border border-red-300 rounded focus:ring-2 focus:ring-red-500" placeholder="Buscar en DB..." oninput="searchRelink(${groupIndex}, ${guestIndex}, this.value)" onkeydown="checkRelinkEnter(event, ${groupIndex}, ${guestIndex})" onblur="setTimeout(() => { const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); if(activeBoatItem && activeBoatItem.groups[${groupIndex}] && activeBoatItem.groups[${groupIndex}].guests[${guestIndex}]) { activeBoatItem.groups[${groupIndex}].guests[${guestIndex}].isRelinking = false; renderGroups(); } }, 200)" autocomplete="off">
                 </div>`;
             } else {
                 let manualDot = guest.isManual ? `<button onclick="activateRelink(${groupIndex}, ${guestIndex})" title="Cliente Manual - Click para enlazar a la Base de Datos" class="w-2.5 h-2.5 rounded-full bg-red-500 hover:bg-red-700 animate-pulse mr-2 inline-block shrink-0 shadow-sm"></button>` : '';
@@ -283,7 +283,7 @@ function renderGroups() {
             const gasStates = ['15L Aire', '12L Aire', '15L EAN28', '12L EAN28', '15L EAN32', '12L EAN32'];
             const gasCurrent = guest.gas || '15L Aire';
             const isNitrox = gasCurrent.includes('EAN');
-            const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
+            const gasColor = isNitrox ? 'bg-green-500 text-white border-green-600 font-black' : 'bg-blue-50 text-blue-600 border-blue-200';
             const gasShortText = gasCurrent.replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
 
             const rentalCurrent = guest.rental || 0;
@@ -330,8 +330,9 @@ function renderGroups() {
             let tagHtml = `<button onclick="toggleGuestSelection(${groupIndex}, ${guestIndex})" class="w-6 h-6 rounded-full border-2 text-[10px] font-black mx-auto flex items-center justify-center transition-all ${isSelectedForGroup ? 'border-blue-600 shadow-[0_0_0_2px_rgba(37,99,235,0.3)] text-blue-600' : 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'}">${guestIndex + 1}</button>`;
 
             if (guest.bookingTag) {
-                const colorClass = getGroupColorClass(guest.bookingTag);
-                tagHtml = `<div class="relative flex items-center justify-center"><button onclick="toggleGuestSelection(${groupIndex}, ${guestIndex})" class="w-6 h-6 rounded-full border text-[10px] shadow-sm font-black mx-auto flex items-center justify-center transition-all ${colorClass} ${isSelectedForGroup ? 'ring-2 ring-offset-2 ring-blue-600 border-white' : 'border-white/30'}">${guestIndex + 1}</button></div>`;
+                const bgColor = getGroupColorClass(guest.bookingTag);
+                const textColor = getContrastYIQ(bgColor);
+                tagHtml = `<div class="relative flex items-center justify-center"><button onclick="toggleGuestSelection(${groupIndex}, ${guestIndex})" class="w-6 h-6 rounded-full border text-[10px] shadow-sm font-black mx-auto flex items-center justify-center transition-all ${isSelectedForGroup ? 'ring-2 ring-offset-2 ring-blue-600 border-white' : 'border-white/30'}" style="background-color: ${bgColor}; color: ${textColor};">${guestIndex + 1}</button></div>`;
             }
 
             let customerDeposit = guest.localDeposit || 0;
@@ -390,7 +391,7 @@ function renderGroups() {
                 <tr class="bg-blue-50/30 focus-within:z-50 relative add-guest-row">
                     <td class="p-3 text-center text-blue-400 text-sm font-black">+</td>
                     <td colspan="6" class="p-2 relative">
-                        <input type="text" id="search-${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="searchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" autocomplete="off" onblur="setTimeout(() => { const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
+                        <input type="text" id="search-${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="searchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" onfocus="window._activeSearchGroupIdx = ${groupIndex}" autocomplete="off" onblur="setTimeout(() => { const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
                     </td>
                 </tr>
         `;
@@ -441,7 +442,7 @@ function cycleGas(groupIndex, guestIndex) {
     const btn = document.getElementById(`btn-gas-${groupIndex}-${guestIndex}`);
     if (btn) {
         const isNitrox = nextGas.includes('EAN');
-        const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
+        const gasColor = isNitrox ? 'bg-green-500 text-white border-green-600 font-black' : 'bg-blue-50 text-blue-600 border-blue-200';
         btn.className = `w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}`;
         btn.innerText = nextGas.replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
     }
@@ -801,6 +802,39 @@ function searchCustomers(groupIndex, query) {
 
     if (results.length === 0) {
         dropdown.innerHTML = `<div class="px-4 py-3 text-sm text-slate-500 italic">No encontrado.<br><span class="text-xs">Presiona <b>Enter</b> para añadir manualmente.</span></div>`;
+        
+        // DNI FALLBACK: If query looks like a DNI (≥6 alphanumeric chars), check Firestore directly
+        const looksLikeDni = /^[0-9a-z]{6,}/i.test(query);
+        if (looksLikeDni && typeof db !== 'undefined') {
+            const tryDni = query.toUpperCase();
+            db.collection('mangamar_customers').doc(tryDni).get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        // Try lowercase version too
+                        return db.collection('mangamar_customers').doc(query).get();
+                    }
+                    return doc;
+                })
+                .then(doc => {
+                    if (!doc.exists) return;
+                    const d = doc.data();
+                    const nombre = d.nombre || '';
+                    const tit = d.titulacion || '';
+                    const dni = (d.dni || query).toUpperCase();
+                    // Add to local cache so future searches find it
+                    if (!customerDatabase.find(c => (c.dni || '').toUpperCase() === dni)) {
+                        customerDatabase.push({ nombre, apellido: '', titulacion: tit, telefono: d.telefono || '', email: d.email || '', dni });
+                    }
+                    // Rebuild dropdown with found result
+                    const conflict = checkDiverConflict(dni, nombre);
+                    const encodedData = encodeURIComponent(JSON.stringify({ nombre, apellido: '', titulacion: tit, telefono: d.telefono || '', email: d.email || '', dni }));
+                    dropdown.innerHTML = conflict.conflict
+                        ? `<div class="px-4 py-3 bg-slate-50 opacity-60 text-sm font-bold text-slate-500">${nombre} <span class="text-xs">(En ${conflict.where})</span></div>`
+                        : `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer text-sm font-bold text-slate-800 global-ac-item" onmousedown="selectCustomer(${groupIndex}, '${encodedData}')">${nombre}<div class="text-xs text-slate-500 font-medium">${tit} • ${dni}</div></div>`;
+                    dropdown.classList.remove('hidden');
+                })
+                .catch(() => {});
+        }
     } else {
         dropdown.innerHTML = results.map(c => {
             const fullName = getFullName(c);
@@ -1198,19 +1232,67 @@ async function confirmDeleteBoatData() {
 // 6. GROUP LINKING LOGIC (CROSS-BOAT)
 // ==========================================
 
-// Converts a group name into a guaranteed, permanent color
-function getGroupColorClass(groupName) {
-    const colors = [
-        'bg-red-500 text-white', 'bg-blue-500 text-white', 
-        'bg-emerald-500 text-white', 'bg-purple-500 text-white', 
-        'bg-pink-500 text-white', 'bg-orange-500 text-white', 
-        'bg-teal-500 text-white', 'bg-indigo-500 text-white',
-        'bg-fuchsia-500 text-white', 'bg-cyan-500 text-white'
-    ];
-    let hash = 0;
-    for (let i = 0; i < groupName.length; i++) hash = groupName.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
+function getContrastYIQ(hexcolor){
+    if(!hexcolor) return 'white';
+    if (hexcolor.startsWith('bg-')) return 'white'; 
+    hexcolor = hexcolor.replace("#", "");
+    if (hexcolor.length === 3) hexcolor = hexcolor.split('').map(c => c+c).join('');
+    var r = parseInt(hexcolor.substr(0,2),16);
+    var g = parseInt(hexcolor.substr(2,2),16);
+    var b = parseInt(hexcolor.substr(4,2),16);
+    var yiq = ((r*299)+(g*587)+(b*114))/1000;
+    return (yiq >= 128) ? '#0f172a' : '#ffffff';
 }
+
+const twToHex = {
+    'bg-red-500 text-white': '#ef4444', 'bg-blue-500 text-white': '#3b82f6', 'bg-emerald-500 text-white': '#10b981',
+    'bg-purple-500 text-white': '#a855f7', 'bg-pink-500 text-white': '#ec4899', 'bg-orange-500 text-white': '#f97316',
+    'bg-teal-500 text-white': '#14b8a6', 'bg-indigo-500 text-white': '#6366f1', 'bg-fuchsia-500 text-white': '#d946ef',
+    'bg-cyan-500 text-white': '#06b6d4', 'bg-yellow-400 text-slate-800': '#facc15', 'bg-slate-700 text-white': '#334155',
+    'bg-white text-slate-800': '#ffffff'
+};
+
+// Converts a group name into a hex color
+function getGroupColorClass(groupName) {
+    let hex = null;
+    if (window.globalGroups && groupName) {
+        const grp = window.globalGroups.find(g => g.name.toLowerCase() === groupName.toLowerCase());
+        if (grp && grp.color) hex = grp.color;
+    }
+    if (!hex) {
+        const colors = ['#ef4444', '#3b82f6', '#10b981', '#a855f7', '#ec4899', '#f97316', '#14b8a6', '#6366f1', '#d946ef', '#06b6d4'];
+        let hash = 0;
+        const nameStr = groupName || 'anon';
+        for (let i = 0; i < nameStr.length; i++) hash = nameStr.charCodeAt(i) + ((hash << 5) - hash);
+        hex = colors[Math.abs(hash) % colors.length];
+    }
+    if (twToHex[hex]) hex = twToHex[hex]; 
+    return hex;
+}
+
+// Track the currently selected manual group color (null = auto)
+window._selectedGroupColor = null;
+
+window.selectGroupColor = function(colorValue) {
+    window._selectedGroupColor = colorValue;
+    const picker = document.getElementById('group-color-picker');
+    const preview = document.getElementById('group-color-preview');
+    if (colorValue) {
+        if(picker) picker.value = colorValue;
+        if(preview) {
+            preview.style.background = colorValue;
+            preview.style.color = getContrastYIQ(colorValue);
+            preview.innerText = 'Color Seleccionado';
+        }
+    } else {
+        if(picker) picker.value = '#3b82f6';
+        if(preview) {
+            preview.style.background = '#f1f5f9'; 
+            preview.style.color = '#94a3b8'; 
+            preview.innerText = 'Automático';
+        }
+    }
+};
 
 function toggleGuestSelection(groupIndex, guestIndex) {
     if(!window.isLoggedIn) return;
@@ -1254,6 +1336,10 @@ function findActiveTagForGuest(guestDni, guestName) {
 function openGroupLinkModal() {
     document.getElementById('group-name-input').value = '';
     
+    // Reset color picker to Auto
+    window._selectedGroupColor = null;
+    selectGroupColor(null);
+    
     if (window.groupFlatpickr) window.groupFlatpickr.destroy();
     let defaultRange = activeBoatItem && activeBoatItem.date ? [activeBoatItem.date, activeBoatItem.date] : [];
     window.groupFlatpickr = flatpickr("#group-date-range", {
@@ -1288,8 +1374,9 @@ function openGroupLinkModal() {
     
     if(existingTags.size > 0) {
         listEl.innerHTML = Array.from(existingTags).map(tag => {
-            const color = getGroupColorClass(tag);
-            return `<button onclick="document.getElementById('group-name-input').value = '${tag}'" class="px-3 py-1.5 rounded-full text-[11px] font-bold shadow-sm hover:opacity-80 transition-opacity ${color}">${tag}</button>`;
+            const bgColor = getGroupColorClass(tag);
+            const textColor = getContrastYIQ(bgColor);
+            return `<button onclick="document.getElementById('group-name-input').value = '${tag}'" class="px-3 py-1.5 rounded-full text-[11px] font-bold shadow-sm hover:opacity-80 transition-opacity" style="background-color: ${bgColor}; color: ${textColor};">${tag}</button>`;
         }).join('');
         contEl.classList.remove('hidden');
     } else {
@@ -1301,49 +1388,60 @@ function openGroupLinkModal() {
 }
 
 async function confirmGroupLink(groupName) {
-    let finalName = groupName;
-    let isSinGrupo = false;
+    const finalName = groupName ? groupName.trim() : '';
     
-    if (!finalName || finalName.trim() === '') {
-        // If "Sin Nombre", generate a silent random tag so they share a color on THIS boat
-        finalName = 'anon_' + Math.random().toString(36).substr(2, 5); 
-        isSinGrupo = true;
-    } else {
-        finalName = finalName.trim();
-        
-        // --- GLOBAL GROUP LOGIC ---
-        const rangeStr = document.getElementById('group-date-range').value || '';
+    if (!finalName) {
+        if (typeof showAppAlert === 'function') showAppAlert("Por favor, introduce un Nombre del Grupo para continuar.");
+        else alert("Por favor, introduce un Nombre del Grupo para continuar.");
+        return;
+    }
+    
+    // --- GLOBAL GROUP LOGIC ---
+    const rangeStr = document.getElementById('group-date-range').value || '';
+    let startDate = '';
+    let endDate = '';
+    
+    if (rangeStr) {
         const dates = rangeStr.split(' hasta ');
-        const startDate = dates[0] || '';
-        const endDate = dates[1] || dates[0] || '';
+        startDate = dates[0] || '';
+        endDate = dates[1] || dates[0] || '';
+    } else {
+        startDate = activeBoatItem.date;
+        endDate = activeBoatItem.date;
+    }
+    
+    if (startDate && endDate) {
+        let groupObj = window.globalGroups.find(g => g.name.toLowerCase() === finalName.toLowerCase());
         
-        if (startDate && endDate) {
-            let groupObj = window.globalGroups.find(g => g.name.toLowerCase() === finalName.toLowerCase());
-            
-            if (!groupObj) {
-                groupObj = { id: 'grp_' + Date.now(), name: finalName, startDate: startDate, endDate: endDate, members: [] };
-            } else {
-                if (startDate < groupObj.startDate) groupObj.startDate = startDate;
-                if (endDate > groupObj.endDate) groupObj.endDate = endDate;
-            }
-            
-            selectedGuestsForGroup.forEach(s => {
-                const guest = activeBoatItem.groups[s.groupIndex].guests[s.guestIndex];
-                if (guest.dni && !groupObj.members.includes(guest.dni)) {
-                    groupObj.members.push(guest.dni);
-                } else if (!guest.dni && guest.nombre && !groupObj.members.includes(guest.nombre)) {
-                    // Fallback to strict name matching if DNI missing
-                    groupObj.members.push(guest.nombre.toLowerCase());
-                }
-            });
-            
-            if (window.saveGlobalGroup) window.saveGlobalGroup(groupObj);
+        if (!groupObj) {
+            groupObj = { id: 'grp_' + Date.now(), name: finalName, startDate: startDate, endDate: endDate, members: [] };
+            if (window.globalGroups) window.globalGroups.push(groupObj);
+        } else {
+            if (startDate < groupObj.startDate) groupObj.startDate = startDate;
+            if (endDate > groupObj.endDate) groupObj.endDate = endDate;
         }
+        
+        // Save manually chosen color if set
+        if (window._selectedGroupColor) {
+            groupObj.color = window._selectedGroupColor;
+        } else if (!groupObj.color) {
+            delete groupObj.color; // keep auto if nothing selected
+        }
+        
+        selectedGuestsForGroup.forEach(s => {
+            const guest = activeBoatItem.groups[s.groupIndex].guests[s.guestIndex];
+            if (guest.dni && !groupObj.members.includes(guest.dni)) {
+                groupObj.members.push(guest.dni);
+            } else if (!guest.dni && guest.nombre && !groupObj.members.includes(guest.nombre)) {
+                groupObj.members.push(guest.nombre.toLowerCase());
+            }
+        });
+        
+        if (window.saveGlobalGroup) window.saveGlobalGroup(groupObj);
     }
     
     selectedGuestsForGroup.forEach(s => {
-        if (isSinGrupo) delete activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag;
-        else activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag = finalName;
+        activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag = finalName;
     });
     
     selectedGuestsForGroup = []; 
@@ -1357,7 +1455,9 @@ function unlinkSelected() {
         delete activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag;
     });
     selectedGuestsForGroup = []; // Clear selection
+    document.getElementById('group-link-modal').classList.add('hidden');
     renderGroups();
+    triggerAutoSave();
 }
 
 window.toggleBono = function(groupIndex, guestIndex) {
@@ -1549,14 +1649,39 @@ window.openBulkAddModal = function() {
     const listEl = document.getElementById('bulk-groups-accordion');
     listEl.innerHTML = '';
     
-    // Filter globalGroups that span the activeBoatItem.date
     const currentDate = activeBoatItem.date;
-    const activeGroups = (window.globalGroups || []).filter(g => {
-        return g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate;
+    const activeGroupsMap = new Map();
+
+    // 1. From global groups
+    (window.globalGroups || []).forEach(g => {
+        if (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate) {
+            activeGroupsMap.set(g.name.toLowerCase(), { ...g, members: [...(g.members || [])] });
+        }
     });
 
+    // 2. From today's local allocations (for ad-hoc or unsynced groups)
+    mergedAllocations.forEach(t => {
+        if (t.date === currentDate && t.guests) {
+            t.guests.forEach(guest => {
+                if (guest.bookingTag && !guest.bookingTag.startsWith('anon_')) {
+                    const nameKey = guest.bookingTag.toLowerCase();
+                    if (!activeGroupsMap.has(nameKey)) {
+                        activeGroupsMap.set(nameKey, { name: guest.bookingTag, members: [] });
+                    }
+                    const grp = activeGroupsMap.get(nameKey);
+                    if (guest.dni && !grp.members.includes(guest.dni)) grp.members.push(guest.dni);
+                    else if (!guest.dni && guest.nombre && !grp.members.includes(guest.nombre.toLowerCase())) {
+                        grp.members.push(guest.nombre.toLowerCase());
+                    }
+                }
+            });
+        }
+    });
+
+    const activeGroups = Array.from(activeGroupsMap.values());
+
     if (activeGroups.length === 0) {
-        listEl.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">No hay grupos globales activos configurados para esta fecha.</div>';
+        listEl.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">No hay grupos activos o globales configurados para esta fecha.</div>';
     } else {
         activeGroups.forEach(grp => {
             // Find member data from Master List
@@ -1597,7 +1722,7 @@ window.openBulkAddModal = function() {
             <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-slate-50/50 px-4 py-3 border-b border-slate-200 flex justify-between items-center cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
                     <h4 class="font-black text-slate-800 flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full ${getGroupColorClass(grp.name).split(' ')[0]}"></span>
+                        <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${getGroupColorClass(grp.name)}"></span>
                         ${grp.name}
                     </h4>
                     <div class="flex items-center gap-3">
@@ -1629,7 +1754,10 @@ window.confirmBulkAdd = function() {
     if (!activeBoatItem.groups || activeBoatItem.groups.length === 0) {
         activeBoatItem.groups = [{ guide: '', guests: [] }];
     }
-    const targetGroupIdx = 0; 
+    // Use the last focused group's search bar, fall back to 0
+    const targetGroupIdx = (typeof window._activeSearchGroupIdx === 'number' && window._activeSearchGroupIdx < activeBoatItem.groups.length)
+        ? window._activeSearchGroupIdx
+        : 0;
     
     checkboxes.forEach(chk => {
         const data = JSON.parse(decodeURIComponent(chk.value));

@@ -87,10 +87,34 @@ const DEFAULT_PRICES = [
     { category: "Alquiler y Extras", name: "Seguro 1 Año", price: 45 }
 ];
 
+let pricingListenerUnsubscribe = null;
+
 async function loadPrices() {
-    // 🔥 ESTO FUERZA A FIREBASE A ACTUALIZARSE CON LA NUEVA LISTA SEPARADA
-    dynamicPrices = JSON.parse(JSON.stringify(DEFAULT_PRICES));
-    await db.collection('mangamar_settings').doc('pricing').set({ items: dynamicPrices });
+    return new Promise((resolve) => {
+        if (pricingListenerUnsubscribe) {
+            // Already listening, just resolve immediately
+            resolve();
+            return;
+        }
+        
+        pricingListenerUnsubscribe = db.collection('mangamar_settings').doc('pricing').onSnapshot(async (doc) => {
+            if (doc.exists && doc.data().items && doc.data().items.length > 0) {
+                dynamicPrices = doc.data().items;
+            } else {
+                // Initialize defaults only if the database is completely empty
+                dynamicPrices = JSON.parse(JSON.stringify(DEFAULT_PRICES));
+                try {
+                    await db.collection('mangamar_settings').doc('pricing').set({ items: dynamicPrices });
+                } catch(e) { console.error("Error setting default prices", e); }
+            }
+            
+            // Re-render UI if modal is currently open
+            if (typeof renderPriceModal === 'function' && document.getElementById('price-list-modal') && !document.getElementById('price-list-modal').classList.contains('hidden')) {
+                renderPriceModal();
+            }
+            resolve();
+        });
+    });
 }
 
 window.openPriceModal = function() {

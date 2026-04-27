@@ -319,19 +319,37 @@ window.executePaymentGateway = async function() {
                 let dive = window.activeFichaDives.find(i => i.doc.id === id);
                 if (dive) dive.data.paymentStatus = 'paid';
             });
-            // AND insert the final missing payment to balance the transaction exactly
+            // Insert the liquidation payment with a proper p object
+            const liqAmt = Math.abs(amountPaid);
             window.activeFichaDives.unshift({
                 doc: { id: "temp_pago_" + Date.now() },
-                data: {
-                    type: 'pago',
-                    description: `Liquidación de Cuenta (${method})`,
-                    customPrice: -Math.abs(amountPaid),
-                    paymentStatus: 'paid',
-                    paymentMethod: method,
-                    date: dateStr,
-                }
+                data: { type: 'pago', description: `Liquidación de Cuenta (${method})`, customPrice: -liqAmt, paymentStatus: 'paid', paymentMethod: method, date: dateStr },
+                p: { dive:0, tasa:0, gas:0, rental:0, insurance:0, computer:0, course:0, custom: -liqAmt, total: -liqAmt },
+                cleanIns: 0, isCovered: false, isCourseCovered: false
             });
+            // Inject deposit record locally
+            if (ctx.originalDeposit > 0) {
+                const depAmt = Math.abs(ctx.originalDeposit);
+                window.activeFichaDives.unshift({
+                    doc: { id: "temp_deposit_" + Date.now() },
+                    data: { type: 'pago', description: `Aplicación de Depósito a Cuenta`, customPrice: -depAmt, paymentStatus: 'paid', paymentMethod: 'Depósito Previo', date: dateStr },
+                    p: { dive:0, tasa:0, gas:0, rental:0, insurance:0, computer:0, course:0, custom: -depAmt, total: -depAmt },
+                    cleanIns: 0, isCovered: false, isCourseCovered: false
+                });
+                // Clear deposit locally
+                const profileIdx = customerDatabase.findIndex(c => c.dni === ctx.dni);
+                if (profileIdx !== -1) customerDatabase[profileIdx].deposit = 0;
+            }
         }
+    } else if (window.activeFichaDives) {
+        // Partial payment: inject abono with proper p object
+        const partialAmt = Math.abs(amountPaid);
+        window.activeFichaDives.unshift({
+            doc: { id: "temp_pago_" + Date.now() },
+            data: { type: 'pago', description: `Abono Parcial (${method})`, customPrice: -partialAmt, paymentStatus: 'pending', paymentMethod: method, date: dateStr },
+            p: { dive:0, tasa:0, gas:0, rental:0, insurance:0, computer:0, course:0, custom: -partialAmt, total: -partialAmt },
+            cleanIns: 0, isCovered: false, isCourseCovered: false
+        });
     }
 
     showToast(`✅ Pago de ${amountPaid}€ procesado correctamente.`);
@@ -343,16 +361,15 @@ window.executePaymentGateway = async function() {
         window.activePaymentContext = null;
     }, 300);
 
-    // Reload the UI instantly!
-    if (window.activeFichaDni === ctx.dni) {
-        const currentName = document.getElementById('profile-modal-name').innerText;
-        const contextLayer = document.getElementById('tab-content-caja').classList.contains('hidden') ? 'historial' : 'caja';
-        openCustomerProfile(ctx.dni, currentName, false, contextLayer);
+    // --- INSTANT RE-RENDER FROM LOCAL CACHE (zero Firestore reads) ---
+    if (window.activeFichaDni === ctx.dni && window.activeFichaDives) {
+        const contextLayer = document.getElementById('tab-content-caja') && !document.getElementById('tab-content-caja').classList.contains('hidden') ? 'caja' : 'historial';
+        window.renderFichaFromCache(ctx.dni, contextLayer);
     } else if (!document.getElementById('today-divers-modal').classList.contains('hidden')) {
         openTodayDiversModal();
     }
 
-    // --- 2. ASYNC BACKGROUND SYNC ---
+    // --- ASYNC BACKGROUND SYNC ---
     (async () => {
         try {
             const batch = db.batch();
@@ -405,6 +422,21 @@ window.executePaymentGateway = async function() {
                 });
 
                 if (ctx.mode === 'bulk') shouldClearDeposit = true;
+
+                // ADDITION: Convert the standing deposit into a permanent pago record to balance the history
+                if (shouldClearDeposit && ctx.originalDeposit > 0) {
+                    const depositRef = historyRef.doc();
+                    batch.set(depositRef, {
+                        type: 'pago',
+                        description: `Aplicación de Depósito a Cuenta`,
+                        customPrice: -Math.abs(ctx.originalDeposit),
+                        paymentStatus: 'paid',
+                        paymentMethod: 'Depósito Previo',
+                        date: dateStr,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
             }
 
             await batch.commit();
@@ -416,6 +448,7 @@ window.executePaymentGateway = async function() {
                     await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
                 }
             }
+
         } catch (e) {
             console.error("Background payment sync failed:", e);
             showToast("⚠️ Conexión inestable. El pago se sincronizará cuando vuelva la red.");
@@ -565,21 +598,12 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
             return;
         }
 
-        let html = '';
-        let pagosHtml = '';
-        let pendingServiciosHTML = '';
-        let pendingProductosHTML = '';
-        let pendingPagosHTML = '';
-        let grandTotal = 0;
-        let pendingTotal = 0;
-        let pagosTotalSum = 0;
-
         let docsArray = [];
         snapshot.forEach(doc => docsArray.push(doc));
         docsArray.reverse();
 
         let activeInsExpiry = null;
-        let processedDives = [];
+        const processedDives = [];
         let billedCourses = new Set();
 
         docsArray.forEach(doc => {
@@ -646,382 +670,387 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
 
         processedDives.reverse();
 
-        // Apply fixed € discount across the whole total (not per-dive)
-        let fixedDiscountAmount = 0;
-        if (customerInfo.discount > 0 && customerInfo.discountType === 'fixed') {
-            fixedDiscountAmount = customerInfo.discount;
-        }
-        let positivePendingTotal = 0;
-        let negativePendingTotal = 0;
+        window.activeFichaPendingDocs = processedDives.filter(d => d.data.paymentStatus === 'pending').map(d => d.doc.id);
+        window.activeFichaDives = processedDives;
 
-        if (typeof window.fichaDisplayLimit === 'undefined') window.fichaDisplayLimit = 15;
-
-        processedDives.forEach((item, index) => {
-            const { doc, data, p, cleanIns, isCovered, isCourseCovered } = item;
-
-            // Only sum up non-pago operational values for the overall lifetime value metric 
-            if (data.type !== 'pago') grandTotal += p.total;
-
-            const isPaid = data.paymentStatus === 'paid';
-            if (!isPaid) pendingTotal += p.total;
-
-            let breakdownHtml = '';
-            if (data.type === 'producto' || data.type === 'servicio') {
-                breakdownHtml = `<span class="text-slate-500 font-bold">${p.custom}€ ${data.description}</span>`;
-            } else if (data.type === 'pago') {
-                breakdownHtml = `<span class="text-emerald-500 font-black">${p.custom}€ Aplicado a cuenta</span>`;
-            } else if (data.course) {
-                let displayCourse = data.baseCourse || data.course.split(' | ')[0];
-                if (!isCourseCovered) breakdownHtml += `<span class="text-pink-600 font-black">${p.course}€ ${displayCourse}</span>`;
-                else breakdownHtml += `<span class="text-pink-400 font-bold">✔ Curso Incl.</span>`;
-            } else {
-                breakdownHtml = `<span class="text-slate-500">${p.dive}€ Inm.</span>`;
-            }
-
-            if (!data.type) {
-                if (p.tasa > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-amber-600 font-bold">${p.tasa}€ Tasa</span>`;
-                const extrasTotal = p.gas + p.rental + p.insurance;
-                if (extrasTotal > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-slate-400">${extrasTotal}€ Ext.</span>`;
-                if (p.computer > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-cyan-600 font-bold">${p.computer}€ <span style="font-variant:small-caps">Comp</span></span>`;
-            }
-
-            const isNitrox = (data.gas || '').includes('EAN');
-            const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
-            const gasShortText = (data.gas || '15L Aire').replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
-
-            let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
-            let rentalText = 'Eq';
-            if (data.rental === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; }
-            else if (data.rental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
-            else if (data.rental === 'INC') {
-                rentalClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
-                rentalText = 'INC';
-            }
-
-            const compHistClass = data.computer ? 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner' : 'bg-slate-50 text-slate-200 border-slate-100';
-            let bonoClass = data.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200';
-
-            let insClass = 'px-1.5 min-w-[36px] bg-red-500 text-white border-red-600';
-            let insText = 'Seg 🛑';
-            if (cleanIns === 'INC') {
-                insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
-                insText = 'INC';
-            } else if (cleanIns !== '0' && cleanIns !== 0) {
-                if (isCovered) {
-                    insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
-                    insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
-                } else {
-                    insClass = 'px-1.5 min-w-[36px] bg-blue-500 text-white border-blue-600 font-bold shadow-sm';
-                    insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg 💳 (${cleanIns})` : 'Seg 💳';
-                }
-            }
-
-            const statusBtn = isPaid
-                ? `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors shrink-0 w-full shadow-sm">Pagado</button>`
-                : `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'pending')" class="px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 shrink-0 w-full shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendiente</button>`;
-
-            let isSel = window.activeHistorialSelection && window.activeHistorialSelection.find(x => x.docId === doc.id);
-            let checkIcon = isSel ?
-                `<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
-                `<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
-
-            let centerColsHTML = '';
-            if (data.type === 'producto' || data.type === 'servicio' || data.type === 'pago') {
-                const isProd = data.type === 'producto';
-                const isPago = data.type === 'pago';
-                let tagStr = isPago ? 'PAGO' : (isProd ? 'PROD' : 'SERV');
-                let tagColor = isPago ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : (isProd ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200');
-                
-                centerColsHTML = `
-                <td class="py-2 px-3 align-middle whitespace-nowrap">
-                    <span class="text-xs font-black text-slate-800">${data.date}</span>
-                </td>
-                <td class="py-2 px-3 align-middle w-full" colspan="2">
-                    <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                        <span class="px-1.5 ${tagColor} rounded text-[9px] uppercase font-black shadow-sm border">${tagStr}</span> 
-                        ${data.description}
-                    </div>
-                </td>`;
-            } else {
-                centerColsHTML = `
-                <td class="py-2 px-3 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
-                    <div class="flex items-baseline gap-2">
-                        <span class="text-xs font-black text-slate-800 group-hover:text-blue-700 transition-colors">${data.date}</span>
-                        <span class="text-[10px] font-bold text-slate-400">${data.time}</span>
-                    </div>
-                </td>
-                <td class="py-2 px-3 text-xs font-bold text-slate-700 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">${data.site}</td>
-                <td class="py-2 px-3 align-middle cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
-                    <div class="flex items-center justify-start gap-1">
-                        <div class="w-12 h-6 flex justify-center items-center rounded border text-[9px] font-black whitespace-nowrap ${gasColor}">${gasShortText}</div>
-                        <div class="w-7 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${rentalClass}">${rentalText}</div>
-                        <div class="w-9 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${compHistClass}">Comp</div>
-                        <div class="h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${insClass}">${insText}</div>
-                        <div class="w-6 h-6 flex justify-center items-center rounded border text-[10px] font-bold shrink-0 ${bonoClass}" title="${data.hasBono ? 'Usa Bono' : 'Sin Bono'}">B</div>
-                    </div>
-                </td>`;
-            }
-
-            if (data.type === 'pago') {
-                pagosTotalSum += Math.abs(parseFloat(data.customPrice) || 0);
-                if (index < window.fichaDisplayLimit) {
-                    pagosHtml += `
-                    <tr class="group border-b border-slate-100 hover:bg-emerald-50 transition-colors h-12" data-doc-id="${doc.id}">
-                        <td class="py-2 px-3 align-middle text-center"></td>
-                        <td class="py-2 px-3 align-middle whitespace-nowrap">
-                            <span class="text-xs font-black text-slate-800">${data.date}</span>
-                        </td>
-                        <td class="py-2 px-3 align-middle w-full text-xs font-bold text-slate-600">
-                            ${data.description}
-                        </td>
-                        <td class="py-2 px-3 align-middle text-right shrink-0 whitespace-nowrap text-sm font-black text-emerald-600">
-                            -${Math.abs(parseFloat(data.customPrice) || 0)} €
-                        </td>
-                    <td class="py-2 px-3 text-center align-middle shrink-0">
-                        <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', 'pago')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar pago"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                    </td>
-                </tr>`;
-                }
-            } else {
-                if (index < window.fichaDisplayLimit) {
-                    html += `
-                    <tr class="group border-b border-slate-100 hover:bg-blue-50 transition-colors h-12 ${isPaid ? 'opacity-70 hover:opacity-100' : ''}" data-doc-id="${doc.id}">
-                        <td class="py-2 px-3 align-middle text-center" onclick="toggleHistorialRowSelection(this, '${doc.id}', '${dni}', ${p.total}, '${data.paymentStatus}', '${data.date.substring(0, 7)}')">
-                            <div class="cursor-pointer inline-block" title="Seleccionar fila">${checkIcon}</div>
-                        </td>
-                        ${centerColsHTML}
-                        <td class="py-2 px-3 text-right align-middle w-full">
-                            <div class="flex items-center justify-end gap-4 w-full">
-                                <div class="font-black text-slate-800 text-sm whitespace-nowrap shrink-0">${p.total} €</div>
-                                <div class="flex items-center gap-2 shrink-0">
-                                    <button onclick="window.generateFactura('${doc.id}')" class="px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-colors shadow-sm flex items-center justify-center h-[26px]" title="Ver Detalles Visuales">
-                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                        Detalles
-                                    </button>
-                                    <div class="w-[85px] flex justify-end h-[26px]">${statusBtn}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="py-2 px-3 text-center align-middle shrink-0">
-                            <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', '${data.type || 'buceo'}')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                        </td>
-                    </tr>`;
-                }
-            }
-
-            // --- BUILD CAJA PENDING OUTPUT ---
-            if (!isPaid) {
-                let conceptName = '';
-                let conceptBadge = '';
-                if (data.type === 'producto' || data.type === 'servicio') {
-                    conceptName = data.description;
-                    const isProd = data.type === 'producto';
-                    conceptBadge = `<span class="px-1 ${isProd ? 'bg-indigo-100 text-indigo-700' : 'bg-fuchsia-100 text-fuchsia-700'} rounded text-[8px] uppercase font-black mr-2">${isProd ? 'PROD' : 'SERV'}</span>`;
-                } else if (data.type === 'pago') {
-                    conceptName = data.description;
-                    conceptBadge = `<span class="px-1 bg-emerald-100 text-emerald-700 rounded text-[8px] uppercase font-black mr-2">PAGO</span>`;
-                } else {
-                    conceptName = `${data.site || 'Inmersión'}`;
-                    conceptBadge = `<span class="px-1 bg-sky-100 text-sky-700 rounded text-[8px] uppercase font-black mr-2">BUCEO</span>`;
-                }
-
-                const pendingRow = `
-                <tr class="group border-b border-slate-50 hover:bg-slate-50 transition-colors h-10">
-                    <td class="py-2 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider align-middle whitespace-nowrap">${data.date}</td>
-                    <td class="py-2 px-3 align-middle w-full">
-                        <div class="font-bold text-slate-700 text-xs flex items-center leading-tight">
-                            ${conceptBadge}${conceptName}
-                        </div>
-                        <div class="text-[9px] text-slate-400 mt-0.5 truncate max-w-[200px] sm:max-w-xs">${breakdownHtml.replace(/font-black/g, 'font-bold')}</div>
-                    </td>
-                    <td class="py-2 px-3 align-middle text-right whitespace-nowrap">
-                        <div class="font-black ${data.type === 'pago' ? 'text-emerald-500' : 'text-amber-600'} text-sm">${p.total} €</div>
-                    </td>
-                    <td class="py-2 px-3 align-middle w-8 text-center shrink-0">
-                        <button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="p-1.5 text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 rounded transition-colors" title="Marcar Pagado"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></button>
-                    </td>
-                </tr>`;
-
-                if (data.type === 'producto') {
-                    pendingProductosHTML += pendingRow;
-                    positivePendingTotal += p.total;
-                } else if (data.type === 'pago') {
-                    pendingPagosHTML += pendingRow;
-                    negativePendingTotal += p.total;
-                } else {
-                    pendingServiciosHTML += pendingRow;
-                    positivePendingTotal += p.total;
-                }
-            }
-        });
-
-        // UPDATE CAJA LIST
-        const cajaListEl = document.getElementById('caja-pending-list');
-        if (cajaListEl) {
-            let finalCajaHTML = '';
-            let totalPendingCount = 0;
-            if (pendingServiciosHTML) {
-                finalCajaHTML += `<tr class="bg-slate-50 border-y border-slate-100"><td colspan="4" class="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Servicios / Buceos</td></tr>` + pendingServiciosHTML;
-                totalPendingCount += (pendingServiciosHTML.match(/<tr class="group/g) || []).length;
-            }
-            if (pendingProductosHTML) {
-                finalCajaHTML += `<tr class="bg-slate-50 border-y border-slate-100"><td colspan="4" class="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Productos</td></tr>` + pendingProductosHTML;
-                totalPendingCount += (pendingProductosHTML.match(/<tr class="group/g) || []).length;
-            }
-            
-            const profileCaja = customerDatabase.find(c => c.dni === dni);
-            const depositCaja = profileCaja && profileCaja.deposit ? profileCaja.deposit : 0;
-            
-            if (pendingPagosHTML || fixedDiscountAmount > 0 || depositCaja > 0) {
-                 finalCajaHTML += `
-                 <tr class="bg-slate-50 border-y border-slate-100"><td colspan="2" class="px-3 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Subtotal:</td><td class="px-3 py-2 text-slate-700 text-right font-bold text-sm whitespace-nowrap">${positivePendingTotal} €</td><td></td></tr>
-                 ${pendingPagosHTML}`;
-                 
-                 if (fixedDiscountAmount > 0) {
-                    finalCajaHTML += `<tr class="bg-rose-50/50 border-t border-rose-100"><td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-rose-500 tracking-widest text-right">Descuento Global:</td><td class="px-3 py-1.5 text-rose-600 text-right font-bold text-xs whitespace-nowrap">-${fixedDiscountAmount} €</td><td></td></tr>`;
-                 }
-                 
-                 if (depositCaja > 0) {
-                    finalCajaHTML += `<tr class="bg-emerald-50/50 border-t border-emerald-100"><td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-emerald-600 tracking-widest text-right">Depósito a Cuenta:</td><td class="px-3 py-1.5 text-emerald-600 text-right font-bold text-xs whitespace-nowrap">-${depositCaja} €</td><td></td></tr>`;
-                 }
-
-                 const finalDebtObj = Math.max(0, positivePendingTotal + negativePendingTotal - depositCaja - fixedDiscountAmount);
-                 
-                 finalCajaHTML += `<tr class="bg-amber-50 border-t-2 border-amber-200"><td colspan="2" class="px-3 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td><td class="px-3 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">${finalDebtObj} €</td><td></td></tr>
-                 `;
-            } else if (positivePendingTotal > 0) {
-                 finalCajaHTML += `
-                 <tr class="bg-amber-50 border-t-2 border-amber-200"><td colspan="2" class="px-3 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td><td class="px-3 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">${positivePendingTotal} €</td><td></td></tr>
-                 `;
-            }
-
-            if (!finalCajaHTML) {
-                finalCajaHTML = `<tr><td colspan="4" class="p-8 text-center"><div class="text-3xl mb-2">🎉</div><div class="text-sm font-bold text-slate-400">Sin cargos pendientes</div></td></tr>`;
-            }
-            cajaListEl.innerHTML = finalCajaHTML;
-            document.getElementById('caja-pending-count').innerText = `${totalPendingCount} items`;
-        }
-
-        // --- NEW DYNAMIC MATH FOOTER ---
-        const profile = customerDatabase.find(c => c.dni === dni);
-        const deposit = profile && profile.deposit ? profile.deposit : 0;
-        let totalAPagar = Math.max(0, pendingTotal - deposit - fixedDiscountAmount);
-
-        if (pendingTotal > 0 || deposit > 0) {
-            html += `
-            <tr class="bg-slate-50/80 border-t-2 border-slate-200">
-                <td colspan="4" class="py-2 px-3 text-right font-black text-slate-500 uppercase tracking-widest text-[9px] align-middle">Deuda Pendiente</td>
-                <td class="py-2 px-3 text-right font-black text-slate-700 text-sm align-middle">${pendingTotal} €</td>
-                <td></td>
-            </tr>`;
-
-            if (deposit > 0) {
-                html += `
-                <tr class="bg-emerald-50/50 border-t border-emerald-100">
-                    <td colspan="4" class="py-2 px-3 text-right font-black text-emerald-600 uppercase tracking-widest text-[9px] align-middle">Depósito</td>
-                    <td class="py-2 px-3 text-right font-black text-emerald-600 text-sm align-middle">- ${deposit} €</td>
-                    <td></td>
-                </tr>`;
-            }
-
-            html += `
-            <tr class="${totalAPagar <= 0 && pendingTotal > 0 ? 'bg-emerald-100' : 'bg-amber-50'} border-t ${totalAPagar <= 0 && pendingTotal > 0 ? 'border-emerald-200' : 'border-amber-200'}">
-                <td colspan="4" class="py-3 px-3 text-right font-black ${totalAPagar <= 0 && pendingTotal > 0 ? 'text-emerald-700' : 'text-amber-700'} uppercase tracking-widest text-[11px] align-middle">A Pagar Hoy</td>
-                <td class="py-3 px-3 text-right font-black ${totalAPagar <= 0 && pendingTotal > 0 ? 'text-emerald-600' : 'text-amber-600'} text-xl align-middle">${totalAPagar <= 0 ? '0' : totalAPagar} €</td>
-                <td></td>
-            </tr>`;
-        } else if (grandTotal > 0) {
-            html += `
-            <tr class="bg-slate-50 border-t-2 border-slate-200">
-                <td colspan="4" class="py-3 px-3 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px] align-middle">Total Historial (Pagado)</td>
-                <td class="py-3 px-3 text-right font-black text-slate-400 text-lg align-middle">${grandTotal} €</td>
-                <td></td>
-            </tr>`;
-        }
-
-        if (processedDives.length > window.fichaDisplayLimit) {
-            const moreBtn = `
-            <tr>
-                <td colspan="6" class="p-6 text-center">
-                    <button onclick="window.fichaDisplayLimit += 15; window.openCustomerProfile(window.activeFichaDni, document.getElementById('profile-modal-name').innerText, true);" class="px-6 py-2.5 bg-slate-50 border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 font-black text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 mx-auto">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        Cargar Más (${processedDives.length - window.fichaDisplayLimit} ocultos)
-                    </button>
-                </td>
-            </tr>`;
-            html += moreBtn;
-            if (pagosHtml) pagosHtml += moreBtn;
-        }
-
-        document.getElementById('profile-history-list').innerHTML = html;
-        
-        if (pagosTotalSum > 0) {
-            const headerSumHtml = `
-            <tr class="bg-emerald-50 border-b-2 border-emerald-200 sticky top-0 z-10 shadow-sm">
-                <td colspan="3" class="py-4 px-3 text-right font-black text-emerald-700 uppercase tracking-widest text-[11px] align-middle">Total Historial (Pagos Realizados)</td>
-                <td class="py-4 px-3 text-right font-black text-emerald-600 text-lg align-middle">-${pagosTotalSum} €</td>
-                <td></td>
-            </tr>`;
-            pagosHtml = headerSumHtml + pagosHtml;
-        }
-        
-        document.getElementById('profile-pagos-list').innerHTML = pagosHtml || '<tr><td colspan="5" class="p-8 text-center text-slate-500 italic">No hay pagos registrados.</td></tr>';
-        if (document.getElementById('ficha-tab-dives') && document.getElementById('ficha-tab-dives').innerText === '---') {
-            document.getElementById('ficha-tab-dives').innerText = processedDives.length + ' (Historial)';
-        }
-
-        const elDeuda = document.getElementById('ficha-caja-deuda');
-        if (elDeuda) {
-            elDeuda.innerText = `${pendingTotal} €`;
-            document.getElementById('ficha-caja-senal').innerText = `- ${deposit} €`;
-
-            // Restore discount type toggle UI — use global state to avoid loop
-            const discType = customerInfo.discountType || 'percent';
-            window.activeDiscountType = discType;
-            const discVal = customerInfo.discount || 0;
-            document.getElementById('ficha-caja-discount').value = discVal;
-            // Only update the button visuals, do NOT call setDiscountType (avoids recursion)
-            const btnPct = document.getElementById('disc-type-pct');
-            const btnEur = document.getElementById('disc-type-eur');
-            if (btnPct && btnEur) {
-                if (discType === 'fixed') {
-                    btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
-                    btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
-                    document.getElementById('ficha-caja-discount').removeAttribute('max');
-                } else {
-                    btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
-                    btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
-                    document.getElementById('ficha-caja-discount').max = 100;
-                }
-            }
-
-            const totalEl = document.getElementById('ficha-caja-total');
-            const btnLiq = document.getElementById('btn-liquidar');
-
-            if (totalAPagar <= 0 && pendingTotal === 0) {
-                totalEl.innerText = "0 €";
-                totalEl.className = "text-3xl font-black text-slate-300 tracking-tighter";
-                btnLiq.classList.add('opacity-50', 'pointer-events-none');
-            } else if (totalAPagar <= 0 && pendingTotal > 0) {
-                totalEl.innerText = "0 € (Pagado)";
-                totalEl.className = "text-3xl font-black text-emerald-500 tracking-tighter";
-                btnLiq.classList.remove('opacity-50', 'pointer-events-none');
-            } else {
-                totalEl.innerText = `${totalAPagar} €`;
-                totalEl.className = "text-3xl font-black text-amber-600 tracking-tighter";
-                btnLiq.classList.remove('opacity-50', 'pointer-events-none');
-            }
-
-            window.activeFichaPendingDocs = processedDives.filter(d => d.data.paymentStatus === 'pending').map(d => d.doc.id);
-            window.activeFichaDives = processedDives;
-        }
-
-        switchFichaTab(targetTab);
+        window.renderFichaFromCache(dni, targetTab);
     } catch (e) {
         console.error(e);
-        document.getElementById('profile-history-list').innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Error de red al cargar el historial.</td></tr>';
+        document.getElementById('profile-history-list').innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">Error de red al cargar el historial: ${e.message}</td></tr>`;
         switchFichaTab(targetTab);
     }
+};
+
+window.renderFichaFromCache = function(dni, targetTab = 'caja') {
+    if (!window.activeFichaDives) return;
+    
+    let html = '';
+    let pagosHtml = '';
+    let pendingServiciosHTML = '';
+    let pendingProductosHTML = '';
+    let pendingPagosHTML = '';
+    let grandTotal = 0;
+    let pendingTotal = 0;
+    let pagosTotalSum = 0;
+
+    const customerInfo = customerDatabase.find(c => c.dni === dni) || { telefono: '', email: '', discount: 0 };
+    
+    let fixedDiscountAmount = 0;
+    if (customerInfo.discount > 0 && customerInfo.discountType === 'fixed') {
+        fixedDiscountAmount = customerInfo.discount;
+    }
+    let positivePendingTotal = 0;
+    let negativePendingTotal = 0;
+
+    if (typeof window.fichaDisplayLimit === 'undefined') window.fichaDisplayLimit = 15;
+
+    window.activeFichaDives.forEach((item, index) => {
+        const { doc, data, p, cleanIns, isCovered, isCourseCovered } = item;
+
+        if (data.type !== 'pago') grandTotal += p.total;
+
+        const isPaid = data.paymentStatus === 'paid';
+        if (!isPaid) pendingTotal += p.total;
+
+        let breakdownHtml = '';
+        if (data.type === 'producto' || data.type === 'servicio') {
+            breakdownHtml = `<span class="text-slate-500 font-bold">${p.custom}€ ${data.description}</span>`;
+        } else if (data.type === 'pago') {
+            breakdownHtml = `<span class="text-emerald-500 font-black">${Math.abs(p.custom)}€ Aplicado a cuenta</span>`;
+        } else if (data.course) {
+            let displayCourse = data.baseCourse || data.course.split(' | ')[0];
+            if (!isCourseCovered) breakdownHtml += `<span class="text-pink-600 font-black">${p.course}€ ${displayCourse}</span>`;
+            else breakdownHtml += `<span class="text-pink-400 font-bold">✔ Curso Incl.</span>`;
+        } else {
+            breakdownHtml = `<span class="text-slate-500">${p.dive}€ Inm.</span>`;
+        }
+
+        if (!data.type) {
+            if (p.tasa > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-amber-600 font-bold">${p.tasa}€ Tasa</span>`;
+            const extrasTotal = p.gas + p.rental + p.insurance;
+            if (extrasTotal > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-slate-400">${extrasTotal}€ Ext.</span>`;
+            if (p.computer > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-cyan-600 font-bold">${p.computer}€ <span style="font-variant:small-caps">Comp</span></span>`;
+        }
+
+        const isNitrox = (data.gas || '').includes('EAN');
+        const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
+        const gasShortText = (data.gas || '15L Aire').replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
+
+        let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
+        let rentalText = 'Eq';
+        if (data.rental === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; }
+        else if (data.rental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
+        else if (data.rental === 'INC') {
+            rentalClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+            rentalText = 'INC';
+        }
+
+        const compHistClass = data.computer ? 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner' : 'bg-slate-50 text-slate-200 border-slate-100';
+        let bonoClass = data.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200';
+
+        let insClass = 'px-1.5 min-w-[36px] bg-red-500 text-white border-red-600';
+        let insText = 'Seg 🛑';
+        if (cleanIns === 'INC') {
+            insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+            insText = 'INC';
+        } else if (cleanIns !== '0' && cleanIns !== 0) {
+            if (isCovered) {
+                insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+                insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
+            } else {
+                insClass = 'px-1.5 min-w-[36px] bg-blue-500 text-white border-blue-600 font-bold shadow-sm';
+                insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg 💳 (${cleanIns})` : 'Seg 💳';
+            }
+        }
+
+        const statusBtn = isPaid
+            ? `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors shrink-0 w-full shadow-sm">Pagado</button>`
+            : `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'pending')" class="px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 shrink-0 w-full shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendiente</button>`;
+
+        let isSel = window.activeHistorialSelection && window.activeHistorialSelection.find(x => x.docId === doc.id);
+        let checkIcon = isSel ?
+            `<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
+            `<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
+
+        let centerColsHTML = '';
+        if (data.type === 'producto' || data.type === 'servicio' || data.type === 'pago') {
+            const isProd = data.type === 'producto';
+            const isPago = data.type === 'pago';
+            let tagStr = isPago ? 'PAGO' : (isProd ? 'PROD' : 'SERV');
+            let tagColor = isPago ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : (isProd ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200');
+            
+            centerColsHTML = `
+            <td class="py-2 px-3 align-middle whitespace-nowrap">
+                <span class="text-xs font-black text-slate-800">${data.date}</span>
+            </td>
+            <td class="py-2 px-3 align-middle w-full" colspan="2">
+                <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span class="px-1.5 ${tagColor} rounded text-[9px] uppercase font-black shadow-sm border">${tagStr}</span> 
+                    ${data.description}
+                </div>
+            </td>`;
+        } else {
+            centerColsHTML = `
+            <td class="py-2 px-3 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
+                <div class="flex items-baseline gap-2">
+                    <span class="text-xs font-black text-slate-800 group-hover:text-blue-700 transition-colors">${data.date}</span>
+                    <span class="text-[10px] font-bold text-slate-400">${data.time}</span>
+                </div>
+            </td>
+            <td class="py-2 px-3 text-xs font-bold text-slate-700 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">${data.site}</td>
+            <td class="py-2 px-3 align-middle cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
+                <div class="flex items-center justify-start gap-1">
+                    <div class="w-12 h-6 flex justify-center items-center rounded border text-[9px] font-black whitespace-nowrap ${gasColor}">${gasShortText}</div>
+                    <div class="w-7 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${rentalClass}">${rentalText}</div>
+                    <div class="w-9 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${compHistClass}">Comp</div>
+                    <div class="h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${insClass}">${insText}</div>
+                    <div class="w-6 h-6 flex justify-center items-center rounded border text-[10px] font-bold shrink-0 ${bonoClass}" title="${data.hasBono ? 'Usa Bono' : 'Sin Bono'}">B</div>
+                </div>
+            </td>`;
+        }
+
+        if (data.type === 'pago') {
+            pagosTotalSum += Math.abs(parseFloat(data.customPrice) || 0);
+            if (index < window.fichaDisplayLimit) {
+                pagosHtml += `
+                <tr class="group border-b border-slate-100 hover:bg-emerald-50 transition-colors h-12" data-doc-id="${doc.id}">
+                    <td class="py-2 px-3 align-middle text-center"></td>
+                    <td class="py-2 px-3 align-middle whitespace-nowrap">
+                        <span class="text-xs font-black text-slate-800">${data.date}</span>
+                    </td>
+                    <td class="py-2 px-3 align-middle w-full text-xs font-bold text-slate-600">
+                        ${data.description}
+                    </td>
+                    <td class="py-2 px-3 align-middle text-right shrink-0 whitespace-nowrap text-sm font-black text-emerald-600">
+                        -${Math.abs(parseFloat(data.customPrice) || 0)} €
+                    </td>
+                <td class="py-2 px-3 text-center align-middle shrink-0">
+                    <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', 'pago')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar pago"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </td>
+            </tr>`;
+            }
+        } else {
+            if (index < window.fichaDisplayLimit) {
+                html += `
+                <tr class="group border-b border-slate-100 hover:bg-blue-50 transition-colors h-12 ${isPaid ? 'opacity-70 hover:opacity-100' : ''}" data-doc-id="${doc.id}">
+                    <td class="py-2 px-3 align-middle text-center" onclick="toggleHistorialRowSelection(this, '${doc.id}', '${dni}', ${p.total}, '${data.paymentStatus}', '${data.date.substring(0, 7)}')">
+                        <div class="cursor-pointer inline-block" title="Seleccionar fila">${checkIcon}</div>
+                    </td>
+                    ${centerColsHTML}
+                    <td class="py-2 px-3 text-right align-middle w-full">
+                        <div class="flex items-center justify-end gap-4 w-full">
+                            <div class="font-black text-slate-800 text-sm whitespace-nowrap shrink-0">${p.total} €</div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <button onclick="window.generateFactura('${doc.id}')" class="px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-colors shadow-sm flex items-center justify-center h-[26px]" title="Ver Detalles Visuales">
+                                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    Detalles
+                                </button>
+                                <div class="w-[85px] flex justify-end h-[26px]">${statusBtn}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-2 px-3 text-center align-middle shrink-0">
+                        <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', '${data.type || 'buceo'}')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                    </td>
+                </tr>`;
+            }
+        }
+
+        if (!isPaid) {
+            let conceptName = '';
+            let conceptBadge = '';
+            if (data.type === 'producto' || data.type === 'servicio') {
+                conceptName = data.description;
+                const isProd = data.type === 'producto';
+                conceptBadge = `<span class="px-1 ${isProd ? 'bg-indigo-100 text-indigo-700' : 'bg-fuchsia-100 text-fuchsia-700'} rounded text-[8px] uppercase font-black mr-2">${isProd ? 'PROD' : 'SERV'}</span>`;
+            } else if (data.type === 'pago') {
+                conceptName = data.description;
+                conceptBadge = `<span class="px-1 bg-emerald-100 text-emerald-700 rounded text-[8px] uppercase font-black mr-2">PAGO</span>`;
+            } else {
+                conceptName = `${data.site || 'Inmersión'}`;
+                conceptBadge = `<span class="px-1 bg-sky-100 text-sky-700 rounded text-[8px] uppercase font-black mr-2">BUCEO</span>`;
+            }
+
+            const pendingRow = `
+            <tr class="group border-b border-slate-50 hover:bg-slate-50 transition-colors h-10">
+                <td class="py-2 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider align-middle whitespace-nowrap">${data.date}</td>
+                <td class="py-2 px-3 align-middle w-full">
+                    <div class="font-bold text-slate-700 text-xs flex items-center leading-tight">
+                        ${conceptBadge}${conceptName}
+                    </div>
+                    <div class="text-[9px] text-slate-400 mt-0.5 truncate max-w-[200px] sm:max-w-xs">${breakdownHtml.replace(/font-black/g, 'font-bold')}</div>
+                </td>
+                <td class="py-2 px-3 align-middle text-right whitespace-nowrap">
+                    <div class="font-black ${data.type === 'pago' ? 'text-emerald-500' : 'text-amber-600'} text-sm">${p.total} €</div>
+                </td>
+                <td class="py-2 px-3 align-middle w-8 text-center shrink-0">
+                    <button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="p-1.5 text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 rounded transition-colors" title="Marcar Pagado"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></button>
+                </td>
+            </tr>`;
+
+            if (data.type === 'producto') {
+                pendingProductosHTML += pendingRow;
+                positivePendingTotal += p.total;
+            } else if (data.type === 'pago') {
+                pendingPagosHTML += pendingRow;
+                negativePendingTotal += p.total;
+            } else {
+                pendingServiciosHTML += pendingRow;
+                positivePendingTotal += p.total;
+            }
+        }
+    });
+
+    const cajaListEl = document.getElementById('caja-pending-list');
+    if (cajaListEl) {
+        let finalCajaHTML = '';
+        let totalPendingCount = 0;
+        if (pendingServiciosHTML) {
+            finalCajaHTML += `<tr class="bg-slate-50 border-y border-slate-100"><td colspan="4" class="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Servicios / Buceos</td></tr>` + pendingServiciosHTML;
+            totalPendingCount += (pendingServiciosHTML.match(/<tr class="group/g) || []).length;
+        }
+        if (pendingProductosHTML) {
+            finalCajaHTML += `<tr class="bg-slate-50 border-y border-slate-100"><td colspan="4" class="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Productos</td></tr>` + pendingProductosHTML;
+            totalPendingCount += (pendingProductosHTML.match(/<tr class="group/g) || []).length;
+        }
+        
+        const depositCaja = customerInfo.deposit || 0;
+        
+        if (pendingPagosHTML || fixedDiscountAmount > 0 || depositCaja > 0) {
+             finalCajaHTML += `
+             <tr class="bg-slate-50 border-y border-slate-100"><td colspan="2" class="px-3 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Subtotal:</td><td class="px-3 py-2 text-slate-700 text-right font-bold text-sm whitespace-nowrap">${positivePendingTotal} €</td><td></td></tr>
+             ${pendingPagosHTML}`;
+             
+             if (fixedDiscountAmount > 0) {
+                finalCajaHTML += `<tr class="bg-rose-50/50 border-t border-rose-100"><td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-rose-500 tracking-widest text-right">Descuento Global:</td><td class="px-3 py-1.5 text-rose-600 text-right font-bold text-xs whitespace-nowrap">-${fixedDiscountAmount} €</td><td></td></tr>`;
+             }
+             
+             if (depositCaja > 0) {
+                finalCajaHTML += `<tr class="bg-emerald-50/50 border-t border-emerald-100"><td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-emerald-600 tracking-widest text-right">Depósito a Cuenta:</td><td class="px-3 py-1.5 text-emerald-600 text-right font-bold text-xs whitespace-nowrap">-${depositCaja} €</td><td></td></tr>`;
+             }
+
+             const finalDebtObj = Math.max(0, positivePendingTotal + negativePendingTotal - depositCaja - fixedDiscountAmount);
+             
+             finalCajaHTML += `<tr class="bg-amber-50 border-t-2 border-amber-200"><td colspan="2" class="px-3 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td><td class="px-3 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">${finalDebtObj} €</td><td></td></tr>
+             `;
+        } else if (positivePendingTotal > 0) {
+             finalCajaHTML += `
+             <tr class="bg-amber-50 border-t-2 border-amber-200"><td colspan="2" class="px-3 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td><td class="px-3 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">${positivePendingTotal} €</td><td></td></tr>
+             `;
+        }
+
+        if (!finalCajaHTML) {
+            finalCajaHTML = `<tr><td colspan="4" class="p-8 text-center"><div class="text-3xl mb-2">🎉</div><div class="text-sm font-bold text-slate-400">Sin cargos pendientes</div></td></tr>`;
+        }
+        cajaListEl.innerHTML = finalCajaHTML;
+        document.getElementById('caja-pending-count').innerText = `${totalPendingCount} items`;
+    }
+
+    const deposit = customerInfo.deposit || 0;
+    let totalAPagar = Math.max(0, pendingTotal - deposit - fixedDiscountAmount);
+
+    if (grandTotal > 0) {
+        html += `
+        <tr class="bg-slate-50 border-t-2 border-slate-200">
+            <td colspan="4" class="py-3 px-3 text-right font-bold text-slate-400 uppercase tracking-widest text-[10px] align-middle">Total Historial (Buceos y Productos)</td>
+            <td class="py-3 px-3 text-right font-black text-slate-400 text-lg align-middle">${grandTotal} €</td>
+            <td></td>
+        </tr>`;
+    }
+
+    if (window.activeFichaDives.length > window.fichaDisplayLimit) {
+        const moreBtn = `
+        <tr>
+            <td colspan="6" class="p-6 text-center">
+                <button onclick="window.fichaDisplayLimit += 15; window.renderFichaFromCache('${dni}', '${targetTab}');" class="px-6 py-2.5 bg-slate-50 border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 font-black text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 mx-auto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    Cargar Más (${window.activeFichaDives.length - window.fichaDisplayLimit} ocultos)
+                </button>
+            </td>
+        </tr>`;
+        html += moreBtn;
+        if (pagosHtml) pagosHtml += moreBtn;
+    }
+
+    document.getElementById('profile-history-list').innerHTML = html;
+    
+    if (pagosTotalSum > 0 || deposit > 0) {
+        let depHtml = '';
+        if (deposit > 0) {
+            pagosTotalSum += deposit;
+            depHtml = `
+            <tr class="group border-b border-slate-100 hover:bg-emerald-50 transition-colors h-12">
+                <td class="py-2 px-3 align-middle text-center"></td>
+                <td class="py-2 px-3 align-middle whitespace-nowrap">
+                    <span class="text-xs font-black text-slate-800">Saldo a favor</span>
+                </td>
+                <td class="py-2 px-3 align-middle w-full text-xs font-bold text-slate-600">
+                    Depósito a Cuenta
+                </td>
+                <td class="py-2 px-3 align-middle text-right shrink-0 whitespace-nowrap text-sm font-black text-emerald-600">
+                    -${deposit} €
+                </td>
+                <td class="py-2 px-3 text-center align-middle shrink-0"></td>
+            </tr>`;
+        }
+
+        const headerSumHtml = `
+        <tr class="bg-emerald-50 border-b-2 border-emerald-200 sticky top-0 z-10 shadow-sm">
+            <td colspan="3" class="py-4 px-3 text-right font-black text-emerald-700 uppercase tracking-widest text-[11px] align-middle">Total Historial (Pagos Realizados)</td>
+            <td class="py-4 px-3 text-right font-black text-emerald-600 text-lg align-middle">-${pagosTotalSum} €</td>
+            <td></td>
+        </tr>`;
+        pagosHtml = headerSumHtml + depHtml + pagosHtml;
+    }
+    
+    document.getElementById('profile-pagos-list').innerHTML = pagosHtml || '<tr><td colspan="5" class="p-8 text-center text-slate-500 italic">No hay pagos registrados.</td></tr>';
+    if (document.getElementById('ficha-tab-dives') && document.getElementById('ficha-tab-dives').innerText === '---') {
+        document.getElementById('ficha-tab-dives').innerText = window.activeFichaDives.length + ' (Historial)';
+    }
+
+    const elDeuda = document.getElementById('ficha-caja-deuda');
+    if (elDeuda) {
+        elDeuda.innerText = `${pendingTotal} €`;
+        document.getElementById('ficha-caja-senal').innerText = `- ${deposit} €`;
+
+        const discType = customerInfo.discountType || 'percent';
+        window.activeDiscountType = discType;
+        const discVal = customerInfo.discount || 0;
+        document.getElementById('ficha-caja-discount').value = discVal;
+        
+        const btnPct = document.getElementById('disc-type-pct');
+        const btnEur = document.getElementById('disc-type-eur');
+        if (btnPct && btnEur) {
+            if (discType === 'fixed') {
+                btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
+                btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
+                document.getElementById('ficha-caja-discount').removeAttribute('max');
+            } else {
+                btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
+                btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
+                document.getElementById('ficha-caja-discount').max = 100;
+            }
+        }
+
+        const totalEl = document.getElementById('ficha-caja-total');
+        const btnLiq = document.getElementById('btn-liquidar');
+
+        if (totalAPagar <= 0 && pendingTotal === 0) {
+            totalEl.innerText = "0 €";
+            totalEl.className = "text-3xl font-black text-slate-300 tracking-tighter";
+            btnLiq.classList.add('opacity-50', 'pointer-events-none');
+        } else if (totalAPagar <= 0 && pendingTotal > 0) {
+            totalEl.innerText = "0 € (Pagado)";
+            totalEl.className = "text-3xl font-black text-emerald-500 tracking-tighter";
+            btnLiq.classList.remove('opacity-50', 'pointer-events-none');
+        } else {
+            totalEl.innerText = `${totalAPagar} €`;
+            totalEl.className = "text-3xl font-black text-amber-600 tracking-tighter";
+            btnLiq.classList.remove('opacity-50', 'pointer-events-none');
+        }
+    }
+
+    switchFichaTab(targetTab);
 };
 
 // Handles switching tabs in the Today's Divers view

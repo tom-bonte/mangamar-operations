@@ -126,7 +126,7 @@ body {
     letter-spacing: 0.05em;
 }
 .tv-gas-air { background: #1e40af; color: #dbeafe; border: 1px solid rgba(59, 130, 246, 0.3); }
-.tv-gas-nitrox { background: #166534; color: #dcfce7; border: 1px solid rgba(34, 197, 94, 0.3); }
+.tv-gas-nitrox { background: #16a34a; color: #ffffff; border: 2px solid #15803d; font-weight: 900; }
 
 @media print {
     .no-print { display: none !important; }

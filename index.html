@@ -92,11 +92,6 @@
             </div>
         </div>
         
-        <nav class="flex items-center justify-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 backdrop-blur-sm">
-            <button onclick="switchView('daily')" id="btn-view-daily" class="px-6 py-2 rounded-lg text-sm font-black transition-all bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20">Diario</button>
-            <button onclick="switchView('monthly')" id="btn-view-monthly" class="px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50">Mensual</button>
-            <button onclick="switchView('staff')" id="btn-view-staff" class="px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50 auth-hide">Staff</button>
-        </nav>
 
         <div class="flex items-center justify-end w-[50%] md:w-1/3 gap-2 md:gap-4 order-2 md:order-last">
             <a href="https://reserva-marina-visor.netlify.app/" target="_blank" class="text-xs font-bold text-slate-500 hover:text-orange-600 transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-orange-50">
@@ -689,16 +684,30 @@
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nombre del Grupo</label>
                 <input type="text" id="group-name-input" placeholder="Ej: Familia Smith..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
-            <div class="mb-6">
+            <div class="mb-4">
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Rango de Fechas</label>
                 <input type="text" id="group-date-range" placeholder="Seleccionar fechas..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+            </div>
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Color del Grupo <span class="text-slate-300 font-medium normal-case tracking-normal">(opcional)</span></label>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <input type="color" id="group-color-picker" value="#3b82f6" oninput="selectGroupColor(this.value)" class="w-10 h-10 rounded-xl border-2 border-slate-200 cursor-pointer shadow-sm p-0.5 bg-white">
+                    </div>
+                    <div id="group-color-preview" class="flex-1 h-10 rounded-xl border-2 border-slate-200 flex items-center justify-center text-sm font-black transition-all" style="background:#3b82f6; color:#fff;">
+                        Color seleccionado
+                    </div>
+                    <button id="group-color-clear" onclick="selectGroupColor(null)" class="px-3 h-10 rounded-xl border-2 border-slate-200 text-xs font-black text-slate-500 hover:bg-slate-100 transition-all shrink-0">
+                        Auto
+                    </button>
+                </div>
             </div>
             <div id="active-groups-container" class="mb-6 hidden">
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Grupos Activos Hoy</label>
                 <div id="active-groups-list" class="flex flex-wrap gap-2"></div>
             </div>
-            <div class="flex gap-3 mt-8">
-                <button onclick="confirmGroupLink('')" class="flex-1 py-3 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Sin Grupo</button>
+            <div class="flex gap-3 mt-6">
+                <button onclick="unlinkSelected()" class="flex-1 py-3 rounded-lg text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Desvincular (Sin Grupo)</button>
                 <button onclick="confirmGroupLink(document.getElementById('group-name-input').value)" class="flex-1 py-3 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm">Guardar Grupo</button>
             </div>
         </div>
@@ -1431,13 +1440,13 @@
 
     <script src="config.js?v=9"></script>
     <script src="state.js?v=9"></script>
-    <script src="firebase-service.js?v=13"></script>
+    <script src="firebase-service.js?v=16"></script>
     <script src="utils.js?v=9"></script>
     <script src="whatsapp-exporter.js?v=9"></script>
     <script src="tv-board.js?v=9"></script>
     <script src="staff-manager.js?v=9"></script>
-    <script src="pricing-engine.js?v=9"></script>
-    <script src="crm-engine.js?v=9"></script>
+    <script src="pricing-engine.js?v=10"></script>
+    <script src="crm-engine.js?v=15"></script>
     <div id="payment-engine-modal" class="fixed inset-0 z-[700] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto" onclick="event.stopPropagation()">
             <!-- Header -->
@@ -1504,8 +1513,8 @@
         </div>
     </div>
     
-    <script src="manifest-editor.js?v=15"></script>
-    <script src="app.js?v=10"></script>
+    <script src="manifest-editor.js?v=21"></script>
+    <script src="app.js?v=12"></script>
 
     <div id="whatsapp-export-modal" onclick="if(event.target===this) document.getElementById('whatsapp-export-modal').classList.add('hidden')" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 cursor-pointer">
         <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[85vh]">

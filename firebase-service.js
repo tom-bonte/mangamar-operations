@@ -143,13 +143,10 @@ function startFirestoreListeners() {
 
         snapshot.forEach((doc) => {
             const data = doc.data();
-            if (data.endDate && data.endDate < todayStr) {
-                // Background cleanup of expired groups
-                db.collection("mangamar_groups").doc(doc.id).delete()
-                    .catch(e => console.error("Auto-cleanup group error", e));
-            } else {
-                groups.push({ firebaseId: doc.id, ...data });
+            if (data.realEndDate) {
+                data.endDate = data.realEndDate; // Restore the real date for the UI
             }
+            groups.push({ firebaseId: doc.id, ...data });
         });
         window.globalGroups = groups;
     });
@@ -162,9 +159,18 @@ window.saveGlobalGroup = async function (groupData) {
         groupData.id = 'grp_' + Date.now();
     }
     try {
-        await db.collection("mangamar_groups").doc(groupData.id).set(groupData, { merge: true });
+        // Shield the group from stale clients that are still running the aggressive auto-cleanup script.
+        // We set endDate to a far-future date so old clients ignore it, and save the real end date in realEndDate.
+        const shieldedData = { ...groupData };
+        if (shieldedData.endDate) {
+            shieldedData.realEndDate = shieldedData.endDate;
+            shieldedData.endDate = '2099-12-31'; // Fool old clients
+        }
+        await db.collection("mangamar_groups").doc(groupData.id).set(shieldedData, { merge: true });
     } catch (e) {
         console.error("Error saving group to Firebase:", e);
+        if (typeof showAppAlert === 'function') showAppAlert("Error saving group: " + e.message);
+        else alert("Error saving group: " + e.message);
     }
 }
 

@@ -302,13 +302,15 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     let previewHtml = (trip.groups || []).map(group => {
         const guideName = (group.guide || 'Sin Guía').toUpperCase();
         const guestsHtml = (group.guests || []).map(g => {
+            const isNitrox = (g.gas || '').includes('EAN');
+            const gasColorClass = isNitrox ? 'text-green-400' : 'text-blue-300';
             const gasShort = (g.gas || '15L Aire').replace('Aire', 'Air').replace(/EAN(\d+)/, '$1%');
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
                         <button onclick="if(!window.isLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
                                 class="truncate pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer flex-1 text-left auth-lock">
                             ${g.nombre}
                         </button>
-                        <span class="shrink-0 font-black text-blue-300 text-[8px] ml-2">${gasShort}</span>
+                        <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2">${gasShort}</span>
                     </div>`;
         }).join('');
         
@@ -379,10 +381,9 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                 <div class="w-full h-1.5"></div>
                 `}
             </div>
-
         </div>
         
-        <div class="tooltip-content absolute z-[999] p-3 bg-slate-900 rounded-xl shadow-2xl w-64 border border-slate-700 pointer-events-auto" style="top: -5px; left: calc(100% + 2px);">
+        <div class="tooltip-content absolute z-[999] p-3 bg-slate-900 rounded-xl shadow-2xl w-64 border border-slate-700 pointer-events-auto" style="${boatId === 'shore' ? 'top: -5px; right: calc(100% + 2px);' : 'top: -5px; left: calc(100% + 2px);'}">
             <div class="text-[9px] font-black uppercase text-slate-400 mb-2 border-b border-slate-700 pb-1">${boatId.toUpperCase()} - CLIENTES</div>
             <div class="max-h-none overflow-visible">${previewHtml}</div>
         </div>
