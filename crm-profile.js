@@ -50,7 +50,7 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
         if (document.getElementById('ficha-tab-nombre')) {
             document.getElementById('ficha-tab-nombre').innerText = nombre || '---';
             document.getElementById('ficha-tab-dni').innerText = dni || '---';
-            document.getElementById('ficha-tab-dob').innerText = customerInfo.dob || '---';
+            document.getElementById('ficha-tab-dob').innerText = window.formatInsuranceDate(customerInfo.dob);
             document.getElementById('ficha-tab-telefono').innerText = customerInfo.telefono || '---';
             document.getElementById('ficha-tab-email').innerText = customerInfo.email || '---';
             document.getElementById('ficha-tab-titulacion').innerText = customerInfo.titulacion || '---';
@@ -818,7 +818,7 @@ window.promptEditCustomer = function () {
     document.getElementById('edit-f-dni').value = window.activeFichaDni;
     document.getElementById('edit-f-nombre').value = window.getFullName(customerInfo, false);
     document.getElementById('edit-f-apodo').value = customerInfo.apodo || '';
-    document.getElementById('edit-f-dob').value = customerInfo.dob || '';
+    document.getElementById('edit-f-dob').value = window.normalizeDateStr(customerInfo.dob) || '';
     document.getElementById('edit-f-telefono').value = customerInfo.telefono || '';
     document.getElementById('edit-f-email').value = customerInfo.email || '';
     document.getElementById('edit-f-titulacion').value = customerInfo.titulacion || '';
@@ -865,7 +865,7 @@ window.saveCustomerEdits = async function () {
             if (apodo) customerDatabase[index].apodo = apodo;
             else delete customerDatabase[index].apodo;
             if (customerDatabase[index].apellidos) delete customerDatabase[index].apellidos;
-            customerDatabase[index].dob = dob;
+            customerDatabase[index].dob = window.normalizeDateStr(dob);
             customerDatabase[index].telefono = telefono;
             customerDatabase[index].email = email;
             customerDatabase[index].titulacion = titulacion;

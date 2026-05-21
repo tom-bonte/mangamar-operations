@@ -1344,7 +1344,7 @@ window.syncJotformCustomers = async function() {
                 if (!existing.email && sheetClient.email) { existing.email = sheetClient.email; modified = true; }
                 if (!existing.telefono && sheetClient.telefono) { existing.telefono = sheetClient.telefono; modified = true; }
                 if (!existing.titulacion && sheetClient.titulacion) { existing.titulacion = sheetClient.titulacion; modified = true; }
-                if (!existing.dob && sheetClient.dob) { existing.dob = sheetClient.dob; modified = true; }
+                if (!existing.dob && sheetClient.dob) { existing.dob = window.normalizeDateStr(sheetClient.dob); modified = true; }
                 if (!existing.dives && sheetClient.dives) { existing.dives = sheetClient.dives; modified = true; }
                 
                 // Force sync insurance if provided from Jotform, but only if it's newer than the CRM's current record
@@ -1378,7 +1378,7 @@ window.syncJotformCustomers = async function() {
                     email:      sheetClient.email     || '',
                     telefono:   sheetClient.telefono  || '',
                     titulacion: sheetClient.titulacion || '',
-                    dob:        sheetClient.dob || '',
+                    dob:        window.normalizeDateStr(sheetClient.dob) || '',
                     dives:      sheetClient.dives || '',
                     insurance:  normalizedInsurance
                 });
