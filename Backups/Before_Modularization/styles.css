@@ -1,0 +1,224 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+/* ==========================================
+   SESSION AUTHENTICATION GATES
+   ========================================== */
+body:not(.logged-in) .auth-hide {
+    display: none !important;
+}
+body:not(.logged-in) .auth-lock {
+    pointer-events: none !important;
+    opacity: 0.6 !important;
+    filter: grayscale(100%);
+}
+
+body:not(.logged-in) #manage-boat-modal input,
+body:not(.logged-in) #manage-boat-modal select,
+body:not(.logged-in) #manage-boat-modal textarea {
+    pointer-events: none !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+}
+
+/* Freeze all data buttons in boat manifest to just be static tags */
+body:not(.logged-in) #manage-boat-modal button:not([onclick="closeManageBoatModal()"]):not(.nav-back-btn):not(.nav-fwd-btn) {
+    pointer-events: none !important;
+}
+
+/* Explicitly hide the destructive or edit-only action buttons */
+body:not(.logged-in) #manage-boat-modal button[onclick^="removeGroup"],
+body:not(.logged-in) #manage-boat-modal button[onclick^="removeGuest"],
+body:not(.logged-in) #manage-boat-modal button[onclick^="openEditGuestModal"],
+body:not(.logged-in) #manage-boat-modal #btn-delete-boat,
+body:not(.logged-in) #manage-boat-modal button[onclick^="copyStaffDni"],
+body:not(.logged-in) #manage-boat-modal button[onclick^="openCustomerProfile"] {
+    display: none !important;
+}
+
+/* Disable pointer events on any interactable span in the modal to prevent copying/clicking */
+body:not(.logged-in) #manage-boat-modal span.cursor-pointer {
+    pointer-events: none !important;
+    color: inherit !important;
+}
+
+/* Hide the SVG arrows for combo boxes */
+body:not(.logged-in) #manage-boat-modal .pointer-events-none.absolute.inset-y-0.right-0 {
+    display: none !important;
+}
+
+/* Hide the search bar row at the bottom of groups entirely */
+body:not(.logged-in) #manage-boat-modal .add-guest-row {
+    display: none !important;
+}
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Drag and Drop Mechanics */
+.draggable-boat {
+    cursor: grab;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.draggable-boat:active {
+    cursor: grabbing;
+    transform: scale(0.98);
+}
+.drop-zone-active {
+    background-color: #f1f5f9;
+    border: 2px dashed #94a3b8;
+}
+
+/* Capacity Circle Utility - For the visual 6/12 indicator */
+.capacity-circle {
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.group-tooltip:hover .tooltip-content,
+.tooltip-content:hover {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Ensure tooltip text is fully visible */
+.tooltip-content button, .tooltip-content span {
+    opacity: 1 !important;
+}
+
+/* Extras Custom Backgrounds */
+.bg-diagonal-yellow { background: linear-gradient(to top right, #fef08a 48%, #ca8a04 49%, #ca8a04 51%, #fef08a 52%); }
+.bg-half-yellow { background: linear-gradient(to right, #facc15 50%, #fef08a 50%); }
+.bg-full-yellow { background: #facc15; }
+.bg-diagonal-red { background: linear-gradient(to top right, #fee2e2 48%, #dc2626 49%, #dc2626 51%, #fee2e2 52%); }
+.bg-diagonal-indigo { background: linear-gradient(to top right, #eef2ff 48%, #4f46e5 49%, #4f46e5 51%, #eef2ff 52%); }
+
+/* TV BOARD SPECIFIC STYLES */
+.tv-header-yellow { background-color: #FFFF00; border: 2px solid #000; }
+.tv-sub-orange { background-color: #FF9900; border: 2px solid #000; }
+.tv-label-purple { background-color: #A020F0; color: white; border: 2px solid #000; }
+.tv-table-blue { background-color: #99CCFF; border: 2px solid #000; }
+
+@media print {
+    .no-print { display: none !important; }
+    body { background-color: white !important; }
+    #tv-view-modal { position: absolute !important; background-color: white !important; padding: 0 !important; }
+}
+
+/* MODERN TV DASHBOARD STYLES */
+.tv-card {
+    transition: transform 0.3s ease;
+}
+.tv-gas-badge {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.tv-gas-air { background: #1e40af; color: #dbeafe; border: 1px solid rgba(59, 130, 246, 0.3); }
+.tv-gas-nitrox { background: #16a34a; color: #ffffff; border: 2px solid #15803d; font-weight: 900; }
+
+@media print {
+    .no-print { display: none !important; }
+    #tv-view-modal { position: absolute !important; background: white !important; color: black !important; }
+    .tv-card { background: white !important; border: 1px solid #ccc !important; backdrop-filter: none !important; color: black !important; }
+    .text-white, .text-slate-100 { color: black !important; }
+}
+
+/* Better spacing for full gas info in TV view */
+.tv-gas-badge {
+    min-width: 75px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Ensure management modal dropdowns are always on top */
+[id^="dropdown-"], [id^="relink-dropdown-"] {
+    z-index: 9999 !important;
+}
+
+/* Visual feedback for dragging divers */
+[draggable="true"]:active {
+    opacity: 0.4;
+    cursor: grabbing;
+}
+
+/* TOOLTIP PERSISTENCE & VISUALS */
+.group-tooltip { overflow: visible !important; }
+
+.tooltip-content {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease;
+    pointer-events: auto !important; /* CRITICAL: ALLOWS CLICKS */
+    background-color: #0f172a !important; /* Fully Opaque Dark Slate */
+    z-index: 9999 !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    white-space: normal !important;
+}
+
+.group-tooltip:hover .tooltip-content,
+.tooltip-content:hover {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Ensure tooltip text is fully visible */
+.tooltip-content button, .tooltip-content span {
+    opacity: 1 !important;
+}
+
+/* Prevent buttons from starting a drag action */
+#groups-container button {
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Ensure buttons always show the pointer and never the drag cursor */
+#groups-container button {
+    cursor: pointer !important;
+    user-select: none;
+}
+
+/* Specifically target the Extras row to prevent drag interference */
+/* INCIDENCIA FORM STYLES */
+.inc-row-clear {
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ef4444;
+    font-weight: 900;
+    cursor: pointer;
+    background: white;
+    border: 1px solid #fee2e2;
+    border-radius: 4px;
+    width: 18px;
+    height: 18px;
+    line-height: 16px;
+    text-align: center;
+    font-size: 14px;
+    z-index: 10;
+    padding: 0;
+    transition: all 0.2s;
+}
+.inc-row-clear:hover {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+@media print {
+    .inc-row-clear {
+        display: none !important;
+    }
+}
