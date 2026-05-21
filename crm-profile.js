@@ -222,6 +222,7 @@ setTimeout(() => {
 // ==========================================
     const processedDives = [];
     let billedCourses = new Set();
+    let activeInsExpiry = null;
 
     window.activeFichaRawDocs.forEach(item => {
         // Handle mock documents from optimistic rendering or real Firestore documents
