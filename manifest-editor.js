@@ -42,7 +42,7 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     recordModalHistory({ type: 'boat', args: [activeBoatItem.id, boatId, time, dateStr], isNavBackForward });
 
     if (!activeBoatItem.groups || activeBoatItem.groups.length === 0) {
-        activeBoatItem.groups = [{ guide: '', guests: [] }];
+        activeBoatItem.groups = [{ guide: '', apoyo: '', guests: [] }];
     }
 
     // 🚨 CRITICAL TIMING FIX: Snapshot the DNIS synchronously when opening the modal to prevent network race conditions when tracking removed divers.
@@ -166,7 +166,7 @@ function copyStaffDni(type, name) {
 function closeManageBoatModal() { 
     // Auto-cleanup: If the trip is completely empty and was never really used, vaporize it to prevent phantom trips
     if (activeBoatItem && activeBoatItem.id && activeBoatItem.id.startsWith('internal_')) {
-        const hasData = activeBoatItem.groups.some(g => g.guide || (g.guests && g.guests.length > 0)) || activeBoatItem.captain;
+        const hasData = activeBoatItem.groups.some(g => g.guide || g.apoyo || (g.guests && g.guests.length > 0)) || activeBoatItem.captain;
         if (!hasData) {
             console.log("🧹 Auto-cleaning completely empty trip on close:", activeBoatItem.id);
             const monthKey = activeBoatItem.date.substring(0, 7);
@@ -256,18 +256,44 @@ function renderGroups(skipAutoSave = false) {
             return `<option value="${g.nombre}" class="${disabledClass}" ${isSelected ? 'selected' : ''} ${disabledAttr}>${g.nombre}${roleStr}${conflictText}</option>`;
         }).join('');
 
+        const apoyoOpts = (staffDatabase.guias || []).map(g => {
+            const isSelected = group.apoyo === g.nombre;
+            let conflictText = ""; let disabledClass = ""; let disabledAttr = "";
+            
+            // Use universal tracker for Apoyo
+            let loc = getPersonLocation(g.dni, g.nombre, 'apoyo', groupIndex);
+
+            if (!isSelected && loc) {
+                conflictText = ` (En ${loc})`; disabledAttr = "disabled"; disabledClass = "text-slate-400 bg-slate-100 font-bold";
+            }
+            
+            const roleStr = g.role && g.role !== 'Guía' ? ` (${g.role.substring(0,3).toUpperCase()})` : '';
+            return `<option value="${g.nombre}" class="${disabledClass}" ${isSelected ? 'selected' : ''} ${disabledAttr}>${g.nombre}${roleStr}${conflictText}</option>`;
+        }).join('');
+
         let html = `
             <div ondragover="event.preventDefault(); this.classList.add('bg-blue-200')" 
                  ondragleave="this.classList.remove('bg-blue-200')"
                  ondrop="event.preventDefault(); this.classList.remove('bg-blue-200'); handleDiverMove(event, ${groupIndex})"
                  class="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center justify-between rounded-t-xl transition-colors">
-                <div class="flex items-center gap-3 flex-1">
-                    <span class="text-xs font-black text-slate-500 uppercase tracking-widest">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
-                    <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-3 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-800 w-1/2 cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
-                        <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Guía'}</option>
-                        ${guideOpts}
-                    </select>
-                    <button onclick="copyStaffDni('guias', document.getElementById('guide-select-${groupIndex}').value)" title="Copiar DNI del Guía" class="text-slate-400 hover:text-blue-600 transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-black text-slate-500 uppercase tracking-widest">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
+                        <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-800 w-[220px] cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
+                            <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Guía'}</option>
+                            ${guideOpts}
+                        </select>
+                        <button onclick="copyStaffDni('guias', document.getElementById('guide-select-${groupIndex}').value)" title="Copiar DNI del Guía" class="text-slate-400 hover:text-blue-600 transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                    </div>
+                    
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-black text-slate-500 uppercase tracking-widest">APOYO:</span>
+                        <select id="apoyo-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-800 w-[220px] cursor-pointer" onchange="updateApoyo(${groupIndex}, this.value)">
+                            <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Apoyo'}</option>
+                            ${apoyoOpts}
+                        </select>
+                        <button onclick="copyStaffDni('guias', document.getElementById('apoyo-select-${groupIndex}').value)" title="Copiar DNI del Apoyo" class="text-slate-400 hover:text-blue-600 transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                    </div>
                 </div>
                 <button onclick="removeGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 p-1" title="Eliminar Grupo"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
             </div>
@@ -377,7 +403,7 @@ function renderGroups(skipAutoSave = false) {
             if (globalIns) {
                 guest.insurance = globalIns.type; 
                 let displayVal = ['1D', '1W', '1M', '1Y'].includes(globalIns.type) ? `Seg ✔ (${globalIns.type})` : 'Seg ✔';
-                insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${globalIns.expiry} (${globalIns.type})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${globalIns.type})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
             } else {
                 let insCurrent = guest.insurance || 0;
                 let cleanIns = insCurrent.toString().replace(' ✔', '');
@@ -478,7 +504,7 @@ function renderGroups(skipAutoSave = false) {
     }
 }
 
-function addGroup() { if(!window.isLoggedIn) return; activeBoatItem.groups.push({ guide: '', guests: [] }); renderGroups(); }
+function addGroup() { if(!window.isLoggedIn) return; activeBoatItem.groups.push({ guide: '', apoyo: '', guests: [] }); renderGroups(); }
 
 function removeGroup(groupIndex) { 
     showAppConfirm("¿Eliminar este grupo entero?", () => { 
@@ -493,6 +519,11 @@ function removeGroup(groupIndex) {
 
 function updateGuide(groupIndex, value) { 
     activeBoatItem.groups[groupIndex].guide = value; 
+    triggerAutoSave(); // No redraw needed, select already updated!
+}
+
+function updateApoyo(groupIndex, value) {
+    activeBoatItem.groups[groupIndex].apoyo = value;
     triggerAutoSave(); // No redraw needed, select already updated!
 }
 
@@ -992,9 +1023,9 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                 
                 Object.keys(updates).forEach(allocationKey => {
                     const clonedTrip = updates[allocationKey];
-                    const linkedGuests = clonedTrip.guests.filter(g => g.dni === cx.dni);
+                    const linkedGuests = clonedTrip.guests.filter(g => g.dni === data.dni);
                     linkedGuests.forEach(g => {
-                        const historyRef = db.collection('mangamar_customers').doc(cx.dni).collection('history').doc(clonedTrip.id);
+                        const historyRef = db.collection('mangamar_customers').doc(data.dni).collection('history').doc(clonedTrip.id);
                         historyBatch.set(historyRef, {
                             date: clonedTrip.date,
                             time: clonedTrip.time,
@@ -1362,6 +1393,14 @@ async function saveBoatData() {
                 if (loc) { showAppAlert(`⚠️ Imposible guardar: El guía ${gui.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return; }
             }
         }
+
+        if (g.apoyo) {
+            const apo = (staffDatabase.guias || []).find(x => x.nombre === g.apoyo);
+            if (apo) {
+                const loc = getPersonLocation(apo.dni, apo.nombre, 'apoyo', grpIdx);
+                if (loc) { showAppAlert(`⚠️ Imposible guardar: El apoyo ${apo.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return; }
+            }
+        }
         
         for (let gstIdx = 0; gstIdx < g.guests.length; gstIdx++) {
             const gst = g.guests[gstIdx];
@@ -1714,7 +1753,7 @@ window.promoteFromWaitlist = function(id) {
 
     // Safety: ensure at least one group exists
     if (!activeBoatItem.groups || activeBoatItem.groups.length === 0) {
-        activeBoatItem.groups = [{ guide: '', guests: [] }];
+        activeBoatItem.groups = [{ guide: '', apoyo: '', guests: [] }];
     }
 
     // Fetch full profile from CRM to get certification
@@ -1985,7 +2024,7 @@ window.confirmBulkAdd = function() {
     }
 
     if (!activeBoatItem.groups || activeBoatItem.groups.length === 0) {
-        activeBoatItem.groups = [{ guide: '', guests: [] }];
+        activeBoatItem.groups = [{ guide: '', apoyo: '', guests: [] }];
     }
     // Use the last focused group's search bar, fall back to 0
     const targetGroupIdx = (typeof window._activeSearchGroupIdx === 'number' && window._activeSearchGroupIdx < activeBoatItem.groups.length)

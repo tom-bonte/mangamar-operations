@@ -85,11 +85,12 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
                 if (testDateStr) {
                     let dDate = new Date(window.normalizeDateStr(testDateStr));
                     dDate.setHours(23, 59, 59, 999);
+                    const formattedDate = window.formatInsuranceDate(testDateStr);
                     if (!isNaN(dDate.getTime()) && dDate.getTime() < new Date().getTime()) {
                         isRed = true;
-                        displaySeg = `Sin seguro en vigor - ${typeStr} (Caducado el ${testDateStr})`;
+                        displaySeg = `Sin seguro en vigor - ${typeStr} (Caducado el ${formattedDate})`;
                     } else {
-                        displaySeg += ` (Hasta ${testDateStr})`;
+                        displaySeg += ` (Hasta ${formattedDate})`;
                     }
                 }
             }

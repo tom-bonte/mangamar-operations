@@ -60,7 +60,7 @@ window._buildTVContent = function() {
     // Helper: does this trip have any real content to show?
     const tripHasContent = trip => {
         if (!trip) return false;
-        return (trip.groups || []).some(g => (g.guests || []).length > 0 || g.guide);
+        return (trip.groups || []).some(g => (g.guests || []).length > 0 || g.guide || g.apoyo);
     };
 
     // Build the ordered list of active time slots so we can find the "previous" one
@@ -116,10 +116,13 @@ window._buildTVContent = function() {
 
                 let groupsHtml = '';
                 (trip.groups || []).forEach(group => {
-                    const firstName   = (group.guide || 'POR ASIGNAR').split(' ')[0].toUpperCase();
+                    const guideFirst = (group.guide || 'POR ASIGNAR').split(' ')[0];
+                    const guideLabel = guideFirst.charAt(0).toUpperCase() + guideFirst.slice(1);
+                    const supportFirst = (group.apoyo || '').split(' ')[0];
+                    const supportLabel = supportFirst ? supportFirst.charAt(0).toUpperCase() + supportFirst.slice(1) : '';
                     const groupGuests = group.guests || [];
 
-                    if (groupGuests.length > 0 || group.guide) {
+                    if (groupGuests.length > 0 || group.guide || group.apoyo) {
                         // Cluster guests by bookingTag so we can wrap them in subtle boxes
                         const clusters = [];
                         let currentCluster = null;
@@ -139,7 +142,10 @@ window._buildTVContent = function() {
                                 <svg class="w-5 h-5 text-orange-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                 </svg>
-                                <span class="text-2xl font-black text-orange-600 uppercase tracking-widest">${firstName}</span>
+                                <div class="flex items-baseline flex-wrap gap-x-1.5">
+                                    <span class="text-2xl font-black text-orange-600 uppercase tracking-wider">${guideLabel}</span>
+                                    ${supportLabel ? `<span class="text-orange-500 font-black text-2xl mx-1">+</span><span class="text-2xl font-black text-orange-600 uppercase tracking-wider">${supportLabel}</span><span class="text-2xl font-normal text-orange-600 uppercase tracking-wider ml-1">(Apoyo)</span>` : ''}
+                                </div>
                             </div>
                             <div class="space-y-1">
                                 ${clusters.map(cluster => {

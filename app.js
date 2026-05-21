@@ -326,7 +326,9 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     let hasVisorTag = (trip.isVisor && (!trip.isInternalTrip || trip.site === trip.originalVisorSite));
 
     let previewHtml = (trip.groups || []).map(group => {
-        const guideName = (group.guide || 'Sin Guía').toUpperCase();
+        const guideName = window.getFirstName(group.guide || 'Sin Guía').toUpperCase();
+        const apoyoName = group.apoyo ? `(APOYO: ${window.getFirstName(group.apoyo)})`.toUpperCase() : '';
+        const titleText = apoyoName ? `${guideName} ${apoyoName}` : guideName;
         const guestsHtml = (group.guests || []).map(g => {
             const isNitrox = (g.gas || '').includes('EAN');
             const gasColorClass = isNitrox ? 'text-green-400' : 'text-blue-300';
@@ -341,7 +343,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         }).join('');
         
         return `<div class="mb-3 last:mb-0 border-b border-white/10 pb-2 last:border-0 last:pb-0">
-                    <div class="text-[8px] font-black text-orange-400 mb-1 tracking-widest">${guideName}</div>
+                    <div class="text-[8px] font-black text-orange-400 mb-1 tracking-widest">${titleText}</div>
                     ${guestsHtml || '<div class="text-[9px] italic text-slate-500">Vacío</div>'}
                 </div>`;
     }).join('');
@@ -355,7 +357,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     col.draggable = true;
     col.ondragstart = (e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', trip.id); };
 
-    let capName = trip.captain || 'Sin Asignar';
+    let capName = trip.captain ? window.getFirstName(trip.captain) : 'Sin Asignar';
     let isShore = boatId === 'shore';
     let percent = isShore ? 0 : Math.min(100, Math.round((guestCount / capacityNum) * 100));
     
@@ -369,9 +371,14 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
     let guideNames = 'Sin Asignar';
     if (trip.groups && trip.groups.length > 0) {
-        const uniqueGuides = [...new Set(trip.groups.map(g => g.guide).filter(Boolean))];
-        if (uniqueGuides.length > 0) guideNames = uniqueGuides.join(', ');
-    } else if (trip.guide) { guideNames = trip.guide; }
+        const parts = trip.groups.map(g => {
+            if (!g.guide && !g.apoyo) return null;
+            if (g.guide && g.apoyo) return `${window.getFirstName(g.guide)} (Apoyo: ${window.getFirstName(g.apoyo)})`;
+            if (g.guide) return window.getFirstName(g.guide);
+            return `Apoyo: ${window.getFirstName(g.apoyo)}`;
+        }).filter(Boolean);
+        if (parts.length > 0) guideNames = parts.join(', ');
+    } else if (trip.guide) { guideNames = window.getFirstName(trip.guide); }
 
     col.innerHTML = `
         ${isConflict ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}

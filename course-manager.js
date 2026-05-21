@@ -176,17 +176,13 @@ window.executeTitCourseSave = function(applyToAll = false) {
     let detail = document.getElementById('tit-course-detail').value.trim();
     let baseName = activeTitTemp.baseCourse;
     
-    let displayBadge = baseName;
-    if (baseName === "DSD (Bautismo) desde Playa" || baseName === "DSD (Bautismo) desde Barco") displayBadge = "DSD";
-    else if (baseName === "Open Water Diver (OWC)") displayBadge = "OWc";
-    else if (baseName === "Advanced Open Water (AOWC)") displayBadge = "AOWc";
-    else if (baseName === "Rescate") displayBadge = "Resc";
-    else if (baseName === "Snorkeling") displayBadge = "Snorkel";
-    else displayBadge = baseName.length > 24 ? baseName.substring(0, 22) + '...' : baseName;
+    let displayBadge = window.getAbbreviatedCourseName(baseName);
+
+    const isStandard = detail && /\b\d+\s*(inmersi[oó]n|inmersiones|inm|dives|dive)s?\b/i.test(detail);
 
     guest.baseCourse = baseName;
     guest.course = detail ? `${baseName} | ${detail}` : baseName;
-    guest.courseBadge = detail ? `${displayBadge} (${detail})` : displayBadge;
+    guest.courseBadge = (detail && !isStandard) ? `${displayBadge} (${detail})` : displayBadge;
     guest.coursePrice = activeTitTemp.coursePrice;
     
     guest.rental = 'INC';
@@ -198,16 +194,10 @@ window.executeTitCourseSave = function(applyToAll = false) {
         activeBoatItem.groups[activeTitGroup].guests.forEach((g, idx) => {
             if (idx !== activeTitGuest && g.baseCourse) {
                 const theirBaseName = g.baseCourse;
-                let theirDisplayBadge = theirBaseName;
-                if (theirBaseName === "DSD (Bautismo) desde Playa" || theirBaseName === "DSD (Bautismo) desde Barco") theirDisplayBadge = "DSD";
-                else if (theirBaseName === "Open Water Diver (OWC)") theirDisplayBadge = "OWc";
-                else if (theirBaseName === "Advanced Open Water (AOWC)") theirDisplayBadge = "AOWc";
-                else if (theirBaseName === "Rescate") theirDisplayBadge = "Resc";
-                else if (theirBaseName === "Snorkeling") theirDisplayBadge = "Snorkel";
-                else theirDisplayBadge = theirBaseName.length > 24 ? theirBaseName.substring(0, 22) + '...' : theirBaseName;
+                let theirDisplayBadge = window.getAbbreviatedCourseName(theirBaseName);
 
                 g.course = `${theirBaseName} | ${detail}`;
-                g.courseBadge = `${theirDisplayBadge} (${detail})`;
+                g.courseBadge = (detail && !isStandard) ? `${theirDisplayBadge} (${detail})` : theirDisplayBadge;
             }
         });
     }

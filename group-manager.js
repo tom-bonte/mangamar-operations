@@ -310,13 +310,7 @@ function findExistingDiverData(dniOrName) {
             
             // If we have a clean course, regenerate the short badge without comments
             if (cleanCourse) {
-                displayBadge = cleanCourse;
-                if (cleanCourse === "DSD (Bautismo) desde Playa" || cleanCourse === "DSD (Bautismo) desde Barco") displayBadge = "DSD";
-                else if (cleanCourse === "Open Water Diver (OWC)") displayBadge = "OWc";
-                else if (cleanCourse === "Advanced Open Water (AOWC)") displayBadge = "AOWc";
-                else if (cleanCourse === "Rescate") displayBadge = "Resc";
-                else if (cleanCourse === "Snorkeling") displayBadge = "Snorkel";
-                else displayBadge = cleanCourse.length > 24 ? cleanCourse.substring(0, 22) + '...' : cleanCourse;
+                displayBadge = window.getAbbreviatedCourseName(cleanCourse);
             }
 
             return {
@@ -353,13 +347,7 @@ function findExistingDiverData(dniOrName) {
                 
                 // If we have a clean course, regenerate the short badge without comments
                 if (cleanCourse) {
-                    displayBadge = cleanCourse;
-                    if (cleanCourse === "DSD (Bautismo) desde Playa" || cleanCourse === "DSD (Bautismo) desde Barco") displayBadge = "DSD";
-                    else if (cleanCourse === "Open Water Diver (OWC)") displayBadge = "OWc";
-                    else if (cleanCourse === "Advanced Open Water (AOWC)") displayBadge = "AOWc";
-                    else if (cleanCourse === "Rescate") displayBadge = "Resc";
-                    else if (cleanCourse === "Snorkeling") displayBadge = "Snorkel";
-                    else displayBadge = cleanCourse.length > 24 ? cleanCourse.substring(0, 22) + '...' : cleanCourse;
+                    displayBadge = window.getAbbreviatedCourseName(cleanCourse);
                 }
 
                 return {
@@ -395,13 +383,7 @@ function findExistingDiverData(dniOrName) {
         if (pendingCerts && pendingCerts.length > 0) {
             const cleanCourse = pendingCerts[0];
             
-            let displayBadge = cleanCourse;
-            if (cleanCourse === "DSD (Bautismo) desde Playa" || cleanCourse === "DSD (Bautismo) desde Barco") displayBadge = "DSD";
-            else if (cleanCourse === "Open Water Diver (OWC)") displayBadge = "OWc";
-            else if (cleanCourse === "Advanced Open Water (AOWC)") displayBadge = "AOWc";
-            else if (cleanCourse === "Rescate") displayBadge = "Resc";
-            else if (cleanCourse === "Snorkeling") displayBadge = "Snorkel";
-            else displayBadge = cleanCourse.length > 24 ? cleanCourse.substring(0, 22) + '...' : cleanCourse;
+            let displayBadge = window.getAbbreviatedCourseName(cleanCourse);
 
             return {
                 originalName: null,

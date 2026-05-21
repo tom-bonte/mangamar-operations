@@ -216,6 +216,7 @@ window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGr
         if (t.groups) {
             for (const g of t.groups) {
                 if (g.guide && matches(null, g.guide)) return boatName;
+                if (g.apoyo && matches(null, g.apoyo)) return boatName;
             }
         }
         if (t.guests) {
@@ -232,6 +233,9 @@ window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGr
             const group = activeBoatItem.groups[grpIdx];
             if (!(excludeType === 'guide' && excludeGroupIdx === grpIdx)) {
                 if (group.guide && matches(null, group.guide)) return "Este barco (Guía)";
+            }
+            if (!(excludeType === 'apoyo' && excludeGroupIdx === grpIdx)) {
+                if (group.apoyo && matches(null, group.apoyo)) return "Este barco (Apoyo)";
             }
             if (group.guests) {
                 for (let gstIdx = 0; gstIdx < group.guests.length; gstIdx++) {
@@ -644,4 +648,70 @@ window.renderNitroxForecast = function() {
             </div>
         </div>
     </div>`;
+};
+
+window.getAbbreviatedCourseName = function(baseName) {
+    if (!baseName) return "";
+    let name = baseName.trim();
+    
+    // Check standard maps
+    if (name === "DSD (Bautismo) desde Playa" || name === "DSD (Bautismo) desde Barco") return "DSD";
+    if (name === "Open Water Diver (OWC)") return "OWc";
+    if (name === "Advanced Open Water (AOWC)") return "AOWc";
+    if (name === "Rescate") return "Resc";
+    if (name === "Snorkeling") return "Snorkel";
+    
+    // Custom mappings:
+    const lower = name.toLowerCase();
+    if (lower.includes("deep")) return "Deep Spec.";
+    if (lower.includes("nitrox")) return "Nitrox Spec.";
+    if (lower.includes("dry suit") || lower.includes("traje seco")) return "Dry Suit Spec.";
+    if (lower.includes("wreck") || lower.includes("pecios")) return "Wreck Spec.";
+    if (lower.includes("navigation") || lower.includes("navegacion")) return "Nav Spec.";
+    if (lower.includes("night") || lower.includes("nocturna")) return "Night Spec.";
+    if (lower.includes("perfect buoyancy") || lower.includes("flotabilidad")) return "Buoyancy Spec.";
+    if (lower.includes("react right") || lower.includes("primeros auxilios")) return "React Right";
+    
+    // Otherwise, truncate if it is too long
+    return name.length > 18 ? name.substring(0, 16) + '...' : name;
+};
+
+window.getFirstName = function(name) {
+    if (!name) return "";
+    let trimmed = name.trim();
+    // Keep placeholder/default texts intact
+    const lower = trimmed.toLowerCase();
+    if (lower === "sin asignar" || lower === "por asignar" || lower === "sin guía" || lower === "sin guia" || lower === "sin apoyo") {
+        return trimmed;
+    }
+    // Handle names separated by comma, e.g. "PAOLO, TOM"
+    if (trimmed.includes(',')) {
+        return trimmed.split(',').map(n => window.getFirstName(n.trim())).join(', ');
+    }
+    return trimmed.split(' ')[0];
+};
+
+window.formatInsuranceDate = function(dateStr) {
+    if (!dateStr) return '---';
+    const trimmed = dateStr.trim();
+    if (trimmed === '0' || trimmed === '---' || trimmed.toLowerCase() === 'no' || trimmed.toLowerCase() === 'none') {
+        return '---';
+    }
+    
+    // Normalize date first
+    const normalized = window.normalizeDateStr(trimmed);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+        return trimmed;
+    }
+    
+    const parts = normalized.split('-');
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const dayStr = String(parseInt(parts[2], 10));
+    
+    // Months as requested: ene, feb, mar, apr, may, jun, jul, ago, sep, oct, nov, dic
+    const months = ['Ene', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const monthStr = months[monthIndex] || '---';
+    
+    return `${dayStr}/${monthStr}/${year}`;
 };
