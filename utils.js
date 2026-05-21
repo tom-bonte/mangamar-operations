@@ -666,7 +666,6 @@ window.getAbbreviatedCourseName = function(baseName) {
     if (name === "Snorkeling") return "Snorkel";
     
     // Custom mappings:
-    const lower = name.toLowerCase();
     if (lower.includes("deep")) return "Deep Spec.";
     if (lower.includes("nitrox")) return "Nitrox Spec.";
     if (lower.includes("dry suit") || lower.includes("traje seco")) return "Dry Suit Spec.";
