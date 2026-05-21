@@ -288,11 +288,15 @@ window.generateWhatsAppText = function() {
             const freeSpots = tripCapacity - guestsCount;
             
             let cxTime = t.time;
-            if (t.time === '09:00') cxTime = '08:00';
-            else if (t.time === '10:30') cxTime = '09:30';
-            else if (t.time === '12:00') cxTime = '11:00';
-
-            else if (t.time === '15:00') cxTime = '15:30';
+            if (t.time) {
+                const parts = t.time.split(':');
+                if (parts.length === 2) {
+                    let hour = parseInt(parts[0], 10);
+                    hour = (hour - 1 + 24) % 24;
+                    const paddedHour = String(hour).padStart(2, '0');
+                    cxTime = `${paddedHour}:${parts[1]}`;
+                }
+            }
 
             const siteName = t.site || txt[waCurrentLang].confirm;
             const emoji = freeSpots >= 6 ? '🟢' : '🟡'; 
