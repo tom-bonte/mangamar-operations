@@ -664,6 +664,15 @@ window.cleanOrphanedInsurance = async function(dni) {
         const profile = customerDatabase.find(c => c.dni === dni);
         if (!profile || !profile.insurance) return;
 
+        // ONLY clean up short-term daily (1D) or weekly (1W) insurances if orphaned
+        let insType = '';
+        if (typeof profile.insurance === 'string') {
+            insType = profile.insurance;
+        } else if (profile.insurance && profile.insurance.type) {
+            insType = profile.insurance.type;
+        }
+        if (insType !== '1D' && insType !== '1W') return;
+
         const snap = await db.collection('mangamar_customers').doc(dni).collection('history').get();
         let hasValidDive = false;
         snap.forEach(doc => {
