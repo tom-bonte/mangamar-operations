@@ -163,11 +163,19 @@ window._buildTVContent = function() {
                                     }
 
                                     const guestsHtml = cluster.guests.map(g => {
+                                        const isSnorkel = (g.baseCourse === "Snorkeling" || g.courseBadge === "Snorkel" || (g.baseCourse && g.baseCourse.toLowerCase().includes("snorkel")) || (g.course && g.course.toLowerCase().includes("snorkel")));
                                         const fullGas    = g.gas || '15L Aire';
-                                        const isNx       = fullGas.includes('EAN');
-                                        const displayGas = isNx 
-                                            ? fullGas.replace(/EAN\s*(\d+)/i, '$1%') 
-                                            : 'Aire';
+                                        const isNx       = !isSnorkel && fullGas.includes('EAN');
+                                        let displayGas   = 'Aire';
+                                        let badgeClass   = 'tv-gas-air';
+
+                                        if (isSnorkel) {
+                                            displayGas = 'Snorkel';
+                                            badgeClass = 'tv-gas-snorkel';
+                                        } else if (isNx) {
+                                            displayGas = fullGas.replace(/EAN\s*(\d+)/i, '$1%');
+                                            badgeClass = 'tv-gas-nitrox';
+                                        }
 
                                         const nameKey    = (g.nombre || '').trim().toUpperCase();
                                         const prevBoat   = prevDivers.get(nameKey);
@@ -187,7 +195,7 @@ window._buildTVContent = function() {
                                                 <span class="text-[22px] font-black text-slate-700 uppercase tracking-tight truncate">${g.nombre}</span>
                                                 ${returnBadge}
                                             </div>
-                                            <span class="tv-gas-badge ${isNx ? 'tv-gas-nitrox' : 'tv-gas-air'}" style="font-size:1.35rem;font-weight:900;padding:5px 14px;min-width:130px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;line-height:1;border-radius:12px">${displayGas}</span>
+                                            <span class="tv-gas-badge ${badgeClass}" style="font-size:1.35rem;font-weight:900;padding:5px 14px;min-width:130px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;line-height:1;border-radius:12px">${displayGas}</span>
                                         </div>`;
                                     }).join('');
 

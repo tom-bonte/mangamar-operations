@@ -127,6 +127,7 @@ body {
 }
 .tv-gas-air { background: #1e40af; color: #dbeafe; border: 1px solid rgba(59, 130, 246, 0.3); }
 .tv-gas-nitrox { background: #16a34a; color: #ffffff; border: 2px solid #15803d; font-weight: 900; }
+.tv-gas-snorkel { background: #ea580c; color: #ffffff; border: 2px solid #c2410c; font-weight: 900; }
 
 @media print {
     .no-print { display: none !important; }
