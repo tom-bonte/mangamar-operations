@@ -77,6 +77,28 @@ window._buildTVContent = function() {
         return null;
     };
 
+    // Helper: format time values to standard HH:MM
+    const formatTimeToHHMM = (timeStr) => {
+        if (!timeStr) return '';
+        let normalized = timeStr.trim().replace(/[\.,\s]+/g, ':');
+        if (!normalized.includes(':')) {
+            if (normalized.length === 3) {
+                normalized = '0' + normalized.substring(0, 1) + ':' + normalized.substring(1);
+            } else if (normalized.length === 4) {
+                normalized = normalized.substring(0, 2) + ':' + normalized.substring(2);
+            }
+        }
+        const parts = normalized.split(':');
+        if (parts.length >= 2) {
+            let hr = parts[0].trim().padStart(2, '0');
+            let min = parts[1].trim().padEnd(2, '0').substring(0, 2);
+            if (/^\d+$/.test(hr) && /^\d+$/.test(min)) {
+                return `${hr}:${min}`;
+            }
+        }
+        return normalized;
+    };
+
     // Build the ordered list of active time slots so we can find the "previous" one
     const activeSlots = TIMES.filter(time => {
         const a = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time);
@@ -227,33 +249,33 @@ window._buildTVContent = function() {
                     const prevSiteColor = prevSiteColorFull.replace('bg-slate-800 text-slate-300 border-slate-700', 'bg-slate-100 text-slate-500 border border-slate-200');
                     
                     prevTripHtml = `
-                    <div class="p-5 bg-orange-100/20 border-t border-orange-200/80 flex flex-col gap-3 shrink-0">
+                    <div class="p-6 bg-orange-100/25 border-t border-orange-200 flex flex-col gap-4 shrink-0">
                         <div class="flex items-center justify-between">
-                            <span class="text-sm font-black text-orange-700/80 uppercase tracking-widest">SALIDA ANTERIOR (${prevTrip.time})</span>
-                            <span class="px-3 py-1 rounded-lg text-sm font-black uppercase tracking-wider ${prevSiteColor}">
+                            <span class="text-xl font-black text-orange-800 uppercase tracking-wider">SALIDA ANTERIOR (${prevTrip.time})</span>
+                            <span class="px-4 py-2 rounded-xl text-lg font-black uppercase tracking-wider shadow-sm ${prevSiteColor}">
                                 ${prevTrip.site || 'CONFIRMAR'}
                             </span>
                         </div>
-                        <div class="grid grid-cols-3 gap-3 text-center">
-                            <div class="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl border transition-all duration-200 ${prevTrip.timeSaliendo ? 'bg-orange-500/10 border-orange-500/30 text-orange-700 font-black' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Saliendo">
-                                <span class="text-[10px] font-black uppercase tracking-wider mb-1 opacity-80">Saliendo</span>
-                                <div class="flex items-center gap-1 text-base leading-none">
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div class="flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all duration-200 ${prevTrip.timeSaliendo ? 'bg-orange-500/10 border-orange-500/30 text-orange-700 font-black shadow-sm' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Saliendo">
+                                <span class="text-xs font-black uppercase tracking-wider mb-1.5 opacity-80">Saliendo</span>
+                                <div class="flex items-center gap-1.5 text-2xl font-black leading-none">
                                     <span>🕒</span>
-                                    <span>${prevTrip.timeSaliendo || '--:--'}</span>
+                                    <span>${formatTimeToHHMM(prevTrip.timeSaliendo) || '--:--'}</span>
                                 </div>
                             </div>
-                            <div class="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl border transition-all duration-200 ${prevTrip.timeBuzosAgua ? 'bg-sky-500/10 border-sky-500/30 text-sky-700 font-black' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Buzos en Agua">
-                                <span class="text-[10px] font-black uppercase tracking-wider mb-1 opacity-80">En Agua</span>
-                                <div class="flex items-center gap-1 text-base leading-none">
+                            <div class="flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all duration-200 ${prevTrip.timeBuzosAgua ? 'bg-sky-500/10 border-sky-500/30 text-sky-700 font-black shadow-sm' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Buzos en Agua">
+                                <span class="text-xs font-black uppercase tracking-wider mb-1.5 opacity-80">En Agua</span>
+                                <div class="flex items-center gap-1.5 text-2xl font-black leading-none">
                                     <span>🕒</span>
-                                    <span>${prevTrip.timeBuzosAgua || '--:--'}</span>
+                                    <span>${formatTimeToHHMM(prevTrip.timeBuzosAgua) || '--:--'}</span>
                                 </div>
                             </div>
-                            <div class="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl border transition-all duration-200 ${prevTrip.timeVolviendo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 font-black' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Volviendo a Puerto">
-                                <span class="text-[10px] font-black uppercase tracking-wider mb-1 opacity-80">Regreso</span>
-                                <div class="flex items-center gap-1 text-base leading-none">
+                            <div class="flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all duration-200 ${prevTrip.timeVolviendo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 font-black shadow-sm' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Volviendo a Puerto">
+                                <span class="text-xs font-black uppercase tracking-wider mb-1.5 opacity-80">Regreso</span>
+                                <div class="flex items-center gap-1.5 text-2xl font-black leading-none">
                                     <span>🕒</span>
-                                    <span>${prevTrip.timeVolviendo || '--:--'}</span>
+                                    <span>${formatTimeToHHMM(prevTrip.timeVolviendo) || '--:--'}</span>
                                 </div>
                             </div>
                         </div>
