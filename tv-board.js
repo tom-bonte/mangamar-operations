@@ -7,6 +7,7 @@ window.openTVView = function() {
     window._buildTVContent();
 
     document.getElementById('tv-view-modal').classList.remove('hidden');
+    setTimeout(window.adjustCardScaling, 50);
 
     // START TV CLOCK
     if (window.tvClockInterval) clearInterval(window.tvClockInterval);
@@ -244,7 +245,7 @@ window._buildTVContent = function() {
 
                 let prevTripHtml = '';
                 const prevTrip = getPreviousTripWithContent(boatId, time);
-                if (prevTrip) {
+                if (prevTrip && window.appSettings && window.appSettings.showTVRadioTimes !== false) {
                     const prevSiteColorFull = SITE_COLORS[prevTrip.site] || 'bg-slate-100 text-slate-500 border border-slate-200';
                     const prevSiteColor = prevSiteColorFull.replace('bg-slate-800 text-slate-300 border-slate-700', 'bg-slate-100 text-slate-500 border border-slate-200');
                     
@@ -313,4 +314,43 @@ window._buildTVContent = function() {
 
         container.appendChild(rowWrapper);
     });
+
+    // Run scaling adjustment after DOM attachment
+    setTimeout(window.adjustCardScaling, 0);
 }
+
+// Dynamic scaling for TV cards so they always fit perfectly in the viewport height
+window.adjustCardScaling = function() {
+    const scrollContainer = document.getElementById('tv-scroll-container');
+    if (!scrollContainer) return;
+
+    // Budget height: clientHeight of scrollContainer minus vertical padding (96px for py-12)
+    const budget = scrollContainer.clientHeight - 96;
+    if (budget <= 0) {
+        // If not loaded/visible yet, retry shortly
+        setTimeout(window.adjustCardScaling, 100);
+        return;
+    }
+
+    const cards = document.querySelectorAll('.tv-card');
+    cards.forEach(card => {
+        // Reset zoom first to capture true natural height
+        card.style.zoom = '1';
+        
+        // Measure natural scroll height
+        const naturalHeight = card.scrollHeight;
+        if (naturalHeight > budget) {
+            // Calculate proportional scale factor, clamp to 0.5 minimum
+            const zoomVal = Math.max(0.5, budget / naturalHeight);
+            card.style.zoom = zoomVal.toFixed(3);
+        }
+    });
+};
+
+// Listen to window resizing to dynamically scale cards in real-time
+window.addEventListener('resize', () => {
+    const tvModal = document.getElementById('tv-view-modal');
+    if (tvModal && !tvModal.classList.contains('hidden')) {
+        window.adjustCardScaling();
+    }
+});

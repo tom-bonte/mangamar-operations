@@ -707,3 +707,32 @@ window.submitResync = async function() {
         showAppAlert("Error al intentar restaurar las salidas.");
     }
 };
+
+// ==========================================
+// 14. APPLICATION SETTINGS SYSTEM
+// ==========================================
+window.appSettings = {
+    showTVRadioTimes: localStorage.getItem('mangamar_setting_show_tv_radio_times') !== 'false'
+};
+
+window.openSettingsModal = function() {
+    const toggleInput = document.getElementById('setting-toggle-radio-times');
+    if (toggleInput) {
+        toggleInput.checked = window.appSettings.showTVRadioTimes !== false;
+    }
+    const modal = document.getElementById('settings-modal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.handleSettingsRadioTimesToggle = function(checked) {
+    window.appSettings.showTVRadioTimes = checked;
+    localStorage.setItem('mangamar_setting_show_tv_radio_times', checked ? 'true' : 'false');
+    
+    // If the TV view modal is currently open, re-render it in real-time
+    const tvModal = document.getElementById('tv-view-modal');
+    if (tvModal && !tvModal.classList.contains('hidden')) {
+        if (typeof window._buildTVContent === 'function') {
+            window._buildTVContent();
+        }
+    }
+};
