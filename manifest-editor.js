@@ -154,6 +154,37 @@ function renderCaptainDropdown() {
             </select>
             <button onclick="copyStaffDni('capitanes', document.getElementById('input-captain').value)" title="Copiar DNI del Capitán" class="bg-slate-100 border border-slate-200 text-slate-500 hover:text-blue-600 px-3 rounded-lg transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
         </div>
+        <div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center gap-1.5 mb-3 text-xs font-black text-slate-600 uppercase tracking-widest">
+                <svg class="w-4 h-4 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+                Control de Radio (Tiempos)
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Saliendo</label>
+                    <input type="text" id="input-time-saliendo" placeholder="--:--" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 text-center" 
+                           value="${activeBoatItem.timeSaliendo || ''}" 
+                           onkeydown="if(event.key === 'Enter') { this.blur(); }"
+                           onblur="if(activeBoatItem.timeSaliendo !== this.value) { activeBoatItem.timeSaliendo = this.value; window.triggerAutoSave(); }">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Buzos en Agua</label>
+                    <input type="text" id="input-time-buzos-agua" placeholder="--:--" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 text-center" 
+                           value="${activeBoatItem.timeBuzosAgua || ''}" 
+                           onkeydown="if(event.key === 'Enter') { this.blur(); }"
+                           onblur="if(activeBoatItem.timeBuzosAgua !== this.value) { activeBoatItem.timeBuzosAgua = this.value; window.triggerAutoSave(); }">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Volviendo</label>
+                    <input type="text" id="input-time-volviendo" placeholder="--:--" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 text-center" 
+                           value="${activeBoatItem.timeVolviendo || ''}" 
+                           onkeydown="if(event.key === 'Enter') { this.blur(); }"
+                           onblur="if(activeBoatItem.timeVolviendo !== this.value) { activeBoatItem.timeVolviendo = this.value; window.triggerAutoSave(); }">
+                </div>
+            </div>
+        </div>
     `;
     document.getElementById('input-captain').value = activeBoatItem.captain || '';
 }
@@ -408,18 +439,40 @@ function renderGroups(skipAutoSave = false) {
             let insHtml = '';
             if (globalIns) {
                 guest.insurance = globalIns.type; 
-                let displayVal = ['1D', '1W', '1M', '1Y'].includes(globalIns.type) ? `Seg ✔ (${globalIns.type})` : 'Seg ✔';
-                insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${globalIns.type})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                let insVal = globalIns.type.toString();
+                let cleanIns = insVal.replace(' ✔', '');
+                
+                const isTemp = ['1D', '1W', '1M', '1Y'].includes(cleanIns);
+                if (isTemp) {
+                    const isBought = insVal.includes(' ✔');
+                    if (isBought) {
+                        let displayVal = `Seg ✔ (${cleanIns})`;
+                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Comprado)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                    } else {
+                        let displayVal = `Seg (${cleanIns})`;
+                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Pendiente de comprar)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner hover:bg-orange-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                    }
+                } else {
+                    let displayVal = 'Seg ✔';
+                    insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${globalIns.type})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                }
             } else {
                 let insCurrent = guest.insurance || 0;
+                if (insCurrent === '0') insCurrent = 0;
                 let cleanIns = insCurrent.toString().replace(' ✔', '');
-                guest.insurance = cleanIns === '0' ? 0 : cleanIns; 
+                guest.insurance = cleanIns === '0' ? 0 : insCurrent; 
 
                 if (cleanIns === 'INC') {
                     insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro Incluido" class="w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0">INC</button>`;
                 } else if (cleanIns !== '0') {
-                    let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
-                    insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns}" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600">${displayVal}</button>`;
+                    const isBought = insCurrent.toString().includes(' ✔') || cleanIns === 'Propio';
+                    if (isBought) {
+                        let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
+                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns} (Comprado)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600">${displayVal}</button>`;
+                    } else {
+                        let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg (${cleanIns})` : 'Seg';
+                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns} (Pendiente de comprar)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-orange-600">${displayVal}</button>`;
+                    }
                 } else {
                     insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Falta Seguro" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-bold bg-red-500 text-white border-red-600 hover:bg-red-600 cursor-pointer shrink-0 whitespace-nowrap">Seg 🛑</button>`;
                 }
@@ -671,13 +724,16 @@ window.cleanOrphanedInsurance = async function(dni) {
         } else if (profile.insurance && profile.insurance.type) {
             insType = profile.insurance.type;
         }
+        insType = insType.toString().replace(' ✔', '');
         if (insType !== '1D' && insType !== '1W') return;
 
         const snap = await db.collection('mangamar_customers').doc(dni).collection('history').get();
         let hasValidDive = false;
         snap.forEach(doc => {
             const d = doc.data();
-            if (d.insurance === profile.insurance.type) {
+            const cleanDIns = (d.insurance || '').toString().replace(' ✔', '');
+            const cleanProfileIns = (profile.insurance.type || '').toString().replace(' ✔', '');
+            if (cleanDIns === cleanProfileIns) {
                 // Check if the dive falls inside the exact window of THIS specific purchase
                 if (profile.insurance.purchaseDate) {
                     if (d.date >= profile.insurance.purchaseDate && d.date <= window.normalizeDateStr(profile.insurance.expiry)) hasValidDive = true;
@@ -714,11 +770,35 @@ window.openInsPopup = function(event, groupIndex, guestIndex, hasGlobal = false)
     activeInsGroup = groupIndex;
     activeInsGuest = guestIndex;
     
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    const ins = (guest.insurance || '').toString();
+    const hasAnyIns = hasGlobal || (ins && ins !== '0' && ins !== '0 ✔');
+    
     const popup = document.getElementById('ins-popup');
     const removeCont = document.getElementById('ins-popup-remove-container');
     if (removeCont) {
-        if (hasGlobal) removeCont.classList.remove('hidden');
+        if (hasAnyIns) removeCont.classList.remove('hidden');
         else removeCont.classList.add('hidden');
+    }
+
+    const tramitarCont = document.getElementById('ins-popup-tramitar-container');
+    const tramitarBtn = document.getElementById('btn-ins-popup-tramitar');
+    
+    if (tramitarCont && tramitarBtn) {
+        const isTempIns = ['1D', '1W', '1M', '1Y'].some(type => ins.startsWith(type));
+        
+        if (isTempIns) {
+            tramitarCont.classList.remove('hidden');
+            if (ins.includes('✔')) {
+                tramitarBtn.innerHTML = `🟠 Desmarcar Compra`;
+                tramitarBtn.className = "w-full text-left px-2 py-2 text-xs font-black text-amber-600 hover:bg-amber-50 rounded-lg transition-colors flex items-center gap-2";
+            } else {
+                tramitarBtn.innerHTML = `✅ Marcar Comprado`;
+                tramitarBtn.className = "w-full text-left px-2 py-2 text-xs font-black text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-2";
+            }
+        } else {
+            tramitarCont.classList.add('hidden');
+        }
     }
     
     popup.classList.remove('hidden');
@@ -790,21 +870,92 @@ window.setIns = async function(type) {
     // Targeted DOM Update
     const btn = document.getElementById(`btn-ins-${activeInsGroup}-${activeInsGuest}`);
     if (btn) {
-        let cleanIns = (guest.insurance || 0).toString().replace(' ✔', '');
+        let insVal = (guest.insurance || 0).toString();
+        let cleanIns = insVal.replace(' ✔', '');
         if (cleanIns === 'INC') {
             btn.className = "w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0";
             btn.innerText = "INC";
             btn.title = "Seguro Incluido";
         } else if (cleanIns !== '0' && cleanIns !== 0) {
-            btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap";
-            let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
-            btn.innerText = displayVal;
-            btn.title = `Seguro: ${cleanIns}`;
+            const isBought = insVal.includes(' ✔') || cleanIns === 'Propio';
+            if (isBought) {
+                btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600";
+                let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
+                btn.innerText = displayVal;
+                btn.title = `Seguro: ${cleanIns} (Comprado)`;
+            } else {
+                btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-orange-600";
+                let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg (${cleanIns})` : 'Seg';
+                btn.innerText = displayVal;
+                btn.title = `Seguro: ${cleanIns} (Pendiente de comprar)`;
+            }
         } else {
             btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-bold bg-red-500 text-white border-red-600 hover:bg-red-600 shrink-0 whitespace-nowrap cursor-pointer";
             btn.innerText = "Seg 🛑";
             btn.title = "Falta Seguro";
         }
+    }
+    triggerAutoSave();
+};
+
+window.toggleTramitado = function() {
+    document.getElementById('ins-popup').classList.add('hidden');
+    if (activeInsGroup === null || activeInsGuest === null) return;
+    
+    const guest = activeBoatItem.groups[activeInsGroup].guests[activeInsGuest];
+    let ins = (guest.insurance || '').toString();
+    if (!ins) return;
+
+    let newInsVal = '';
+    if (ins.includes('✔')) {
+        newInsVal = ins.replace(' ✔', '');
+    } else {
+        newInsVal = `${ins} ✔`;
+    }
+    guest.insurance = newInsVal;
+
+    // Sync state back to CRM customer profile in Firestore & local customerDatabase if DNI exists
+    if (guest.dni) {
+        const profile = customerDatabase.find(c => c.dni === guest.dni);
+        if (profile) {
+            if (!profile.insurance) {
+                let [y, m, d] = activeBoatItem.date.split('-').map(Number);
+                let dateObj = new Date(y, m - 1, d);
+                const cleanType = newInsVal.replace(' ✔', '');
+                
+                if (cleanType === '1D') dateObj.setDate(dateObj.getDate() + 0);
+                if (cleanType === '1W') dateObj.setDate(dateObj.getDate() + 6);
+                if (cleanType === '1M') dateObj.setMonth(dateObj.getMonth() + 1);
+                if (cleanType === '1Y') dateObj.setFullYear(dateObj.getFullYear() + 1);
+                
+                const expiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
+                profile.insurance = { type: newInsVal, expiry, purchaseDate: activeBoatItem.date };
+            } else {
+                profile.insurance.type = newInsVal;
+            }
+            
+            // Save to Firestore mangamar_customers
+            db.collection('mangamar_customers').doc(guest.dni).set({
+                insurance: profile.insurance
+            }, { merge: true }).catch(e => console.error("Error updating CRM insurance:", e));
+            
+            // Save to master_list directory
+            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
+            masterDocRef.get().then(doc => {
+                if (doc.exists) {
+                    let clients = doc.data().clients || [];
+                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    if (idx > -1) {
+                        clients[idx].insurance = profile.insurance;
+                        masterDocRef.set({ clients }, { merge: true });
+                    }
+                }
+            });
+        }
+    }
+
+    if (typeof renderGroups === 'function') {
+        renderGroups();
     }
     triggerAutoSave();
 };
@@ -1387,6 +1538,10 @@ async function saveBoatData() {
     activeBoatItem.captain = activeBoatItem.assignedBoat === 'shore' ? '' : document.getElementById('input-captain').value;
     activeBoatItem.site = activeBoatItem.assignedBoat === 'shore' ? document.getElementById('input-activity').value : document.getElementById('input-site').value;
 
+    activeBoatItem.timeSaliendo = activeBoatItem.assignedBoat === 'shore' ? '' : (document.getElementById('input-time-saliendo')?.value || '');
+    activeBoatItem.timeBuzosAgua = activeBoatItem.assignedBoat === 'shore' ? '' : (document.getElementById('input-time-buzos-agua')?.value || '');
+    activeBoatItem.timeVolviendo = activeBoatItem.assignedBoat === 'shore' ? '' : (document.getElementById('input-time-volviendo')?.value || '');
+
     // --- 🚨 STRICT CONFLICT FIREWALL ---
     // 1. Check Captain
     if (activeBoatItem.captain) {
@@ -1445,7 +1600,10 @@ async function saveBoatData() {
     const payload = {
         date: targetDate, time: targetTime, assignedBoat: targetAssignedBoat,
         site: targetSite, captain: activeBoatItem.captain, groups: activeBoatItem.groups, guests: flatGuests,
-        waitlist: activeBoatItem.waitlist || []
+        waitlist: activeBoatItem.waitlist || [],
+        timeSaliendo: activeBoatItem.timeSaliendo || '',
+        timeBuzosAgua: activeBoatItem.timeBuzosAgua || '',
+        timeVolviendo: activeBoatItem.timeVolviendo || ''
     };
     if (activeBoatItem.maxDives) payload.maxDives = activeBoatItem.maxDives;
     
@@ -2132,9 +2290,51 @@ document.addEventListener('keydown', (e) => {
         } else if (e.key === 'ArrowRight') {
             e.preventDefault();
             navigateBoatManifest('next');
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            navigateBoatManifestIntraday('up');
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            navigateBoatManifestIntraday('down');
         }
     }
 });
+
+window.navigateBoatManifestIntraday = function(direction) {
+    if (!activeBoatItem) return;
+    
+    const allTrips = window.getMergedTrips ? window.getMergedTrips(mergedAllocations) : mergedAllocations;
+    
+    // Filter trips to only those on the SAME date and for the SAME boat, sorted by time
+    const sameDayBoatTrips = allTrips
+        .filter(t => t && t.date === activeBoatItem.date && (t.assignedBoat || '') === (activeBoatItem.assignedBoat || '') && t.time)
+        .sort((a, b) => a.time.localeCompare(b.time));
+        
+    let currentIndex = sameDayBoatTrips.findIndex(t => t.id === activeBoatItem.id);
+    if (currentIndex === -1) {
+        currentIndex = sameDayBoatTrips.findIndex(t => 
+            t.date === activeBoatItem.date && 
+            t.time === activeBoatItem.time && 
+            (t.assignedBoat || '') === (activeBoatItem.assignedBoat || '')
+        );
+    }
+    
+    if (currentIndex === -1) return;
+    
+    let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    if (targetIndex >= 0 && targetIndex < sameDayBoatTrips.length) {
+        const nextTrip = sameDayBoatTrips[targetIndex];
+        
+        // Save current trip before switching
+        if (typeof triggerAutoSave === 'function') triggerAutoSave();
+        
+        // Add a tiny delay to ensure save completes before UI re-renders
+        setTimeout(() => {
+            openManageBoatModal(nextTrip, nextTrip.assignedBoat || 'ares', nextTrip.time, nextTrip.date);
+        }, 50);
+    }
+};
 
 window.navigateBoatManifest = function(direction) {
     if (!activeBoatItem) return;

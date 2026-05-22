@@ -1,5 +1,33 @@
 console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
 
+// --- LOCAL ORIGIN-ISOLATED CSS ZOOM ENGINE ---
+(function() {
+    let currentZoom = parseFloat(sessionStorage.getItem('mangamar_local_zoom') || '1.0');
+    function applyZoom(z) {
+        currentZoom = Math.min(2.0, Math.max(0.5, z));
+        if (document.body) {
+            document.body.style.zoom = currentZoom;
+        }
+        sessionStorage.setItem('mangamar_local_zoom', currentZoom);
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => applyZoom(currentZoom));
+    } else {
+        applyZoom(currentZoom);
+    }
+    window.addEventListener('keydown', function(e) {
+        const isZoomIn = (e.key === '=' || e.key === '+');
+        const isZoomOut = (e.key === '-');
+        const isZoomReset = (e.key === '0');
+        if ((e.metaKey || e.ctrlKey) && (isZoomIn || isZoomOut || isZoomReset)) {
+            e.preventDefault();
+            if (isZoomIn) applyZoom(currentZoom + 0.1);
+            else if (isZoomOut) applyZoom(currentZoom - 0.1);
+            else if (isZoomReset) applyZoom(1.0);
+        }
+    }, { passive: false });
+})();
+
 window.normalizeDateStr = function(dateStr) {
     if (!dateStr) return '';
     if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(dateStr)) {
@@ -333,10 +361,11 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             const isNitrox = (g.gas || '').includes('EAN');
             const gasColorClass = isNitrox ? 'text-green-400' : 'text-blue-300';
             const gasShort = (g.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
+            const arrivedDot = g.arrived ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mr-1.5" title="Llegado"></span>` : '';
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
                         <button onclick="if(!window.isLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
-                                class="truncate pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer flex-1 text-left auth-lock">
-                            ${g.nombre}
+                                class="truncate pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer flex-1 text-left auth-lock flex items-center">
+                            ${arrivedDot}${g.nombre}
                         </button>
                         <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2">${gasShort}</span>
                     </div>`;
@@ -380,6 +409,32 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         if (parts.length > 0) guideNames = parts.join(', ');
     } else if (trip.guide) { guideNames = window.getFirstName(trip.guide); }
 
+    const radioTimesHtml = `
+    <div class="grid grid-cols-3 gap-1.5 mb-2.5 pb-2.5 border-b border-slate-800 text-center">
+        <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeSaliendo ? 'bg-orange-500/10 border-orange-500/30 text-orange-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Saliendo">
+            <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Saliendo</span>
+            <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
+                <span>🕒</span>
+                <span>${trip.timeSaliendo || '--:--'}</span>
+            </div>
+        </div>
+        <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeBuzosAgua ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Buzos en Agua">
+            <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">En Agua</span>
+            <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
+                <span>🕒</span>
+                <span>${trip.timeBuzosAgua || '--:--'}</span>
+            </div>
+        </div>
+        <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeVolviendo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Volviendo a Puerto">
+            <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Regreso</span>
+            <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
+                <span>🕒</span>
+                <span>${trip.timeVolviendo || '--:--'}</span>
+            </div>
+        </div>
+    </div>
+    `;
+
     col.innerHTML = `
         ${isConflict ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
         <div class="h-1.5 w-full shrink-0 ${topBarColor}"></div> 
@@ -413,7 +468,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         </div>
         
         <div class="tooltip-content absolute z-[999] p-3 bg-slate-900 rounded-xl shadow-2xl w-64 border border-slate-700 pointer-events-auto" style="${boatId === 'shore' ? 'top: -5px; right: calc(100% + 2px);' : 'top: -5px; left: calc(100% + 2px);'}">
-            <div class="text-[9px] font-black uppercase text-slate-400 mb-2 border-b border-slate-700 pb-1">${boatId.toUpperCase()} - CLIENTES</div>
+            ${radioTimesHtml}
             <div class="max-h-none overflow-visible">${previewHtml}</div>
         </div>
     `;

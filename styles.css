@@ -223,3 +223,171 @@ body {
         display: none !important;
     }
 }
+
+/* ==========================================
+   POPUP MANIFEST & TOOLTIP SCALE ENHANCEMENTS
+   ========================================== */
+
+/* 1. Boat Manifest Editor & Global Modals Layout & Spacing */
+#manage-boat-modal select, 
+#manage-boat-modal input, 
+#manage-boat-modal textarea,
+#group-link-modal select, #group-link-modal input, #group-link-modal textarea,
+#crm-modal select, #crm-modal input, #crm-modal textarea,
+#customer-profile-modal select, #customer-profile-modal input, #customer-profile-modal textarea,
+#edit-guest-modal select, #edit-guest-modal input, #edit-guest-modal textarea,
+#edit-customer-modal-full select, #edit-customer-modal-full input, #edit-customer-modal-full textarea {
+    font-size: 1.15rem !important; /* Elegant 18px font size for form controls */
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+#manage-boat-modal label,
+#group-link-modal label,
+#crm-modal label,
+#customer-profile-modal label,
+#edit-guest-modal label,
+#edit-customer-modal-full label {
+    font-size: 0.95rem !important; /* Make section labels larger and clearer */
+    letter-spacing: 0.08em !important;
+    margin-bottom: 0.35rem !important;
+}
+
+#manage-boat-modal #modal-boat-title {
+    font-size: 1.85rem !important; /* Bold, highly visible title */
+}
+
+#manage-boat-modal #modal-boat-subtitle {
+    font-size: 1.1rem !important; /* Larger subtitle */
+}
+
+/* 2. Boat Manifest Client Table & Row heights */
+#manage-boat-modal tr {
+    height: 3.85rem !important; /* Increased row height for a spacious premium feel */
+}
+
+#manage-boat-modal th, 
+#manage-boat-modal .bg-slate-50.text-\[10px\] {
+    font-size: 0.95rem !important; /* 15px instead of 10px for column headings */
+    letter-spacing: 0.08em !important;
+    padding-top: 0.95rem !important;
+    padding-bottom: 0.95rem !important;
+}
+
+/* Make all text and names inside client list significantly larger */
+#manage-boat-modal td,
+#manage-boat-modal td button,
+#manage-boat-modal td span,
+#manage-boat-modal td input,
+#manage-boat-modal #groups-container button,
+#manage-boat-modal #groups-container select,
+#manage-boat-modal #groups-container span,
+#group-link-modal th, #group-link-modal td,
+#crm-modal th, #crm-modal td,
+#customer-profile-modal th, #customer-profile-modal td {
+    font-size: 1.05rem !important; /* Raised to a highly legible 16.8px */
+}
+
+/* Scale up the status button icons */
+#manage-boat-modal td button svg {
+    width: 1.35rem !important;
+    height: 1.35rem !important;
+}
+
+/* 3. Scale up client status/selection badges */
+#manage-boat-modal td button[id^="btn-ins-"],
+#manage-boat-modal td button[id^="btn-gas-"],
+#manage-boat-modal td button[id^="btn-rental-"],
+#manage-boat-modal td button[id^="btn-comp-"],
+#manage-boat-modal td button[id^="btn-bono-"] {
+    min-width: 58px !important;
+    height: 40px !important;
+    font-size: 1.05rem !important;
+    border-radius: 8px !important;
+}
+#manage-boat-modal td button[id^="btn-gas-"] {
+    width: 82px !important;
+}
+#manage-boat-modal td button[id^="btn-ins-"] {
+    min-width: 70px !important;
+}
+
+/* Make client manual relocation dots and selection circles larger */
+#manage-boat-modal td button.w-6.h-6,
+#manage-boat-modal td div.w-6.h-6 {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    font-size: 1rem !important;
+}
+
+/* 4. Autocomplete / Search Lists / Waitlist Entries */
+#manage-boat-modal .global-ac-item, 
+#manage-boat-modal .global-ac-item div,
+#manage-boat-modal .waitlist-ac-item,
+#manage-boat-modal .waitlist-ac-item span,
+#manage-boat-modal .waitlist-ac-item button {
+    font-size: 1.1rem !important;
+    line-height: 1.5 !important;
+}
+
+/* 5. Waitlist section general toggle styling */
+#manage-boat-modal #waitlist-section span,
+#manage-boat-modal #waitlist-section button {
+    font-size: 1.05rem !important;
+}
+
+/* 6. Tooltip / Hover Window Revamp */
+.tooltip-content {
+    width: 380px !important; /* Scaled up from 320px to 380px for high readability */
+    padding: 1.25rem !important;
+}
+
+.tooltip-content div,
+.tooltip-content span,
+.tooltip-content button {
+    font-size: 0.98rem !important; /* General text scaled up to ~15.7px */
+}
+
+/* Guide names */
+.tooltip-content div.text-\[8px\].font-black {
+    font-size: 0.88rem !important;
+    letter-spacing: 0.08em !important;
+}
+
+/* Radio communication times boxes inside tooltip */
+.tooltip-content .grid-cols-3 {
+    gap: 0.6rem !important;
+    margin-bottom: 0.8rem !important;
+    padding-bottom: 0.8rem !important;
+}
+
+.tooltip-content .grid-cols-3 > div {
+    padding: 0.55rem 0.3rem !important;
+    border-radius: 10px !important;
+}
+
+.tooltip-content .grid-cols-3 span.text-\[7px\] {
+    font-size: 0.85rem !important; /* SAL/AGUA/VOL labels */
+    margin-bottom: 0.25rem !important;
+}
+
+.tooltip-content .grid-cols-3 div.text-\[8\.5px\] {
+    font-size: 1.05rem !important; /* 🕒 time strings */
+}
+
+/* Gas indicator badge in tooltip */
+.tooltip-content span.text-\[8px\] {
+    font-size: 0.88rem !important;
+}
+
+/* 7. Action buttons inside modal headers, footers and control bars */
+#manage-boat-modal button:not(.nav-back-btn):not(.nav-fwd-btn),
+#group-link-modal button,
+#crm-modal button,
+#customer-profile-modal button,
+#edit-guest-modal button,
+#edit-customer-modal-full button {
+    font-size: 1.05rem !important;
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+}

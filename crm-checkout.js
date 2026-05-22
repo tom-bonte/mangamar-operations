@@ -75,10 +75,11 @@ function calculateDivePrice(historyItem) {
         else if (historyItem.rental === 2) rental = findPrice(['equipo completo', 'equipo pesado'], 15);
 
         // 4. Insurance
-        if (historyItem.insurance === '1D') insurance = findPrice(['seguro 1 dia', 'seguro diario', '1 dia', '1 día'], 10);
-        else if (historyItem.insurance === '1W') insurance = findPrice(['seguro 1 semana', 'seguro semanal', '1 semana'], 18);
-        else if (historyItem.insurance === '1M') insurance = findPrice(['seguro 1 mes', 'seguro mensual', '1 mes'], 24);
-        else if (historyItem.insurance === '1Y') insurance = findPrice(['seguro 1 año', 'seguro anual', '1 año'], 45);
+        const insClean = (historyItem.insurance || '').toString().replace(' ✔', '');
+        if (insClean === '1D') insurance = findPrice(['seguro 1 dia', 'seguro diario', '1 dia', '1 día'], 10);
+        else if (insClean === '1W') insurance = findPrice(['seguro 1 semana', 'seguro semanal', '1 semana'], 18);
+        else if (insClean === '1M') insurance = findPrice(['seguro 1 mes', 'seguro mensual', '1 mes'], 24);
+        else if (insClean === '1Y') insurance = findPrice(['seguro 1 año', 'seguro anual', '1 año'], 45);
 
         // 5. Computer Rental
         if (historyItem.computer === 'INC') {
