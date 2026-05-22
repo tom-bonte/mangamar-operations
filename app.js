@@ -426,7 +426,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             </div>
         </div>
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeVolviendo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Volviendo a Puerto">
-            <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Regreso</span>
+            <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Regresando</span>
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
                 <span>🕒</span>
                 <span>${trip.timeVolviendo || '--:--'}</span>

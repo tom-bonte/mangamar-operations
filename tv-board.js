@@ -45,6 +45,15 @@ window._buildTVContent = function() {
 
     container.innerHTML = '';
 
+    // Set dynamic date in top left above the clock
+    const dateEl = document.getElementById('tv-date');
+    if (dateEl) {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        let formattedStr = currentDate.toLocaleDateString('es-ES', options);
+        formattedStr = formattedStr.charAt(0).toUpperCase() + formattedStr.slice(1);
+        dateEl.innerText = formattedStr;
+    }
+
     const year  = currentDate.getFullYear();
     const month = String(currentDate.getMonth() + 1).padStart(2, '0');
     const day   = String(currentDate.getDate()).padStart(2, '0');
@@ -115,7 +124,7 @@ window._buildTVContent = function() {
         // min-h-full ensures each row takes up at least the visible height of the bottom panel
         // snap-start tells the browser to align this row's top to the container's top
         const rowWrapper = document.createElement('div');
-        rowWrapper.className = "grid grid-cols-[120px_1fr_1fr] gap-x-8 items-stretch min-h-full snap-start py-12 border-b border-slate-100 last:border-0 shrink-0";
+        rowWrapper.className = "grid grid-cols-[200px_1fr_1fr] gap-x-8 items-stretch min-h-full snap-start py-12 border-b border-slate-100 last:border-0 shrink-0";
 
         // Build a lookup: diver NAME (normalised) → previous boat label
         // (only relevant for slots after the first)
@@ -273,7 +282,7 @@ window._buildTVContent = function() {
                                 </div>
                             </div>
                             <div class="flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all duration-200 ${prevTrip.timeVolviendo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 font-black shadow-sm' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Volviendo a Puerto">
-                                <span class="text-xs font-black uppercase tracking-wider mb-1.5 opacity-80">Regreso</span>
+                                <span class="text-xs font-black uppercase tracking-wider mb-1.5 opacity-80">Regresando</span>
                                 <div class="flex items-center gap-1.5 text-2xl font-black leading-none">
                                     <span>🕒</span>
                                     <span>${formatTimeToHHMM(prevTrip.timeVolviendo) || '--:--'}</span>
