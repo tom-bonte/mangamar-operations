@@ -332,17 +332,33 @@ window.adjustCardScaling = function() {
         return;
     }
 
-    const cards = document.querySelectorAll('.tv-card');
-    cards.forEach(card => {
-        // Reset zoom first to capture true natural height
-        card.style.zoom = '1';
-        
-        // Measure natural scroll height
-        const naturalHeight = card.scrollHeight;
-        if (naturalHeight > budget) {
-            // Calculate proportional scale factor, clamp to 0.5 minimum
-            const zoomVal = Math.max(0.5, budget / naturalHeight);
-            card.style.zoom = zoomVal.toFixed(3);
+    // Process row-by-row (each row is a '.snap-start' element)
+    const rows = scrollContainer.querySelectorAll('.snap-start');
+    rows.forEach(row => {
+        const cards = row.querySelectorAll('.tv-card');
+        if (cards.length === 0) return;
+
+        // Reset zoom first to capture true natural height of all cards in the row
+        cards.forEach(card => {
+            card.style.zoom = '1';
+        });
+
+        // Find the maximum natural height of the cards in this row
+        let maxNaturalHeight = 0;
+        cards.forEach(card => {
+            const h = card.scrollHeight;
+            if (h > maxNaturalHeight) {
+                maxNaturalHeight = h;
+            }
+        });
+
+        // Apply a unified zoom to all cards in this row so fonts left and right always match
+        if (maxNaturalHeight > budget) {
+            const zoomVal = Math.max(0.5, budget / maxNaturalHeight);
+            const zoomStr = zoomVal.toFixed(3);
+            cards.forEach(card => {
+                card.style.zoom = zoomStr;
+            });
         }
     });
 };
