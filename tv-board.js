@@ -63,6 +63,20 @@ window._buildTVContent = function() {
         return (trip.groups || []).some(g => (g.guests || []).length > 0 || g.guide || g.apoyo);
     };
 
+    // Helper: find the immediate previous trip with content on the same day for a boat
+    const getPreviousTripWithContent = (boatId, currentTime) => {
+        const timeIdx = TIMES.indexOf(currentTime);
+        if (timeIdx <= 0) return null;
+        for (let i = timeIdx - 1; i >= 0; i--) {
+            const prevTime = TIMES[i];
+            const prevTrip = todaysTrips.find(t => t.assignedBoat === boatId && t.time === prevTime);
+            if (tripHasContent(prevTrip)) {
+                return prevTrip;
+            }
+        }
+        return null;
+    };
+
     // Build the ordered list of active time slots so we can find the "previous" one
     const activeSlots = TIMES.filter(time => {
         const a = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time);
@@ -206,6 +220,46 @@ window._buildTVContent = function() {
                     }
                 });
 
+                let prevTripHtml = '';
+                const prevTrip = getPreviousTripWithContent(boatId, time);
+                if (prevTrip) {
+                    const prevSiteColorFull = SITE_COLORS[prevTrip.site] || 'bg-slate-100 text-slate-500 border border-slate-200';
+                    const prevSiteColor = prevSiteColorFull.replace('bg-slate-800 text-slate-300 border-slate-700', 'bg-slate-100 text-slate-500 border border-slate-200');
+                    
+                    prevTripHtml = `
+                    <div class="p-5 bg-orange-100/20 border-t border-orange-200/80 flex flex-col gap-3 shrink-0">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-black text-orange-700/80 uppercase tracking-widest">SALIDA ANTERIOR (${prevTrip.time})</span>
+                            <span class="px-3 py-1 rounded-lg text-sm font-black uppercase tracking-wider ${prevSiteColor}">
+                                ${prevTrip.site || 'CONFIRMAR'}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 text-center">
+                            <div class="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl border transition-all duration-200 ${prevTrip.timeSaliendo ? 'bg-orange-500/10 border-orange-500/30 text-orange-700 font-black' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Saliendo">
+                                <span class="text-[10px] font-black uppercase tracking-wider mb-1 opacity-80">Saliendo</span>
+                                <div class="flex items-center gap-1 text-base leading-none">
+                                    <span>🕒</span>
+                                    <span>${prevTrip.timeSaliendo || '--:--'}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl border transition-all duration-200 ${prevTrip.timeBuzosAgua ? 'bg-sky-500/10 border-sky-500/30 text-sky-700 font-black' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Buzos en Agua">
+                                <span class="text-[10px] font-black uppercase tracking-wider mb-1 opacity-80">En Agua</span>
+                                <div class="flex items-center gap-1 text-base leading-none">
+                                    <span>🕒</span>
+                                    <span>${prevTrip.timeBuzosAgua || '--:--'}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl border transition-all duration-200 ${prevTrip.timeVolviendo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 font-black' : 'bg-slate-200/50 border-slate-300/40 text-slate-400 font-bold'}" title="Volviendo a Puerto">
+                                <span class="text-[10px] font-black uppercase tracking-wider mb-1 opacity-80">Regreso</span>
+                                <div class="flex items-center gap-1 text-base leading-none">
+                                    <span>🕒</span>
+                                    <span>${prevTrip.timeVolviendo || '--:--'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+
                 const cardHtml = `
                 <div class="tv-card rounded-3xl overflow-hidden flex flex-col border border-orange-200 bg-orange-50 shadow-xl">
                     <div class="p-5 bg-orange-100/60 flex justify-between items-center border-b border-orange-200">
@@ -219,6 +273,7 @@ window._buildTVContent = function() {
                     <div class="p-6 flex-1">
                         ${groupsHtml || '<div class="text-orange-300 text-base font-bold mt-2 text-center uppercase tracking-widest">Sin clientes asignados</div>'}
                     </div>
+                    ${prevTripHtml}
                 </div>`;
 
                 const cardDiv = document.createElement('div');
