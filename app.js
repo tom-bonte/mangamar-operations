@@ -711,9 +711,10 @@ window.submitResync = async function() {
 // ==========================================
 // 14. APPLICATION SETTINGS SYSTEM
 // ==========================================
-window.appSettings = {
-    showTVRadioTimes: localStorage.getItem('mangamar_setting_show_tv_radio_times') !== 'false'
-};
+window.appSettings = window.appSettings || {};
+if (window.appSettings.showTVRadioTimes === undefined) {
+    window.appSettings.showTVRadioTimes = localStorage.getItem('mangamar_setting_show_tv_radio_times') !== 'false';
+}
 
 window.openSettingsModal = function() {
     const toggleInput = document.getElementById('setting-toggle-radio-times');
@@ -725,14 +726,25 @@ window.openSettingsModal = function() {
 };
 
 window.handleSettingsRadioTimesToggle = function(checked) {
+    // Optimistic local update
     window.appSettings.showTVRadioTimes = checked;
     localStorage.setItem('mangamar_setting_show_tv_radio_times', checked ? 'true' : 'false');
     
-    // If the TV view modal is currently open, re-render it in real-time
+    // If the TV view modal is currently open, re-render it in real-time immediately
     const tvModal = document.getElementById('tv-view-modal');
     if (tvModal && !tvModal.classList.contains('hidden')) {
         if (typeof window._buildTVContent === 'function') {
             window._buildTVContent();
+            setTimeout(window.adjustCardScaling, 50);
         }
+    }
+
+    // Write to Firestore settings document to broadcast the toggle state to all devices/screens
+    if (typeof db !== 'undefined' && db.collection) {
+        db.collection("mangamar_directory").doc("settings").set({
+            showTVRadioTimes: checked
+        }, { merge: true }).catch(err => {
+            console.error("Error synchronizing settings to Firestore:", err);
+        });
     }
 };

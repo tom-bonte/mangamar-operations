@@ -160,13 +160,37 @@ function startFirestoreListeners() {
         }
     });
 
-    // 5. GLOBAL SETTINGS (AUTH)
+    // 5. GLOBAL SETTINGS (AUTH & TV)
     db.collection("mangamar_directory").doc("settings").onSnapshot((doc) => {
         if (doc.exists) {
-            window.adminPassword = doc.data().adminPassword || "manga321";
+            const data = doc.data();
+            window.adminPassword = data.adminPassword || "manga321";
+            
+            // Sync TV radio times setting state in real-time across all devices/screens
+            if (data.showTVRadioTimes !== undefined) {
+                const checked = data.showTVRadioTimes !== false;
+                window.appSettings = window.appSettings || {};
+                window.appSettings.showTVRadioTimes = checked;
+                localStorage.setItem('mangamar_setting_show_tv_radio_times', checked ? 'true' : 'false');
+                
+                // Update checkbox UI in real-time if the Settings modal is open
+                const toggleInput = document.getElementById('setting-toggle-radio-times');
+                if (toggleInput) {
+                    toggleInput.checked = checked;
+                }
+                
+                // Re-render the TV dashboard in real-time if it is currently open
+                const tvModal = document.getElementById('tv-view-modal');
+                if (tvModal && !tvModal.classList.contains('hidden')) {
+                    if (typeof window._buildTVContent === 'function') {
+                        window._buildTVContent();
+                        setTimeout(window.adjustCardScaling, 50);
+                    }
+                }
+            }
         } else {
             // First time initialization
-            db.collection("mangamar_directory").doc("settings").set({ adminPassword: "manga321" });
+            db.collection("mangamar_directory").doc("settings").set({ adminPassword: "manga321", showTVRadioTimes: true });
         }
     });
     // 6. GLOBAL GROUPS (MULTI-DAY PERSISTENT GROUPS)
