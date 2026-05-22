@@ -48,9 +48,10 @@ window._buildTVContent = function() {
     // Set dynamic date in top left above the clock
     const dateEl = document.getElementById('tv-date');
     if (dateEl) {
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const options = { day: 'numeric', month: 'long' };
         let formattedStr = currentDate.toLocaleDateString('es-ES', options);
-        formattedStr = formattedStr.charAt(0).toUpperCase() + formattedStr.slice(1);
+        // Capitalize month name: "22 de mayo" -> "22 de Mayo"
+        formattedStr = formattedStr.replace(/de\s+([a-z])/i, (match, p1) => 'de ' + p1.toUpperCase());
         dateEl.innerText = formattedStr;
     }
 
