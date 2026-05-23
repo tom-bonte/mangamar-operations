@@ -410,25 +410,22 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     } else if (trip.guide) { guideNames = window.getFirstName(trip.guide); }
 
     const radioTimesHtml = `
-    <div class="grid grid-cols-3 gap-1.5 mb-2.5 pb-2.5 border-b border-slate-800 text-center">
+    <div class="grid grid-cols-3 gap-2 text-center mb-3">
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeSaliendo ? 'bg-orange-500/10 border-orange-500/30 text-orange-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Saliendo">
             <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Saliendo</span>
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
-                <span>🕒</span>
                 <span>${trip.timeSaliendo || '--:--'}</span>
             </div>
         </div>
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeBuzosAgua ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Buzos en Agua">
             <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">En Agua</span>
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
-                <span>🕒</span>
                 <span>${trip.timeBuzosAgua || '--:--'}</span>
             </div>
         </div>
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeVolviendo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Volviendo a Puerto">
-            <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Regresando</span>
+            <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Regreso</span>
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
-                <span>🕒</span>
                 <span>${trip.timeVolviendo || '--:--'}</span>
             </div>
         </div>
