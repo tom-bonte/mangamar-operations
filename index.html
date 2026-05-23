@@ -408,67 +408,72 @@
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg> Guardado
                     </div>
                 </div>
-                <button onclick="closeManageBoatModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200 transition-colors">
+<button onclick="closeManageBoatModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             
             <div class="p-6 overflow-y-auto flex-1">
-                <div class="grid grid-cols-12 gap-4 mb-4 items-end">
-                    <!-- Barco Asignado (col-span-2) -->
-                    <div class="col-span-2">
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Barco</label>
-                        <select id="input-boat" onchange="triggerAutoSave()" class="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 cursor-pointer">
-                            <option value="ares">Ares</option>
-                            <option value="kaiser">Kaiser</option>
-                            <option value="shore">Shore / Aula</option>
-                        </select>
-                    </div>
-                    <!-- Hora (col-span-2) -->
-                    <div class="col-span-2">
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Hora</label>
-                        <select id="input-time" onchange="triggerAutoSave()" class="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 cursor-pointer">
-                            <option value="09:00">09:00</option>
-                            <option value="10:30">10:30</option>
-                            <option value="12:00">12:00</option>
-                            <option value="15:00">15:00</option>
-                            <option value="16:30">16:30</option>
-                            <option value="18:00">18:00</option>
-                        </select>
-                    </div>
-                    <!-- Plazas (col-span-2) -->
-                    <div id="input-maxdives-container" class="col-span-2">
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Plazas</label>
-                        <input type="number" id="input-maxdives" min="1" max="30" onchange="triggerAutoSave()" class="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700" placeholder="12">
-                    </div>
-                    <!-- Destino / Punto de Inmersión (col-span-6) -->
-                    <div id="destino-container" class="col-span-6">
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Destino / Punto de Inmersión</label>
-                        <div class="relative">
-                            <select id="input-site" onchange="triggerAutoSave()" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 appearance-none cursor-pointer"></select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Tipo de Actividad (col-span-6) -->
-                    <div id="activity-container" class="col-span-6 hidden">
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Tipo de Actividad</label>
-                        <div class="relative">
-                            <select id="input-activity" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-xs font-bold text-slate-700 appearance-none cursor-pointer">
-                                <option value="Shore">Shore</option>
-                                <option value="Aula">Aula</option>
+                <!-- Información General de la Salida -->
+                <div class="bg-orange-50/25 border border-orange-200/35 rounded-2xl p-5 mb-4 shadow-sm">
+                    <!-- Fila 1: Selectores Principales -->
+                    <div class="flex flex-wrap items-center gap-x-8 gap-y-4">
+                        <!-- Barco Asignado -->
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Barco:</span>
+                            <select id="input-boat" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]">
+                                <option value="ares">Ares</option>
+                                <option value="kaiser">Kaiser</option>
+                                <option value="shore">Shore / Aula</option>
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <!-- Hora -->
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Hora:</span>
+                            <select id="input-time" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]">
+                                <option value="09:00">09:00</option>
+                                <option value="10:30">10:30</option>
+                                <option value="12:00">12:00</option>
+                                <option value="15:00">15:00</option>
+                                <option value="16:30">16:30</option>
+                                <option value="18:00">18:00</option>
+                            </select>
+                        </div>
+                        <!-- Plazas -->
+                        <div id="input-maxdives-container" class="flex items-center gap-2.5">
+                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Plazas:</span>
+                            <input type="number" id="input-maxdives" min="1" max="30" onchange="triggerAutoSave()" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 w-[60px] h-[32px] text-center" placeholder="12">
+                        </div>
+                        <!-- Destino / Punto de Inmersión -->
+                        <div id="destino-container" class="flex items-center gap-2.5">
+                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Destino:</span>
+                            <div class="relative">
+                                <select id="input-site" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="w-full pl-2.5 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 appearance-none cursor-pointer h-[32px]"></select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
                             </div>
                         </div>
+                        <!-- Tipo de Actividad -->
+                        <div id="activity-container" class="flex items-center gap-2.5 hidden">
+                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Actividad:</span>
+                            <div class="relative">
+                                <select id="input-activity" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-xs font-bold text-slate-700 appearance-none cursor-pointer h-[32px]">
+                                    <option value="Shore">Shore</option>
+                                    <option value="Aula">Aula</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Capitán Asignado (Inline) -->
+                        <div id="captain-inline-container" class="flex items-center gap-2.5"></div>
                     </div>
                 </div>
 
-                <div id="captain-container" class="mb-6"></div>
-                
-                <hr class="border-slate-100 mb-6">
+                <!-- Box 2: Tiempos de Radio -->
+                <div id="radio-times-container" class="bg-orange-50/25 border border-orange-200/35 rounded-2xl p-5 mb-6 shadow-sm hidden"></div>
                 
                 <div class="flex justify-between items-end mb-4">
                     <h3 class="font-black text-slate-800 text-lg uppercase tracking-tight">Grupos y Guías</h3>

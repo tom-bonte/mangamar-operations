@@ -10,6 +10,41 @@ window.triggerAutoSave = function() {
     }, 500); 
 };
 
+// Dynamic Auto-Width Utility for Select Dropdowns
+window.adjustSelectElWidth = function(selectEl) {
+    if (!selectEl) return;
+    const tempSpan = document.createElement('span');
+    tempSpan.style.visibility = 'hidden';
+    tempSpan.style.position = 'absolute';
+    tempSpan.style.whiteSpace = 'nowrap';
+    tempSpan.style.font = window.getComputedStyle(selectEl).font || 'bold 12px sans-serif';
+    
+    const selectedOption = selectEl.options[selectEl.selectedIndex];
+    tempSpan.innerText = selectedOption ? selectedOption.text : '';
+    document.body.appendChild(tempSpan);
+    const textWidth = tempSpan.getBoundingClientRect().width;
+    document.body.removeChild(tempSpan);
+    
+    // Add spacious padding (48px for custom relative selects, 38px for others) to leave nice breathing white space
+    const padding = (selectEl.id === 'input-site' || selectEl.id === 'input-activity') ? 48 : 38;
+    const targetWidth = `${Math.ceil(textWidth + padding)}px`;
+    
+    const wrapper = selectEl.parentElement;
+    if (wrapper && wrapper.classList.contains('relative') && (selectEl.id === 'input-site' || selectEl.id === 'input-activity')) {
+        wrapper.style.width = targetWidth;
+    } else {
+        selectEl.style.width = targetWidth;
+    }
+};
+
+window.adjustAllHeaderSelectWidths = function() {
+    ['input-boat', 'input-time', 'input-site', 'input-activity', 'input-captain'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) window.adjustSelectElWidth(el);
+    });
+};
+
+
 
 // ==========================================
 // 5. MODAL & DYNAMIC TABLES 
@@ -95,12 +130,14 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
 
     if (boatId === 'shore') {
         document.getElementById('destino-container').classList.add('hidden');
-        document.getElementById('captain-container').classList.add('hidden');
+        document.getElementById('captain-inline-container').classList.add('hidden');
+        document.getElementById('radio-times-container').classList.add('hidden');
         document.getElementById('activity-container').classList.remove('hidden');
         document.getElementById('input-activity').value = activeBoatItem.site;
     } else {
         document.getElementById('destino-container').classList.remove('hidden');
-        document.getElementById('captain-container').classList.remove('hidden');
+        document.getElementById('captain-inline-container').classList.remove('hidden');
+        document.getElementById('radio-times-container').classList.remove('hidden');
         document.getElementById('activity-container').classList.add('hidden');
         
         const siteSelect = document.getElementById('input-site');
@@ -125,12 +162,14 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     updateModalSubtitle(); renderGroups(true);
     if (typeof loadWaitlistForTrip === 'function') loadWaitlistForTrip();
     document.getElementById('manage-boat-modal').classList.remove('hidden');
+    window.adjustAllHeaderSelectWidths();
     if (isNavBackForward) window.hideAllNavModals('manage-boat-modal');
 }
 
 function renderCaptainDropdown() {
-    const capContainer = document.getElementById('captain-container');
-    if (!capContainer) return; 
+    const capInlineContainer = document.getElementById('captain-inline-container');
+    const radioContainer = document.getElementById('radio-times-container');
+    if (!capInlineContainer || !radioContainer) return; 
     
     const options = (staffDatabase.capitanes || []).map(c => {
         const isSelected = activeBoatItem.captain === c.nombre;
@@ -142,59 +181,62 @@ function renderCaptainDropdown() {
         if (!isSelected && loc) {
             conflictText = ` (En ${loc})`; disabledAttr = "disabled"; disabledClass = "text-slate-400 bg-slate-100 font-bold";
         }
-        return `<option value="${c.nombre}" class="${disabledClass}" ${disabledAttr}>${c.nombre}${conflictText}</option>`;
+        return `<option value="${c.nombre}" class="${disabledClass}" ${isSelected ? 'selected' : ''} ${disabledAttr}>${c.nombre}${conflictText}</option>`;
     }).join('');
     
-    capContainer.innerHTML = `
-        <div class="grid grid-cols-12 gap-4 items-start">
-            <!-- Captain Assignment (col-span-5) -->
-            <div class="col-span-5">
-                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Capitán del Barco</label>
-                <div class="flex gap-2">
-                    <select id="input-captain" class="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 cursor-pointer" onchange="activeBoatItem.captain = this.value; renderCaptainDropdown(); renderGroups(); window.triggerAutoSave();">
-                        <option value="">${window.isLoggedIn ? 'Seleccionar Capitán...' : 'Sin Asignar'}</option>
-                        ${options}
-                    </select>
-                    ${activeBoatItem.captain ? `<button onclick="window.clearCaptain()" title="Quitar Capitán" class="px-2.5 bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-sm flex items-center justify-center transition-colors shadow-sm active:scale-95">✕</button>` : ''}
-                    <button onclick="copyStaffDni('capitanes', document.getElementById('input-captain').value)" title="Copiar DNI del Capitán" class="bg-slate-100 border border-slate-200 text-slate-500 hover:text-blue-600 px-2.5 rounded-lg transition-colors flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
-                </div>
-            </div>
-            
-            <!-- Radio Times Panel (col-span-7) -->
-            <div class="col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-inner flex flex-col gap-2">
-                <div class="flex items-center gap-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">
-                    <svg class="w-3.5 h-3.5 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    if (activeBoatItem.assignedBoat === 'shore') {
+        capInlineContainer.innerHTML = '';
+        capInlineContainer.classList.add('hidden');
+        radioContainer.innerHTML = '';
+        radioContainer.classList.add('hidden');
+    } else {
+        capInlineContainer.classList.remove('hidden');
+        capInlineContainer.innerHTML = `
+            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Capitán:</span>
+            <select id="input-captain" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]" onchange="activeBoatItem.captain = this.value; renderCaptainDropdown(); renderGroups(); window.triggerAutoSave();">
+                <option value="">${window.isLoggedIn ? 'Seleccionar Capitán...' : 'Sin Asignar'}</option>
+                ${options}
+            </select>
+            ${activeBoatItem.captain ? `<button onclick="window.clearCaptain()" title="Quitar Capitán" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-colors shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
+            <button onclick="copyStaffDni('capitanes', document.getElementById('input-captain').value)" title="Copiar DNI del Capitán" class="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-orange-600 rounded-lg transition-colors shadow-sm shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+        `;
+        document.getElementById('input-captain').value = activeBoatItem.captain || '';
+        const capEl = document.getElementById('input-captain');
+        if (capEl) window.adjustSelectElWidth(capEl);
+
+        radioContainer.classList.remove('hidden');
+        radioContainer.innerHTML = `
+            <div class="flex flex-wrap items-center gap-x-8 gap-y-3 w-full md:w-auto">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0 mr-1">
+                    <svg class="w-4 h-4 text-orange-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
                     </svg>
-                    Control de Radio (Tiempos)
+                    Radio (Tiempos):
                 </div>
-                <div class="grid grid-cols-3 gap-2.5">
-                    <div class="flex flex-col">
-                        <label class="text-[8px] font-black text-slate-400 mb-0.5 uppercase tracking-wider">Saliendo</label>
-                        <input type="text" id="input-time-saliendo" placeholder="--:--" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 text-center" 
-                               value="${activeBoatItem.timeSaliendo || ''}" 
-                               onkeydown="if(event.key === 'Enter') { this.blur(); }"
-                               onblur="if(activeBoatItem.timeSaliendo !== this.value) { activeBoatItem.timeSaliendo = this.value; window.triggerAutoSave(); }">
-                    </div>
-                    <div class="flex flex-col">
-                        <label class="text-[8px] font-black text-slate-400 mb-0.5 uppercase tracking-wider">Buzos en Agua</label>
-                        <input type="text" id="input-time-buzos-agua" placeholder="--:--" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 text-center" 
-                               value="${activeBoatItem.timeBuzosAgua || ''}" 
-                               onkeydown="if(event.key === 'Enter') { this.blur(); }"
-                               onblur="if(activeBoatItem.timeBuzosAgua !== this.value) { activeBoatItem.timeBuzosAgua = this.value; window.triggerAutoSave(); }">
-                    </div>
-                    <div class="flex flex-col">
-                        <label class="text-[8px] font-black text-slate-400 mb-0.5 uppercase tracking-wider">Volviendo</label>
-                        <input type="text" id="input-time-volviendo" placeholder="--:--" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 text-center" 
-                               value="${activeBoatItem.timeVolviendo || ''}" 
-                               onkeydown="if(event.key === 'Enter') { this.blur(); }"
-                               onblur="if(activeBoatItem.timeVolviendo !== this.value) { activeBoatItem.timeVolviendo = this.value; window.triggerAutoSave(); }">
-                    </div>
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xs font-bold text-orange-500 uppercase tracking-wider">Saliendo:</span>
+                    <input type="text" id="input-time-saliendo" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
+                           value="${activeBoatItem.timeSaliendo || ''}" 
+                           onkeydown="if(event.key === 'Enter') { this.blur(); }"
+                           onblur="if(activeBoatItem.timeSaliendo !== this.value) { activeBoatItem.timeSaliendo = this.value; window.triggerAutoSave(); }">
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xs font-bold text-orange-500 uppercase tracking-wider">Buzos en Agua:</span>
+                    <input type="text" id="input-time-buzos-agua" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
+                           value="${activeBoatItem.timeBuzosAgua || ''}" 
+                           onkeydown="if(event.key === 'Enter') { this.blur(); }"
+                           onblur="if(activeBoatItem.timeBuzosAgua !== this.value) { activeBoatItem.timeBuzosAgua = this.value; window.triggerAutoSave(); }">
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xs font-bold text-orange-500 uppercase tracking-wider">Regreso:</span>
+                    <input type="text" id="input-time-volviendo" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
+                           value="${activeBoatItem.timeVolviendo || ''}" 
+                           onkeydown="if(event.key === 'Enter') { this.blur(); }"
+                           onblur="if(activeBoatItem.timeVolviendo !== this.value) { activeBoatItem.timeVolviendo = this.value; window.triggerAutoSave(); }">
                 </div>
             </div>
-        </div>
-    `;
-    document.getElementById('input-captain').value = activeBoatItem.captain || '';
+        `;
+    }
 }
 
 function copyStaffDni(type, name) {
@@ -311,24 +353,24 @@ function renderGroups(skipAutoSave = false) {
         }).join('');
 
         let html = `
-            <div ondragover="event.preventDefault(); this.classList.add('bg-blue-200')" 
-                 ondragleave="this.classList.remove('bg-blue-200')"
-                 ondrop="event.preventDefault(); this.classList.remove('bg-blue-200'); handleDiverMove(event, ${groupIndex})"
-                 class="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center justify-between rounded-t-xl transition-colors">
+            <div ondragover="event.preventDefault(); this.classList.add('bg-orange-200')" 
+                 ondragleave="this.classList.remove('bg-orange-200')"
+                 ondrop="event.preventDefault(); this.classList.remove('bg-orange-200'); handleDiverMove(event, ${groupIndex})"
+                 class="bg-orange-50/25 px-4 py-3 border-b border-orange-200/30 flex items-center justify-between rounded-t-xl transition-colors">
                 <div class="flex items-center gap-4 flex-1">
-                    <div class="flex items-center gap-1">
-                        <span class="text-xs font-black text-slate-500 uppercase tracking-widest">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
-                        <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-800 w-[210px] cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-orange-600 uppercase tracking-wider">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
+                        <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[270px] cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
                             <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Guía'}</option>
                             ${guideOpts}
                         </select>
                         ${group.guide ? `<button onclick="window.clearGuide(${groupIndex})" title="Quitar Guía" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
-                        <button onclick="copyStaffDni('guias', document.getElementById('guide-select-${groupIndex}').value)" title="Copiar DNI del Guía" class="text-slate-400 hover:text-blue-600 transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                        <button onclick="copyStaffDni('guias', document.getElementById('guide-select-${groupIndex}').value)" title="Copiar DNI del Guía" class="text-slate-400 hover:text-orange-600 transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
                     </div>
                     
-                    <div class="flex items-center gap-1">
-                        <span class="text-xs font-black text-slate-500 uppercase tracking-widest">APOYO:</span>
-                        <select id="apoyo-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-slate-800 w-[210px] cursor-pointer" onchange="updateApoyo(${groupIndex}, this.value)">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold text-orange-600 uppercase tracking-wider">APOYO:</span>
+                        <select id="apoyo-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[270px] cursor-pointer" onchange="updateApoyo(${groupIndex}, this.value)">
                             <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Apoyo'}</option>
                             ${apoyoOpts}
                         </select>
