@@ -356,7 +356,7 @@ function renderGroups(skipAutoSave = false) {
             <div ondragover="event.preventDefault(); this.classList.add('bg-orange-200')" 
                  ondragleave="this.classList.remove('bg-orange-200')"
                  ondrop="event.preventDefault(); this.classList.remove('bg-orange-200'); handleDiverMove(event, ${groupIndex})"
-                 class="bg-orange-50/25 px-4 py-3 border-b border-orange-200/30 flex items-center justify-between rounded-t-xl transition-colors">
+                 class="bg-orange-50 px-4 py-3 border-b border-orange-200/60 flex items-center justify-between rounded-t-xl transition-colors">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="flex items-center gap-1.5">
                         <span class="text-xs font-bold text-orange-600 uppercase tracking-wider">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
