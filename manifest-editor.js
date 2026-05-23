@@ -192,7 +192,7 @@ function renderCaptainDropdown() {
     } else {
         capInlineContainer.classList.remove('hidden');
         capInlineContainer.innerHTML = `
-            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Capitán:</span>
+            <span class="text-xs font-black text-black uppercase tracking-wider shrink-0">Capitán:</span>
             <select id="input-captain" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]" onchange="activeBoatItem.captain = this.value; renderCaptainDropdown(); renderGroups(); window.triggerAutoSave();">
                 <option value="">${window.isLoggedIn ? 'Seleccionar Capitán...' : 'Sin Asignar'}</option>
                 ${options}
@@ -207,28 +207,28 @@ function renderCaptainDropdown() {
         radioContainer.classList.remove('hidden');
         radioContainer.innerHTML = `
             <div class="flex flex-wrap items-center gap-x-8 gap-y-3 w-full md:w-auto">
-                <div class="flex items-center gap-1.5 text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0 mr-1">
-                    <svg class="w-4 h-4 text-orange-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="flex items-center gap-1.5 text-xs font-black text-black uppercase tracking-wider shrink-0 mr-1">
+                    <svg class="w-4 h-4 text-black animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
                     </svg>
                     Radio (Tiempos):
                 </div>
                 <div class="flex items-center gap-2.5">
-                    <span class="text-xs font-bold text-orange-500 uppercase tracking-wider">Saliendo:</span>
+                    <span class="text-xs font-black text-black uppercase tracking-wider">Saliendo:</span>
                     <input type="text" id="input-time-saliendo" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
                            value="${activeBoatItem.timeSaliendo || ''}" 
                            onkeydown="if(event.key === 'Enter') { this.blur(); }"
                            onblur="if(activeBoatItem.timeSaliendo !== this.value) { activeBoatItem.timeSaliendo = this.value; window.triggerAutoSave(); }">
                 </div>
                 <div class="flex items-center gap-2.5">
-                    <span class="text-xs font-bold text-orange-500 uppercase tracking-wider">Buzos en Agua:</span>
+                    <span class="text-xs font-black text-black uppercase tracking-wider">Buzos en Agua:</span>
                     <input type="text" id="input-time-buzos-agua" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
                            value="${activeBoatItem.timeBuzosAgua || ''}" 
                            onkeydown="if(event.key === 'Enter') { this.blur(); }"
                            onblur="if(activeBoatItem.timeBuzosAgua !== this.value) { activeBoatItem.timeBuzosAgua = this.value; window.triggerAutoSave(); }">
                 </div>
                 <div class="flex items-center gap-2.5">
-                    <span class="text-xs font-bold text-orange-500 uppercase tracking-wider">Regreso:</span>
+                    <span class="text-xs font-black text-black uppercase tracking-wider">Regreso:</span>
                     <input type="text" id="input-time-volviendo" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
                            value="${activeBoatItem.timeVolviendo || ''}" 
                            onkeydown="if(event.key === 'Enter') { this.blur(); }"
@@ -356,26 +356,26 @@ function renderGroups(skipAutoSave = false) {
             <div ondragover="event.preventDefault(); this.classList.add('bg-orange-200')" 
                  ondragleave="this.classList.remove('bg-orange-200')"
                  ondrop="event.preventDefault(); this.classList.remove('bg-orange-200'); handleDiverMove(event, ${groupIndex})"
-                 class="bg-orange-50 px-4 py-3 border-b border-orange-200/60 flex items-center justify-between rounded-t-xl transition-colors">
+                 class="bg-orange-100 px-4 py-3 border-b border-orange-300 flex items-center justify-between rounded-t-xl transition-colors">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-orange-600 uppercase tracking-wider">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
+                        <span class="text-xs font-black text-black uppercase tracking-wider">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
                         <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[270px] cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
                             <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Guía'}</option>
                             ${guideOpts}
                         </select>
                         ${group.guide ? `<button onclick="window.clearGuide(${groupIndex})" title="Quitar Guía" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
-                        <button onclick="copyStaffDni('guias', document.getElementById('guide-select-${groupIndex}').value)" title="Copiar DNI del Guía" class="text-slate-400 hover:text-orange-600 transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                        <button onclick="copyStaffDni('guias', document.getElementById('guide-select-${groupIndex}').value)" title="Copiar DNI del Guía" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
                     </div>
                     
                     <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold text-orange-600 uppercase tracking-wider">APOYO:</span>
+                        <span class="text-xs font-black text-black uppercase tracking-wider">APOYO:</span>
                         <select id="apoyo-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[270px] cursor-pointer" onchange="updateApoyo(${groupIndex}, this.value)">
                             <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Apoyo'}</option>
                             ${apoyoOpts}
                         </select>
                         ${group.apoyo ? `<button onclick="window.clearApoyo(${groupIndex})" title="Quitar Apoyo" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
-                        <button onclick="copyStaffDni('guias', document.getElementById('apoyo-select-${groupIndex}').value)" title="Copiar DNI del Apoyo" class="text-slate-400 hover:text-blue-600 transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                        <button onclick="copyStaffDni('guias', document.getElementById('apoyo-select-${groupIndex}').value)" title="Copiar DNI del Apoyo" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
                     </div>
                 </div>
                 <button onclick="removeGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 p-1" title="Eliminar Grupo"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>

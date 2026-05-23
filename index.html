@@ -415,12 +415,12 @@
             
             <div class="p-6 overflow-y-auto flex-1">
                 <!-- Información General de la Salida -->
-                <div class="bg-orange-50 border border-orange-200/60 rounded-2xl p-5 mb-4 shadow-sm">
+                <div class="bg-orange-100 border border-orange-300 rounded-2xl p-5 mb-4 shadow-sm">
                     <!-- Fila 1: Selectores Principales -->
                     <div class="flex flex-wrap items-center gap-x-8 gap-y-4">
                         <!-- Barco Asignado -->
                         <div class="flex items-center gap-2.5">
-                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Barco:</span>
+                            <span class="text-xs font-black text-black uppercase tracking-wider shrink-0">Barco:</span>
                             <select id="input-boat" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]">
                                 <option value="ares">Ares</option>
                                 <option value="kaiser">Kaiser</option>
@@ -429,7 +429,7 @@
                         </div>
                         <!-- Hora -->
                         <div class="flex items-center gap-2.5">
-                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Hora:</span>
+                            <span class="text-xs font-black text-black uppercase tracking-wider shrink-0">Hora:</span>
                             <select id="input-time" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]">
                                 <option value="09:00">09:00</option>
                                 <option value="10:30">10:30</option>
@@ -441,12 +441,12 @@
                         </div>
                         <!-- Plazas -->
                         <div id="input-maxdives-container" class="flex items-center gap-2.5">
-                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Plazas:</span>
+                            <span class="text-xs font-black text-black uppercase tracking-wider shrink-0">Plazas:</span>
                             <input type="number" id="input-maxdives" min="1" max="30" onchange="triggerAutoSave()" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 w-[60px] h-[32px] text-center" placeholder="12">
                         </div>
                         <!-- Destino / Punto de Inmersión -->
                         <div id="destino-container" class="flex items-center gap-2.5">
-                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Destino:</span>
+                            <span class="text-xs font-black text-black uppercase tracking-wider shrink-0">Destino:</span>
                             <div class="relative">
                                 <select id="input-site" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="w-full pl-2.5 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 appearance-none cursor-pointer h-[32px]"></select>
                                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
@@ -456,7 +456,7 @@
                         </div>
                         <!-- Tipo de Actividad -->
                         <div id="activity-container" class="flex items-center gap-2.5 hidden">
-                            <span class="text-xs font-bold text-orange-600 uppercase tracking-wider shrink-0">Actividad:</span>
+                            <span class="text-xs font-black text-black uppercase tracking-wider shrink-0">Actividad:</span>
                             <div class="relative">
                                 <select id="input-activity" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 text-xs font-bold text-slate-700 appearance-none cursor-pointer h-[32px]">
                                     <option value="Shore">Shore</option>
@@ -473,7 +473,7 @@
                 </div>
 
                 <!-- Box 2: Tiempos de Radio -->
-                <div id="radio-times-container" class="bg-orange-50 border border-orange-200/60 rounded-2xl p-5 mb-6 shadow-sm hidden"></div>
+                <div id="radio-times-container" class="bg-orange-100 border border-orange-300 rounded-2xl p-5 mb-6 shadow-sm hidden"></div>
                 
                 <div class="flex justify-between items-end mb-4">
                     <h3 class="font-black text-slate-800 text-lg uppercase tracking-tight">Grupos y Guías</h3>
