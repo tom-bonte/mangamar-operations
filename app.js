@@ -16,9 +16,6 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
         applyZoom(currentZoom);
     }
     window.addEventListener('keydown', function(e) {
-        if (window.isStaffLoggedIn) {
-            return; // Staff can only view TV clock/grid, prevent other shortcuts
-        }
 
         const isZoomIn = (e.key === '=' || e.key === '+');
         const isZoomOut = (e.key === '-');
@@ -626,6 +623,10 @@ function toggleHelpLanguage(lang) {
 // ==========================================
 
 window.handleDrop = async function(event, targetBoat, targetTime) {
+    if (window.isStaffLoggedIn) {
+        showToast("🔒 Acceso denegado: El Personal no tiene permiso para mover salidas.", "error");
+        return;
+    }
     const tripId = event.dataTransfer.getData('text/plain');
     if (!tripId) return;
 
@@ -724,28 +725,16 @@ window.checkSessionOnLoad = function() {
         
         if (role === 'staff') {
             window.isStaffLoggedIn = true;
-            
-            // Force TV Board to cover the entire screen instantly!
-            if (typeof window.openTVView === 'function') {
-                window.openTVView();
-            }
-            
-            const closeTvBtn = document.getElementById('tv-close-btn');
-            if (closeTvBtn) closeTvBtn.classList.add('hidden');
-            const logoutTvBtn = document.getElementById('tv-logout-btn');
-            if (logoutTvBtn) logoutTvBtn.classList.remove('hidden');
+            document.body.classList.add('staff-logged-in');
         } else {
             window.isStaffLoggedIn = false;
-            
-            const closeTvBtn = document.getElementById('tv-close-btn');
-            if (closeTvBtn) closeTvBtn.classList.remove('hidden');
-            const logoutTvBtn = document.getElementById('tv-logout-btn');
-            if (logoutTvBtn) logoutTvBtn.classList.add('hidden');
+            document.body.classList.remove('staff-logged-in');
         }
     } else {
         window.isLoggedIn = false;
         window.isStaffLoggedIn = false;
         document.body.classList.remove('logged-in');
+        document.body.classList.remove('staff-logged-in');
         if (gate) gate.classList.remove('hidden');
         
         const tvModal = document.getElementById('tv-view-modal');
@@ -766,54 +755,47 @@ window.toggleGatePasswordView = function(btn) {
 
 window.attemptGateLogin = function() {
     const pwInput = document.getElementById('gate-password-input');
+    const roleSelect = document.getElementById('gate-role-select');
     if (!pwInput) return;
     const pw = pwInput.value;
+    const selectedRole = roleSelect ? roleSelect.value : 'admin';
     
-    if (pw === window.adminPassword) {
-        // Admin Profile Login
+    if (selectedRole === 'admin') {
+        if (pw !== window.adminPassword) {
+            showToast("❌ Contraseña incorrecta para Administración", "error");
+            return;
+        }
         window.isLoggedIn = true;
         window.isStaffLoggedIn = false;
         localStorage.setItem('mangaToken', 'true');
         localStorage.setItem('mangaRole', 'admin');
         document.body.classList.add('logged-in');
+        document.body.classList.remove('staff-logged-in');
         
         const gate = document.getElementById('login-gate');
         if (gate) gate.classList.add('hidden');
         
-        const closeTvBtn = document.getElementById('tv-close-btn');
-        if (closeTvBtn) closeTvBtn.classList.remove('hidden');
-        const logoutTvBtn = document.getElementById('tv-logout-btn');
-        if (logoutTvBtn) logoutTvBtn.classList.add('hidden');
-        
         updateAuthButtonUI();
         showToast("✅ ¡Bienvenido, Administrador (Mangamar)!");
         pwInput.value = "";
-    } else if (pw === "mangastaff123") {
-        // Limited Staff Login
+    } else if (selectedRole === 'staff') {
+        if (pw !== "mangastaff123") {
+            showToast("❌ Contraseña incorrecta para Staff", "error");
+            return;
+        }
         window.isLoggedIn = true;
         window.isStaffLoggedIn = true;
         localStorage.setItem('mangaToken', 'true');
         localStorage.setItem('mangaRole', 'staff');
         document.body.classList.add('logged-in');
+        document.body.classList.add('staff-logged-in');
         
         const gate = document.getElementById('login-gate');
         if (gate) gate.classList.add('hidden');
         
-        // Open TV screen overlay instantly
-        if (typeof window.openTVView === 'function') {
-            window.openTVView();
-        }
-        
-        const closeTvBtn = document.getElementById('tv-close-btn');
-        if (closeTvBtn) closeTvBtn.classList.add('hidden');
-        const logoutTvBtn = document.getElementById('tv-logout-btn');
-        if (logoutTvBtn) logoutTvBtn.classList.remove('hidden');
-        
         updateAuthButtonUI();
-        showToast("✅ Has iniciado sesión como Staff (Vista Limitada)");
+        showToast("✅ Has iniciado sesión como Personal (Staff)");
         pwInput.value = "";
-    } else {
-        showToast("❌ Contraseña incorrecta", "error");
     }
 };
 
@@ -828,12 +810,20 @@ window.toggleLoginPasswordView = function(btn) {
 
 window.attemptLogin = function() {
     const pw = document.getElementById('login-password-input').value;
-    if (pw === window.adminPassword) {
+    const roleSelect = document.getElementById('login-role-select');
+    const selectedRole = roleSelect ? roleSelect.value : 'admin';
+    
+    if (selectedRole === 'admin') {
+        if (pw !== window.adminPassword) {
+            showToast("❌ Contraseña incorrecta para Administración", "error");
+            return;
+        }
         window.isLoggedIn = true;
         window.isStaffLoggedIn = false;
         localStorage.setItem('mangaToken', 'true');
         localStorage.setItem('mangaRole', 'admin');
         document.body.classList.add('logged-in');
+        document.body.classList.remove('staff-logged-in');
         
         if(typeof closeGlobalModal === 'function') closeGlobalModal('login-modal');
         else document.getElementById('login-modal').classList.add('hidden');
@@ -841,20 +831,20 @@ window.attemptLogin = function() {
         const gate = document.getElementById('login-gate');
         if (gate) gate.classList.add('hidden');
         
-        const closeTvBtn = document.getElementById('tv-close-btn');
-        if (closeTvBtn) closeTvBtn.classList.remove('hidden');
-        const logoutTvBtn = document.getElementById('tv-logout-btn');
-        if (logoutTvBtn) logoutTvBtn.classList.add('hidden');
-        
         updateAuthButtonUI();
         showToast("✅ Has iniciado sesión como Administrador (Mangamar)");
         document.getElementById('login-password-input').value = "";
-    } else if (pw === "mangastaff123") {
+    } else if (selectedRole === 'staff') {
+        if (pw !== "mangastaff123") {
+            showToast("❌ Contraseña incorrecta para Staff", "error");
+            return;
+        }
         window.isLoggedIn = true;
         window.isStaffLoggedIn = true;
         localStorage.setItem('mangaToken', 'true');
         localStorage.setItem('mangaRole', 'staff');
         document.body.classList.add('logged-in');
+        document.body.classList.add('staff-logged-in');
         
         if(typeof closeGlobalModal === 'function') closeGlobalModal('login-modal');
         else document.getElementById('login-modal').classList.add('hidden');
@@ -862,20 +852,9 @@ window.attemptLogin = function() {
         const gate = document.getElementById('login-gate');
         if (gate) gate.classList.add('hidden');
         
-        if (typeof window.openTVView === 'function') {
-            window.openTVView();
-        }
-        
-        const closeTvBtn = document.getElementById('tv-close-btn');
-        if (closeTvBtn) closeTvBtn.classList.add('hidden');
-        const logoutTvBtn = document.getElementById('tv-logout-btn');
-        if (logoutTvBtn) logoutTvBtn.classList.remove('hidden');
-        
         updateAuthButtonUI();
-        showToast("✅ Has iniciado sesión como Staff (Vista Limitada)");
+        showToast("✅ Has iniciado sesión como Personal (Staff)");
         document.getElementById('login-password-input').value = "";
-    } else {
-        alert("Contraseña incorrecta");
     }
 };
 
@@ -885,6 +864,7 @@ window.logout = function() {
     localStorage.removeItem('mangaToken');
     localStorage.removeItem('mangaRole');
     document.body.classList.remove('logged-in');
+    document.body.classList.remove('staff-logged-in');
     
     const tvModal = document.getElementById('tv-view-modal');
     if (tvModal) tvModal.classList.add('hidden');
@@ -916,6 +896,13 @@ window.updateAuthButtonUI = function() {
         if(window.isLoggedIn) {
             btnOut.classList.add('hidden');
             btnIn.classList.remove('hidden');
+            // Update the button label to reflect the role
+            const roleLabel = btnIn.querySelector('button');
+            if (roleLabel) {
+                const svgPart = roleLabel.querySelector('svg');
+                const svgHTML = svgPart ? svgPart.outerHTML : '';
+                roleLabel.innerHTML = (window.isStaffLoggedIn ? 'Staff ' : 'Mangamar ') + svgHTML;
+            }
         } else {
             btnOut.classList.remove('hidden');
             btnIn.classList.add('hidden');

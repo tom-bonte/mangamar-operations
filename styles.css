@@ -5,6 +5,9 @@
 body:not(.logged-in) .auth-hide {
     display: none !important;
 }
+body.staff-logged-in .auth-hide:not(.staff-allow) {
+    display: none !important;
+}
 body:not(.logged-in) .auth-lock {
     pointer-events: none !important;
     opacity: 0.6 !important;

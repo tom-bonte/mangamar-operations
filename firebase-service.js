@@ -8,6 +8,12 @@
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// Enable Offline Persistence for lightning-fast loads
+db.enablePersistence({ synchronizeTabs: true })
+    .catch((err) => {
+        console.warn("Firestore offline persistence not enabled:", err.code);
+    });
+
 // --- CRITICAL SECURITY SAFEGUARD: Protect the Visor Database ---
 // We intercept Firestore calls to definitively block any accidental writes 
 // (set, update, delete, add) to the Visor's 'reservations_monthly' collection.
@@ -43,8 +49,10 @@ db.doc = function(docPath) {
 };
 // ---------------------------------------------------------------
 // Pointers to active connections
-let unsubscribeVisor = null;
-let unsubscribeInternal = null;
+let activeMonthListeners = new Map(); // monthKey -> { unsubscribeVisor, unsubscribeInternal }
+let visorMonthData = new Map(); // monthKey -> array of visor trips
+let internalMonthData = new Map(); // monthKey -> array of internal trips
+let internalMonthTombstones = new Map(); // monthKey -> set of hidden visor IDs
 
 // We track internal tombstones here so the merge process can filter out Visor trips
 window.hiddenVisorTrips = new Set();
@@ -54,182 +62,248 @@ const INTERNAL_DB = "mangamar_monthly";
 const MANGAMAR_CODE = "M"; // We only care about Mangamar's trips from the Visor
 
 /**
- * Boots up the real-time listeners for BOTH databases.
- * @returns {void}
+ * Calculates a 3-month target window around a given date (previous, current, and next month)
+ */
+function getActiveMonthKeys(date) {
+    const keys = [];
+    for (let offset = -1; offset <= 1; offset++) {
+        const d = new Date(date.getFullYear(), date.getMonth() + offset, 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        keys.push(`${y}-${m}`);
+    }
+    return keys;
+}
+
+/**
+ * Compiles dynamic monthly data segments into global visorTrips and internalTrips arrays.
+ */
+function compileAndMerge() {
+    const allVisor = [];
+    for (const list of visorMonthData.values()) {
+        allVisor.push(...list);
+    }
+    window.visorTrips = visorTrips = allVisor;
+
+    const allInternal = [];
+    window.hiddenVisorTrips.clear();
+    for (const list of internalMonthData.values()) {
+        allInternal.push(...list);
+    }
+    for (const set of internalMonthTombstones.values()) {
+        for (const id of set) {
+            window.hiddenVisorTrips.add(id);
+        }
+    }
+    window.internalTrips = internalTrips = allInternal;
+
+    mergeAndRender();
+}
+
+/**
+ * Dynamically updates active document-level month listeners to follow the date in view.
+ */
+function syncActiveMonthListeners() {
+    const refDate = (typeof currentDate !== 'undefined' && currentDate) ? currentDate : new Date();
+    const targetMonths = getActiveMonthKeys(refDate);
+
+    // 1. Unsubscribe from months no longer in target window
+    for (const [monthKey, listeners] of activeMonthListeners.entries()) {
+        if (!targetMonths.includes(monthKey)) {
+            if (listeners.unsubscribeVisor) listeners.unsubscribeVisor();
+            if (listeners.unsubscribeInternal) listeners.unsubscribeInternal();
+            activeMonthListeners.delete(monthKey);
+            visorMonthData.delete(monthKey);
+            internalMonthData.delete(monthKey);
+            internalMonthTombstones.delete(monthKey);
+        }
+    }
+
+    // 2. Subscribe to newly introduced target months
+    targetMonths.forEach(monthKey => {
+        if (!activeMonthListeners.has(monthKey)) {
+            const listeners = { unsubscribeVisor: null, unsubscribeInternal: null };
+
+            // Listen strictly to this Visor monthly document
+            listeners.unsubscribeVisor = db.collection(VISOR_DB).doc(monthKey).onSnapshot((doc) => {
+                const visorData = [];
+                if (doc.exists) {
+                    const monthData = doc.data().allocations || {};
+                    for (const id in monthData) {
+                        if (monthData[id].center === MANGAMAR_CODE) {
+                            if (monthData[id]._deleted) continue;
+
+                            const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
+                            if (tripMonth && tripMonth !== doc.id) continue;
+
+                            visorData.push({ id, ...monthData[id], isVisorTrip: true, _sourceDocId: doc.id });
+                        }
+                    }
+                }
+                visorMonthData.set(monthKey, visorData);
+                compileAndMerge();
+            }, (err) => console.warn(`Error listening to visor month ${monthKey}:`, err));
+
+            // Listen strictly to this Internal monthly document
+            listeners.unsubscribeInternal = db.collection(INTERNAL_DB).doc(monthKey).onSnapshot((doc) => {
+                const internalData = [];
+                const tombstones = new Set();
+                if (doc.exists) {
+                    const monthData = doc.data().allocations || {};
+                    for (const id in monthData) {
+                        if (monthData[id]._deleted) {
+                            tombstones.add(id);
+                            continue;
+                        }
+
+                        const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
+                        if (tripMonth && tripMonth !== doc.id) continue;
+
+                        internalData.push({ id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id });
+                    }
+                }
+                internalMonthData.set(monthKey, internalData);
+                internalMonthTombstones.set(monthKey, tombstones);
+                compileAndMerge();
+            }, (err) => console.warn(`Error listening to internal month ${monthKey}:`, err));
+
+            activeMonthListeners.set(monthKey, listeners);
+        }
+    });
+}
+
+window.syncActiveMonthListeners = syncActiveMonthListeners;
+
+/**
+ * Boots up the real-time listeners for active months and background databases.
  */
 function startFirestoreListeners() {
-    if (unsubscribeVisor) unsubscribeVisor();
-    if (unsubscribeInternal) unsubscribeInternal();
+    // 1. DYNAMIC DOCUMENT MONTH LISTENERS (Bridges to Ares & Kaiser instantly!)
+    syncActiveMonthListeners();
 
-    // 1. VISOR DATABASE (READ-ONLY)
-    unsubscribeVisor = db.collection(VISOR_DB).onSnapshot((snapshot) => {
-        const visorData = [];
-        snapshot.forEach((doc) => {
-            const monthData = doc.data().allocations || {};
-            for (const id in monthData) {
-                if (monthData[id].center === MANGAMAR_CODE) {
-                    if (monthData[id]._deleted) continue; // ENFORCE INVINNCIBLE SOFT DELETE FOR VISOR
-
-                    // --- 🛡️ MONTH-GUARD PROTECTION ---
-                    // Ignore trips that are mathematically 'marooned' in the wrong month folder
-                    const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
-                    if (tripMonth && tripMonth !== doc.id) continue;
-
-                    visorData.push({ id, ...monthData[id], isVisorTrip: true, _sourceDocId: doc.id });
-                }
+    // 2. NON-BLOCKING BACKGROUND LOADS
+    // Defer the heavy and metadata database connections to allow primary daily view rendering in <150ms!
+    setTimeout(() => {
+        // Staff Database Snapshot
+        db.collection(INTERNAL_DB).doc("staff").onSnapshot((doc) => {
+            if (doc.exists) {
+                staffDatabase = doc.data();
+                if (typeof renderStaffView === 'function') renderStaffView();
+                if (typeof renderGroups === 'function' && activeBoatItem) renderGroups();
             }
         });
-        window.visorTrips = visorTrips = visorData;
-        mergeAndRender();
-    });
 
-    // 2. INTERNAL DATABASE (TRIPS)
-    unsubscribeInternal = db.collection(INTERNAL_DB).onSnapshot((snapshot) => {
-        const internalData = [];
-        window.hiddenVisorTrips.clear();
-        snapshot.forEach((doc) => {
-            if (doc.id === 'setup' || doc.id === 'staff') return; // Ignore non-trip docs
-            const monthData = doc.data().allocations || {};
+        // CRM Master List (Heavy 1MB Download - Deferring preserves UI interaction!)
+        db.collection("mangamar_directory").doc("master_list").get().then((doc) => {
+            if (doc.exists) {
+                let rawClients = doc.data().clients || [];
+                let dedupMap = new Map();
+                let nonDniClients = [];
 
-            for (const id in monthData) {
-                if (monthData[id]._deleted) {
-                    window.hiddenVisorTrips.add(id); // Track tombstone
-                    continue; // ENFORCE INVINNCIBLE SOFT DELETE
-                }
+                rawClients.forEach(c => {
+                    if (c.dni && c.dni.trim() !== '') {
+                        const key = c.dni.trim().toUpperCase();
+                        c.dni = key;
 
-                // --- 🛡️ MONTH-GUARD PROTECTION ---
-                // Ignore trips that are mathematically 'marooned' in the wrong month folder
-                const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
-                if (tripMonth && tripMonth !== doc.id) continue;
-
-                internalData.push({ id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id });
-            }
-        });
-        window.internalTrips = internalTrips = internalData;
-        mergeAndRender();
-    });
-
-    // 3. INTERNAL DATABASE (STAFF - ONLY 1 READ!)
-    db.collection(INTERNAL_DB).doc("staff").onSnapshot((doc) => {
-        if (doc.exists) {
-            staffDatabase = doc.data();
-            if (typeof renderStaffView === 'function') renderStaffView();
-            if (typeof renderGroups === 'function' && activeBoatItem) renderGroups(); // Redraw dropdowns if modal is open
-        }
-    });
-
-    // 4. CUSTOMER MASTER DIRECTORY (ONLY 1 READ!)
-    db.collection("mangamar_directory").doc("master_list").get().then((doc) => {
-        if (doc.exists) {
-            let rawClients = doc.data().clients || [];
-            let dedupMap = new Map();
-            let nonDniClients = [];
-
-            rawClients.forEach(c => {
-                if (c.dni && c.dni.trim() !== '') {
-                    const key = c.dni.trim().toUpperCase();
-                    c.dni = key; // Normalize DNI inline
-
-                    if (dedupMap.has(key)) {
-                        let existing = dedupMap.get(key);
-                        // Merge: Newer form (c) overwrites existing, UNLESS new value is empty
-                        let merged = { ...existing };
-                        for (let prop in c) {
-                            if (c[prop] !== undefined && c[prop] !== null && c[prop] !== '') {
-                                merged[prop] = c[prop];
+                        if (dedupMap.has(key)) {
+                            let existing = dedupMap.get(key);
+                            let merged = { ...existing };
+                            for (let prop in c) {
+                                if (c[prop] !== undefined && c[prop] !== null && c[prop] !== '') {
+                                    merged[prop] = c[prop];
+                                }
                             }
+                            dedupMap.set(key, merged);
+                        } else {
+                            dedupMap.set(key, c);
                         }
-                        dedupMap.set(key, merged);
                     } else {
-                        dedupMap.set(key, c);
+                        nonDniClients.push(c);
                     }
-                } else {
-                    nonDniClients.push(c);
+                });
+
+                const cleanClients = [...dedupMap.values(), ...nonDniClients];
+                customerDatabase = cleanClients;
+
+                if (cleanClients.length < rawClients.length) {
+                    console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicate customer records.`);
+                    db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
+                        .catch(e => console.error("Error auto-healing CRM:", e));
+                }
+
+                // If CRM modal table is open, refresh it now that data has loaded
+                const crmModal = document.getElementById('crm-modal');
+                if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
+                    renderCrmTable();
+                }
+            }
+        });
+
+        // Global Settings Listener
+        db.collection("mangamar_directory").doc("settings").onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                window.adminPassword = data.adminPassword || "manga321";
+                
+                if (data.showTVRadioTimes !== undefined) {
+                    const checked = data.showTVRadioTimes !== false;
+                    window.appSettings = window.appSettings || {};
+                    window.appSettings.showTVRadioTimes = checked;
+                    localStorage.setItem('mangamar_setting_show_tv_radio_times', checked ? 'true' : 'false');
+                    
+                    const toggleInput = document.getElementById('setting-toggle-radio-times');
+                    if (toggleInput) {
+                        toggleInput.checked = checked;
+                    }
+                    
+                    const tvModal = document.getElementById('tv-view-modal');
+                    if (tvModal && !tvModal.classList.contains('hidden')) {
+                        if (typeof window._buildTVContent === 'function') {
+                            window._buildTVContent();
+                            setTimeout(window.adjustCardScaling, 50);
+                        }
+                    }
+                }
+            } else {
+                db.collection("mangamar_directory").doc("settings").set({ adminPassword: "manga321", showTVRadioTimes: true });
+            }
+        });
+
+        // Global multi-day persistent groups
+        window.globalGroups = [];
+        db.collection("mangamar_groups").onSnapshot((snapshot) => {
+            const groups = [];
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.realEndDate) {
+                    data.endDate = data.realEndDate;
+                }
+                groups.push({ firebaseId: doc.id, ...data });
+            });
+            window.globalGroups = groups;
+        });
+
+        // Certifications Group Query (Can take a long time on cold boot, fully deferred!)
+        window.globalPendingCerts = new Map();
+        db.collectionGroup("history").where("certStatus", "==", "pendiente").onSnapshot((snapshot) => {
+            const certMap = new Map();
+            snapshot.forEach(doc => {
+                const dni = doc.ref.parent.parent.id;
+                const data = doc.data();
+                let rawCourse = data.course || data.baseCourse || '';
+                let cleanCourse = rawCourse.split(' | ')[0].trim();
+                if (cleanCourse) {
+                    if (!certMap.has(dni)) certMap.set(dni, []);
+                    if (!certMap.get(dni).includes(cleanCourse)) {
+                        certMap.get(dni).push(cleanCourse);
+                    }
                 }
             });
-
-            const cleanClients = [...dedupMap.values(), ...nonDniClients];
-            customerDatabase = cleanClients;
-
-            // Auto-heal: If duplicates were fixed, silently save the sanitized list to the master directory
-            if (cleanClients.length < rawClients.length) {
-                console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicate customer records.`);
-                db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
-                    .catch(e => console.error("Error auto-healing CRM:", e));
-            }
-        }
-    });
-
-    // 5. GLOBAL SETTINGS (AUTH & TV)
-    db.collection("mangamar_directory").doc("settings").onSnapshot((doc) => {
-        if (doc.exists) {
-            const data = doc.data();
-            window.adminPassword = data.adminPassword || "manga321";
-            
-            // Sync TV radio times setting state in real-time across all devices/screens
-            if (data.showTVRadioTimes !== undefined) {
-                const checked = data.showTVRadioTimes !== false;
-                window.appSettings = window.appSettings || {};
-                window.appSettings.showTVRadioTimes = checked;
-                localStorage.setItem('mangamar_setting_show_tv_radio_times', checked ? 'true' : 'false');
-                
-                // Update checkbox UI in real-time if the Settings modal is open
-                const toggleInput = document.getElementById('setting-toggle-radio-times');
-                if (toggleInput) {
-                    toggleInput.checked = checked;
-                }
-                
-                // Re-render the TV dashboard in real-time if it is currently open
-                const tvModal = document.getElementById('tv-view-modal');
-                if (tvModal && !tvModal.classList.contains('hidden')) {
-                    if (typeof window._buildTVContent === 'function') {
-                        window._buildTVContent();
-                        setTimeout(window.adjustCardScaling, 50);
-                    }
-                }
-            }
-        } else {
-            // First time initialization
-            db.collection("mangamar_directory").doc("settings").set({ adminPassword: "manga321", showTVRadioTimes: true });
-        }
-    });
-    // 6. GLOBAL GROUPS (MULTI-DAY PERSISTENT GROUPS)
-    window.globalGroups = [];
-    db.collection("mangamar_groups").onSnapshot((snapshot) => {
-        const groups = [];
-        const todayStr = new Date().toISOString().split('T')[0];
-
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.realEndDate) {
-                data.endDate = data.realEndDate; // Restore the real date for the UI
-            }
-            groups.push({ firebaseId: doc.id, ...data });
+            window.globalPendingCerts = certMap;
         });
-        window.globalGroups = groups;
-    });
-
-    // 7. GLOBAL PENDING CERTIFICATIONS
-    window.globalPendingCerts = new Map();
-    db.collectionGroup("history").where("certStatus", "==", "pendiente").onSnapshot((snapshot) => {
-        const certMap = new Map();
-        snapshot.forEach(doc => {
-            const dni = doc.ref.parent.parent.id;
-            const data = doc.data();
-            let rawCourse = data.course || data.baseCourse || '';
-            let cleanCourse = rawCourse.split(' | ')[0].trim();
-            if (cleanCourse) {
-                if (!certMap.has(dni)) certMap.set(dni, []);
-                if (!certMap.get(dni).includes(cleanCourse)) {
-                    certMap.get(dni).push(cleanCourse);
-                }
-            }
-        });
-        window.globalPendingCerts = certMap;
-    });
-
-    // NOTE: The expensive mangamar_customers listener has been DELETED to protect your quota!
+    }, 100);
 }
+
 
 window.saveGlobalGroup = async function (groupData) {
     if (!groupData.id) {

@@ -50,6 +50,10 @@ window.adjustAllHeaderSelectWidths = function() {
 // 5. MODAL & DYNAMIC TABLES 
 // ==========================================
 function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward = false) {
+    if (window.isStaffLoggedIn) {
+        showToast("🔒 Acceso denegado: El Personal no tiene permiso para abrir manifiestos.", "error");
+        return;
+    }
     if (!window.isLoggedIn && !tripOrId) return;
     
     if (typeof isNavBackForward !== 'boolean') isNavBackForward = false;
