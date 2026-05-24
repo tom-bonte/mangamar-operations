@@ -185,15 +185,18 @@ function updateDateHeaders() {
 function changeDate(offset) {
     currentDate.setDate(currentDate.getDate() + offset);
     miniCalendarDate = new Date(currentDate); 
+    if (typeof window.syncActiveMonthListeners === 'function') window.syncActiveMonthListeners();
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
 }
 function goToToday() {
     currentDate = new Date(); miniCalendarDate = new Date(currentDate); 
+    if (typeof window.syncActiveMonthListeners === 'function') window.syncActiveMonthListeners();
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
 }
 function changeMonth(offset) {
     currentDate.setMonth(currentDate.getMonth() + offset);
     miniCalendarDate = new Date(currentDate);
+    if (typeof window.syncActiveMonthListeners === 'function') window.syncActiveMonthListeners();
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
 }
 function changeMiniMonth(offset) {
@@ -234,11 +237,13 @@ function renderMiniCalendar() {
         cell.className = baseClasses; cell.innerText = day;
         cell.onclick = () => {
             currentDate = new Date(year, month, day);
+            if (typeof window.syncActiveMonthListeners === 'function') window.syncActiveMonthListeners();
             updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar(); 
         };
         grid.appendChild(cell);
     }
 }
+
 
 // --- MONTHLY FILTERS & RENDER ---
 function renderMonthlyFilters() {
@@ -292,7 +297,11 @@ function renderMonthlyCalendar() {
         
         const cell = document.createElement('div');
         cell.className = `bg-white rounded-xl border ${isToday ? 'border-blue-500 shadow-md ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'} p-2 min-h-[120px] flex flex-col transition-all cursor-pointer`;
-        cell.onclick = () => { currentDate = new Date(year, month, day); updateDateHeaders(); switchView('daily'); renderDailyGrid(); renderMiniCalendar(); };
+        cell.onclick = () => {
+            currentDate = new Date(year, month, day);
+            if (typeof window.syncActiveMonthListeners === 'function') window.syncActiveMonthListeners();
+            updateDateHeaders(); switchView('daily'); renderDailyGrid(); renderMiniCalendar();
+        };
 
         let tripsHtml = '<div class="space-y-1 mt-2">';
         tripsToday.forEach(trip => {
@@ -701,11 +710,48 @@ window.handleDrop = async function(event, targetBoat, targetTime) {
 // SESSION AUTHENTICATION
 // ==========================================
 window.checkSessionOnLoad = function() {
+    const gate = document.getElementById('login-gate');
     if (localStorage.getItem('mangaToken') === 'true') {
         window.isLoggedIn = true;
         document.body.classList.add('logged-in');
+        if (gate) gate.classList.add('hidden');
+    } else {
+        window.isLoggedIn = false;
+        document.body.classList.remove('logged-in');
+        if (gate) gate.classList.remove('hidden');
     }
     updateAuthButtonUI();
+};
+
+window.toggleGatePasswordView = function(btn) {
+    const p = document.getElementById('gate-password-input');
+    if (!p) return;
+    const isPass = p.type === 'password';
+    p.type = isPass ? 'text' : 'password';
+    btn.innerHTML = isPass ?
+        '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg>'
+        : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.522 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>';
+};
+
+window.attemptGateLogin = function() {
+    const pwInput = document.getElementById('gate-password-input');
+    if (!pwInput) return;
+    const pw = pwInput.value;
+    
+    if (pw === window.adminPassword || pw === "mangastaff123") {
+        window.isLoggedIn = true;
+        localStorage.setItem('mangaToken', 'true');
+        document.body.classList.add('logged-in');
+        
+        const gate = document.getElementById('login-gate');
+        if (gate) gate.classList.add('hidden');
+        
+        updateAuthButtonUI();
+        showToast("✅ Has iniciado sesión como Staff");
+        pwInput.value = "";
+    } else {
+        showToast("❌ Contraseña de Staff incorrecta", "error");
+    }
 };
 
 window.toggleLoginPasswordView = function(btn) {
@@ -719,12 +765,17 @@ window.toggleLoginPasswordView = function(btn) {
 
 window.attemptLogin = function() {
     const pw = document.getElementById('login-password-input').value;
-    if (pw === window.adminPassword) {
+    if (pw === window.adminPassword || pw === "mangastaff123") {
         window.isLoggedIn = true;
         localStorage.setItem('mangaToken', 'true');
         document.body.classList.add('logged-in');
+        
         if(typeof closeGlobalModal === 'function') closeGlobalModal('login-modal');
         else document.getElementById('login-modal').classList.add('hidden');
+        
+        const gate = document.getElementById('login-gate');
+        if (gate) gate.classList.add('hidden');
+        
         updateAuthButtonUI();
         showToast("✅ Has iniciado sesión correctamente");
         document.getElementById('login-password-input').value = "";
@@ -737,8 +788,12 @@ window.logout = function() {
     window.isLoggedIn = false;
     localStorage.removeItem('mangaToken');
     document.body.classList.remove('logged-in');
+    
+    const gate = document.getElementById('login-gate');
+    if (gate) gate.classList.remove('hidden');
+    
     updateAuthButtonUI();
-    showToast("🔒 Sesión cerrada. Vista de solo lectura.");
+    showToast("🔒 Sesión cerrada.");
     const dd = document.getElementById('auth-dropdown');
     if (dd) dd.classList.add('hidden');
 };
