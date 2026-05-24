@@ -594,7 +594,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         </div>
         
         <div class="tooltip-content absolute z-[999] p-3 bg-slate-900 rounded-xl shadow-2xl w-64 border border-slate-700 pointer-events-auto" style="${boatId === 'shore' ? 'top: -5px; right: calc(100% + 2px);' : 'top: -5px; left: calc(100% + 2px);'}">
-            ${radioTimesHtml}
+            ${isShore ? '' : radioTimesHtml}
             <div class="max-h-none overflow-visible">${previewHtml}</div>
         </div>
     `;
@@ -1037,11 +1037,24 @@ window.showDailySearchPopup = function() {
 };
 
 window.hideDailySearchPopup = function() {
+    if (window._searchEnterPressed) return; // Don't hide if Enter was pressed to blur
     const popup = document.getElementById('daily-search-popup');
     if (popup) {
         popup.style.display = 'none';
     }
 };
+
+// Close search popup when clicking outside the input and popup itself
+document.addEventListener('click', function(event) {
+    const popup = document.getElementById('daily-search-popup');
+    const input = document.getElementById('daily-search-input');
+    const clearBtn = document.getElementById('daily-search-clear');
+    if (popup && popup.style.display !== 'none') {
+        if (!popup.contains(event.target) && !input.contains(event.target) && (!clearBtn || !clearBtn.contains(event.target))) {
+            popup.style.display = 'none';
+        }
+    }
+});
 
 window.highlightAndScrollToCard = function(tripId) {
     const card = document.querySelector(`[data-trip-id="${tripId}"]`);

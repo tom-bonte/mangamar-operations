@@ -275,3 +275,8 @@ body.is-dragging .tooltip-content {
 .tooltip-content span.text-\[8px\] {
     font-size: 0.78rem !important;
 }
+
+/* Elevate slot container on hover so tooltips are never covered by adjacent cells or columns */
+.h-\[130px\].relative:hover {
+    z-index: 50 !important;
+}
