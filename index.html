@@ -1965,8 +1965,10 @@
                 <div class="text-center py-5 bg-orange-500 border border-orange-600 rounded-2xl font-black text-white text-4xl uppercase tracking-[0.2em] shadow-md">KAISER</div>
             </div>
             <!-- Small close button in top-right corner -->
-            <button onclick="document.getElementById('tv-view-modal').classList.add('hidden')"
+            <button id="tv-close-btn" onclick="document.getElementById('tv-view-modal').classList.add('hidden')"
                     class="absolute top-3 right-6 w-9 h-9 flex items-center justify-center rounded-full bg-slate-200 hover:bg-red-100 hover:text-red-600 text-slate-500 font-black text-lg transition-colors">✕</button>
+            <button id="tv-logout-btn" onclick="window.logout()"
+                    class="absolute top-3 right-6 px-4 py-2 flex items-center justify-center rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-xs shadow-md transition-all hidden uppercase tracking-wider">Cerrar Sesión</button>
         </div>
 
         <!-- ── BOTTOM PANEL (scrolls with snap-to-page) ───────────────────── -->
@@ -2079,7 +2081,7 @@
     </div>
     
     <script src="manifest-editor.js?v=25"></script>
-    <script src="app.js?v=39"></script>
+    <script src="app.js?v=40"></script>
 
 
 
