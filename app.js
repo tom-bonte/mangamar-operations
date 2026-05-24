@@ -48,10 +48,14 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
                 // If search input is focused, allow Alt+Arrow or Ctrl+Arrow to navigate days instantly
                 if ((e.ctrlKey || e.altKey) && e.key === 'ArrowLeft') {
                     e.preventDefault();
+                    window.wasSearchFocusedDuringNavigation = true;
                     changeDate(-1);
+                    window.wasSearchFocusedDuringNavigation = false;
                 } else if ((e.ctrlKey || e.altKey) && e.key === 'ArrowRight') {
                     e.preventDefault();
+                    window.wasSearchFocusedDuringNavigation = true;
                     changeDate(1);
+                    window.wasSearchFocusedDuringNavigation = false;
                 }
             } else if (!isEditing) {
                 if (e.key === 'ArrowLeft') {
@@ -172,17 +176,25 @@ function updateDateHeaders() {
 
 // --- CALENDAR LOGIC ---
 function changeDate(offset) {
+    const searchInput = document.getElementById('daily-search-input');
+    const wasSearchFocused = (searchInput && document.activeElement === searchInput) || window.wasSearchFocusedDuringNavigation;
+
     currentDate.setDate(currentDate.getDate() + offset);
     miniCalendarDate = new Date(currentDate); 
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
-    if (window.activeDailySearchQuery) {
+
+    if (wasSearchFocused && window.activeDailySearchQuery) {
         setTimeout(window.refocusDailySearch, 50);
     }
 }
 function goToToday() {
+    const searchInput = document.getElementById('daily-search-input');
+    const wasSearchFocused = (searchInput && document.activeElement === searchInput);
+
     currentDate = new Date(); miniCalendarDate = new Date(currentDate); 
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
-    if (window.activeDailySearchQuery) {
+
+    if (wasSearchFocused && window.activeDailySearchQuery) {
         setTimeout(window.refocusDailySearch, 50);
     }
 }
@@ -544,39 +556,40 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
                 <span>${trip.timeVolviendo || '--:--'}</span>
             </div>
-        </div>
     </div>
     `;
 
     col.innerHTML = `
-        ${isConflict ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
-        <div class="h-1.5 w-full shrink-0 ${topBarColor}"></div> 
-        <div class="p-2.5 flex-1 flex flex-col justify-between overflow-hidden gap-1">
-            <div class="flex items-center gap-1.5 overflow-hidden min-w-0 shrink-0 w-full">
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${siteColorConfig} truncate leading-tight shrink-0 max-w-[70%]">${trip.site || 'Sin Destino'}</span>
-                ${hasVisorTag ? `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>` : ''}
-            </div>
+        <div class="h-full w-full flex flex-col overflow-hidden rounded-2xl">
+            ${isConflict ? `<div class="bg-red-50 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
+            <div class="h-1.5 w-full shrink-0 ${topBarColor}"></div> 
+            <div class="p-2.5 flex-1 flex flex-col justify-between overflow-hidden gap-1">
+                <div class="flex items-center gap-1.5 overflow-hidden min-w-0 shrink-0 w-full">
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${siteColorConfig} truncate leading-tight shrink-0 max-w-[70%]">${trip.site || 'Sin Destino'}</span>
+                    ${hasVisorTag ? `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>` : ''}
+                </div>
 
-            <div class="flex-1 flex flex-col justify-center min-w-0 w-full px-0.5">
-                ${isShore ? '' : `<div class="text-[9px] truncate">
-                    <span class="font-bold text-slate-400">Cap:</span> <span class="font-bold text-slate-700">${capName}</span>
-                </div>`}
-                <div class="text-[9px] truncate">
-                    <span class="font-bold text-slate-400">Guía:</span> <span class="font-bold text-slate-700">${guideNames}</span>
+                <div class="flex-1 flex flex-col justify-center min-w-0 w-full px-0.5">
+                    ${isShore ? '' : `<div class="text-[9px] truncate">
+                        <span class="font-bold text-slate-400">Cap:</span> <span class="font-bold text-slate-700">${capName}</span>
+                    </div>`}
+                    <div class="text-[9px] truncate">
+                        <span class="font-bold text-slate-400">Guía:</span> <span class="font-bold text-slate-700">${guideNames}</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="mt-auto flex flex-col gap-1 w-full shrink-0">
-                <div class="flex justify-between items-end px-0.5">
-                    <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum} (total: ${window.calculateTotalPeopleOnBoat(trip)})</span>
+                <div class="mt-auto flex flex-col gap-1 w-full shrink-0">
+                    <div class="flex justify-between items-end px-0.5">
+                        <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum} (total: ${window.calculateTotalPeopleOnBoat(trip)})</span>
+                    </div>
+                    ${!isShore ? `
+                    <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                    </div>
+                    ` : `
+                    <div class="w-full h-1.5"></div>
+                    `}
                 </div>
-                ${!isShore ? `
-                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${percent}%"></div>
-                </div>
-                ` : `
-                <div class="w-full h-1.5"></div>
-                `}
             </div>
         </div>
         
@@ -871,6 +884,7 @@ window.executeDailySearch = function(query) {
     const input = document.getElementById('daily-search-input');
     const clearBtn = document.getElementById('daily-search-clear');
     const countBadge = document.getElementById('daily-search-count');
+    const popup = document.getElementById('daily-search-popup');
     
     if (input && input.value !== query) {
         input.value = query;
@@ -882,10 +896,11 @@ window.executeDailySearch = function(query) {
     if (!normQuery) {
         if (clearBtn) clearBtn.classList.add('hidden');
         if (countBadge) countBadge.classList.add('hidden');
+        if (popup) popup.classList.add('hidden');
         
         // Remove search highlights from all boat cards
         document.querySelectorAll('[data-trip-id]').forEach(card => {
-            card.classList.remove('ring-4', 'ring-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', 'border-emerald-500');
+            card.classList.remove('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]');
             if (!card.classList.contains('border-red-500')) {
                 card.classList.add('border-slate-200');
             }
@@ -921,14 +936,14 @@ window.executeDailySearch = function(query) {
         }
     });
     
-    // Highlight matching cards with vibrant green ring/glow
+    // Highlight matching cards with solid 3px emerald border and a soft glow
     document.querySelectorAll('[data-trip-id]').forEach(card => {
         const tripId = card.getAttribute('data-trip-id');
         if (matchingTripIds.has(tripId)) {
-            card.classList.add('ring-4', 'ring-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', 'border-emerald-500');
+            card.classList.add('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]');
             card.classList.remove('border-slate-200', 'hover:border-blue-300');
         } else {
-            card.classList.remove('ring-4', 'ring-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', 'border-emerald-500');
+            card.classList.remove('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]');
             if (!card.classList.contains('border-red-500')) {
                 card.classList.add('border-slate-200');
             }
@@ -939,6 +954,55 @@ window.executeDailySearch = function(query) {
     if (countBadge) {
         countBadge.innerText = `${matchCount} ${matchCount === 1 ? 'coincidencia' : 'coincidencias'}`;
         countBadge.classList.remove('hidden');
+    }
+    
+    // Render dropdown list of search results
+    if (popup) {
+        if (matchCount > 0) {
+            let resultsHtml = '';
+            todaysTrips.forEach(trip => {
+                const guests = trip.guests || [];
+                guests.forEach(g => {
+                    const nameMatch = window.normalizeSearchString(g.nombre).includes(normQuery);
+                    const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+                    
+                    if (nameMatch || dniMatch) {
+                        const boatName = trip.assignedBoat === 'ares' ? 'Ares' : (trip.assignedBoat === 'kaiser' ? 'Kaiser' : 'Shore');
+                        const siteName = trip.site || 'Sin Destino';
+                        const timeVal = trip.time || '';
+                        
+                        // Highlight matching characters in results popover list
+                        let highlightedName = g.nombre;
+                        const searchWords = query.split(/\s+/).filter(w => w.length >= 2);
+                        if (searchWords.length > 0) {
+                            searchWords.forEach(word => {
+                                highlightedName = highlightedName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-500/20 text-emerald-400 font-bold px-1 py-0.5 rounded">${match}</mark>`);
+                            });
+                        } else {
+                            highlightedName = highlightedName.replace(new RegExp(query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-500/20 text-emerald-400 font-bold px-1 py-0.5 rounded">${match}</mark>`);
+                        }
+                        
+                        resultsHtml += `
+                        <div onmousedown="window.highlightAndScrollToCard('${trip.id}')" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors border border-transparent hover:border-slate-700 group/row">
+                            <div class="flex-1 min-w-0 pr-3 text-left">
+                                <div class="text-xs font-black text-white truncate">${highlightedName}</div>
+                                <div class="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">${g.dni || 'Sin DNI'}</div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="text-[10px] font-black text-orange-400 group-hover/row:text-orange-300 transition-colors uppercase">${boatName} • ${timeVal}</div>
+                                <div class="text-[9px] font-bold text-slate-400 truncate max-w-[120px] mt-0.5">${siteName}</div>
+                            </div>
+                        </div>
+                        `;
+                    }
+                });
+            });
+            popup.innerHTML = resultsHtml;
+            popup.classList.remove('hidden');
+        } else {
+            popup.innerHTML = `<div class="text-xs font-bold text-slate-400 italic text-center p-3">No se encontraron buceadores</div>`;
+            popup.classList.remove('hidden');
+        }
     }
 };
 
@@ -959,5 +1023,31 @@ window.refocusDailySearch = function() {
         input.focus();
         const len = input.value.length;
         input.setSelectionRange(len, len);
+    }
+};
+
+window.showDailySearchPopup = function() {
+    const popup = document.getElementById('daily-search-popup');
+    if (popup && window.activeDailySearchQuery) {
+        popup.classList.remove('hidden');
+    }
+};
+
+window.hideDailySearchPopup = function() {
+    const popup = document.getElementById('daily-search-popup');
+    if (popup) {
+        popup.classList.add('hidden');
+    }
+};
+
+window.highlightAndScrollToCard = function(tripId) {
+    const card = document.querySelector(`[data-trip-id="${tripId}"]`);
+    if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Pulse glow animation to attract attention
+        card.classList.add('ring-4', 'ring-emerald-400', 'animate-pulse');
+        setTimeout(() => {
+            card.classList.remove('ring-4', 'ring-emerald-400', 'animate-pulse');
+        }, 1500);
     }
 };
