@@ -283,3 +283,260 @@ body.is-dragging .tooltip-content {
 .h-\[130px\].relative:hover {
     z-index: 50 !important;
 }
+
+/* ==========================================
+   PREMIUM MOBILE RESPONSIVE OVERRIDES
+   ========================================== */
+@media (max-width: 768px) {
+    /* 1. Viewport & Layout Adjustments */
+    body {
+        padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
+        overflow: hidden !important;
+    }
+    
+    /* Prevent iOS auto-zoom on input tap */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+    
+    /* 2. Daily View Sidebar (Mini-Calendar) Removal */
+    #view-daily aside {
+        display: none !important;
+    }
+    
+    /* Expand daily main content to full screen */
+    #view-daily > div.flex-1 {
+        padding: 1rem !important;
+        overflow-y: auto !important;
+    }
+    
+    #view-daily .max-w-6xl {
+        padding-bottom: 4rem !important;
+    }
+
+    /* 3. Dynamic Daily Grid Column Selector */
+    #daily-grid-container {
+        display: grid !important;
+        grid-template-cols: 55px 1fr !important;
+        min-width: 0 !important;
+        gap: 0.75rem !important;
+    }
+    
+    /* Time labels column always visible */
+    #daily-grid-container > div:nth-child(1) {
+        display: flex !important;
+    }
+
+    /* Hide Ares, Kaiser, Shore columns by default */
+    #daily-grid-container > div:nth-child(2),
+    #daily-grid-container > div:nth-child(3),
+    #daily-grid-container > div:nth-child(4) {
+        display: none !important;
+    }
+
+    /* Show selected column based on grid parent class */
+    #daily-grid-container.show-ares > div:nth-child(2) {
+        display: flex !important;
+    }
+    #daily-grid-container.show-kaiser > div:nth-child(3) {
+        display: flex !important;
+    }
+    #daily-grid-container.show-shore > div:nth-child(4) {
+        display: flex !important;
+    }
+
+    /* 4. Slot & Card Auto-Expansion */
+    #daily-grid-container .h-\[130px\] {
+        height: auto !important;
+        min-height: 100px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+    
+    /* Let the time labels column maintain spacing */
+    #daily-grid-container > div:nth-child(1) > div {
+        height: auto !important;
+        min-height: 100px !important;
+        padding-top: 1rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Override card height constraints */
+    #daily-grid-container div[data-trip-id] {
+        height: auto !important;
+        min-height: 90px !important;
+        width: 100% !important;
+        padding-bottom: 0.75rem !important;
+        cursor: pointer !important;
+        overflow: visible !important;
+    }
+    
+    #daily-grid-container div[data-trip-id] > div:first-child {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    #daily-grid-container div[data-trip-id] .flex-1.flex.flex-col {
+        flex: none !important;
+        height: auto !important;
+    }
+
+    /* Make tooltip preview content display inline below card */
+    #daily-grid-container div[data-trip-id] .tooltip-content {
+        position: static !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        background-color: #1e293b !important; /* Dark Slate to contrast beautiful text */
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+        padding: 0.75rem !important;
+        margin-top: 0.5rem !important;
+        border-radius: 12px !important;
+        pointer-events: auto !important;
+    }
+    
+    #daily-grid-container div[data-trip-id] .tooltip-content * {
+        color: #f8fafc !important; /* Premium off-white read-only text */
+    }
+
+    #daily-grid-container div[data-trip-id] .tooltip-content button {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border-radius: 6px !important;
+        padding: 2px 8px !important;
+        font-weight: 700 !important;
+    }
+
+    /* 5. Mobile Staff Empty Slots Placeholder */
+    .slot-staff-placeholder {
+        display: none;
+    }
+    body.staff-logged-in .slot-staff-placeholder {
+        display: flex !important;
+    }
+
+    /* 6. Monthly View Filter Sidebar -> Horizontal Pills Scroll */
+    #view-monthly aside {
+        max-height: none !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        background-color: #fff !important;
+        padding: 0.5rem 1rem !important;
+        width: 100% !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+    }
+    #view-monthly aside .p-6 {
+        padding: 0 !important;
+    }
+    #view-monthly aside h3 {
+        display: none !important;
+    }
+    #view-monthly aside .flex.gap-2.mb-4 {
+        margin-bottom: 0.5rem !important;
+        gap: 0.5rem !important;
+    }
+    #view-monthly #monthly-filters-list {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        gap: 0.5rem !important;
+        padding: 0.25rem 0 !important;
+        scrollbar-width: none !important;
+    }
+    #view-monthly #monthly-filters-list::-webkit-scrollbar {
+        display: none !important;
+    }
+    #view-monthly #monthly-filters-list > label {
+        margin-bottom: 0 !important;
+        flex-shrink: 0 !important;
+        padding: 0.35rem 0.75rem !important;
+        background-color: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 9999px !important;
+        font-size: 0.75rem !important;
+    }
+
+    /* 7. Airbnb-style Monthly Calendar Grid Redesign */
+    #monthly-grid {
+        grid-gap: 4px !important;
+        gap: 4px !important;
+    }
+    #monthly-grid > div {
+        min-height: 55px !important;
+        padding: 4px 2px !important;
+        border-radius: 8px !important;
+        font-size: 10px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+    }
+    
+    /* Turn card layout into small dots list */
+    #monthly-grid > div .space-y-1 {
+        margin-top: 4px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 2px !important;
+        justify-content: center !important;
+        width: 100% !important;
+    }
+    #monthly-grid > div .space-y-1 > div {
+        width: 5px !important;
+        height: 5px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        font-size: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+        text-indent: -9999px !important;
+        display: inline-block !important;
+        flex-shrink: 0 !important;
+    }
+    #monthly-grid > div > span {
+        font-size: 11px !important;
+        font-weight: 900 !important;
+        display: block !important;
+        text-align: center !important;
+    }
+
+    /* 8. Staff View Responsive Tab Adjustments */
+    #view-staff {
+        padding: 1rem !important;
+    }
+    #view-staff .max-w-4xl {
+        padding-bottom: 4rem !important;
+    }
+    #view-staff .grid.md\:grid-cols-2 {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+    }
+    
+    /* Hide lists by default */
+    #view-staff .grid.md\:grid-cols-2 > div:nth-child(1),
+    #view-staff .grid.md\:grid-cols-2 > div:nth-child(2) {
+        display: none !important;
+    }
+    
+    /* Display list based on selector state */
+    #view-staff.show-capitanes .grid.md\:grid-cols-2 > div:nth-child(1) {
+        display: flex !important;
+        height: calc(100vh - 200px) !important;
+        min-height: 0 !important;
+    }
+    #view-staff.show-guias .grid.md\:grid-cols-2 > div:nth-child(2) {
+        display: flex !important;
+        height: calc(100vh - 200px) !important;
+        min-height: 0 !important;
+    }
+
+    /* 9. Mobile Tools Animation Classes */
+    #mobile-tools-modal.active #mobile-tools-inner {
+        transform: translateY(0) !important;
+        opacity: 1 !important;
+    }
+}

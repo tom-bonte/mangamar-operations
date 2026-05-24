@@ -148,6 +148,32 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMiniCalendar();
     startFirestoreListeners(); 
     loadPrices(); // Initialize Dynamic Pricing Engine
+    
+    // Initialize Mobile Staff Tab View Default State
+    if (typeof window.selectMobileStaff === 'function') {
+        window.selectMobileStaff('capitanes');
+    }
+
+    // Initialize Mobile Date Picker (Flatpickr)
+    const mInput = document.getElementById('mobile-date-picker-input');
+    if(mInput) {
+        const fp = flatpickr(mInput, {
+            dateFormat: "Y-m-d",
+            defaultDate: currentDate,
+            onChange: function(selectedDates, dateStr, instance) {
+                if(selectedDates.length > 0) {
+                    currentDate = selectedDates[0];
+                    miniCalendarDate = new Date(currentDate);
+                    if (typeof window.syncActiveMonthListeners === 'function') window.syncActiveMonthListeners();
+                    updateDateHeaders(); renderDailyGrid(); renderMiniCalendar();
+                }
+            }
+        });
+        const trigger = document.getElementById('mobile-calendar-trigger');
+        if(trigger) {
+            trigger.addEventListener('click', () => fp.open());
+        }
+    }
 });
 
 function switchView(view) {
@@ -166,15 +192,39 @@ function switchView(view) {
     if(activeEl) activeEl.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
     if(activeEl) activeEl.classList.add('z-10');
     
+    // Desktop Nav Items Highlight
     ['daily', 'monthly', 'staff'].forEach(tab => {
         const btn = document.getElementById(`btn-view-${tab}`);
-        if(!btn) return;
-        
-        // Active tab gets the solid Mangamar Orange gradient. Inactive tab gets subtle grey.
-        if(tab === view) {
-            btn.className = 'px-6 py-2 rounded-lg text-sm font-black transition-all bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20';
-        } else {
-            btn.className = 'px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50';
+        if(btn) {
+            if(tab === view) {
+                btn.className = 'px-6 py-2 rounded-lg text-sm font-black transition-all bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20';
+            } else {
+                btn.className = 'px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50';
+            }
+        }
+    });
+
+    // Mobile Bottom Nav Items Highlight
+    ['daily', 'monthly', 'staff'].forEach(tab => {
+        const mBtn = document.getElementById(`m-nav-${tab}`);
+        if(mBtn) {
+            if(tab === view) {
+                mBtn.classList.remove('text-slate-400');
+                mBtn.classList.add('text-orange-500');
+                const span = mBtn.querySelector('span');
+                if (span) {
+                    span.classList.remove('font-bold');
+                    span.classList.add('font-black');
+                }
+            } else {
+                mBtn.classList.remove('text-orange-500');
+                mBtn.classList.add('text-slate-400');
+                const span = mBtn.querySelector('span');
+                if (span) {
+                    span.classList.remove('font-black');
+                    span.classList.add('font-bold');
+                }
+            }
         }
     });
 }
@@ -443,6 +493,11 @@ function renderDailyGrid() {
     // Automatically re-run live search on render if a query is active
     if (window.activeDailySearchQuery) {
         window.executeDailySearch(window.activeDailySearchQuery);
+    }
+
+    // Apply selected mobile boat grid visibility
+    if (typeof window.selectMobileBoat === 'function') {
+        window.selectMobileBoat(window.activeMobileBoat || 'ares');
     }
 }
 
@@ -913,6 +968,23 @@ window.updateAuthButtonUI = function() {
             btnIn.classList.add('hidden');
         }
     }
+
+    // Mobile auth buttons support
+    const mBtnOut = document.getElementById('m-auth-btn-logged-out');
+    const mBtnIn = document.getElementById('m-auth-btn-logged-in');
+    const mRoleLabel = document.getElementById('m-auth-role-label');
+    if(mBtnOut && mBtnIn) {
+        if(window.isLoggedIn) {
+            mBtnOut.classList.add('hidden');
+            mBtnIn.classList.remove('hidden');
+            if(mRoleLabel) {
+                mRoleLabel.innerText = window.isStaffLoggedIn ? 'Staff ▾' : 'Mangamar ▾';
+            }
+        } else {
+            mBtnOut.classList.remove('hidden');
+            mBtnIn.classList.add('hidden');
+        }
+    }
 };
 
 window.toggleAuthDropdown = function() {
@@ -1272,6 +1344,73 @@ window.openSearchManageBoatModal = function(tripId) {
         }
         if (typeof openManageBoatModal === 'function') {
             openManageBoatModal(trip, trip.assignedBoat || 'ares', trip.time, trip.date);
+        }
+    }
+};
+
+// ==========================================
+// PREMIUM MOBILE HELPER FUNCTIONS
+// ==========================================
+window.activeMobileBoat = 'ares';
+window.selectMobileBoat = function(boat) {
+    window.activeMobileBoat = boat;
+    const grid = document.getElementById('daily-grid-container');
+    if (grid) {
+        grid.classList.remove('show-ares', 'show-kaiser', 'show-shore');
+        grid.classList.add(`show-${boat}`);
+    }
+    
+    // Style active tab
+    ['ares', 'kaiser', 'shore'].forEach(b => {
+        const btn = document.getElementById(`m-btn-${b}`);
+        if (!btn) return;
+        if (b === boat) {
+            btn.className = 'flex-1 py-2 text-xs font-black rounded-lg transition-all text-center bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm';
+        } else {
+            btn.className = 'flex-1 py-2 text-xs font-bold transition-all text-center text-slate-500 hover:text-slate-800';
+        }
+    });
+};
+
+window.activeMobileStaff = 'capitanes';
+window.selectMobileStaff = function(tab) {
+    window.activeMobileStaff = tab;
+    const view = document.getElementById('view-staff');
+    if (view) {
+        view.classList.remove('show-capitanes', 'show-guias');
+        view.classList.add(`show-${tab}`);
+    }
+    
+    // Style active tab
+    ['capitanes', 'guias'].forEach(t => {
+        const btn = document.getElementById(`m-staff-btn-${t}`);
+        if (!btn) return;
+        if (t === tab) {
+            btn.className = 'flex-1 py-2 text-xs font-black rounded-lg transition-all text-center bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm';
+        } else {
+            btn.className = 'flex-1 py-2 text-xs font-bold transition-all text-center text-slate-500 hover:text-slate-800';
+        }
+    });
+};
+
+window.toggleMobileToolsModal = function() {
+    const modal = document.getElementById('mobile-tools-modal');
+    const inner = document.getElementById('mobile-tools-inner');
+    if (modal && inner) {
+        if (modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            // Force reflow
+            modal.offsetHeight;
+            modal.classList.add('active');
+            inner.classList.add('translate-y-0');
+            inner.classList.remove('translate-y-full');
+        } else {
+            modal.classList.remove('active');
+            inner.classList.remove('translate-y-0');
+            inner.classList.add('translate-y-full');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300); // Wait for transition
         }
     }
 };
