@@ -151,6 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function switchView(view) {
+    // Block staff users from accessing staff management dashboard
+    if (view === 'staff' && window.isStaffLoggedIn) {
+        showToast("🔒 Acceso denegado: El Personal no tiene permiso para ver la gestión de staff.", "error");
+        return;
+    }
     activeViewMode = view;
     ['view-daily', 'view-monthly', 'view-staff'].forEach(id => {
         const el = document.getElementById(id);
