@@ -16,6 +16,7 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
         applyZoom(currentZoom);
     }
     window.addEventListener('keydown', function(e) {
+
         const isZoomIn = (e.key === '=' || e.key === '+');
         const isZoomOut = (e.key === '-');
         const isZoomReset = (e.key === '0');
@@ -24,6 +25,54 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
             if (isZoomIn) applyZoom(currentZoom + 0.1);
             else if (isZoomOut) applyZoom(currentZoom - 0.1);
             else if (isZoomReset) applyZoom(1.0);
+            return;
+        }
+
+        // 3. Cmd+F or Ctrl+F to focus and open our premium Daily Search Box
+        const isF = (e.key === 'f' || e.key === 'F');
+        if ((e.metaKey || e.ctrlKey) && isF) {
+            e.preventDefault();
+            const input = document.getElementById('daily-search-input');
+            if (input) {
+                input.focus();
+                window.expandDailySearch();
+            }
+            return;
+        }
+
+        // 2. Keyboard date navigation (daily view ArrowLeft / ArrowRight)
+        const activeEl = document.activeElement;
+        const tag = activeEl ? activeEl.tagName : '';
+        const isEditing = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
+        
+        // Don't navigate if any overlay modals are open
+        const anyModalOpen = 
+            (document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) ||
+            (document.getElementById('crm-modal') && !document.getElementById('crm-modal').classList.contains('hidden')) ||
+            (document.getElementById('bulk-add-modal') && !document.getElementById('bulk-add-modal').classList.contains('hidden')) ||
+            (document.getElementById('guest-note-modal') && !document.getElementById('guest-note-modal').classList.contains('hidden'));
+            
+        if (!anyModalOpen) {
+            const isSearchFocused = activeEl && activeEl.id === 'daily-search-input';
+            
+            if (isSearchFocused) {
+                // If search input is focused, allow Alt+Arrow or Ctrl+Arrow to navigate days instantly
+                if ((e.ctrlKey || e.altKey) && e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    changeDate(-1);
+                } else if ((e.ctrlKey || e.altKey) && e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    changeDate(1);
+                }
+            } else if (!isEditing) {
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    changeDate(-1);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    changeDate(1);
+                }
+            }
         }
     }, { passive: false });
 })();
@@ -376,10 +425,16 @@ function renderDailyGrid() {
     container.appendChild(aresCol);
     container.appendChild(kaiserCol);
     container.appendChild(shoreCol);
+
+    // Automatically re-run live search on render if a query is active
+    if (window.activeDailySearchQuery) {
+        window.executeDailySearch(window.activeDailySearchQuery);
+    }
 }
 
 function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflict = false) {
     const col = document.createElement('div');
+    col.setAttribute('data-trip-id', trip.id);
     const guests = trip.guests || [];
     const guestCount = guests.length;
     const siteColorConfig = SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-300';
@@ -395,11 +450,40 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             const gasColorClass = isNitrox ? 'text-green-400' : 'text-blue-300';
             const gasShort = (g.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
             const arrivedDot = g.arrived ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mr-1.5" title="Llegado"></span>` : '';
+            
+            let displayName = g.nombre;
+            if (window.activeDailySearchQuery) {
+                const normQuery = window.normalizeSearchString(window.activeDailySearchQuery);
+                if (normQuery) {
+                    const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+                    const nameNorm = window.normalizeSearchString(g.nombre);
+                    
+                    if (nameNorm.includes(normQuery)) {
+                        const searchWords = window.activeDailySearchQuery.split(/\s+/).filter(w => w.length >= 2);
+                        if (searchWords.length > 0) {
+                            searchWords.forEach(word => {
+                                const wordNorm = window.normalizeSearchString(word);
+                                if (wordNorm) {
+                                    displayName = displayName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-400 text-slate-950 font-black rounded-sm px-1 shadow-sm">${match}</mark>`);
+                                }
+                            });
+                        } else {
+                            displayName = displayName.replace(new RegExp(window.activeDailySearchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-400 text-slate-950 font-black rounded-sm px-1 shadow-sm">${match}</mark>`);
+                        }
+                    } else if (dniMatch) {
+                        displayName = `<mark class="bg-emerald-400/40 text-white font-black rounded-sm px-1 shadow-xs">${g.nombre}</mark>`;
+                    }
+                }
+            }
+
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
-                        <button onclick="if(!window.isLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
-                                class="truncate pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer flex-1 text-left auth-lock flex items-center">
-                            ${arrivedDot}${g.nombre}
-                        </button>
+                        <div class="flex items-center min-w-0 flex-1">
+                            ${arrivedDot}
+                            <button onclick="if(!window.isLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
+                                    class="truncate pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock">
+                                ${displayName}
+                            </button>
+                        </div>
                         <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2">${gasShort}</span>
                     </div>`;
         }).join('');
@@ -473,34 +557,36 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     `;
 
     col.innerHTML = `
-        ${isConflict ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
-        <div class="h-1.5 w-full shrink-0 ${topBarColor}"></div> 
-        <div class="p-2.5 flex-1 flex flex-col justify-between overflow-hidden gap-1">
-            <div class="flex items-center gap-1.5 overflow-hidden min-w-0 shrink-0 w-full">
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${siteColorConfig} truncate leading-tight shrink-0 max-w-[70%]">${trip.site || 'Sin Destino'}</span>
-                ${hasVisorTag ? `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>` : ''}
-            </div>
+        <div class="w-full h-full flex flex-col overflow-hidden rounded-[15px]">
+            ${isConflict ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
+            <div class="h-1.5 w-full shrink-0 ${topBarColor}"></div> 
+            <div class="p-2.5 flex-1 flex flex-col justify-between overflow-hidden gap-1">
+                <div class="flex items-center gap-1.5 overflow-hidden min-w-0 shrink-0 w-full">
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${siteColorConfig} truncate leading-tight shrink-0 max-w-[70%]">${trip.site || 'Sin Destino'}</span>
+                    ${hasVisorTag ? `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>` : ''}
+                </div>
 
-            <div class="flex-1 flex flex-col justify-center min-w-0 w-full px-0.5">
-                ${isShore ? '' : `<div class="text-[9px] truncate">
-                    <span class="font-bold text-slate-400">Cap:</span> <span class="font-bold text-slate-700">${capName}</span>
-                </div>`}
-                <div class="text-[9px] truncate">
-                    <span class="font-bold text-slate-400">Guía:</span> <span class="font-bold text-slate-700">${guideNames}</span>
+                <div class="flex-1 flex flex-col justify-center min-w-0 w-full px-0.5">
+                    ${isShore ? '' : `<div class="text-[9px] truncate">
+                        <span class="font-bold text-slate-400">Cap:</span> <span class="font-bold text-slate-700">${capName}</span>
+                    </div>`}
+                    <div class="text-[9px] truncate">
+                        <span class="font-bold text-slate-400">Guía:</span> <span class="font-bold text-slate-700">${guideNames}</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="mt-auto flex flex-col gap-1 w-full shrink-0">
-                <div class="flex justify-between items-end px-0.5">
-                    <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum} (total: ${window.calculateTotalPeopleOnBoat(trip)})</span>
+                <div class="mt-auto flex flex-col gap-1 w-full shrink-0">
+                    <div class="flex justify-between items-end px-0.5">
+                        <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum} (total: ${window.calculateTotalPeopleOnBoat(trip)})</span>
+                    </div>
+                    ${!isShore ? `
+                    <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                    </div>
+                    ` : `
+                    <div class="w-full h-1.5"></div>
+                    `}
                 </div>
-                ${!isShore ? `
-                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${percent}%"></div>
-                </div>
-                ` : `
-                <div class="w-full h-1.5"></div>
-                `}
             </div>
         </div>
         
@@ -783,5 +869,262 @@ window.handleSettingsRadioTimesToggle = function(checked) {
         }, { merge: true }).catch(err => {
             console.error("Error synchronizing settings to Firestore:", err);
         });
+    }
+};
+
+// ==========================================
+// 15. DAILY VIEW GUEST LIVE SEARCH
+// ==========================================
+window.activeDailySearchQuery = '';
+
+window.expandDailySearch = function() {
+    const container = document.getElementById('daily-search-container');
+    const input = document.getElementById('daily-search-input');
+    if (container && input) {
+        container.classList.remove('w-10', 'justify-center');
+        container.classList.add('w-64', 'px-3', 'ring-2', 'ring-blue-500', 'border-blue-500');
+        input.classList.remove('w-0', 'opacity-0');
+        input.classList.add('w-full', 'opacity-100', 'ml-2');
+        
+        window.showDailySearchPopup();
+    }
+};
+
+window.collapseDailySearch = function() {
+    if (window._searchEnterPressed) return;
+    
+    const container = document.getElementById('daily-search-container');
+    const input = document.getElementById('daily-search-input');
+    
+    // Keep open if there's an active query so the clear button is clickable
+    if (window.activeDailySearchQuery && window.activeDailySearchQuery.trim().length >= 3) {
+        return;
+    }
+    
+    if (container && input) {
+        container.classList.remove('w-64', 'px-3', 'ring-2', 'ring-blue-500', 'border-blue-500');
+        container.classList.add('w-10', 'justify-center');
+        input.classList.remove('w-full', 'opacity-100', 'ml-2');
+        input.classList.add('w-0', 'opacity-0');
+        
+        window.hideDailySearchPopup();
+    }
+};
+
+window.executeDailySearch = function(query) {
+    const input = document.getElementById('daily-search-input');
+    const clearBtn = document.getElementById('daily-search-clear');
+    const countBadge = document.getElementById('daily-search-count');
+    const popup = document.getElementById('daily-search-popup');
+    
+    if (input && input.value !== query) {
+        input.value = query;
+    }
+    
+    window.activeDailySearchQuery = query || '';
+    const normQuery = window.normalizeSearchString(query);
+    
+    // Helper to clear all card highlights safely without causing layout shifting
+    const clearAllHighlights = () => {
+        document.querySelectorAll('[data-trip-id]').forEach(card => {
+            card.classList.remove('ring-[3px]', 'ring-emerald-500', 'ring-offset-0', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', 'border-emerald-500', 'z-30');
+            if (!card.classList.contains('border-red-500')) {
+                card.classList.add('border-slate-200');
+            }
+        });
+    };
+    
+    // 3-character minimum — reset and exit if too short
+    if (!normQuery || query.trim().length < 3) {
+        if (clearBtn) clearBtn.classList.add('hidden');
+        if (countBadge) countBadge.classList.add('hidden');
+        if (popup) popup.style.display = 'none';
+        clearAllHighlights();
+        return;
+    }
+    
+    if (clearBtn) clearBtn.classList.remove('hidden');
+    
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentDate.getDate()).padStart(2, '0');
+    const targetDateStr = `${year}-${month}-${day}`;
+    
+    let matchCount = 0;
+    const matchingTripIds = new Set();
+    const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
+    
+    todaysTrips.forEach(trip => {
+        const guests = trip.guests || [];
+        const matchesThisTrip = guests.some(g => {
+            const nameMatch = window.normalizeSearchString(g.nombre).includes(normQuery);
+            const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+            return nameMatch || dniMatch;
+        });
+        if (matchesThisTrip) {
+            matchingTripIds.add(trip.id);
+            guests.forEach(g => {
+                const nameMatch = window.normalizeSearchString(g.nombre).includes(normQuery);
+                const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+                if (nameMatch || dniMatch) matchCount++;
+            });
+        }
+    });
+    
+    // Highlight matching cards with an elegant box-shadow ring (never overlaps colored top borders!)
+    document.querySelectorAll('[data-trip-id]').forEach(card => {
+        const tripId = card.getAttribute('data-trip-id');
+        if (matchingTripIds.has(tripId)) {
+            card.classList.add('ring-[3px]', 'ring-emerald-500', 'ring-offset-0', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', 'border-emerald-500', 'z-30');
+            card.classList.remove('border-slate-200', 'hover:border-blue-300');
+        } else {
+            card.classList.remove('ring-[3px]', 'ring-emerald-500', 'ring-offset-0', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', 'border-emerald-500', 'z-30');
+            if (!card.classList.contains('border-red-500')) {
+                card.classList.add('border-slate-200');
+            }
+        }
+    });
+
+    
+    // Update match count badge
+    if (countBadge) {
+        countBadge.innerText = `${matchCount} ${matchCount === 1 ? 'coincidencia' : 'coincidencias'}`;
+        countBadge.classList.remove('hidden');
+    }
+
+    // Render dropdown list of search results
+    if (popup) {
+        if (matchCount > 0) {
+            let resultsHtml = '';
+            todaysTrips.forEach(trip => {
+                const guests = trip.guests || [];
+                guests.forEach(g => {
+                    const nameMatch = window.normalizeSearchString(g.nombre).includes(normQuery);
+                    const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+
+                    if (nameMatch || dniMatch) {
+                        const boatName = trip.assignedBoat === 'ares' ? 'Ares' : (trip.assignedBoat === 'kaiser' ? 'Kaiser' : 'Shore');
+                        const siteName = trip.site || 'Sin Destino';
+                        const timeVal = trip.time || '';
+
+                        let highlightedName = g.nombre;
+                        const searchWords = query.split(/\s+/).filter(w => w.length >= 2);
+                        if (searchWords.length > 0) {
+                            searchWords.forEach(word => {
+                                highlightedName = highlightedName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark style="background:rgba(16,185,129,0.2);color:#34d399;font-weight:700;padding:1px 4px;border-radius:3px">${match}</mark>`);
+                            });
+                        } else {
+                            highlightedName = highlightedName.replace(new RegExp(query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark style="background:rgba(16,185,129,0.2);color:#34d399;font-weight:700;padding:1px 4px;border-radius:3px">${match}</mark>`);
+                        }
+
+                        resultsHtml += `
+                        <div onclick="window.openSearchManageBoatModal('${trip.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:4px" onmouseover="this.style.background='#1e293b';this.style.borderColor='#334155'; window.hoverSearchCard('${trip.id}')" onmouseout="this.style.background='';this.style.borderColor='transparent'; window.unhoverSearchCard('${trip.id}')">
+                            <div style="flex:1;min-width:0;padding-right:12px;text-align:left">
+                                <div style="font-size:12px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${highlightedName}</div>
+                                <div style="font-size:9px;font-weight:700;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:0.05em">${g.dni || 'Sin DNI'}</div>
+                            </div>
+                            <div style="text-align:right;flex-shrink:0">
+                                <div style="font-size:10px;font-weight:900;color:#fb923c;text-transform:uppercase">${boatName} &bull; ${timeVal}</div>
+                                <div style="font-size:9px;font-weight:700;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;margin-top:2px">${siteName}</div>
+                            </div>
+                        </div>
+                        `;
+                    }
+                });
+            });
+            popup.innerHTML = resultsHtml;
+            popup.style.display = 'block';
+        } else {
+            popup.innerHTML = `<div style="color:#94a3b8;font-size:11px;font-weight:700;text-align:center;padding:12px;font-style:italic">No se encontraron buceadores</div>`;
+            popup.style.display = 'block';
+        }
+    }
+};
+
+window.clearDailySearch = function() {
+    window.activeDailySearchQuery = '';
+    const input = document.getElementById('daily-search-input');
+    if (input) input.value = '';
+    
+    window.executeDailySearch('');
+    
+    // Collapse search bar after clearing if blurred
+    window.collapseDailySearch();
+    
+    // Re-render grid to clear highlighted text inside tooltips
+    renderDailyGrid();
+};
+
+window.refocusDailySearch = function() {
+    const input = document.getElementById('daily-search-input');
+    if (input && window.activeDailySearchQuery) {
+        input.focus();
+        const len = input.value.length;
+        input.setSelectionRange(len, len);
+    }
+};
+
+window.showDailySearchPopup = function() {
+    const popup = document.getElementById('daily-search-popup');
+    if (popup && window.activeDailySearchQuery && window.activeDailySearchQuery.trim().length >= 3) {
+        popup.style.display = 'block';
+    }
+};
+
+window.hideDailySearchPopup = function() {
+    if (window._searchEnterPressed) return; // Don't hide if Enter was pressed to blur
+    const popup = document.getElementById('daily-search-popup');
+    if (popup) {
+        popup.style.display = 'none';
+    }
+};
+
+// Close search popup when clicking outside the input and popup itself
+document.addEventListener('click', function(event) {
+    const popup = document.getElementById('daily-search-popup');
+    const input = document.getElementById('daily-search-input');
+    const container = document.getElementById('daily-search-container');
+
+    if (popup && popup.style.display !== 'none') {
+        if (!popup.contains(event.target) && !input.contains(event.target) && (!container || !container.contains(event.target))) {
+            popup.style.display = 'none';
+        }
+    }
+});
+
+window.hoverSearchCard = function(tripId) {
+    const card = document.querySelector(`[data-trip-id="${tripId}"]`);
+    if (card) {
+        // Temporarily remove standard green outline classes and z-30 elevation
+        card.classList.remove('ring-[3px]', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', 'border-emerald-500', 'z-30');
+        
+        // Add thick, extremely bright emerald ring, high-opacity glow shadow, elevated z-50, and subtle scale pop
+        card.classList.add('ring-[6px]', 'ring-emerald-400', 'shadow-[0_0_40px_rgba(52,211,153,0.95)]', 'z-50', 'scale-[1.03]', 'border-emerald-400');
+        card.classList.remove('border-slate-200', 'hover:border-blue-300');
+    }
+};
+
+window.unhoverSearchCard = function(tripId) {
+    const card = document.querySelector(`[data-trip-id="${tripId}"]`);
+    if (card) {
+        // Remove high glow classes, scale pop, and z-50
+        card.classList.remove('ring-[6px]', 'ring-emerald-400', 'shadow-[0_0_40px_rgba(52,211,153,0.95)]', 'z-50', 'scale-[1.03]', 'border-emerald-400');
+        
+        // Re-apply standard daily search highlights dynamically
+        window.executeDailySearch(window.activeDailySearchQuery);
+    }
+};
+
+
+window.openSearchManageBoatModal = function(tripId) {
+    const trip = mergedAllocations.find(t => t.id === tripId);
+    if (trip) {
+        const card = document.querySelector(`[data-trip-id="${tripId}"]`);
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (typeof openManageBoatModal === 'function') {
+            openManageBoatModal(trip, trip.assignedBoat || 'ares', trip.time, trip.date);
+        }
     }
 };

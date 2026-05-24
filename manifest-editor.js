@@ -260,7 +260,18 @@ function closeManageBoatModal() {
     document.getElementById('manage-boat-modal').classList.add('hidden'); 
     activeBoatItem = null; 
     window.clearModalHistory(); 
+
+    // Preserve search state and popover popup on modal close if query is active
+    if (window.activeDailySearchQuery && window.activeDailySearchQuery.trim().length >= 3) {
+        if (typeof window.expandDailySearch === 'function') {
+            window.expandDailySearch();
+        }
+        if (typeof window.executeDailySearch === 'function') {
+            window.executeDailySearch(window.activeDailySearchQuery);
+        }
+    }
 }
+
 
 function updateModalSubtitle() {
     let total = 0; activeBoatItem.groups.forEach(g => total += g.guests.length);
@@ -500,32 +511,43 @@ function renderGroups(skipAutoSave = false) {
             if (compCurrent === 'INC') { compClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner'; compText = 'INC'; }
 
             let globalIns = null;
+            let isInsExpired = false;
             if (guest.dni && !guest.course) {
                 const profile = customerDatabase.find(c => c.dni === guest.dni);
-                if (profile && profile.insurance && window.normalizeDateStr(profile.insurance.expiry) >= activeBoatItem.date) {
+                if (profile && profile.insurance) {
                     globalIns = profile.insurance;
+                    const expiryStr = window.normalizeDateStr(globalIns.expiry);
+                    if (expiryStr < activeBoatItem.date) {
+                        isInsExpired = true;
+                    }
                 }
             }
 
             let insHtml = '';
             if (globalIns) {
-                guest.insurance = globalIns.type; 
                 let insVal = globalIns.type.toString();
                 let cleanIns = insVal.replace(' ✔', '');
                 
-                const isTemp = ['1D', '1W', '1M', '1Y'].includes(cleanIns);
-                if (isTemp) {
-                    const isBought = insVal.includes(' ✔');
-                    if (isBought) {
-                        let displayVal = `Seg ✔ (${cleanIns})`;
-                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Comprado)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
-                    } else {
-                        let displayVal = `Seg (${cleanIns})`;
-                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Pendiente de comprar)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner hover:bg-orange-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
-                    }
+                if (isInsExpired) {
+                    guest.insurance = cleanIns; // remove stale checkmark
+                    let displayVal = `Seg 🛑`;
+                    insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro CADUCADO el ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-red-500 text-white border-red-600 hover:bg-red-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
                 } else {
-                    let displayVal = 'Seg ✔';
-                    insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${globalIns.type})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                    guest.insurance = globalIns.type; 
+                    const isTemp = ['1D', '1W', '1M', '1Y'].includes(cleanIns);
+                    if (isTemp) {
+                        const isBought = insVal.includes(' ✔');
+                        if (isBought) {
+                            let displayVal = `Seg ✓ (${cleanIns})`;
+                            insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Comprado)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                        } else {
+                            let displayVal = `Seg (${cleanIns})`;
+                            insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Pendiente de comprar)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner hover:bg-orange-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                        }
+                    } else {
+                        let displayVal = 'Seg ✓';
+                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${globalIns.type})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
+                    }
                 }
             } else {
                 let insCurrent = guest.insurance || 0;
@@ -541,7 +563,7 @@ function renderGroups(skipAutoSave = false) {
                 } else if (cleanIns !== '0') {
                     const isBought = insCurrent.toString().includes(' ✔') || cleanIns === 'Propio';
                     if (isBought) {
-                        let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
+                        let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✓ (${cleanIns})` : 'Seg ✓';
                         insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns} (Comprado)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600">${displayVal}</button>`;
                     } else {
                         let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg (${cleanIns})` : 'Seg';
@@ -980,6 +1002,25 @@ window.setIns = async function(type) {
         }
     } else if (type === 'Propio') {
         guest.insurance = 'Propio ✔'; 
+        if (guest.dni) {
+            const newIns = { type: 'Propio ✔', expiry: '2099-12-31', purchaseDate: activeBoatItem.date };
+            const profile = customerDatabase.find(c => c.dni === guest.dni);
+            if (profile) profile.insurance = newIns;
+            
+            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns }, { merge: true });
+            
+            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
+            masterDocRef.get().then(doc => {
+                if (doc.exists) {
+                    let clients = doc.data().clients || [];
+                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    if (idx > -1) {
+                        clients[idx].insurance = newIns;
+                        masterDocRef.set({ clients }, { merge: true });
+                    }
+                }
+            });
+        }
     } else {
         guest.insurance = type; 
         if (guest.dni) {
@@ -1031,7 +1072,7 @@ window.setIns = async function(type) {
             const isBought = insVal.includes(' ✔') || cleanIns === 'Propio';
             if (isBought) {
                 btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600";
-                let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
+                let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✓ (${cleanIns})` : 'Seg ✓';
                 btn.innerText = displayVal;
                 btn.title = `Seguro: ${cleanIns} (Comprado)`;
             } else {
@@ -1073,20 +1114,23 @@ window.toggleTramitado = function() {
     if (guest.dni) {
         const profile = customerDatabase.find(c => c.dni === guest.dni);
         if (profile) {
-            if (!profile.insurance) {
-                let [y, m, d] = activeBoatItem.date.split('-').map(Number);
-                let dateObj = new Date(y, m - 1, d);
-                const cleanType = newInsVal.replace(' ✔', '');
-                
-                if (cleanType === '1D') dateObj.setDate(dateObj.getDate() + 0);
-                if (cleanType === '1W') dateObj.setDate(dateObj.getDate() + 6);
-                if (cleanType === '1M') dateObj.setMonth(dateObj.getMonth() + 1);
-                if (cleanType === '1Y') dateObj.setFullYear(dateObj.getFullYear() + 1);
-                
-                const expiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
-                profile.insurance = { type: newInsVal, expiry, purchaseDate: activeBoatItem.date };
+            let [y, m, d] = activeBoatItem.date.split('-').map(Number);
+            let dateObj = new Date(y, m - 1, d);
+            const cleanType = newInsVal.replace(' ✔', '');
+            
+            if (cleanType === '1D') dateObj.setDate(dateObj.getDate() + 0);
+            if (cleanType === '1W') dateObj.setDate(dateObj.getDate() + 6);
+            if (cleanType === '1M') dateObj.setMonth(dateObj.getMonth() + 1);
+            if (cleanType === '1Y') dateObj.setFullYear(dateObj.getFullYear() + 1);
+            
+            const expiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
+            
+            if (!newInsVal.includes('✔')) {
+                // If unmarked as purchased, set expiry to past to represent expired/unpurchased state
+                profile.insurance = { type: cleanType, expiry: '1970-01-01', purchaseDate: activeBoatItem.date };
             } else {
-                profile.insurance.type = newInsVal;
+                // Marked as purchased, set valid future expiry!
+                profile.insurance = { type: newInsVal, expiry, purchaseDate: activeBoatItem.date };
             }
             
             // Save to Firestore mangamar_customers
@@ -2433,10 +2477,20 @@ window.saveGuestNote = function() {
 
 // Global Keyboard Event Listener
 document.addEventListener('keydown', (e) => {
-    // Escape to close guest note modal
-    if (e.key === 'Escape' && document.getElementById('guest-note-modal') && !document.getElementById('guest-note-modal').classList.contains('hidden')) {
-        closeGuestNoteModal();
+    // Escape to close active modals
+    if (e.key === 'Escape') {
+        const guestNoteModal = document.getElementById('guest-note-modal');
+        if (guestNoteModal && !guestNoteModal.classList.contains('hidden')) {
+            closeGuestNoteModal();
+            return;
+        }
+        const boatModal = document.getElementById('manage-boat-modal');
+        if (boatModal && !boatModal.classList.contains('hidden')) {
+            closeManageBoatModal();
+            return;
+        }
     }
+
     
     // Left/Right arrow navigation for boat manifest
     const boatModal = document.getElementById('manage-boat-modal');
