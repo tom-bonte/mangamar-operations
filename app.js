@@ -884,6 +884,7 @@ window.executeDailySearch = function(query) {
     const input = document.getElementById('daily-search-input');
     const clearBtn = document.getElementById('daily-search-clear');
     const countBadge = document.getElementById('daily-search-count');
+    const popup = document.getElementById('daily-search-popup');
     
     if (input && input.value !== query) {
         input.value = query;
@@ -906,6 +907,7 @@ window.executeDailySearch = function(query) {
     if (!normQuery || query.trim().length < 3) {
         if (clearBtn) clearBtn.classList.add('hidden');
         if (countBadge) countBadge.classList.add('hidden');
+        if (popup) popup.style.display = 'none';
         clearAllHighlights();
         return;
     }
@@ -977,21 +979,21 @@ window.executeDailySearch = function(query) {
                         const searchWords = query.split(/\s+/).filter(w => w.length >= 2);
                         if (searchWords.length > 0) {
                             searchWords.forEach(word => {
-                                highlightedName = highlightedName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-500/20 text-emerald-400 font-bold px-1 py-0.5 rounded">${match}</mark>`);
+                                highlightedName = highlightedName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark style="background:rgba(16,185,129,0.2);color:#34d399;font-weight:700;padding:1px 4px;border-radius:3px">${match}</mark>`);
                             });
                         } else {
-                            highlightedName = highlightedName.replace(new RegExp(query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-500/20 text-emerald-400 font-bold px-1 py-0.5 rounded">${match}</mark>`);
+                            highlightedName = highlightedName.replace(new RegExp(query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark style="background:rgba(16,185,129,0.2);color:#34d399;font-weight:700;padding:1px 4px;border-radius:3px">${match}</mark>`);
                         }
 
                         resultsHtml += `
-                        <div onmousedown="window.highlightAndScrollToCard('${trip.id}')" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors border border-transparent hover:border-slate-700 group/row">
-                            <div class="flex-1 min-w-0 pr-3 text-left">
-                                <div class="text-xs font-black text-white truncate">${highlightedName}</div>
-                                <div class="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">${g.dni || 'Sin DNI'}</div>
+                        <div onmousedown="window.highlightAndScrollToCard('${trip.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:4px" onmouseover="this.style.background='#1e293b';this.style.borderColor='#334155'" onmouseout="this.style.background='';this.style.borderColor='transparent'">
+                            <div style="flex:1;min-width:0;padding-right:12px;text-align:left">
+                                <div style="font-size:12px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${highlightedName}</div>
+                                <div style="font-size:9px;font-weight:700;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:0.05em">${g.dni || 'Sin DNI'}</div>
                             </div>
-                            <div class="text-right shrink-0">
-                                <div class="text-[10px] font-black text-orange-400 group-hover/row:text-orange-300 transition-colors uppercase">${boatName} \u2022 ${timeVal}</div>
-                                <div class="text-[9px] font-bold text-slate-400 truncate max-w-[120px] mt-0.5">${siteName}</div>
+                            <div style="text-align:right;flex-shrink:0">
+                                <div style="font-size:10px;font-weight:900;color:#fb923c;text-transform:uppercase">${boatName} &bull; ${timeVal}</div>
+                                <div style="font-size:9px;font-weight:700;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;margin-top:2px">${siteName}</div>
                             </div>
                         </div>
                         `;
@@ -999,10 +1001,10 @@ window.executeDailySearch = function(query) {
                 });
             });
             popup.innerHTML = resultsHtml;
-            popup.classList.remove('hidden');
+            popup.style.display = 'block';
         } else {
-            popup.innerHTML = `<div class="text-xs font-bold text-slate-400 italic text-center p-3">No se encontraron buceadores</div>`;
-            popup.classList.remove('hidden');
+            popup.innerHTML = `<div style="color:#94a3b8;font-size:11px;font-weight:700;text-align:center;padding:12px;font-style:italic">No se encontraron buceadores</div>`;
+            popup.style.display = 'block';
         }
     }
 };
@@ -1030,14 +1032,14 @@ window.refocusDailySearch = function() {
 window.showDailySearchPopup = function() {
     const popup = document.getElementById('daily-search-popup');
     if (popup && window.activeDailySearchQuery && window.activeDailySearchQuery.trim().length >= 3) {
-        popup.classList.remove('hidden');
+        popup.style.display = 'block';
     }
 };
 
 window.hideDailySearchPopup = function() {
     const popup = document.getElementById('daily-search-popup');
     if (popup) {
-        popup.classList.add('hidden');
+        popup.style.display = 'none';
     }
 };
 
