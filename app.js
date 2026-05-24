@@ -417,7 +417,14 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     const capacity = boatId === 'shore' ? '-' : capacityNum;
     
     col.draggable = true;
-    col.ondragstart = (e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', trip.id); };
+    col.ondragstart = (e) => {
+        e.stopPropagation();
+        e.dataTransfer.setData('text/plain', trip.id);
+        document.body.classList.add('is-dragging');
+    };
+    col.ondragend = (e) => {
+        document.body.classList.remove('is-dragging');
+    };
 
     let capName = trip.captain ? window.getFirstName(trip.captain) : 'Sin Asignar';
     let isShore = boatId === 'shore';

@@ -529,6 +529,9 @@ function renderGroups(skipAutoSave = false) {
                 }
             } else {
                 let insCurrent = guest.insurance || 0;
+                if (insCurrent && typeof insCurrent === 'object') {
+                    insCurrent = insCurrent.type || 0;
+                }
                 if (insCurrent === '0') insCurrent = 0;
                 let cleanIns = insCurrent.toString().replace(' ✔', '');
                 guest.insurance = cleanIns === '0' ? 0 : insCurrent; 
@@ -911,7 +914,11 @@ window.openInsPopup = function(event, groupIndex, guestIndex, hasGlobal = false)
     activeInsGuest = guestIndex;
     
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
-    const ins = (guest.insurance || '').toString();
+    let insRaw = guest.insurance || '';
+    if (insRaw && typeof insRaw === 'object') {
+        insRaw = insRaw.type || '';
+    }
+    const ins = insRaw.toString();
     const hasAnyIns = hasGlobal || (ins && ins !== '0' && ins !== '0 ✔');
     
     const popup = document.getElementById('ins-popup');
@@ -1010,7 +1017,11 @@ window.setIns = async function(type) {
     // Targeted DOM Update
     const btn = document.getElementById(`btn-ins-${activeInsGroup}-${activeInsGuest}`);
     if (btn) {
-        let insVal = (guest.insurance || 0).toString();
+        let insRaw = guest.insurance || 0;
+        if (insRaw && typeof insRaw === 'object') {
+            insRaw = insRaw.type || 0;
+        }
+        let insVal = insRaw.toString();
         let cleanIns = insVal.replace(' ✔', '');
         if (cleanIns === 'INC') {
             btn.className = "w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0";
@@ -1043,7 +1054,11 @@ window.toggleTramitado = function() {
     if (activeInsGroup === null || activeInsGuest === null) return;
     
     const guest = activeBoatItem.groups[activeInsGroup].guests[activeInsGuest];
-    let ins = (guest.insurance || '').toString();
+    let insRaw = guest.insurance || '';
+    if (insRaw && typeof insRaw === 'object') {
+        insRaw = insRaw.type || '';
+    }
+    let ins = insRaw.toString();
     if (!ins) return;
 
     let newInsVal = '';
@@ -1566,6 +1581,18 @@ window.selectCustomer = function(groupIndex, encodedData) {
         const tag = findActiveTagForGuest(data.dni, fullName); // Auto-sync group!
         const existingData = typeof findExistingDiverData === 'function' ? findExistingDiverData(data.dni || fullName) : null;
         
+        let localIns = 0;
+        if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+            localIns = existingData.insurance;
+        } else if (data && data.insurance) {
+            const insObj = data.insurance;
+            const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+            const activeDate = activeBoatItem ? activeBoatItem.date : '';
+            if (expiry && expiry >= activeDate) {
+                localIns = insObj.type || 0;
+            }
+        }
+
         const newGuest = { 
             nombre: fullName, 
             titulacion: data.titulacion || '', 
@@ -1574,7 +1601,8 @@ window.selectCustomer = function(groupIndex, encodedData) {
             dni: data.dni || '', 
             gas: '15L Aire', 
             isManual: false, 
-            bookingTag: tag 
+            bookingTag: tag,
+            insurance: localIns
         };
 
         if (existingData && existingData.course) {
@@ -1585,7 +1613,6 @@ window.selectCustomer = function(groupIndex, encodedData) {
         }
         if (existingData && existingData.localDeposit) newGuest.localDeposit = existingData.localDeposit;
         if (existingData && existingData.note) newGuest.note = existingData.note;
-        if (existingData && existingData.insurance) newGuest.insurance = existingData.insurance;
         if (existingData && existingData.rental) newGuest.rental = existingData.rental;
         if (existingData && existingData.gas) newGuest.gas = existingData.gas;
         if (existingData && existingData.computer) newGuest.computer = existingData.computer;

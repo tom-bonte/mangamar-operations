@@ -424,14 +424,24 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
 
     if (cx) {
         const fullName = getFullName(cx);
-        const insurance = (existingData && existingData.insurance) ? existingData.insurance : (cx.insurance || '0');
+        let localIns = 0;
+        if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+            localIns = existingData.insurance;
+        } else if (cx.insurance) {
+            const insObj = cx.insurance;
+            const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+            const activeDate = activeBoatItem ? activeBoatItem.date : '';
+            if (expiry && expiry >= activeDate) {
+                localIns = insObj.type || 0;
+            }
+        }
 
         guest = {
             dni: cx.dni || '',
             nombre: fullName,
             telefono: cx.telefono || '',
             email: cx.email || '',
-            insurance: insurance,
+            insurance: localIns,
             titulacion: cx.titulacion || '',
             rental: existingData ? (existingData.rental || 0) : 0,
             gas: existingData ? (existingData.gas || '15L Aire') : '15L Aire',
@@ -447,12 +457,17 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
         const properName = (existingData && existingData.originalName) ? existingData.originalName : strIdentifier.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         const tempId = strIdentifier.startsWith('temp_') ? strIdentifier : ('temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
         
+        let localIns = 0;
+        if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+            localIns = existingData.insurance;
+        }
+
         guest = {
             dni: '',
             nombre: properName,
             telefono: '',
             email: '',
-            insurance: existingData ? (existingData.insurance || '0') : '0',
+            insurance: localIns,
             titulacion: '',
             rental: existingData ? (existingData.rental || 0) : 0,
             gas: existingData ? (existingData.gas || '15L Aire') : '15L Aire',
@@ -540,13 +555,23 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
 
             if (cx) {
                 const fullName = getFullName(cx);
-                const insurance = (existingData && existingData.insurance) ? existingData.insurance : (cx.insurance || '0');
+                let localIns = 0;
+                if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+                    localIns = existingData.insurance;
+                } else if (cx.insurance) {
+                    const insObj = cx.insurance;
+                    const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+                    const activeDate = activeBoatItem ? activeBoatItem.date : '';
+                    if (expiry && expiry >= activeDate) {
+                        localIns = insObj.type || 0;
+                    }
+                }
                 guest = {
                     dni: cx.dni || '',
                     nombre: fullName,
                     telefono: cx.telefono || '',
                     email: cx.email || '',
-                    insurance: insurance,
+                    insurance: localIns,
                     titulacion: cx.titulacion || '',
                     rental: existingData ? (existingData.rental || 0) : 0,
                     gas: existingData ? (existingData.gas || '15L Aire') : '15L Aire',
@@ -561,12 +586,16 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
             } else {
                 const tempId = strMemberId.startsWith('temp_') ? strMemberId : ('temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
                 const properName = (existingData && existingData.originalName) ? existingData.originalName : (!strMemberId.startsWith('temp_') ? strMemberId.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : (grp.manualNames && grp.manualNames[strMemberId] ? grp.manualNames[strMemberId] : 'Buceador Manual'));
+                let localIns = 0;
+                if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+                    localIns = existingData.insurance;
+                }
                 guest = {
                     dni: '',
                     nombre: properName,
                     telefono: '',
                     email: '',
-                    insurance: existingData ? (existingData.insurance || '0') : '0',
+                    insurance: localIns,
                     titulacion: '',
                     rental: existingData ? (existingData.rental || 0) : 0,
                     gas: existingData ? (existingData.gas || '15L Aire') : '15L Aire',
