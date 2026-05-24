@@ -178,6 +178,13 @@ body.is-dragging .tooltip-content {
     display: none !important;
 }
 
+/* Force matched boat card tooltips to stay visible during live search */
+.group-tooltip.search-matched .tooltip-content {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
 /* Ensure tooltip text is fully visible */
 .tooltip-content button, .tooltip-content span {
     opacity: 1 !important;
