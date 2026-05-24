@@ -16,6 +16,7 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
         applyZoom(currentZoom);
     }
     window.addEventListener('keydown', function(e) {
+        // 1. Zoom handles (Cmd/Ctrl + or - or 0)
         const isZoomIn = (e.key === '=' || e.key === '+');
         const isZoomOut = (e.key === '-');
         const isZoomReset = (e.key === '0');
@@ -24,6 +25,43 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
             if (isZoomIn) applyZoom(currentZoom + 0.1);
             else if (isZoomOut) applyZoom(currentZoom - 0.1);
             else if (isZoomReset) applyZoom(1.0);
+            return;
+        }
+
+        // 2. Keyboard date navigation (daily view ArrowLeft / ArrowRight)
+        const activeEl = document.activeElement;
+        const tag = activeEl ? activeEl.tagName : '';
+        const isEditing = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
+        
+        // Don't navigate if any overlay modals are open
+        const isManifestOpen = document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden');
+        const isCrmOpen = document.getElementById('crm-profile-modal') && !document.getElementById('crm-profile-modal').classList.contains('hidden');
+        const isContabilidadOpen = document.getElementById('contabilidad-modal') && !document.getElementById('contabilidad-modal').classList.contains('hidden');
+        const isWaitlistOpen = document.getElementById('waitlist-modal') && !document.getElementById('waitlist-modal').classList.contains('hidden');
+        const isStaffPickerOpen = document.getElementById('staff-picker-modal') && !document.getElementById('staff-picker-modal').classList.contains('hidden');
+        const anyModalOpen = isManifestOpen || isCrmOpen || isContabilidadOpen || isWaitlistOpen || isStaffPickerOpen;
+
+        if (!anyModalOpen) {
+            const isSearchFocused = activeEl && activeEl.id === 'daily-search-input';
+            
+            if (isSearchFocused) {
+                // If search input is focused, allow Alt+Arrow or Ctrl+Arrow to navigate days instantly
+                if ((e.ctrlKey || e.altKey) && e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    changeDate(-1);
+                } else if ((e.ctrlKey || e.altKey) && e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    changeDate(1);
+                }
+            } else if (!isEditing) {
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    changeDate(-1);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    changeDate(1);
+                }
+            }
         }
     }, { passive: false });
 })();
@@ -137,10 +175,16 @@ function changeDate(offset) {
     currentDate.setDate(currentDate.getDate() + offset);
     miniCalendarDate = new Date(currentDate); 
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
+    if (window.activeDailySearchQuery) {
+        setTimeout(window.refocusDailySearch, 50);
+    }
 }
 function goToToday() {
     currentDate = new Date(); miniCalendarDate = new Date(currentDate); 
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
+    if (window.activeDailySearchQuery) {
+        setTimeout(window.refocusDailySearch, 50);
+    }
 }
 function changeMonth(offset) {
     currentDate.setMonth(currentDate.getMonth() + offset);
@@ -376,10 +420,16 @@ function renderDailyGrid() {
     container.appendChild(aresCol);
     container.appendChild(kaiserCol);
     container.appendChild(shoreCol);
+
+    // Automatically re-run live search on render if a query is active
+    if (window.activeDailySearchQuery) {
+        window.executeDailySearch(window.activeDailySearchQuery);
+    }
 }
 
 function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflict = false) {
     const col = document.createElement('div');
+    col.setAttribute('data-trip-id', trip.id); // Tag card with trip ID for live search highlights
     const guests = trip.guests || [];
     const guestCount = guests.length;
     const siteColorConfig = SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-300';
@@ -395,10 +445,36 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             const gasColorClass = isNitrox ? 'text-green-400' : 'text-blue-300';
             const gasShort = (g.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
             const arrivedDot = g.arrived ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mr-1.5" title="Llegado"></span>` : '';
+            
+            let displayName = g.nombre;
+            if (window.activeDailySearchQuery) {
+                const normQuery = window.normalizeSearchString(window.activeDailySearchQuery);
+                if (normQuery) {
+                    const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+                    const nameNorm = window.normalizeSearchString(g.nombre);
+                    
+                    if (nameNorm.includes(normQuery)) {
+                        const searchWords = window.activeDailySearchQuery.split(/\s+/).filter(w => w.length >= 2);
+                        if (searchWords.length > 0) {
+                            searchWords.forEach(word => {
+                                const wordNorm = window.normalizeSearchString(word);
+                                if (wordNorm) {
+                                    displayName = displayName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-400 text-slate-950 font-black rounded-sm px-1 shadow-sm">${match}</mark>`);
+                                }
+                            });
+                        } else {
+                            displayName = displayName.replace(new RegExp(window.activeDailySearchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-400 text-slate-950 font-black rounded-sm px-1 shadow-sm">${match}</mark>`);
+                        }
+                    } else if (dniMatch) {
+                        displayName = `<mark class="bg-emerald-400/40 text-white font-black rounded-sm px-1 shadow-xs">${g.nombre}</mark>`;
+                    }
+                }
+            }
+
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
                         <button onclick="if(!window.isLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
                                 class="truncate pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer flex-1 text-left auth-lock flex items-center">
-                            ${arrivedDot}${g.nombre}
+                            ${arrivedDot}${displayName}
                         </button>
                         <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2">${gasShort}</span>
                     </div>`;
@@ -783,5 +859,105 @@ window.handleSettingsRadioTimesToggle = function(checked) {
         }, { merge: true }).catch(err => {
             console.error("Error synchronizing settings to Firestore:", err);
         });
+    }
+};
+
+// ==========================================
+// 15. DAILY VIEW GUEST LIVE SEARCH
+// ==========================================
+window.activeDailySearchQuery = '';
+
+window.executeDailySearch = function(query) {
+    const input = document.getElementById('daily-search-input');
+    const clearBtn = document.getElementById('daily-search-clear');
+    const countBadge = document.getElementById('daily-search-count');
+    
+    if (input && input.value !== query) {
+        input.value = query;
+    }
+    
+    window.activeDailySearchQuery = query || '';
+    const normQuery = window.normalizeSearchString(query);
+    
+    if (!normQuery) {
+        if (clearBtn) clearBtn.classList.add('hidden');
+        if (countBadge) countBadge.classList.add('hidden');
+        
+        // Remove search highlights from all boat cards
+        document.querySelectorAll('[data-trip-id]').forEach(card => {
+            card.classList.remove('ring-4', 'ring-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', 'border-emerald-500');
+            if (!card.classList.contains('border-red-500')) {
+                card.classList.add('border-slate-200');
+            }
+        });
+        return;
+    }
+    
+    if (clearBtn) clearBtn.classList.remove('hidden');
+    
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentDate.getDate()).padStart(2, '0');
+    const targetDateStr = `${year}-${month}-${day}`;
+    
+    let matchCount = 0;
+    const matchingTripIds = new Set();
+    const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
+    
+    todaysTrips.forEach(trip => {
+        const guests = trip.guests || [];
+        const matchesThisTrip = guests.some(g => {
+            const nameMatch = window.normalizeSearchString(g.nombre).includes(normQuery);
+            const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+            return nameMatch || dniMatch;
+        });
+        if (matchesThisTrip) {
+            matchingTripIds.add(trip.id);
+            guests.forEach(g => {
+                const nameMatch = window.normalizeSearchString(g.nombre).includes(normQuery);
+                const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+                if (nameMatch || dniMatch) matchCount++;
+            });
+        }
+    });
+    
+    // Highlight matching cards with vibrant green ring/glow
+    document.querySelectorAll('[data-trip-id]').forEach(card => {
+        const tripId = card.getAttribute('data-trip-id');
+        if (matchingTripIds.has(tripId)) {
+            card.classList.add('ring-4', 'ring-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', 'border-emerald-500');
+            card.classList.remove('border-slate-200', 'hover:border-blue-300');
+        } else {
+            card.classList.remove('ring-4', 'ring-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', 'border-emerald-500');
+            if (!card.classList.contains('border-red-500')) {
+                card.classList.add('border-slate-200');
+            }
+        }
+    });
+    
+    // Update match count badge
+    if (countBadge) {
+        countBadge.innerText = `${matchCount} ${matchCount === 1 ? 'coincidencia' : 'coincidencias'}`;
+        countBadge.classList.remove('hidden');
+    }
+};
+
+window.clearDailySearch = function() {
+    window.activeDailySearchQuery = '';
+    const input = document.getElementById('daily-search-input');
+    if (input) input.value = '';
+    
+    window.executeDailySearch('');
+    
+    // Re-render grid to clear highlighted text inside tooltips
+    renderDailyGrid();
+};
+
+window.refocusDailySearch = function() {
+    const input = document.getElementById('daily-search-input');
+    if (input && window.activeDailySearchQuery) {
+        input.focus();
+        const len = input.value.length;
+        input.setSelectionRange(len, len);
     }
 };
