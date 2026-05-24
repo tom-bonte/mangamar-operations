@@ -25,8 +25,8 @@ window.adjustSelectElWidth = function(selectEl) {
     const textWidth = tempSpan.getBoundingClientRect().width;
     document.body.removeChild(tempSpan);
     
-    // Add spacious padding (48px for custom relative selects, 38px for others) to leave nice breathing white space
-    const padding = (selectEl.id === 'input-site' || selectEl.id === 'input-activity') ? 48 : 38;
+    // Add spacious padding (80px for custom relative selects, 70px for others) to leave nice breathing white space
+    const padding = (selectEl.id === 'input-site' || selectEl.id === 'input-activity') ? 80 : 70;
     const targetWidth = `${Math.ceil(textWidth + padding)}px`;
     
     const wrapper = selectEl.parentElement;
@@ -322,8 +322,10 @@ function renderGroups(skipAutoSave = false) {
         const groupDiv = document.createElement('div');
         groupDiv.className = 'bg-white border border-slate-200 rounded-xl shadow-sm relative focus-within:z-50';
 
+        let hasGuideMatch = false;
         const guideOpts = (staffDatabase.guias || []).map(g => {
             const isSelected = group.guide === g.nombre;
+            if (isSelected) hasGuideMatch = true;
             let conflictText = ""; let disabledClass = ""; let disabledAttr = "";
             
             // Use universal tracker for Guides
@@ -337,8 +339,15 @@ function renderGroups(skipAutoSave = false) {
             return `<option value="${g.nombre}" class="${disabledClass}" ${isSelected ? 'selected' : ''} ${disabledAttr}>${g.nombre}${roleStr}${conflictText}</option>`;
         }).join('');
 
+        let customGuideOpt = "";
+        if (group.guide && !hasGuideMatch) {
+            customGuideOpt = `<option value="${group.guide}" selected>${group.guide} (Personalizado)</option>`;
+        }
+
+        let hasApoyoMatch = false;
         const apoyoOpts = (staffDatabase.guias || []).map(g => {
             const isSelected = group.apoyo === g.nombre;
+            if (isSelected) hasApoyoMatch = true;
             let conflictText = ""; let disabledClass = ""; let disabledAttr = "";
             
             // Use universal tracker for Apoyo
@@ -352,6 +361,11 @@ function renderGroups(skipAutoSave = false) {
             return `<option value="${g.nombre}" class="${disabledClass}" ${isSelected ? 'selected' : ''} ${disabledAttr}>${g.nombre}${roleStr}${conflictText}</option>`;
         }).join('');
 
+        let customApoyoOpt = "";
+        if (group.apoyo && !hasApoyoMatch) {
+            customApoyoOpt = `<option value="${group.apoyo}" selected>${group.apoyo} (Personalizado)</option>`;
+        }
+
         let html = `
             <div ondragover="event.preventDefault(); this.classList.add('bg-orange-200')" 
                  ondragleave="this.classList.remove('bg-orange-200')"
@@ -360,8 +374,10 @@ function renderGroups(skipAutoSave = false) {
                 <div class="flex items-center gap-4 flex-1">
                     <div class="flex items-center gap-1.5">
                         <span class="text-xs font-black text-black uppercase tracking-wider">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
-                        <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[270px] cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
+                        <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[380px] cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
                             <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Guía'}</option>
+                            <option value="CUSTOM_NAME_PROMPT" class="text-orange-600 font-black">+ Nombre Personalizado...</option>
+                            ${customGuideOpt}
                             ${guideOpts}
                         </select>
                         ${group.guide ? `<button onclick="window.clearGuide(${groupIndex})" title="Quitar Guía" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
@@ -370,8 +386,10 @@ function renderGroups(skipAutoSave = false) {
                     
                     <div class="flex items-center gap-1.5">
                         <span class="text-xs font-black text-black uppercase tracking-wider">APOYO:</span>
-                        <select id="apoyo-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[270px] cursor-pointer" onchange="updateApoyo(${groupIndex}, this.value)">
+                        <select id="apoyo-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[380px] cursor-pointer" onchange="updateApoyo(${groupIndex}, this.value)">
                             <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Apoyo'}</option>
+                            <option value="CUSTOM_NAME_PROMPT" class="text-orange-600 font-black">+ Nombre Personalizado...</option>
+                            ${customApoyoOpt}
                             ${apoyoOpts}
                         </select>
                         ${group.apoyo ? `<button onclick="window.clearApoyo(${groupIndex})" title="Quitar Apoyo" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
@@ -629,14 +647,58 @@ function removeGroup(groupIndex) {
 }
 
 function updateGuide(groupIndex, value) { 
-    activeBoatItem.groups[groupIndex].guide = value; 
+    if (value === "CUSTOM_NAME_PROMPT") {
+        if (typeof window.showAppPrompt === 'function') {
+            window.showAppPrompt("Escribe el nombre personalizado del guía:", "", (name) => {
+                if (name && name.trim()) {
+                    activeBoatItem.groups[groupIndex].guide = name.trim();
+                }
+                renderGroups();
+                renderCaptainDropdown();
+                triggerAutoSave();
+            });
+            return; // Exit synchronously as modal callback executes asynchronously
+        } else {
+            const name = prompt("Escribe el nombre personalizado del guía:");
+            if (name && name.trim()) {
+                activeBoatItem.groups[groupIndex].guide = name.trim();
+            } else {
+                renderGroups();
+                return;
+            }
+        }
+    } else {
+        activeBoatItem.groups[groupIndex].guide = value; 
+    }
     renderGroups();
     renderCaptainDropdown();
     triggerAutoSave();
 }
 
 function updateApoyo(groupIndex, value) {
-    activeBoatItem.groups[groupIndex].apoyo = value;
+    if (value === "CUSTOM_NAME_PROMPT") {
+        if (typeof window.showAppPrompt === 'function') {
+            window.showAppPrompt("Escribe el nombre personalizado del apoyo:", "", (name) => {
+                if (name && name.trim()) {
+                    activeBoatItem.groups[groupIndex].apoyo = name.trim();
+                }
+                renderGroups();
+                renderCaptainDropdown();
+                triggerAutoSave();
+            });
+            return; // Exit synchronously as modal callback executes asynchronously
+        } else {
+            const name = prompt("Escribe el nombre personalizado del apoyo:");
+            if (name && name.trim()) {
+                activeBoatItem.groups[groupIndex].apoyo = name.trim();
+            } else {
+                renderGroups();
+                return;
+            }
+        }
+    } else {
+        activeBoatItem.groups[groupIndex].apoyo = value;
+    }
     renderGroups();
     renderCaptainDropdown();
     triggerAutoSave();

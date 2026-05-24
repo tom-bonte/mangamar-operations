@@ -227,8 +227,14 @@ window._buildTVContent = function() {
                                         const nameKey    = (g.nombre || '').trim().toUpperCase();
                                         const prevBoat   = prevDivers.get(nameKey);
                                         const returnBadge = prevBoat
-                                            ? `<span style="font-size:1.0rem;font-weight:900;color:#c2410c;background:#fff7ed;border:1.5px solid #fb923c;border-radius:8px;padding:2px 8px;margin-left:8px;white-space:nowrap">↩ ${prevBoat}</span>`
+                                            ? `<span style="font-size:1.15rem;font-weight:900;color:#c2410c;background:#fff7ed;border:2px solid #fb923c;border-radius:8px;padding:3px 10px;margin-left:10px;white-space:nowrap;flex-shrink:0">↩ ${prevBoat}</span>`
                                             : '';
+
+                                        const courseText = g.courseBadge || g.course || '';
+                                        let courseBadgeHtml = '';
+                                        if (courseText && !isSnorkel) {
+                                            courseBadgeHtml = `<span style="font-size:1.15rem;font-weight:900;color:#be185d;background:#fdf2f8;border:2px solid #fbcfe8;border-radius:8px;padding:3px 10px;margin-left:10px;white-space:nowrap;flex-shrink:0">${courseText}</span>`;
+                                        }
 
                                         // Arrived checkmark badge
                                         const arrivedBadge = g.arrived
@@ -240,6 +246,7 @@ window._buildTVContent = function() {
                                             <div class="flex items-center min-w-0 pr-2">
                                                 ${arrivedBadge}
                                                 <span class="text-[22px] font-black text-slate-700 uppercase tracking-tight truncate">${g.nombre}</span>
+                                                ${courseBadgeHtml}
                                                 ${returnBadge}
                                             </div>
                                             <span class="tv-gas-badge ${badgeClass}" style="font-size:1.35rem;font-weight:900;padding:5px 14px;min-width:130px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;line-height:1;border-radius:12px">${displayGas}</span>

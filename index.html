@@ -235,7 +235,7 @@
                 </header>
                 <div id="conta-index-warning"></div>
 
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
                     <div onclick="selectContabilidadMethod('tarjeta')" class="cursor-pointer bg-white rounded-2xl p-6 border-2 border-transparent hover:border-slate-300 shadow-sm transition-all text-center flex flex-col items-center group relative ring-2 ring-transparent" id="conta-card-tarjeta">
                         <div class="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4 group-hover:-translate-y-1 transition-transform">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
@@ -274,6 +274,14 @@
                         </div>
                         <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">PayPal</h4>
                         <div class="text-3xl font-black text-slate-800" id="conta-total-paypal">0 €</div>
+                    </div>
+
+                    <div onclick="selectContabilidadMethod('padi')" class="cursor-pointer bg-white rounded-2xl p-6 border-2 border-transparent hover:border-slate-300 shadow-sm transition-all text-center flex flex-col items-center group relative ring-2 ring-transparent" id="conta-card-padi">
+                        <div class="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 group-hover:-translate-y-1 transition-transform">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        </div>
+                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">PADI</h4>
+                        <div class="text-3xl font-black text-slate-800" id="conta-total-padi">0 €</div>
                     </div>
                 </div>
 
@@ -413,7 +421,8 @@
                 </button>
             </div>
             
-            <div class="p-6 overflow-y-auto flex-1">
+            <!-- Fixed Top Section -->
+            <div class="p-6 pb-4 shrink-0 bg-white border-b border-slate-200 shadow-sm z-10 flex flex-col gap-1">
                 <!-- Información General de la Salida -->
                 <div class="bg-orange-100 border border-orange-300 rounded-2xl p-5 mb-4 shadow-sm">
                     <!-- Fila 1: Selectores Principales -->
@@ -473,9 +482,9 @@
                 </div>
 
                 <!-- Box 2: Tiempos de Radio -->
-                <div id="radio-times-container" class="bg-orange-100 border border-orange-300 rounded-2xl p-5 mb-6 shadow-sm hidden"></div>
+                <div id="radio-times-container" class="bg-orange-100 border border-orange-300 rounded-2xl p-5 mb-4 shadow-sm hidden"></div>
                 
-                <div class="flex justify-between items-end mb-4">
+                <div class="flex justify-between items-end mb-1 shrink-0">
                     <h3 class="font-black text-slate-800 text-lg uppercase tracking-tight">Grupos y Guías</h3>
                     <div class="flex gap-2">
                         <button onclick="openGroupLinkModal()" class="px-5 py-2 bg-emerald-50 border border-emerald-200 text-emerald-600 font-black rounded-lg hover:bg-emerald-100 transition-colors text-sm shadow-sm flex items-center gap-2 auth-hide">
@@ -486,11 +495,14 @@
                         </button>
                     </div>
                 </div>
-                
+            </div>
+
+            <!-- Scrollable Groups Section -->
+            <div class="p-6 overflow-y-auto flex-1 bg-slate-50/20">
                 <div id="groups-container" class="space-y-6"></div>
 
                 <!-- ── WAITLIST SECTION ───────────────────────────────── -->
-                <div id="waitlist-section" class="mt-8 pb-64">
+                <div id="waitlist-section" class="mt-8 pb-32">
                     <button onclick="toggleWaitlist()" class="w-full flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors group auth-hide">
                         <div class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -1947,7 +1959,7 @@
                 <!-- Method Selection -->
                 <div>
                     <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Método de Pago</label>
-                    <div class="grid grid-cols-5 gap-1.5" id="payment-engine-methods">
+                    <div class="grid grid-cols-6 gap-1.5" id="payment-engine-methods">
                         <label class="cursor-pointer">
                             <input type="radio" name="payMethod" value="Tarjeta" class="peer sr-only" checked>
                             <div class="py-3 px-2 rounded-xl border border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 text-slate-500 text-center transition-all shadow-sm">
@@ -1958,7 +1970,7 @@
                         <label class="cursor-pointer">
                             <input type="radio" name="payMethod" value="Efectivo" class="peer sr-only">
                             <div class="py-3 px-2 rounded-xl border border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 text-slate-500 text-center transition-all shadow-sm">
-                                <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 114 0z"></path></svg>
                                 <span class="text-[10px] font-black uppercase">Efectivo</span>
                             </div>
                         </label>
@@ -1981,6 +1993,13 @@
                             <div class="py-3 px-2 rounded-xl border border-slate-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 text-slate-500 text-center transition-all shadow-sm">
                                 <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
                                 <span class="text-[10px] font-black uppercase">PayPal</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="payMethod" value="PADI" class="peer sr-only">
+                            <div class="py-3 px-2 rounded-xl border border-slate-200 peer-checked:border-red-500 peer-checked:bg-red-50 peer-checked:text-red-700 text-slate-500 text-center transition-all shadow-sm">
+                                <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                                <span class="text-[10px] font-black uppercase">PADI</span>
                             </div>
                         </label>
                     </div>
@@ -2214,7 +2233,7 @@
                 <!-- Payment Methods -->
                 <div>
                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Método de Pago</h4>
-                    <div class="grid grid-cols-4 gap-2">
+                    <div class="grid grid-cols-5 gap-2">
                         <button onclick="processGroupCheckout('Tarjeta')" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-transparent bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-all font-black text-xs gap-1">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                             Tarjeta
@@ -2230,6 +2249,10 @@
                         <button onclick="processGroupCheckout('PayPal')" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-transparent bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all font-black text-xs gap-1">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
                             PayPal
+                        </button>
+                        <button onclick="processGroupCheckout('PADI')" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-transparent bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 hover:border-red-200 transition-all font-black text-xs gap-1">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                            PADI
                         </button>
                     </div>
                 </div>
@@ -2406,6 +2429,7 @@
                             <option value="bizum">Bizum</option>
                             <option value="transferencia">Transferencia</option>
                             <option value="paypal">PayPal</option>
+                            <option value="padi">PADI</option>
                         </select>
                     </div>
                 </div>

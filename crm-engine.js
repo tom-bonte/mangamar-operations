@@ -733,6 +733,7 @@ window.updateGuestDeposit = async function (dni, amount, groupIndex, guestIndex)
                     <button class="dep-method-btn px-4 py-3 rounded-xl border-2 border-teal-200 bg-teal-50 text-teal-700 font-black hover:bg-teal-100 hover:border-teal-400 transition-colors text-left pl-6" data-method="Bizum">📱 Bizum</button>
                     <button class="dep-method-btn px-4 py-3 rounded-xl border-2 border-purple-200 bg-purple-50 text-purple-700 font-black hover:bg-purple-100 hover:border-purple-400 transition-colors text-left pl-6" data-method="Transferencia">🏦 Transferencia</button>
                     <button class="dep-method-btn px-4 py-3 rounded-xl border-2 border-indigo-200 bg-indigo-50 text-indigo-700 font-black hover:bg-indigo-100 hover:border-indigo-400 transition-colors text-left pl-6" data-method="PayPal">🅿️ PayPal</button>
+                    <button class="dep-method-btn px-4 py-3 rounded-xl border-2 border-red-200 bg-red-50 text-red-700 font-black hover:bg-red-100 hover:border-red-400 transition-colors text-left pl-6" data-method="PADI">🅿️ PADI</button>
                 </div>
             </div>
         `;
@@ -1032,6 +1033,7 @@ window.fetchContabilidadMonth = async function() {
     document.getElementById('conta-total-bizum').innerText = '...';
     document.getElementById('conta-total-transferencia').innerText = '...';
     document.getElementById('conta-total-paypal').innerText = '...';
+    document.getElementById('conta-total-padi').innerText = '...';
     document.getElementById('conta-table-body').innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400 text-sm font-bold"><div class="flex flex-col items-center justify-center"><svg class="w-6 h-6 animate-spin text-blue-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Cargando...</div></td></tr>`;
 
     // Active boundaries 
@@ -1098,8 +1100,8 @@ window.fetchContabilidadMonth = async function() {
         snapshots[0].forEach(doc => uniqueDocs.set(doc.ref.path, doc));
         snapshots[1].forEach(doc => uniqueDocs.set(doc.ref.path, doc));
 
-        activeContabilidadData = { tarjeta: [], bizum: [], efectivo: [], transferencia: [], paypal: [] };
-        let subTarj = 0; let subBiz = 0; let subEfe = 0; let subTrans = 0; let subPay = 0;
+        activeContabilidadData = { tarjeta: [], bizum: [], efectivo: [], transferencia: [], paypal: [], padi: [] };
+        let subTarj = 0; let subBiz = 0; let subEfe = 0; let subTrans = 0; let subPay = 0; let subPadi = 0;
 
         const groupedDocs = new Map();
 
@@ -1197,6 +1199,7 @@ window.fetchContabilidadMonth = async function() {
             else if (record.method === 'bizum') { activeContabilidadData.bizum.push(record); subBiz += record.amount; }
             else if (record.method === 'transferencia') { activeContabilidadData.transferencia.push(record); subTrans += record.amount; }
             else if (record.method === 'paypal') { activeContabilidadData.paypal.push(record); subPay += record.amount; }
+            else if (record.method === 'padi') { activeContabilidadData.padi.push(record); subPadi += record.amount; }
             else { activeContabilidadData.efectivo.push(record); subEfe += record.amount; }
         });
 
@@ -1206,6 +1209,7 @@ window.fetchContabilidadMonth = async function() {
         document.getElementById('conta-total-bizum').innerText = numFormat.format(subBiz) + ' €';
         document.getElementById('conta-total-transferencia').innerText = numFormat.format(subTrans) + ' €';
         document.getElementById('conta-total-paypal').innerText = numFormat.format(subPay) + ' €';
+        document.getElementById('conta-total-padi').innerText = numFormat.format(subPadi) + ' €';
 
         document.getElementById('conta-table-body').innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400 text-sm font-bold">Haz clic en un origen arriba para ver el desglose</td></tr>`;
         document.getElementById('conta-table-dot').classList.add('hidden');
@@ -1213,7 +1217,7 @@ window.fetchContabilidadMonth = async function() {
         document.getElementById('conta-table-count').innerText = "";
 
         // Reset ring highlights
-        ['tarjeta', 'efectivo', 'bizum', 'transferencia', 'paypal'].forEach(m => document.getElementById('conta-card-' + m).classList.remove('ring-blue-500', 'ring-emerald-500', 'ring-teal-500', 'ring-purple-500', 'ring-indigo-500', 'bg-blue-50/50', 'bg-emerald-50/50', 'bg-teal-50/50', 'bg-purple-50/50', 'bg-indigo-50/50'));
+        ['tarjeta', 'efectivo', 'bizum', 'transferencia', 'paypal', 'padi'].forEach(m => document.getElementById('conta-card-' + m).classList.remove('ring-blue-500', 'ring-emerald-500', 'ring-teal-500', 'ring-purple-500', 'ring-indigo-500', 'ring-red-500', 'bg-blue-50/50', 'bg-emerald-50/50', 'bg-teal-50/50', 'bg-purple-50/50', 'bg-indigo-50/50', 'bg-red-50/50'));
 
     } catch (e) {
         console.error("General error loading accounting:", e);
@@ -1229,13 +1233,14 @@ window.openContabilidadCustomerProfile = function(dni, nameFallback) {
 
 window.selectContabilidadMethod = function(method) {
     // Styling toggle
-    ['tarjeta', 'efectivo', 'bizum', 'transferencia', 'paypal'].forEach(m => document.getElementById('conta-card-' + m).classList.remove('ring-blue-500', 'ring-emerald-500', 'ring-teal-500', 'ring-purple-500', 'ring-indigo-500', 'bg-blue-50/50', 'bg-emerald-50/50', 'bg-teal-50/50', 'bg-purple-50/50', 'bg-indigo-50/50'));
+    ['tarjeta', 'efectivo', 'bizum', 'transferencia', 'paypal', 'padi'].forEach(m => document.getElementById('conta-card-' + m).classList.remove('ring-blue-500', 'ring-emerald-500', 'ring-teal-500', 'ring-purple-500', 'ring-indigo-500', 'ring-red-500', 'bg-blue-50/50', 'bg-emerald-50/50', 'bg-teal-50/50', 'bg-purple-50/50', 'bg-indigo-50/50', 'bg-red-50/50'));
     
     let ringClass = 'ring-emerald-500'; let bgClass = 'bg-emerald-50/50'; let dotClass = 'bg-emerald-500';
     if (method === 'tarjeta') { ringClass = 'ring-blue-500'; bgClass = 'bg-blue-50/50'; dotClass = 'bg-blue-500'; }
     if (method === 'bizum') { ringClass = 'ring-teal-500'; bgClass = 'bg-teal-50/50'; dotClass = 'bg-teal-500'; }
     if (method === 'transferencia') { ringClass = 'ring-purple-500'; bgClass = 'bg-purple-50/50'; dotClass = 'bg-purple-500'; }
     if (method === 'paypal') { ringClass = 'ring-indigo-500'; bgClass = 'bg-indigo-50/50'; dotClass = 'bg-indigo-500'; }
+    if (method === 'padi') { ringClass = 'ring-red-500'; bgClass = 'bg-red-50/50'; dotClass = 'bg-red-500'; }
 
     const card = document.getElementById('conta-card-' + method);
     card.classList.add(ringClass, bgClass);
