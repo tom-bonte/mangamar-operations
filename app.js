@@ -485,7 +485,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
             <div class="mt-auto flex flex-col gap-1 w-full shrink-0">
                 <div class="flex justify-between items-end px-0.5">
-                    <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum} (${window.calculateTotalPeopleOnBoat(trip)} total)</span>
+                    <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum} (total: ${window.calculateTotalPeopleOnBoat(trip)})</span>
                 </div>
                 ${!isShore ? `
                 <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">

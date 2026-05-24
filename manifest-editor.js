@@ -267,7 +267,7 @@ function updateModalSubtitle() {
     let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.plazas) || parseInt(activeBoatItem.pax) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
     let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : `${capacityNum} Plazas Ocupadas`;
     const totalPeople = typeof window.calculateTotalPeopleOnBoat === 'function' ? window.calculateTotalPeopleOnBoat(activeBoatItem) : total;
-    document.getElementById('modal-boat-subtitle').innerText = `${activeBoatItem.time} • ${total}/${capText} (${totalPeople} total)`;
+    document.getElementById('modal-boat-subtitle').innerText = `${activeBoatItem.time} • ${total}/${capText} (total: ${totalPeople})`;
 }
 
 function checkDiverConflict(dni, fullName, skipGroupIdx = -1, skipGuestIdx = -1) {
