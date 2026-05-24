@@ -54,7 +54,40 @@ window.checkDniMatch = function(dni, normQuery) {
         if (dniDigits.includes(queryDigits)) return true;
     }
     return false;
-};// ==========================================
+};
+
+window.calculateTotalPeopleOnBoat = function(trip) {
+    if (!trip) return 0;
+    const guests = trip.guests || [];
+    const guestCount = guests.length;
+    
+    const staffSet = new Set();
+    
+    const isPlaceholder = (name) => {
+        if (!name) return true;
+        const lower = name.trim().toLowerCase();
+        return lower === "" || lower === "sin asignar" || lower === "por asignar" || lower === "sin guia" || lower === "sin guía" || lower === "sin apoyo";
+    };
+    
+    if (trip.captain && !isPlaceholder(trip.captain)) {
+        staffSet.add(trip.captain.trim().toLowerCase());
+    }
+    
+    if (trip.groups) {
+        trip.groups.forEach(g => {
+            if (g.guide && !isPlaceholder(g.guide)) {
+                staffSet.add(g.guide.trim().toLowerCase());
+            }
+            if (g.apoyo && !isPlaceholder(g.apoyo)) {
+                staffSet.add(g.apoyo.trim().toLowerCase());
+            }
+        });
+    }
+    
+    return guestCount + staffSet.size;
+};
+
+// ==========================================
 // 1. INITIALIZATION & NAVIGATION
 // ==========================================
 let miniCalendarDate = new Date(); 
@@ -452,7 +485,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
             <div class="mt-auto flex flex-col gap-1 w-full shrink-0">
                 <div class="flex justify-between items-end px-0.5">
-                    <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum}</span>
+                    <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum} (${window.calculateTotalPeopleOnBoat(trip)} total)</span>
                 </div>
                 ${!isShore ? `
                 <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">

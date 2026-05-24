@@ -266,7 +266,8 @@ function updateModalSubtitle() {
     let total = 0; activeBoatItem.groups.forEach(g => total += g.guests.length);
     let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.plazas) || parseInt(activeBoatItem.pax) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
     let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : `${capacityNum} Plazas Ocupadas`;
-    document.getElementById('modal-boat-subtitle').innerText = `${activeBoatItem.time} • ${total}/${capText}`;
+    const totalPeople = typeof window.calculateTotalPeopleOnBoat === 'function' ? window.calculateTotalPeopleOnBoat(activeBoatItem) : total;
+    document.getElementById('modal-boat-subtitle').innerText = `${activeBoatItem.time} • ${total}/${capText} (${totalPeople} total)`;
 }
 
 function checkDiverConflict(dni, fullName, skipGroupIdx = -1, skipGuestIdx = -1) {
