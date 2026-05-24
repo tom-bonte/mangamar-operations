@@ -895,7 +895,7 @@ window.executeDailySearch = function(query) {
     // Helper to clear all card highlights
     const clearAllHighlights = () => {
         document.querySelectorAll('[data-trip-id]').forEach(card => {
-            card.classList.remove('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', 'search-matched');
+            card.classList.remove('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]');
             if (!card.classList.contains('border-red-500')) {
                 card.classList.add('border-slate-200');
             }
@@ -938,14 +938,14 @@ window.executeDailySearch = function(query) {
         }
     });
     
-    // Highlight matching cards with solid 3px emerald border, glow, and show their tooltip
+    // Highlight matching cards with solid 3px emerald border and a soft glow
     document.querySelectorAll('[data-trip-id]').forEach(card => {
         const tripId = card.getAttribute('data-trip-id');
         if (matchingTripIds.has(tripId)) {
-            card.classList.add('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', 'search-matched');
+            card.classList.add('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]');
             card.classList.remove('border-slate-200', 'hover:border-blue-300');
         } else {
-            card.classList.remove('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]', 'search-matched');
+            card.classList.remove('border-[3px]', 'border-emerald-500', 'shadow-[0_0_20px_rgba(16,185,129,0.4)]');
             if (!card.classList.contains('border-red-500')) {
                 card.classList.add('border-slate-200');
             }
@@ -956,6 +956,54 @@ window.executeDailySearch = function(query) {
     if (countBadge) {
         countBadge.innerText = `${matchCount} ${matchCount === 1 ? 'coincidencia' : 'coincidencias'}`;
         countBadge.classList.remove('hidden');
+    }
+
+    // Render dropdown list of search results
+    if (popup) {
+        if (matchCount > 0) {
+            let resultsHtml = '';
+            todaysTrips.forEach(trip => {
+                const guests = trip.guests || [];
+                guests.forEach(g => {
+                    const nameMatch = window.normalizeSearchString(g.nombre).includes(normQuery);
+                    const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+
+                    if (nameMatch || dniMatch) {
+                        const boatName = trip.assignedBoat === 'ares' ? 'Ares' : (trip.assignedBoat === 'kaiser' ? 'Kaiser' : 'Shore');
+                        const siteName = trip.site || 'Sin Destino';
+                        const timeVal = trip.time || '';
+
+                        let highlightedName = g.nombre;
+                        const searchWords = query.split(/\s+/).filter(w => w.length >= 2);
+                        if (searchWords.length > 0) {
+                            searchWords.forEach(word => {
+                                highlightedName = highlightedName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-500/20 text-emerald-400 font-bold px-1 py-0.5 rounded">${match}</mark>`);
+                            });
+                        } else {
+                            highlightedName = highlightedName.replace(new RegExp(query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-500/20 text-emerald-400 font-bold px-1 py-0.5 rounded">${match}</mark>`);
+                        }
+
+                        resultsHtml += `
+                        <div onmousedown="window.highlightAndScrollToCard('${trip.id}')" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors border border-transparent hover:border-slate-700 group/row">
+                            <div class="flex-1 min-w-0 pr-3 text-left">
+                                <div class="text-xs font-black text-white truncate">${highlightedName}</div>
+                                <div class="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">${g.dni || 'Sin DNI'}</div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="text-[10px] font-black text-orange-400 group-hover/row:text-orange-300 transition-colors uppercase">${boatName} \u2022 ${timeVal}</div>
+                                <div class="text-[9px] font-bold text-slate-400 truncate max-w-[120px] mt-0.5">${siteName}</div>
+                            </div>
+                        </div>
+                        `;
+                    }
+                });
+            });
+            popup.innerHTML = resultsHtml;
+            popup.classList.remove('hidden');
+        } else {
+            popup.innerHTML = `<div class="text-xs font-bold text-slate-400 italic text-center p-3">No se encontraron buceadores</div>`;
+            popup.classList.remove('hidden');
+        }
     }
 };
 
@@ -976,6 +1024,20 @@ window.refocusDailySearch = function() {
         input.focus();
         const len = input.value.length;
         input.setSelectionRange(len, len);
+    }
+};
+
+window.showDailySearchPopup = function() {
+    const popup = document.getElementById('daily-search-popup');
+    if (popup && window.activeDailySearchQuery && window.activeDailySearchQuery.trim().length >= 3) {
+        popup.classList.remove('hidden');
+    }
+};
+
+window.hideDailySearchPopup = function() {
+    const popup = document.getElementById('daily-search-popup');
+    if (popup) {
+        popup.classList.add('hidden');
     }
 };
 
