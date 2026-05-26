@@ -1546,12 +1546,12 @@ function searchCustomers(groupIndex, query) {
         // DNI FALLBACK: If query looks like a DNI (≥6 alphanumeric chars), check Firestore directly
         const looksLikeDni = /^[0-9a-z]{6,}/i.test(query);
         if (looksLikeDni && typeof db !== 'undefined') {
-            const tryDni = query.toUpperCase();
+            const tryDni = window.normalizeDni(query);
             db.collection('mangamar_customers').doc(tryDni).get()
                 .then(doc => {
                     if (!doc.exists) {
-                        // Try lowercase version too
-                        return db.collection('mangamar_customers').doc(query).get();
+                        // Try raw uppercase query as fallback in case it's stored differently
+                        return db.collection('mangamar_customers').doc(query.toUpperCase()).get();
                     }
                     return doc;
                 })
@@ -1560,9 +1560,9 @@ function searchCustomers(groupIndex, query) {
                     const d = doc.data();
                     const nombre = d.nombre || '';
                     const tit = d.titulacion || '';
-                    const dni = (d.dni || query).toUpperCase();
+                    const dni = window.normalizeDni(d.dni || query);
                     // Add to local cache so future searches find it
-                    if (!customerDatabase.find(c => (c.dni || '').toUpperCase() === dni)) {
+                    if (!customerDatabase.find(c => window.normalizeDni(c.dni) === dni)) {
                         customerDatabase.push({ nombre, apellido: '', titulacion: tit, telefono: d.telefono || '', email: d.email || '', dni });
                     }
                     // Rebuild dropdown with found result

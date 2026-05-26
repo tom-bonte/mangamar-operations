@@ -1377,7 +1377,7 @@ window.syncJotformCustomers = async function() {
                 }
 
                 customerDatabase.push({
-                    dni:        rawDni,
+                    dni:        window.normalizeDni(rawDni),
                     nombre:     fixNameCaps(sheetClient.nombre),
                     apellido:   fixNameCaps(sheetClient.apellido),
                     email:      sheetClient.email     || '',

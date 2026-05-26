@@ -8,6 +8,35 @@
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// --- DNI Normalization & CRM Consolidator helpers ---
+window.normalizeDni = function(dni) {
+    if (!dni) return '';
+    return dni.toString().replace(/[^A-Za-z0-9]/g, '').trim().toUpperCase();
+};
+
+window.migrateCustomerHistory = async function(oldDni, newDni) {
+    if (!oldDni || !newDni || oldDni === newDni) return;
+    try {
+        const oldHistorySnap = await db.collection('mangamar_customers').doc(oldDni).collection('history').get();
+        if (!oldHistorySnap.empty) {
+            console.log(`🚚 [CRM Auto-Heal] Migrating history from ${oldDni} -> ${newDni} (${oldHistorySnap.size} records)...`);
+            const batch = db.batch();
+            oldHistorySnap.forEach(doc => {
+                const newDocRef = db.collection('mangamar_customers').doc(newDni).collection('history').doc(doc.id);
+                batch.set(newDocRef, doc.data(), { merge: true });
+                const oldDocRef = db.collection('mangamar_customers').doc(oldDni).collection('history').doc(doc.id);
+                batch.delete(oldDocRef);
+            });
+            await batch.commit();
+            console.log(`✅ [CRM Auto-Heal] History migration complete: ${oldDni} -> ${newDni}`);
+        }
+        // Delete the empty parent client document
+        await db.collection('mangamar_customers').doc(oldDni).delete().catch(() => {});
+    } catch (err) {
+        console.error(`❌ [CRM Auto-Heal] Failed to migrate history from ${oldDni} to ${newDni}:`, err);
+    }
+};
+
 // Enable Offline Persistence for lightning-fast loads
 db.enablePersistence({ synchronizeTabs: true })
     .catch((err) => {
@@ -202,15 +231,51 @@ function startFirestoreListeners() {
 
                 rawClients.forEach(c => {
                     if (c.dni && c.dni.trim() !== '') {
-                        const key = c.dni.trim().toUpperCase();
+                        const originalDni = c.dni;
+                        const key = window.normalizeDni(originalDni);
                         c.dni = key;
+
+                        if (originalDni !== key) {
+                            window.migrateCustomerHistory(originalDni, key);
+                        }
 
                         if (dedupMap.has(key)) {
                             let existing = dedupMap.get(key);
                             let merged = { ...existing };
+                            
+                            // Smart Merge: Merge fields prioritizing more complete data
                             for (let prop in c) {
-                                if (c[prop] !== undefined && c[prop] !== null && c[prop] !== '') {
-                                    merged[prop] = c[prop];
+                                const valC = c[prop];
+                                const valE = existing[prop];
+                                if (valC !== undefined && valC !== null && valC !== '') {
+                                    if (valE === undefined || valE === null || valE === '') {
+                                        merged[prop] = valC;
+                                    } else {
+                                        // Both have values. Choose the best one!
+                                        if (prop === 'titulacion') {
+                                            const isCapC = valC === valC.toUpperCase();
+                                            const isCapE = valE === valE.toUpperCase();
+                                            if (isCapC && !isCapE) {
+                                                merged[prop] = valC;
+                                            } else if (!isCapC && isCapE) {
+                                                merged[prop] = valE;
+                                            } else {
+                                                merged[prop] = valC.length >= valE.length ? valC : valE;
+                                            }
+                                        } else if (prop === 'nombre' || prop === 'apellido') {
+                                            merged[prop] = valC.length >= valE.length ? valC : valE;
+                                        } else if (prop === 'insurance') {
+                                            const expC = typeof valC === 'object' ? valC.expiry : '';
+                                            const expE = typeof valE === 'object' ? valE.expiry : '';
+                                            if (expC && expE) {
+                                                merged[prop] = expC >= expE ? valC : valE;
+                                            } else if (valC && !valE) {
+                                                merged[prop] = valC;
+                                            }
+                                        } else {
+                                            merged[prop] = String(valC).length >= String(valE).length ? valC : valE;
+                                        }
+                                    }
                                 }
                             }
                             dedupMap.set(key, merged);
