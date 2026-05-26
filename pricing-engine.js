@@ -5,6 +5,16 @@
 let isPriceEditMode = false;
 let activePriceTab = "Inmersiones";
 window.dynamicPrices = []; // Globalized for visibility across all modules
+window.PRICES = new Proxy({}, {
+    get: function(target, prop) {
+        if (typeof prop === 'string' && window.dynamicPrices) {
+            const trimmedProp = prop.trim().toLowerCase();
+            const item = window.dynamicPrices.find(p => p.name && p.name.trim().toLowerCase() === trimmedProp);
+            return item ? item.price : undefined;
+        }
+        return undefined;
+    }
+});
 let originalPricesSnapshot = []; // Stores prices before entering edit mode
 
 let pricingListenerUnsubscribe = null;
