@@ -983,7 +983,7 @@ window.generateJointFactura = async function (repName, repDni, groupDiscount = 0
             if (data.course) {
                 let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
                 if (!billedCourses.has(baseCourse)) {
-                    p.course = data.coursePrice !== undefined ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+                    p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
                     billedCourses.add(baseCourse);
                 } else { p.course = 0; }
                 p.dive = 0; p.tasa = 0;

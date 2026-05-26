@@ -258,12 +258,7 @@ setTimeout(() => {
             let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
 
             if (!billedCourses.has(baseCourse)) {
-                if (data.coursePrice !== undefined && data.coursePrice !== null) {
-                    courseRate = data.coursePrice;
-                } else if (typeof dynamicPrices !== 'undefined') {
-                    const found = dynamicPrices.find(dp => dp.name === baseCourse);
-                    courseRate = found ? found.price : 0;
-                }
+                courseRate = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
                 billedCourses.add(baseCourse);
                 p.course = courseRate;
             } else {
