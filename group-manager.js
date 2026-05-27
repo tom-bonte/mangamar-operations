@@ -234,11 +234,16 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
 
             memberListEl.innerHTML = (existingGlobal.members || []).map(mDni => {
                 const cx = (customerDatabase || []).find(c => c.dni === mDni);
-                const isTemp = String(mDni).startsWith('temp_');
-                const fullName = cx ? getFullName(cx) : (isTemp && existingGlobal.manualNames && existingGlobal.manualNames[mDni] ? existingGlobal.manualNames[mDni] : mDni);
+                const isTemp = String(mDni).toLowerCase().startsWith('temp_');
+                let fullName = cx ? getFullName(cx) : null;
+                if (!fullName && isTemp && existingGlobal.manualNames) {
+                    const matchedKey = Object.keys(existingGlobal.manualNames).find(k => k.toLowerCase() === String(mDni).toLowerCase());
+                    if (matchedKey) fullName = existingGlobal.manualNames[matchedKey];
+                }
+                if (!fullName) fullName = mDni;
                 const subtitle = isTemp ? 'Buceador Manual' : mDni;
                 
-                const isOnBoat = activeBoatItem.groups.some(grp => grp.guests.some(gst => (gst.dni && gst.dni === mDni) || (!gst.dni && gst.tempId === mDni) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(mDni).toLowerCase())));
+                const isOnBoat = activeBoatItem.groups.some(grp => grp.guests.some(gst => (gst.dni && gst.dni === mDni) || (!gst.dni && gst.tempId && gst.tempId.toLowerCase() === String(mDni).toLowerCase()) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(mDni).toLowerCase())));
 
                 return `
                 <div class="flex items-center justify-between bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-100 transition-all group/item shadow-sm">
@@ -301,7 +306,7 @@ function findExistingDiverData(dniOrName) {
     for (const group of (activeBoatItem.groups || [])) {
         if (!group.guests) continue;
         const match = group.guests.find(g => {
-            if (String(dniOrName).startsWith('temp_')) return g.tempId === dniOrName;
+            if (String(dniOrName).toLowerCase().startsWith('temp_')) return g.tempId && g.tempId.toLowerCase() === String(dniOrName).toLowerCase();
             return (g.dni && g.dni === dniOrName) || (!g.dni && g.nombre && g.nombre.toLowerCase() === searchVal);
         });
         if (match) {
@@ -338,7 +343,7 @@ function findExistingDiverData(dniOrName) {
         for (const group of trip.groups) {
             if (!group.guests) continue;
             const match = group.guests.find(g => {
-                if (String(dniOrName).startsWith('temp_')) return g.tempId === dniOrName;
+                if (String(dniOrName).toLowerCase().startsWith('temp_')) return g.tempId && g.tempId.toLowerCase() === String(dniOrName).toLowerCase();
                 return (g.dni && g.dni === dniOrName) || (!g.dni && g.nombre && g.nombre.toLowerCase() === searchVal);
             });
             if (match) {
@@ -454,8 +459,20 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
             date: activeBoatItem.date
         };
     } else {
-        const properName = (existingData && existingData.originalName) ? existingData.originalName : strIdentifier.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        const tempId = strIdentifier.startsWith('temp_') ? strIdentifier : ('temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
+        let properName = (existingData && existingData.originalName && !existingData.originalName.toLowerCase().startsWith('temp_')) ? existingData.originalName : null;
+        if (!properName && strIdentifier.toLowerCase().startsWith('temp_') && groupTag) {
+            const grp = (window.globalGroups || []).find(g => g.name.toLowerCase() === groupTag.toLowerCase() || g.id === groupTag);
+            if (grp && grp.manualNames) {
+                const matchedKey = Object.keys(grp.manualNames).find(k => k.toLowerCase() === strIdentifier.toLowerCase());
+                if (matchedKey) {
+                    properName = grp.manualNames[matchedKey];
+                }
+            }
+        }
+        if (!properName) {
+            properName = strIdentifier.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        }
+        const tempId = strIdentifier.toLowerCase().startsWith('temp_') ? strIdentifier.toLowerCase() : ('temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
         
         let localIns = 0;
         if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
@@ -584,8 +601,19 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
                     date: activeBoatItem.date
                 };
             } else {
-                const tempId = strMemberId.startsWith('temp_') ? strMemberId : ('temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
-                const properName = (existingData && existingData.originalName) ? existingData.originalName : (!strMemberId.startsWith('temp_') ? strMemberId.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : (grp.manualNames && grp.manualNames[strMemberId] ? grp.manualNames[strMemberId] : 'Buceador Manual'));
+                const tempId = strMemberId.toLowerCase().startsWith('temp_') ? strMemberId.toLowerCase() : ('temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
+                let properName = (existingData && existingData.originalName && !existingData.originalName.toLowerCase().startsWith('temp_')) ? existingData.originalName : null;
+                if (!properName && strMemberId.toLowerCase().startsWith('temp_') && grp.manualNames) {
+                    const matchedKey = Object.keys(grp.manualNames).find(k => k.toLowerCase() === strMemberId.toLowerCase());
+                    if (matchedKey) {
+                        properName = grp.manualNames[matchedKey];
+                    }
+                }
+                if (!properName) {
+                    properName = !strMemberId.toLowerCase().startsWith('temp_')
+                        ? strMemberId.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                        : 'Buceador Manual';
+                }
                 let localIns = 0;
                 if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
                     localIns = existingData.insurance;
@@ -769,7 +797,7 @@ async function confirmGroupLink(groupName) {
             if (guest.dni && !groupObj.members.includes(guest.dni)) {
                 groupObj.members.push(guest.dni);
             } else if (!guest.dni) {
-                const manualId = guest.tempId || (guest.nombre ? guest.nombre.toLowerCase() : null);
+                const manualId = (guest.tempId ? guest.tempId.toLowerCase() : null) || (guest.nombre ? guest.nombre.toLowerCase() : null);
                 if (manualId && !groupObj.members.includes(manualId)) {
                     groupObj.members.push(manualId);
                     if (guest.tempId && guest.nombre) {

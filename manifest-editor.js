@@ -1272,7 +1272,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                 // Check if the group contains the old name/tempId
                 const matchFound = grp.members.some(m => {
                     if (guestTempId && m === guestTempId) return true;
-                    if (!guestTempId && m.startsWith('temp_')) return false; // Don't text-match against tempIds
+                    if (!guestTempId && m.toLowerCase().startsWith('temp_')) return false; // Don't text-match against tempIds
                     const normM = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(m) : m.trim().toLowerCase();
                     return normM === matchTarget;
                 });
@@ -1282,10 +1282,10 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                     // It's in this group! Add its start/end months to our fetch list to guarantee cross-month sync
                     if (grp.startDate) monthsToFetch.add(grp.startDate.substring(0, 7));
                     if (grp.endDate) monthsToFetch.add(grp.endDate.substring(0, 7));
-
+ 
                     grp.members = grp.members.filter(m => {
                         if (guestTempId && m === guestTempId) return false;
-                        if (!guestTempId && m.startsWith('temp_')) return true;
+                        if (!guestTempId && m.toLowerCase().startsWith('temp_')) return true;
                         const normM = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(m) : m.trim().toLowerCase();
                         return normM !== matchTarget;
                     });
