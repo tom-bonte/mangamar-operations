@@ -8,16 +8,35 @@ window.deleteHistoryItem = async function (dni, boatId, monthKey, itemType = 'bu
 
     showAppConfirm(alertMsg, async () => {
         try {
+            // OPTIMISTIC FAST PATH!
+            // 1. Immediately remove from local RAM array
+            if (window.activeFichaRawDocs) {
+                window.activeFichaRawDocs = window.activeFichaRawDocs.filter(doc => doc.id !== boatId);
+            }
+            
+            // Get current active tab content layer
+            const contextLayer = document.getElementById('tab-content-caja').classList.contains('hidden') ? 
+                (document.getElementById('tab-content-pagos').classList.contains('hidden') ? 'historial' : 'pagos') : 'caja';
+
+            // Recalculate and render immediately
+            window.recalculateFichaHistory(dni);
+            window.renderFichaFromCache(dni, contextLayer);
+            
+            showToast("Registro anulado con éxito.");
+            closeAppConfirm(); // Make sure to close confirm modal instantly!
+
+            // Now perform Firestore operations in the background
             let pagoData = null;
             if (isPago) {
                 const pagoSnap = await db.collection('mangamar_customers').doc(dni).collection('history').doc(boatId).get();
                 if (pagoSnap.exists) pagoData = pagoSnap.data();
             }
 
-            // 1. Shred the receipt in the Ficha
-            await db.collection('mangamar_customers').doc(dni).collection('history').doc(boatId).delete();
+            // A. Shred receipt in the Ficha
+            const deleteHistoryPromise = db.collection('mangamar_customers').doc(dni).collection('history').doc(boatId).delete();
 
-            // 1.5 Revert linked dives back to pending so the debt returns
+            // B. Revert linked payments back to pending
+            let revertPromise = Promise.resolve();
             if (isPago && pagoData) {
                 if (pagoData.settledDocIds && Array.isArray(pagoData.settledDocIds)) {
                     const batch = db.batch();
@@ -29,15 +48,16 @@ window.deleteHistoryItem = async function (dni, boatId, monthKey, itemType = 'bu
                             paidAt: firebase.firestore.FieldValue.delete()
                         });
                     });
-                    await batch.commit();
+                    revertPromise = batch.commit();
                 } else if (pagoData.description && pagoData.description.includes('Liquidación')) {
                     showToast("⚠️ Pago antiguo: Vuelve a marcar las inmersiones como 'Pendientes' manualmente.", 5000);
                 }
             }
 
-            // 2. ONLY rip them out of the physical boat if it was actually a boat trip
+            // C. ONLY rip them out of the physical boat if it was actually a boat trip
+            let ripPromise = Promise.resolve();
             if (!isPago && !isProd) {
-                const trip = internalTrips.find(t => t.id === boatId);
+                let trip = internalTrips.find(t => t.id === boatId);
                 if (trip) {
                     let clonedTrip = JSON.parse(JSON.stringify(trip));
                     clonedTrip.groups.forEach(g => {
@@ -45,26 +65,54 @@ window.deleteHistoryItem = async function (dni, boatId, monthKey, itemType = 'bu
                     });
                     clonedTrip.guests = clonedTrip.guests.filter(guest => guest.dni !== dni);
 
-                    await db.collection('mangamar_monthly').doc(monthKey).update({
+                    ripPromise = db.collection('mangamar_monthly').doc(monthKey).update({
                         [`allocations.${boatId}`]: clonedTrip
                     });
+
+                    // Update in RAM for main calendar view
+                    const ramTripIdx = window.internalTrips.findIndex(t => t.id === boatId);
+                    if (ramTripIdx > -1) {
+                        window.internalTrips[ramTripIdx] = clonedTrip;
+                    }
+                    if (window.mergeAndRender) window.mergeAndRender();
+                } else {
+                    // Fallback to fetch from Firestore directly and update (cross-month safety)
+                    ripPromise = (async () => {
+                        const monthlyRef = db.collection('mangamar_monthly').doc(monthKey);
+                        const monthlySnap = await monthlyRef.get();
+                        if (monthlySnap.exists) {
+                            const data = monthlySnap.data();
+                            const allocations = data.allocations || {};
+                            const dbTrip = allocations[boatId];
+                            if (dbTrip) {
+                                let clonedTrip = JSON.parse(JSON.stringify(dbTrip));
+                                if (clonedTrip.groups) {
+                                    clonedTrip.groups.forEach(g => {
+                                        if (g.guests) g.guests = g.guests.filter(guest => guest.dni !== dni);
+                                    });
+                                }
+                                if (clonedTrip.guests) {
+                                    clonedTrip.guests = clonedTrip.guests.filter(guest => guest.dni !== dni);
+                                }
+                                await monthlyRef.update({
+                                    [`allocations.${boatId}`]: clonedTrip
+                                });
+                            }
+                        }
+                    })();
                 }
             }
 
+            // Wait for all database updates in the background
+            await Promise.all([deleteHistoryPromise, revertPromise, ripPromise]);
+
             // --- GARBAGE COLLECTOR TRIGGER ---
             if (window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(dni);
-
-            // 3. Refresh the UI dynamically
-            const nombre = document.getElementById('profile-modal-name').innerText;
-            const contextLayer = document.getElementById('tab-content-caja').classList.contains('hidden') ? 
-                (document.getElementById('tab-content-pagos').classList.contains('hidden') ? 'historial' : 'pagos') : 'caja';
-            openCustomerProfile(dni, nombre, false, contextLayer);
 
             if (!document.getElementById('today-divers-modal').classList.contains('hidden')) {
                 openTodayDiversModal();
             }
 
-            showToast("Registro anulado con éxito.");
         } catch (e) {
             console.error(e);
             showAppAlert("Error de conexión al eliminar.");
@@ -341,21 +389,42 @@ window.historialBulkMarkPending = async function () {
 window.historialBulkDelete = async function () {
     if (!window.activeHistorialSelection || window.activeHistorialSelection.length === 0) return;
 
-    const items = window.activeHistorialSelection;
+    const items = [...window.activeHistorialSelection];
 
     showAppConfirm(`⚠️ ATENCIÓN: ¿Anular ${items.length} registro(s) seleccionado(s) permanentemente?\n\nEsto borrará todos los cobros seleccionados de la ficha Y SACARÁ FÍSICAMENTE a la persona de esos marcos en el calendario.`, async () => {
         try {
-            showToast("⏳ Eliminando registros, por favor espera...");
             const dni = items[0].dni;
 
-            // Collect all unique months we need to touch in `mangamar_monthly`
+            // OPTIMISTIC FAST PATH!
+            // 1. Immediately remove all deleted docIds from RAM
+            const deletedDocIds = new Set(items.map(item => item.docId));
+            if (window.activeFichaRawDocs) {
+                window.activeFichaRawDocs = window.activeFichaRawDocs.filter(doc => !deletedDocIds.has(doc.id));
+            }
+
+            // Get current active tab context layer
+            const contextLayer = document.getElementById('tab-content-caja').classList.contains('hidden') ? 
+                (document.getElementById('tab-content-pagos').classList.contains('hidden') ? 'historial' : 'pagos') : 'caja';
+
+            // 2. Instantly recalculate and render the UI
+            window.recalculateFichaHistory(dni);
+            window.renderFichaFromCache(dni, contextLayer);
+
+            showToast("✅ Registros anulados con éxito");
+            window.historialClearSelection();
+            closeAppConfirm();
+
+            // Background processing:
+            // 1. Delete history documents from CRM history in parallel!
+            const deleteHistoryPromises = items.map(item => 
+                db.collection('mangamar_customers').doc(dni).collection('history').doc(item.docId).delete()
+            );
+
+            // 2. Collect all unique months we need to touch in `mangamar_monthly`
             const updatesByMonth = {};
+            const monthsToFetchDirectly = new Set();
 
             for (const item of items) {
-                // Delete from Customer history subcollection natively via await inline to avoid complex batch limits if doing tons
-                await db.collection('mangamar_customers').doc(dni).collection('history').doc(item.docId).delete();
-
-                // Find trip in the global array to pluck it
                 const trip = internalTrips.find(t => t.id === item.docId);
                 if (trip) {
                     if (!updatesByMonth[item.monthKey]) updatesByMonth[item.monthKey] = {};
@@ -366,27 +435,77 @@ window.historialBulkDelete = async function () {
                     if (clonedTrip.guests) clonedTrip.guests = clonedTrip.guests.filter(guest => guest.dni !== dni);
 
                     updatesByMonth[item.monthKey][`allocations.${item.docId}`] = clonedTrip;
+
+                    // Update in RAM as well
+                    const ramTripIdx = window.internalTrips.findIndex(t => t.id === item.docId);
+                    if (ramTripIdx > -1) {
+                        window.internalTrips[ramTripIdx] = clonedTrip;
+                    }
+                } else {
+                    // Not in RAM, we need to fetch and edit the monthly document directly!
+                    monthsToFetchDirectly.add(item.monthKey);
                 }
             }
 
-            // Exectute all monthly manifest updates
+            // Execute all updates for months we had in RAM
+            const ramUpdatesPromises = [];
             const monthKeys = Object.keys(updatesByMonth);
             if (monthKeys.length > 0) {
                 const batch = db.batch();
                 monthKeys.forEach(mk => {
                     batch.update(db.collection('mangamar_monthly').doc(mk), updatesByMonth[mk]);
                 });
-                await batch.commit();
+                ramUpdatesPromises.push(batch.commit());
             }
 
+            // Fetch and update monthly docs for items NOT in RAM
+            const directUpdatesPromises = [];
+            if (monthsToFetchDirectly.size > 0) {
+                for (const mk of monthsToFetchDirectly) {
+                    const promise = (async () => {
+                        const monthlyRef = db.collection('mangamar_monthly').doc(mk);
+                        const monthlySnap = await monthlyRef.get();
+                        if (monthlySnap.exists) {
+                            const data = monthlySnap.data() || {};
+                            const allocations = data.allocations || {};
+                            const updatePayload = {};
+                            let updatedAny = false;
+
+                            items.forEach(item => {
+                                if (item.monthKey === mk && allocations[item.docId]) {
+                                    let clonedTrip = JSON.parse(JSON.stringify(allocations[item.docId]));
+                                    if (clonedTrip.groups) {
+                                        clonedTrip.groups.forEach(g => {
+                                            if (g.guests) g.guests = g.guests.filter(guest => guest.dni !== dni);
+                                        });
+                                    }
+                                    if (clonedTrip.guests) {
+                                        clonedTrip.guests = clonedTrip.guests.filter(guest => guest.dni !== dni);
+                                    }
+                                    updatePayload[`allocations.${item.docId}`] = clonedTrip;
+                                    updatedAny = true;
+                                }
+                            });
+
+                            if (updatedAny) {
+                                await monthlyRef.update(updatePayload);
+                            }
+                        }
+                    })();
+                    directUpdatesPromises.push(promise);
+                }
+            }
+
+            if (window.mergeAndRender) window.mergeAndRender();
+
+            // Wait for all background tasks to finish
+            await Promise.all([
+                ...deleteHistoryPromises,
+                ...ramUpdatesPromises,
+                ...directUpdatesPromises
+            ]);
+
             if (window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(dni);
-
-            showToast("✅ Eliminados con éxito");
-
-            // Reload the profile silently!
-            const nombre = document.getElementById('profile-modal-name').innerText;
-            openCustomerProfile(window.activeFichaDni, nombre, false, 'historial');
-            closeAppConfirm();
 
             if (!document.getElementById('today-divers-modal').classList.contains('hidden')) {
                 openTodayDiversModal();

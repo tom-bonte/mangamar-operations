@@ -689,8 +689,12 @@ window.updateGuestDeposit = async function (dni, amount, groupIndex, guestIndex)
             if (typeof activeBoatItem !== 'undefined' && activeBoatItem.groups[groupIndex] && activeBoatItem.groups[groupIndex].guests[guestIndex]) {
                 activeBoatItem.groups[groupIndex].guests[guestIndex].localDeposit = val;
                 activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositMethod = method;
+                if (val > 0) {
+                    activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositC = false; // Reset to pending (orange) by default when adding/updating deposit!
+                } else {
+                    delete activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositC;
+                }
                 if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
-                // showToast("Anticipo guardado solo para este barco.");
             }
             return;
         }
@@ -698,8 +702,13 @@ window.updateGuestDeposit = async function (dni, amount, groupIndex, guestIndex)
         const custIndex = customerDatabase.findIndex(c => c.dni === dni);
         if (custIndex !== -1) {
             customerDatabase[custIndex].deposit = val;
-            if (val > 0) customerDatabase[custIndex].depositMethod = method;
-            else delete customerDatabase[custIndex].depositMethod;
+            if (val > 0) {
+                customerDatabase[custIndex].depositMethod = method;
+                customerDatabase[custIndex].depositContasimple = false; // Reset to pending (orange) by default when adding/updating deposit!
+            } else {
+                delete customerDatabase[custIndex].depositMethod;
+                delete customerDatabase[custIndex].depositContasimple;
+            }
 
             // Update UI Instantly
             if (typeof renderGroups === 'function') renderGroups();

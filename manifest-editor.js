@@ -354,18 +354,6 @@ function copyStaffDni(type, name) {
     if(person) copyData(person.dni, 'DNI de Staff');
 }
 function closeManageBoatModal() { 
-    // Auto-cleanup: If the trip is completely empty and was never really used, vaporize it to prevent phantom trips
-    if (activeBoatItem && activeBoatItem.id && activeBoatItem.id.startsWith('internal_')) {
-        const hasData = activeBoatItem.groups.some(g => g.guide || g.apoyo || (g.guests && g.guests.length > 0)) || activeBoatItem.captain;
-        if (!hasData) {
-            console.log("🧹 Auto-cleaning completely empty trip on close:", activeBoatItem.id);
-            const monthKey = activeBoatItem.date.substring(0, 7);
-            db.collection('mangamar_monthly').doc(monthKey).update({
-                [`allocations.${activeBoatItem.id}`]: firebase.firestore.FieldValue.delete()
-            }).catch(e => {});
-        }
-    }
-
     document.getElementById('manage-boat-modal').classList.add('hidden'); 
     activeBoatItem = null; 
     window.clearModalHistory(); 
@@ -702,13 +690,26 @@ function renderGroups(skipAutoSave = false) {
             }
 
             let customerDeposit = guest.localDeposit || 0;
+            let depositContasimple = guest.localDepositC || false;
             if (guest.dni) {
                 const profile = customerDatabase.find(c => c.dni === guest.dni);
-                if (profile && profile.deposit) customerDeposit = profile.deposit;
+                if (profile) {
+                    if (profile.deposit !== undefined) customerDeposit = profile.deposit;
+                    if (profile.depositContasimple !== undefined) depositContasimple = profile.depositContasimple;
+                }
             }
+            
+            // Orange by default if there's any deposit, green if Contasimple (C) checked
+            let depositColor = depositContasimple ? 'text-emerald-600 font-black' : 'text-orange-500 font-black';
+            let depositFocusRing = depositContasimple ? 'focus:ring-emerald-500' : 'focus:ring-orange-500';
+            let cClass = depositContasimple ? 'bg-blue-600 text-white border-blue-700 font-bold' : 'bg-white text-blue-400 border-blue-200 hover:bg-blue-50';
+            
             let senalHtml = 
-                `<div class="relative flex items-center justify-center">
-                    <input type="number" value="${customerDeposit}" onchange="updateGuestDeposit('${guest.dni || ''}', this.value, ${groupIndex}, ${guestIndex})" class="w-12 px-1 py-1 text-center bg-white border border-slate-200 rounded text-[10px] font-black text-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-inner" style="-moz-appearance: textfield;" title="Depósito / Anticipo">
+                `<div class="flex items-center justify-center gap-1">
+                    <input type="number" value="${customerDeposit}" onchange="updateGuestDeposit('${guest.dni || ''}', this.value, ${groupIndex}, ${guestIndex})" class="w-12 px-1 py-1 text-center bg-white border border-slate-200 rounded text-[10px] ${depositColor} focus:outline-none focus:ring-1 ${depositFocusRing} shadow-inner" style="-moz-appearance: textfield;" title="Depósito / Anticipo">
+                    <button onclick="toggleContasimple(${groupIndex}, ${guestIndex})" class="w-5 h-5 flex justify-center items-center rounded border transition-colors text-[9px] font-black shrink-0 ${cClass}" title="Contasimple (Contabilizado)">
+                        C
+                    </button>
                 </div>`;
 
             html += `
@@ -892,6 +893,7 @@ function removeGuest(groupIndex, guestIndex) {
     updateModalSubtitle(); 
     renderGroups(); // Has to re-render because it changes the table layout
     if (dni && window.cleanOrphanedInsurance) setTimeout(() => window.cleanOrphanedInsurance(dni), 1500);
+    triggerAutoSave();
 }
 
 function cycleGas(groupIndex, guestIndex) {
@@ -1870,17 +1872,17 @@ function checkEnter(event, groupIndex) {
 
 // --- SAVING & DELETING DATA ---
 async function saveBoatData() {
-    if (!activeBoatItem) return;
+    if (!activeBoatItem) return false;
     if (window.isDeletingTrip) {
         console.warn("⚠️ Save aborted globally because a deletion is in progress!");
-        return;
+        return false;
     }
 
     // RACE CONDITION PREVENTION: Abort any saves (manual or auto) if the user is currently deleting the trip
     const deleteModal = document.getElementById('delete-confirm-modal');
     if (deleteModal && !deleteModal.classList.contains('hidden')) {
         console.warn("⚠️ Save aborted because delete modal is open! Preventing ghost trip revival.");
-        return;
+        return false;
     }
 
     // Guardar los cambios de Barco y Hora antes de evaluar el resto
@@ -1907,7 +1909,7 @@ async function saveBoatData() {
         const cap = (staffDatabase.capitanes || []).find(c => c.nombre === activeBoatItem.captain);
         if (cap) {
             const loc = getPersonLocation(cap.dni, cap.nombre, 'captain');
-            if (loc) { showAppAlert(`⚠️ Imposible guardar: El capitán ${cap.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return; }
+            if (loc) { showAppAlert(`⚠️ Imposible guardar: El capitán ${cap.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return false; }
         }
     }
 
@@ -1919,7 +1921,7 @@ async function saveBoatData() {
             const gui = (staffDatabase.guias || []).find(x => x.nombre === g.guide);
             if (gui) {
                 const loc = getPersonLocation(gui.dni, gui.nombre, 'guide', grpIdx);
-                if (loc) { showAppAlert(`⚠️ Imposible guardar: El guía ${gui.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return; }
+                if (loc) { showAppAlert(`⚠️ Imposible guardar: El guía ${gui.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return false; }
             }
         }
 
@@ -1927,14 +1929,14 @@ async function saveBoatData() {
             const apo = (staffDatabase.guias || []).find(x => x.nombre === g.apoyo);
             if (apo) {
                 const loc = getPersonLocation(apo.dni, apo.nombre, 'apoyo', grpIdx);
-                if (loc) { showAppAlert(`⚠️ Imposible guardar: El apoyo ${apo.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return; }
+                if (loc) { showAppAlert(`⚠️ Imposible guardar: El apoyo ${apo.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return false; }
             }
         }
         
         for (let gstIdx = 0; gstIdx < g.guests.length; gstIdx++) {
             const gst = g.guests[gstIdx];
             const loc = getPersonLocation(gst.dni, gst.nombre, 'guest', grpIdx, gstIdx);
-            if (loc) { showAppAlert(`⚠️ Imposible guardar: El cliente ${gst.nombre} ya está asignado en ${loc} a las ${activeBoatItem.time}.`); return; }
+            if (loc) { showAppAlert(`⚠️ Imposible guardar: El cliente ${gst.nombre} ya está asignado en ${loc} a las ${activeBoatItem.time}.`); return false; }
         }
     }
     // ------------------------------------
@@ -2187,9 +2189,10 @@ async function saveBoatData() {
             indicator.classList.remove('hidden', 'opacity-0');
             setTimeout(() => indicator.classList.add('opacity-0'), 2000);
         }
-        
+        return true;
     } catch (e) {
         // Error alert is handled safely in saveInternalBoatData
+        return false;
     }
 }
 
@@ -2202,14 +2205,32 @@ window.manualSaveBoatData = async function(andClose = false) {
     btn.disabled = true;
     showToast("⏳ Guardando salida internamente...");
 
-    if (andClose) closeManageBoatModal();
+    if (andClose) {
+        // Instantly hide the modal visually to make the UI feel blazing fast!
+        document.getElementById('manage-boat-modal').classList.add('hidden');
+    }
 
     try {
-        await saveBoatData();
-        showToast("✅ Salida guardada con éxito");
+        const success = await saveBoatData();
+        if (success) {
+            showToast("✅ Salida guardada con éxito");
+            if (andClose) {
+                // Clean up state completely after background save completes successfully
+                activeBoatItem = null;
+                window.clearModalHistory();
+            }
+        } else {
+            // Validation or conflict failed! Bring the modal back so they can fix it
+            if (andClose) {
+                document.getElementById('manage-boat-modal').classList.remove('hidden');
+            }
+        }
     } catch (err) {
         console.error(err);
         showAppAlert("No se pudo guardar la salida. Comprueba tu conexión.");
+        if (andClose) {
+            document.getElementById('manage-boat-modal').classList.remove('hidden');
+        }
     } finally {
         btn.innerHTML = originalContent;
         btn.disabled = false;
@@ -2553,6 +2574,40 @@ window.toggleBono = function(groupIndex, guestIndex) {
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
     guest.hasBono = !guest.hasBono; // Flips between true/false
     renderGroups();
+};
+
+window.toggleContasimple = async function(groupIndex, guestIndex) {
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    const isLocal = !guest.dni || String(guest.dni) === 'undefined';
+    
+    if (isLocal) {
+        guest.localDepositC = !guest.localDepositC;
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+        renderGroups();
+    } else {
+        const custIndex = customerDatabase.findIndex(c => c.dni === guest.dni);
+        if (custIndex !== -1) {
+            const newVal = !customerDatabase[custIndex].depositContasimple;
+            customerDatabase[custIndex].depositContasimple = newVal;
+            
+            // Also keep local guest sync'ed
+            guest.localDepositC = newVal;
+            
+            // Update UI instantly
+            renderGroups();
+            if (window.activeFichaDni === guest.dni && typeof window.renderFichaFromCache === 'function') {
+                window.renderFichaFromCache(guest.dni);
+            }
+            
+            // Save to Master List in background
+            try {
+                await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+            } catch (e) {
+                console.error(e);
+                showAppAlert("Error al guardar el estado de Contasimple");
+            }
+        }
+    }
 };
 
 /* =========================================================================

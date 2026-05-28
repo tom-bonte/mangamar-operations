@@ -125,12 +125,21 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
         if (snapshot.empty) {
             document.getElementById('profile-history-list').innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-500 italic">No hay inmersiones registradas aún.</td></tr>';
 
+            const pagosEl = document.getElementById('profile-pagos-list');
+            if (pagosEl) pagosEl.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-500 italic">No hay pagos registrados.</td></tr>';
+            
+            const cajaListEl = document.getElementById('caja-pending-list');
+            if (cajaListEl) cajaListEl.innerHTML = '<tr><td colspan="4" class="p-8 text-center"><div class="text-3xl mb-2">🎉</div><div class="text-sm font-bold text-slate-400">Sin cargos pendientes</div></td></tr>';
+            
+            const cajaCountEl = document.getElementById('caja-pending-count');
+            if (cajaCountEl) cajaCountEl.innerText = '0 items';
+
             const totalEl = document.getElementById('ficha-caja-total');
             if (totalEl) {
-                totalEl.innerText = "0 €";
+                totalEl.innerText = "0.00";
                 totalEl.className = "text-3xl font-black text-slate-300 tracking-tighter";
                 const deudaEl = document.getElementById('ficha-caja-deuda');
-                if (deudaEl) deudaEl.innerText = "0 €";
+                if (deudaEl) deudaEl.innerText = "0.00";
                 
                 const senalInput = document.getElementById('ficha-caja-senal-input');
                 if (senalInput) senalInput.value = "0";
@@ -712,7 +721,7 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
         if (pagosHtml) pagosHtml += moreBtn;
     }
 
-    document.getElementById('profile-history-list').innerHTML = html;
+    document.getElementById('profile-history-list').innerHTML = html || '<tr><td colspan="6" class="p-8 text-center text-slate-500 italic">No hay inmersiones registradas aún.</td></tr>';
     
     if (pagosTotalSum > 0 || deposit > 0) {
         let depHtml = '';
