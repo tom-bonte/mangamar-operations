@@ -861,6 +861,7 @@ window.saveCustomerEdits = async function () {
             if (apodo) customerDatabase[index].apodo = apodo;
             else delete customerDatabase[index].apodo;
             if (customerDatabase[index].apellidos) delete customerDatabase[index].apellidos;
+            if (customerDatabase[index].apellido) delete customerDatabase[index].apellido;
             customerDatabase[index].dob = window.normalizeDateStr(dob);
             customerDatabase[index].telefono = telefono;
             customerDatabase[index].email = email;
@@ -937,7 +938,7 @@ window.saveCustomerEdits = async function () {
         if (boatSyncPromises.length > 0) {
             Promise.all(boatSyncPromises).catch(e => console.error("Error bg boat sync:", e));
             // Redraw boats if manifest is active
-            if (typeof window.renderGroups === 'function' && document.getElementById('boat-modal') && !document.getElementById('boat-modal').classList.contains('hidden')) {
+            if (typeof window.renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
                 window.renderGroups();
             }
         }

@@ -12,12 +12,12 @@ window.triggerAutoSave = function() {
 
 window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
     if (!dni) return;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const targetDateStr = (window.activeBoatItem && window.activeBoatItem.date) ? window.activeBoatItem.date : new Date().toISOString().split('T')[0];
 
     // 1. Update in mergedAllocations (RAM)
     if (window.mergedAllocations) {
         window.mergedAllocations.forEach(trip => {
-            if (trip.date >= todayStr && trip.groups) {
+            if (trip.date >= targetDateStr && trip.groups) {
                 let modified = false;
                 trip.groups.forEach(group => {
                     if (group.guests) {
@@ -45,7 +45,7 @@ window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
     // 2. Update in window.internalTrips (RAM)
     if (window.internalTrips) {
         window.internalTrips.forEach(trip => {
-            if (trip.date >= todayStr && trip.groups) {
+            if (trip.date >= targetDateStr && trip.groups) {
                 let modified = false;
                 trip.groups.forEach(group => {
                     if (group.guests) {
@@ -1932,8 +1932,8 @@ async function saveBoatData() {
         await saveInternalBoatData(targetTripId, targetDate, payload);
         
         // --- AUTO-PROPAGATE EQUIPMENT TO ALL PENDING DIVES ---
-        const todayStr = new Date().toISOString().split('T')[0];
-        const allOtherTrips = mergedAllocations.filter(t => t.date >= todayStr && t.id !== targetTripId);
+        const targetDateStr = targetDate || activeBoatItem.date;
+        const allOtherTrips = mergedAllocations.filter(t => t.date >= targetDateStr && t.id !== targetTripId);
         
         const monthlyUpdates = {}; 
 
