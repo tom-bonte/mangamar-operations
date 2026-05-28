@@ -2779,15 +2779,68 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+window.getSameDayBoatTrips = function(dateStr, boatId) {
+    const todaysTrips = mergedAllocations.filter(t => t && t.date === dateStr);
+    const activeTimes = todaysTrips.some(t => t.time === '07:00') ? TIMES : TIMES.filter(t => t !== '07:00');
+    
+    const boatTrips = [];
+    
+    activeTimes.forEach(time => {
+        let finalTrips = window.getMergedTrips ? window.getMergedTrips(todaysTrips.filter(t => t.time === time)) : todaysTrips.filter(t => t.time === time);
+        
+        let aTrip = null, kTrip = null, sTrip = null;
+        let aConflicts = [], kConflicts = [], sConflicts = [];
+
+        // Helper to forcefully place a trip in its requested boat
+        const forcePlace = (t, targetBoat) => {
+            if (targetBoat === 'ares') {
+                if (!aTrip) aTrip = t; else aConflicts.push(t);
+            } else if (targetBoat === 'kaiser') {
+                if (!kTrip) kTrip = t; else kConflicts.push(t);
+            } else if (targetBoat === 'shore') {
+                if (!sTrip) sTrip = t; else sConflicts.push(t);
+            }
+        };
+
+        // Helper to find ANY empty boat for unassigned trips
+        const findEmptyBoat = (t) => {
+            if (!aTrip) { t.assignedBoat = 'ares'; aTrip = t; }
+            else if (!kTrip) { t.assignedBoat = 'kaiser'; kTrip = t; }
+            else { t.assignedBoat = 'ares'; aConflicts.push(t); } 
+        };
+
+        // 1. Explicit assignments first
+        finalTrips.filter(t => t.isVisor && t.assignedBoat).forEach(t => forcePlace(t, t.assignedBoat));
+        finalTrips.filter(t => !t.isVisor && t.assignedBoat).forEach(t => forcePlace(t, t.assignedBoat));
+
+        // 2. Unassigned visor trips fill empty spots
+        finalTrips.filter(t => t.isVisor && !t.assignedBoat).forEach(t => findEmptyBoat(t));
+        finalTrips.filter(t => !t.isVisor && !t.assignedBoat).forEach(t => findEmptyBoat(t));
+        
+        // Add to our list if they match the requested boatId
+        if (boatId === 'ares') {
+            if (aTrip) { aTrip.assignedBoat = 'ares'; boatTrips.push(aTrip); }
+            aConflicts.forEach(c => { c.assignedBoat = 'ares'; boatTrips.push(c); });
+        } else if (boatId === 'kaiser') {
+            if (kTrip) { kTrip.assignedBoat = 'kaiser'; boatTrips.push(kTrip); }
+            kConflicts.forEach(c => { c.assignedBoat = 'kaiser'; boatTrips.push(c); });
+        } else if (boatId === 'shore') {
+            if (sTrip) { sTrip.assignedBoat = 'shore'; boatTrips.push(sTrip); }
+            sConflicts.forEach(c => { c.assignedBoat = 'shore'; boatTrips.push(c); });
+        }
+    });
+    
+    return boatTrips.sort((a, b) => a.time.localeCompare(b.time));
+};
+
 window.navigateBoatManifestIntraday = function(direction) {
     if (!activeBoatItem) return;
     
-    // Filter existing trips to only those on the SAME date and for the SAME boat, sorted by time
-    const allTrips = window.getMergedTrips ? window.getMergedTrips(mergedAllocations) : mergedAllocations;
-    const sameDayBoatTrips = allTrips
-        .filter(t => t && t.date === activeBoatItem.date && (t.assignedBoat || '') === (activeBoatItem.assignedBoat || '') && t.time)
-        .sort((a, b) => a.time.localeCompare(b.time));
-        
+    const targetBoat = activeBoatItem.assignedBoat || 'ares';
+    const targetDate = activeBoatItem.date;
+    
+    // Get all dynamically assigned and explicit trips for this boat on this date
+    const sameDayBoatTrips = window.getSameDayBoatTrips(targetDate, targetBoat);
     if (sameDayBoatTrips.length === 0) return;
     
     let nextTrip = null;
@@ -2810,12 +2863,12 @@ window.navigateBoatManifestIntraday = function(direction) {
             if (typeof triggerAutoSave === 'function') triggerAutoSave();
         }
         
-        const targetBoat = nextTrip.assignedBoat || 'ares';
-        const targetDate = nextTrip.date;
-        const targetTime = nextTrip.time;
+        const nextBoat = nextTrip.assignedBoat || targetBoat;
+        const nextDate = nextTrip.date;
+        const nextTime = nextTrip.time;
         
         setTimeout(() => {
-            openManageBoatModal(nextTrip, targetBoat, targetTime, targetDate);
+            openManageBoatModal(nextTrip, nextBoat, nextTime, nextDate);
         }, 50);
     }
 };
