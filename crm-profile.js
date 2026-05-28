@@ -550,7 +550,7 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
                     <div class="w-9 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${compHistClass}">${compHistText}</div>
                     <div class="h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${insClass}">${insText}</div>
                     <div class="w-6 h-6 flex justify-center items-center rounded border text-[10px] font-bold shrink-0 ${bonoClass}" title="${data.hasBono ? 'Usa Bono' : 'Sin Bono'}">B</div>
-                    ${(customerInfo.deposit > 0) ? `<div class="h-6 px-1.5 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${customerInfo.depositContasimple ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-orange-50 text-orange-600 border-orange-300'}" title="Depósito: ${customerInfo.deposit}€${customerInfo.depositMethod ? ' (' + customerInfo.depositMethod + ')' : ''}">D ${customerInfo.deposit}€</div>` : ''}
+                    ${(customerInfo.deposit > 0) ? `<div class="h-6 px-1.5 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${customerInfo.depositContasimple ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-orange-50 text-orange-600 border-orange-300'}" title="Depósito: ${customerInfo.deposit}€${customerInfo.depositMethod ? ' (' + customerInfo.depositMethod + ')' : ''}">Señal ${customerInfo.deposit}€</div>` : ''}
                 </div>
             </td>`;
         }
