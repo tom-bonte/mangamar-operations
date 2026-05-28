@@ -634,7 +634,10 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             <div class="p-2.5 flex-1 flex flex-col justify-between overflow-hidden gap-1">
                 <div class="flex items-center gap-1.5 overflow-hidden min-w-0 shrink-0 w-full">
                     <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${siteColorConfig} truncate leading-tight shrink-0 max-w-[70%]">${trip.site || 'Sin Destino'}</span>
-                    ${hasVisorTag ? `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>` : ''}
+                    ${hasVisorTag ? (trip.rmLocked 
+                        ? `<span class="text-[7px] font-black uppercase text-emerald-700 tracking-widest bg-emerald-50 px-1 rounded border border-emerald-300 flex items-center shrink-0">VISOR</span>`
+                        : `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>`
+                    ) : ''}
                 </div>
 
                 <div class="flex-1 flex flex-col justify-center min-w-0 w-full px-0.5">
