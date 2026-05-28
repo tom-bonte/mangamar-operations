@@ -10,6 +10,90 @@ window.triggerAutoSave = function() {
     }, 500); 
 };
 
+window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
+    if (!dni) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // 1. Update in mergedAllocations (RAM)
+    if (window.mergedAllocations) {
+        window.mergedAllocations.forEach(trip => {
+            if (trip.date >= todayStr && trip.groups) {
+                let modified = false;
+                trip.groups.forEach(group => {
+                    if (group.guests) {
+                        group.guests.forEach(guest => {
+                            if (guest.dni === dni) {
+                                for (const key in equipmentPayload) {
+                                    if (guest[key] !== equipmentPayload[key]) {
+                                        guest[key] = equipmentPayload[key];
+                                        modified = true;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+                if (modified) {
+                    const newFlatGuests = [];
+                    trip.groups.forEach(g => newFlatGuests.push(...g.guests));
+                    trip.guests = newFlatGuests;
+                }
+            }
+        });
+    }
+
+    // 2. Update in window.internalTrips (RAM)
+    if (window.internalTrips) {
+        window.internalTrips.forEach(trip => {
+            if (trip.date >= todayStr && trip.groups) {
+                let modified = false;
+                trip.groups.forEach(group => {
+                    if (group.guests) {
+                        group.guests.forEach(guest => {
+                            if (guest.dni === dni) {
+                                for (const key in equipmentPayload) {
+                                    if (guest[key] !== equipmentPayload[key]) {
+                                        guest[key] = equipmentPayload[key];
+                                        modified = true;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+                if (modified) {
+                    const newFlatGuests = [];
+                    trip.groups.forEach(g => newFlatGuests.push(...g.guests));
+                    trip.guests = newFlatGuests;
+                }
+            }
+        });
+    }
+
+    // 3. Update activeBoatItem if currently open and matches!
+    if (window.activeBoatItem && window.activeBoatItem.groups) {
+        window.activeBoatItem.groups.forEach(group => {
+            if (group.guests) {
+                group.guests.forEach(guest => {
+                    if (guest.dni === dni) {
+                        for (const key in equipmentPayload) {
+                            guest[key] = equipmentPayload[key];
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    // 4. Instant local redraw of daily grid and current groups list!
+    if (typeof window.renderDailyGrid === 'function') {
+        window.renderDailyGrid();
+    }
+    if (typeof window.renderGroups === 'function') {
+        window.renderGroups();
+    }
+};
+
 // Dynamic Auto-Width Utility for Select Dropdowns
 window.adjustSelectElWidth = function(selectEl) {
     if (!selectEl) return;
@@ -787,6 +871,10 @@ function cycleGas(groupIndex, guestIndex) {
         btn.className = `w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}`;
         btn.innerText = nextGas.replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
     }
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    if (guest.dni) {
+        window.propagateEquipmentInRAM(guest.dni, { gas: nextGas });
+    }
     triggerAutoSave();
 }
 
@@ -808,6 +896,10 @@ function cycleRental(groupIndex, guestIndex) {
         if (nextRental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
         btn.className = `w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black shrink-0 ${rentalClass}`;
         btn.innerHTML = 'Eq';
+    }
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    if (guest.dni) {
+        window.propagateEquipmentInRAM(guest.dni, { rental: nextRental });
     }
     triggerAutoSave();
 }
@@ -883,6 +975,9 @@ window.toggleComputer = function(groupIndex, guestIndex) {
         
         btn.className = `w-10 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black shrink-0 ${compClass}`;
         btn.innerText = compText;
+    }
+    if (guest.dni) {
+        window.propagateEquipmentInRAM(guest.dni, { computer: guest.computer, computerPrice: guest.computer ? guest.computerPrice : 0 });
     }
     triggerAutoSave();
 };
@@ -1099,6 +1194,9 @@ window.setIns = async function(type) {
             btn.title = "Falta Seguro";
         }
     }
+    if (guest.dni) {
+        window.propagateEquipmentInRAM(guest.dni, { insurance: guest.insurance });
+    }
     triggerAutoSave();
 };
 
@@ -1165,8 +1263,8 @@ window.toggleTramitado = function() {
         }
     }
 
-    if (typeof renderGroups === 'function') {
-        renderGroups();
+    if (guest.dni) {
+        window.propagateEquipmentInRAM(guest.dni, { insurance: newInsVal });
     }
     triggerAutoSave();
 };

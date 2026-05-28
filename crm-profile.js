@@ -942,6 +942,11 @@ window.saveCustomerEdits = async function () {
             }
         }
 
+        // Instant local redraw of the daily grid
+        if (typeof window.renderDailyGrid === 'function') {
+            window.renderDailyGrid();
+        }
+
         document.getElementById('edit-customer-modal-full').classList.add('hidden');
         showToast("👍 Perfil actualizado correctamente.");
 
