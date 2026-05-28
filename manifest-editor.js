@@ -2061,6 +2061,24 @@ async function saveBoatData() {
                 if (clonedTrip.isVisor) otherPayload.visorTripFallback = true;
 
                 monthlyUpdates[mKey][`allocations.${trip.id}`] = otherPayload;
+
+                // --- HISTORY SYNC: also update those guests' history docs to match the propagated equipment ---
+                clonedTrip.groups?.forEach(g => {
+                    g.guests?.forEach(gst => {
+                        if (gst.dni) {
+                            const histRef = db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(trip.id);
+                            histRef.update({
+                                gas: gst.gas || '15L Aire',
+                                rental: gst.rental || 0,
+                                computer: gst.computer || 0,
+                                computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
+                                insurance: gst.insurance || 0,
+                            }).catch(() => {
+                                // History doc may not exist yet — safe to ignore
+                            });
+                        }
+                    });
+                });
             }
         });
 
