@@ -296,16 +296,18 @@ function renderCaptainDropdown() {
             </select>
             ${activeBoatItem.captain ? `<button onclick="window.clearCaptain()" title="Quitar Capitán" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-colors shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
             <button onclick="copyStaffDni('capitanes', document.getElementById('input-captain').value)" title="Copiar DNI del Capitán" class="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-orange-600 rounded-lg transition-colors shadow-sm shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+            ${activeBoatItem.isVisor ? `
             <div class="flex items-center gap-1.5 ml-4 shrink-0 border-l border-slate-200 pl-4">
-                <span class="text-xs font-black text-black uppercase tracking-wider select-none">RM:</span>
+                <span class="text-xs font-black text-black uppercase tracking-wider select-none">RM</span>
                 <div class="relative group inline-block select-none mr-1">
-                    <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-black text-[10px] cursor-pointer transition-colors shadow-sm select-none">?</span>
+                    <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-serif italic text-[11px] cursor-pointer transition-colors shadow-sm select-none leading-none pb-[1px]">i</span>
                     <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[220px] bg-slate-900 text-white text-[10px] font-bold leading-normal rounded-xl px-3 py-2.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center whitespace-normal select-none">
                         Para mostrar si la salida ya está bloqueada en el plataforma de la Reserva Marina
                     </div>
                 </div>
                 <input type="checkbox" id="input-rm-locked" onchange="window.toggleRmLocked(this.checked)" class="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer" ${activeBoatItem.rmLocked ? 'checked' : ''}>
             </div>
+            ` : ''}
         `;
         document.getElementById('input-captain').value = activeBoatItem.captain || '';
         const capEl = document.getElementById('input-captain');
@@ -2780,34 +2782,40 @@ document.addEventListener('keydown', (e) => {
 window.navigateBoatManifestIntraday = function(direction) {
     if (!activeBoatItem) return;
     
-    // Save current trip before switching — ONLY if it has some actual data to prevent phantom empty trips
-    const hasData = activeBoatItem.captain || 
-                    activeBoatItem.groups.some(g => g.guide || g.apoyo || (g.guests && g.guests.length > 0)) ||
-                    activeBoatItem.timeSaliendo || activeBoatItem.timeBuzosAgua || activeBoatItem.timeVolviendo ||
-                    activeBoatItem.rmLocked;
-                    
-    if (hasData) {
-        if (typeof triggerAutoSave === 'function') triggerAutoSave();
+    // Filter existing trips to only those on the SAME date and for the SAME boat, sorted by time
+    const allTrips = window.getMergedTrips ? window.getMergedTrips(mergedAllocations) : mergedAllocations;
+    const sameDayBoatTrips = allTrips
+        .filter(t => t && t.date === activeBoatItem.date && (t.assignedBoat || '') === (activeBoatItem.assignedBoat || '') && t.time)
+        .sort((a, b) => a.time.localeCompare(b.time));
+        
+    if (sameDayBoatTrips.length === 0) return;
+    
+    let nextTrip = null;
+    if (direction === 'up') {
+        // Find the closest existing trip before the current time
+        nextTrip = [...sameDayBoatTrips].reverse().find(t => t.time < activeBoatItem.time);
+    } else if (direction === 'down') {
+        // Find the closest existing trip after the current time
+        nextTrip = sameDayBoatTrips.find(t => t.time > activeBoatItem.time);
     }
     
-    const todaysTrips = mergedAllocations.filter(t => t && t.date === activeBoatItem.date);
-    const has07 = (activeBoatItem.time === '07:00') || todaysTrips.some(t => t.time === '07:00');
-    const dayTimes = has07 ? TIMES : TIMES.filter(t => t !== '07:00');
-    
-    const currentIdx = dayTimes.indexOf(activeBoatItem.time);
-    if (currentIdx === -1) return;
-    
-    const targetIdx = direction === 'up' ? currentIdx - 1 : currentIdx + 1;
-    
-    if (targetIdx >= 0 && targetIdx < dayTimes.length) {
-        const targetTime = dayTimes[targetIdx];
-        const nextTrip = todaysTrips.find(t => (t.assignedBoat || '') === (activeBoatItem.assignedBoat || '') && t.time === targetTime);
+    if (nextTrip) {
+        // Save current trip before switching — ONLY if it has some actual data to prevent phantom empty trips
+        const hasData = activeBoatItem.captain || 
+                        activeBoatItem.groups.some(g => g.guide || g.apoyo || (g.guests && g.guests.length > 0)) ||
+                        activeBoatItem.timeSaliendo || activeBoatItem.timeBuzosAgua || activeBoatItem.timeVolviendo ||
+                        activeBoatItem.rmLocked;
+                        
+        if (hasData) {
+            if (typeof triggerAutoSave === 'function') triggerAutoSave();
+        }
         
-        const targetBoat = activeBoatItem.assignedBoat || 'ares';
-        const targetDate = activeBoatItem.date;
+        const targetBoat = nextTrip.assignedBoat || 'ares';
+        const targetDate = nextTrip.date;
+        const targetTime = nextTrip.time;
         
         setTimeout(() => {
-            openManageBoatModal(nextTrip || null, targetBoat, targetTime, targetDate);
+            openManageBoatModal(nextTrip, targetBoat, targetTime, targetDate);
         }, 50);
     }
 };
