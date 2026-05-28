@@ -26,9 +26,15 @@ window.switchTitTab = function(tabName) {
         customContainer.classList.add('hidden');
         activeTitTemp.isCustom = false;
         
-        const items = typeof dynamicPrices !== 'undefined' ? dynamicPrices.filter(p => p.category === tabName) : [];
+        const items = typeof dynamicPrices !== 'undefined' ? dynamicPrices.filter(p => {
+            if (!p.category) return false;
+            const cat = p.category.toLowerCase().trim();
+            if (tabName === 'Cursos') return cat.startsWith('curso');
+            if (tabName === 'Especialidades') return cat.startsWith('especialidad');
+            return cat === tabName.toLowerCase().trim();
+        }) : [];
         listContainer.innerHTML = items.map(item => {
-            const isSelected = activeTitTemp.baseCourse === item.name;
+            const isSelected = activeTitTemp.baseCourse && item.name && activeTitTemp.baseCourse.trim().toLowerCase() === item.name.trim().toLowerCase();
             const baseClass = isSelected 
                 ? "border-pink-500 bg-pink-50 ring-2 ring-pink-200" 
                 : "border-slate-100 bg-white hover:border-pink-300 hover:bg-pink-50";
@@ -58,7 +64,7 @@ window.updateQuickButtonsHighlight = function() {
     ['DSD', 'OWc', 'AOWc', 'Resc', 'Snorkel'].forEach(id => {
         const btn = document.getElementById(`tit-quick-${id}`);
         if (btn) {
-            if (activeTitTemp.baseCourse === quickMap[id]) {
+            if (activeTitTemp.baseCourse && quickMap[id] && activeTitTemp.baseCourse.trim().toLowerCase() === quickMap[id].trim().toLowerCase()) {
                 if (id === 'Snorkel') {
                     btn.className = "py-2 bg-blue-500 text-white font-black text-sm rounded-xl transition-colors shadow-md";
                 } else {
@@ -92,7 +98,7 @@ window.selectQuickCourse = function(type) {
     else if (type === 'Resc') mappedName = "Rescate";
     else if (type === 'Snorkel') mappedName = "Snorkeling";
 
-    const foundItem = typeof dynamicPrices !== 'undefined' ? dynamicPrices.find(p => p.name === mappedName) : null;
+    const foundItem = typeof dynamicPrices !== 'undefined' ? dynamicPrices.find(p => p.name && p.name.trim().toLowerCase() === mappedName.trim().toLowerCase()) : null;
     let price = foundItem ? foundItem.price : 0;
 
     selectTitCourse(mappedName, price);
@@ -126,10 +132,15 @@ window.openTitPopup = function(event, groupIndex, guestIndex) {
     
     let tabToOpen = 'Cursos';
     if (activeTitTemp.baseCourse) {
-        const found = typeof dynamicPrices !== 'undefined' ? dynamicPrices.find(p => p.name === activeTitTemp.baseCourse) : null;
-        if (found && found.category === 'Especialidades') tabToOpen = 'Especialidades';
-        else if (found && found.category === 'Snorkeling') tabToOpen = 'Snorkeling';
-        else if (!found && activeTitTemp.baseCourse !== '') tabToOpen = 'Personalizado';
+        const found = typeof dynamicPrices !== 'undefined' ? dynamicPrices.find(p => p.name && p.name.trim().toLowerCase() === activeTitTemp.baseCourse.trim().toLowerCase()) : null;
+        if (found) {
+            const cat = found.category ? found.category.toLowerCase().trim() : '';
+            if (cat.startsWith('especialidad')) tabToOpen = 'Especialidades';
+            else if (cat === 'snorkeling') tabToOpen = 'Snorkeling';
+            else if (cat.startsWith('curso')) tabToOpen = 'Cursos';
+        } else if (activeTitTemp.baseCourse !== '') {
+            tabToOpen = 'Personalizado';
+        }
     }
     switchTitTab(tabToOpen); 
 };

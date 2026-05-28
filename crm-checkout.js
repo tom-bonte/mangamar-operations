@@ -87,6 +87,20 @@ function calculateDivePrice(historyItem) {
         } else if (historyItem.computer) {
             computer = findPrice(['ordenador', 'alquiler ordenador', 'computadora'], 7);
         }
+
+        // 6. Course Price Calculation
+        if (historyItem.course) {
+            const baseCourse = historyItem.baseCourse || historyItem.course.split(' | ')[0].trim();
+            course = (historyItem.coursePrice !== undefined && historyItem.coursePrice !== null && historyItem.coursePrice !== 0)
+                ? parseFloat(historyItem.coursePrice)
+                : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+            
+            dive = 0;
+            tasa = 0;
+            if (historyItem.rental === 'INC') rental = 0;
+            if (historyItem.insurance === 'INC') insurance = 0;
+            if (historyItem.computer === 'INC') computer = 0;
+        }
     }
 
     let total = dive + tasa + gas + rental + insurance + computer + course + custom;
