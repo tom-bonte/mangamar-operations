@@ -718,3 +718,34 @@ window.formatInsuranceDate = function(dateStr) {
     
     return `${dayStr}/${monthStr}/${year}`;
 };
+
+window.matchCourseNames = function(a, b) {
+    if (!a || !b) return false;
+    const cleanA = a.trim().toLowerCase();
+    const cleanB = b.trim().toLowerCase();
+    
+    if (cleanA === cleanB) return true;
+    
+    const getNormalizedNames = (name) => {
+        const lower = name.toLowerCase().trim();
+        const names = [lower];
+        
+        if (lower === 'advanced open water (aowc)' || lower === 'aowc') {
+            names.push('advanced open water (aowc)', 'aowc');
+        } else if (lower === 'open water diver (owc)' || lower === 'owc') {
+            names.push('open water diver (owc)', 'owc');
+        } else if (lower === 'rescate' || lower === 'resc' || lower === 'rescue') {
+            names.push('rescate', 'resc', 'rescue');
+        } else if (lower === 'snorkeling' || lower === 'snorkel') {
+            names.push('snorkeling', 'snorkel');
+        } else if (lower.includes('dsd') || lower === 'dsd') {
+            names.push('dsd', 'dsd (bautismo) desde playa', 'dsd (bautismo) desde barco');
+        }
+        return names;
+    };
+    
+    const listA = getNormalizedNames(cleanA);
+    const listB = getNormalizedNames(cleanB);
+    
+    return listA.some(x => listB.includes(x));
+};

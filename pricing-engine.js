@@ -8,8 +8,7 @@ window.dynamicPrices = []; // Globalized for visibility across all modules
 window.PRICES = new Proxy({}, {
     get: function(target, prop) {
         if (typeof prop === 'string' && window.dynamicPrices) {
-            const trimmedProp = prop.trim().toLowerCase();
-            const item = window.dynamicPrices.find(p => p.name && p.name.trim().toLowerCase() === trimmedProp);
+            const item = window.dynamicPrices.find(p => p.name && (typeof window.matchCourseNames === 'function' ? window.matchCourseNames(p.name, prop) : p.name.trim().toLowerCase() === prop.trim().toLowerCase()));
             return item ? item.price : undefined;
         }
         return undefined;
