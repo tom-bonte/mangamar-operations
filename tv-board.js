@@ -130,8 +130,9 @@ window._buildTVContent = function() {
         // Build a lookup: diver NAME (normalised) → previous boat label
         // (only relevant for slots after the first)
         const prevDivers = new Map(); // normalised name → 'Ares' | 'Kaiser'
-        if (slotIdx > 0) {
-            const prevTime = activeSlots[slotIdx - 1];
+        const timeIdx = TIMES.indexOf(time);
+        if (timeIdx > 0) {
+            const prevTime = TIMES[timeIdx - 1];
             ['ares', 'kaiser'].forEach(bId => {
                 const prevTrip = todaysTrips.find(t => t.assignedBoat === bId && t.time === prevTime);
                 if (prevTrip) {

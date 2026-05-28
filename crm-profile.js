@@ -889,8 +889,14 @@ window.saveCustomerEdits = async function () {
                         group.guests.forEach(guest => {
                             if (guest.dni === dni) {
                                 let newFullName = window.getFullName(customerDatabase[index]);
-                                if (guest.nombre !== newFullName) {
+                                let newTitulacion = customerDatabase[index].titulacion || '';
+                                let newTelefono = customerDatabase[index].telefono || '';
+                                let newEmail = customerDatabase[index].email || '';
+                                if (guest.nombre !== newFullName || guest.titulacion !== newTitulacion || guest.telefono !== newTelefono || guest.email !== newEmail) {
                                     guest.nombre = newFullName;
+                                    guest.titulacion = newTitulacion;
+                                    guest.telefono = newTelefono;
+                                    guest.email = newEmail;
                                     modified = true;
                                 }
                             }
@@ -899,6 +905,22 @@ window.saveCustomerEdits = async function () {
                 });
             }
             if (modified) {
+                if (window.activeBoatItem && window.activeBoatItem.id === trip.id) {
+                    if (window.activeBoatItem.groups) {
+                        window.activeBoatItem.groups.forEach(g => {
+                            if (g.guests) {
+                                g.guests.forEach(gst => {
+                                    if (gst.dni === dni) {
+                                        gst.nombre = window.getFullName(customerDatabase[index]);
+                                        gst.titulacion = customerDatabase[index].titulacion || '';
+                                        gst.telefono = customerDatabase[index].telefono || '';
+                                        gst.email = customerDatabase[index].email || '';
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
                 const payload = {
                     captain: trip.captain || '',
                     guide: trip.guide || '',

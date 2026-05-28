@@ -407,7 +407,9 @@ function renderDailyGrid() {
     const kaiserCol = createCol('Kaiser');
     const shoreCol = createCol('Shore / Aula');
 
-    TIMES.forEach(time => {
+    const activeTimes = todaysTrips.some(t => t.time === '07:00') ? TIMES : TIMES.filter(t => t !== '07:00');
+
+    activeTimes.forEach(time => {
         // Time label perfectly locked to the same height as the cards
         const tLabel = document.createElement('div');
         tLabel.className = 'text-[11px] font-black text-slate-400 text-right pr-2 flex items-start justify-end h-[130px] shrink-0 pt-4 opacity-80';

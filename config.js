@@ -12,7 +12,7 @@ const firebaseConfig = {
 };
 
 // Core Application Constants
-const TIMES = ['09:00', '10:30', '12:00', '15:00', '16:30', '18:00'];
+const TIMES = ['07:00', '09:00', '10:30', '12:00', '15:00', '16:30', '18:00'];
 
 const SITES_RESERVE = ['Bajo de Dentro', 'Piles I', 'Piles II', 'Testa', 'Morra'];
 const SITES_INTERNAL = ['Cala', 'Naranjito', 'Palomas', 'Fuera', 'Shore', 'Aula'];

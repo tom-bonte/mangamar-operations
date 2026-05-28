@@ -451,6 +451,14 @@ function renderGroups(skipAutoSave = false) {
                 nameHtml = `<div class="flex items-center">${manualDot}${arrivedDot}<span class="truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="copyData('${guest.nombre}', 'Nombre')" title="Click para copiar">${guest.nombre}</span></div>`;
             }
 
+            let divesCountText = '';
+            if (guest.dni && typeof customerDatabase !== 'undefined') {
+                const crmMatch = customerDatabase.find(c => c.dni === guest.dni);
+                if (crmMatch && crmMatch.dives !== undefined && crmMatch.dives !== null && crmMatch.dives !== '') {
+                    divesCountText = ` (${crmMatch.dives})`;
+                }
+            }
+
             let titHtml = '';
             if (guest.course) {
                 let badgeText = guest.courseBadge || guest.course;
@@ -460,9 +468,9 @@ function renderGroups(skipAutoSave = false) {
                     (lowerBadge.includes("dsd") && (lowerBadge.includes("doble") || lowerBadge.includes("double")))) {
                     badgeText = "DSD (doble)";
                 }
-                titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Curso: ${guest.course}" class="text-[10px] font-black text-pink-700 bg-pink-100 border border-pink-300 rounded px-1.5 py-0.5 truncate max-w-[130px] mx-auto block hover:bg-pink-200 transition-colors shadow-sm cursor-pointer">${badgeText}</button>`;
+                titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Curso: ${guest.course}" class="text-[10px] font-black text-pink-700 bg-pink-100 border border-pink-300 rounded px-1.5 py-0.5 truncate max-w-[150px] mx-auto block hover:bg-pink-200 transition-colors shadow-sm cursor-pointer">${badgeText}${divesCountText}</button>`;
             } else if (guest.titulacion) {
-                titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Titulación: ${guest.titulacion}" class="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 truncate max-w-[130px] mx-auto block hover:bg-slate-200 transition-colors cursor-pointer">${guest.titulacion}</button>`;
+                titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Titulación: ${guest.titulacion}" class="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 truncate max-w-[150px] mx-auto block hover:bg-slate-200 transition-colors cursor-pointer">${guest.titulacion}${divesCountText}</button>`;
             } else if (guest.isManual) {
                 titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Falta Titulación" class="text-amber-500 hover:text-amber-600 bg-amber-50 rounded-full w-5 h-5 flex items-center justify-center font-black text-[10px] mx-auto border border-amber-200 cursor-pointer">?</button>`;
             } else {
@@ -1824,6 +1832,101 @@ async function saveBoatData() {
     
     try {
         await saveInternalBoatData(targetTripId, targetDate, payload);
+        
+        // --- AUTO-PROPAGATE EQUIPMENT TO ALL PENDING DIVES ---
+        const todayStr = new Date().toISOString().split('T')[0];
+        const allOtherTrips = mergedAllocations.filter(t => t.date >= todayStr && t.id !== targetTripId);
+        
+        const monthlyUpdates = {}; 
+
+        allOtherTrips.forEach(trip => {
+            let tripChanged = false;
+            const clonedTrip = JSON.parse(JSON.stringify(trip));
+
+            clonedTrip.groups?.forEach(g => {
+                g.guests?.forEach(otherGuest => {
+                    if (otherGuest.dni) {
+                        const meInCurrentBoat = flatGuests.find(tg => tg.dni && tg.dni === otherGuest.dni);
+                        if (meInCurrentBoat) {
+                            const oldGas = otherGuest.gas;
+                            const oldRental = otherGuest.rental;
+                            const oldComp = otherGuest.computer;
+                            const oldCompPrice = otherGuest.computerPrice;
+                            const oldIns = otherGuest.insurance;
+
+                            otherGuest.gas = meInCurrentBoat.gas || '15L Aire';
+                            otherGuest.rental = meInCurrentBoat.rental || 0;
+                            otherGuest.computer = meInCurrentBoat.computer || 0;
+                            otherGuest.computerPrice = meInCurrentBoat.computerPrice || 0;
+                            otherGuest.insurance = meInCurrentBoat.insurance || 0;
+
+                            if (oldGas !== otherGuest.gas || 
+                                oldRental !== otherGuest.rental || 
+                                oldComp !== otherGuest.computer || 
+                                oldCompPrice !== otherGuest.computerPrice || 
+                                oldIns !== otherGuest.insurance) {
+                                tripChanged = true;
+                            }
+                        }
+                    }
+                });
+            });
+
+            if (tripChanged) {
+                const newFlatGuests = [];
+                clonedTrip.groups.forEach(g => newFlatGuests.push(...g.guests));
+                clonedTrip.guests = newFlatGuests;
+
+                const localTripIdx = (window.internalTrips || internalTrips || []).findIndex(t => t.id === trip.id);
+                if (localTripIdx > -1) {
+                    if (window.internalTrips) window.internalTrips[localTripIdx] = clonedTrip;
+                    if (typeof internalTrips !== 'undefined') internalTrips[localTripIdx] = clonedTrip;
+                } else {
+                    if (window.internalTrips) window.internalTrips.push(clonedTrip);
+                    if (typeof internalTrips !== 'undefined' && Array.isArray(internalTrips)) internalTrips.push(clonedTrip);
+                }
+
+                const mergedTripIdx = mergedAllocations.findIndex(t => t.id === trip.id);
+                if (mergedTripIdx > -1) {
+                    mergedAllocations[mergedTripIdx].groups = clonedTrip.groups;
+                    mergedAllocations[mergedTripIdx].guests = clonedTrip.guests;
+                }
+
+                const mKey = trip.date.substring(0, 7);
+                if (!monthlyUpdates[mKey]) {
+                    monthlyUpdates[mKey] = {};
+                }
+                const otherPayload = {
+                    date: clonedTrip.date, 
+                    time: clonedTrip.time, 
+                    assignedBoat: clonedTrip.assignedBoat || 'ares',
+                    site: clonedTrip.site || '',
+                    captain: clonedTrip.captain || '',
+                    groups: clonedTrip.groups, 
+                    guests: clonedTrip.guests,
+                    waitlist: clonedTrip.waitlist || [],
+                    timeSaliendo: clonedTrip.timeSaliendo || '',
+                    timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
+                    timeVolviendo: clonedTrip.timeVolviendo || ''
+                };
+                if (clonedTrip.maxDives) otherPayload.maxDives = clonedTrip.maxDives;
+                if (clonedTrip.isVisor) otherPayload.visorTripFallback = true;
+
+                monthlyUpdates[mKey][`allocations.${trip.id}`] = otherPayload;
+            }
+        });
+
+        for (const [mKey, updates] of Object.entries(monthlyUpdates)) {
+            await db.collection('mangamar_monthly').doc(mKey).update(updates).catch(async err => {
+                console.warn(`Doc missing for ${mKey}, fallback to set`, err);
+                const fields = {};
+                for (const k in updates) {
+                    const cleanField = k.replace('allocations.', '');
+                    fields[cleanField] = updates[k];
+                }
+                await db.collection('mangamar_monthly').doc(mKey).set({ allocations: fields }, { merge: true });
+            });
+        }
         
         // --- AUTO-SYNC EXACT TAG STATE TO OTHER BOATS RETROACTIVELY ---
         // This ensures if you disband/remove a tag, it removes it from their other dives that day too!
