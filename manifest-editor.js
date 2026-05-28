@@ -12,12 +12,21 @@ window.triggerAutoSave = function() {
 
 window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
     if (!dni) return;
-    const targetDateStr = (window.activeBoatItem && window.activeBoatItem.date) ? window.activeBoatItem.date : new Date().toISOString().split('T')[0];
+    
+    let viewedDateStr = new Date().toISOString().split('T')[0];
+    if (typeof currentDate !== 'undefined' && currentDate) {
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        viewedDateStr = `${year}-${month}-${day}`;
+    }
+    const targetDateStr = (window.activeBoatItem && window.activeBoatItem.date) ? window.activeBoatItem.date : viewedDateStr;
+    const earliestDateStr = targetDateStr < viewedDateStr ? targetDateStr : viewedDateStr;
 
     // 1. Update in mergedAllocations (RAM)
     if (window.mergedAllocations) {
         window.mergedAllocations.forEach(trip => {
-            if (trip.date >= targetDateStr && trip.groups) {
+            if (trip.date >= earliestDateStr && trip.groups) {
                 let modified = false;
                 trip.groups.forEach(group => {
                     if (group.guests) {
@@ -45,7 +54,7 @@ window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
     // 2. Update in window.internalTrips (RAM)
     if (window.internalTrips) {
         window.internalTrips.forEach(trip => {
-            if (trip.date >= targetDateStr && trip.groups) {
+            if (trip.date >= earliestDateStr && trip.groups) {
                 let modified = false;
                 trip.groups.forEach(group => {
                     if (group.guests) {
@@ -1932,8 +1941,16 @@ async function saveBoatData() {
         await saveInternalBoatData(targetTripId, targetDate, payload);
         
         // --- AUTO-PROPAGATE EQUIPMENT TO ALL PENDING DIVES ---
+        let viewedDateStr = new Date().toISOString().split('T')[0];
+        if (typeof currentDate !== 'undefined' && currentDate) {
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            viewedDateStr = `${year}-${month}-${day}`;
+        }
         const targetDateStr = targetDate || activeBoatItem.date;
-        const allOtherTrips = mergedAllocations.filter(t => t.date >= targetDateStr && t.id !== targetTripId);
+        const earliestDateStr = targetDateStr < viewedDateStr ? targetDateStr : viewedDateStr;
+        const allOtherTrips = mergedAllocations.filter(t => t.date >= earliestDateStr && t.id !== targetTripId);
         
         const monthlyUpdates = {}; 
 

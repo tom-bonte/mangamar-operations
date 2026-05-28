@@ -937,10 +937,11 @@ window.saveCustomerEdits = async function () {
 
         if (boatSyncPromises.length > 0) {
             Promise.all(boatSyncPromises).catch(e => console.error("Error bg boat sync:", e));
-            // Redraw boats if manifest is active
-            if (typeof window.renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
-                window.renderGroups();
-            }
+        }
+
+        // Redraw boats if manifest is active (unconditionally, instantly)
+        if (typeof window.renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
+            window.renderGroups();
         }
 
         // Instant local redraw of the daily grid
