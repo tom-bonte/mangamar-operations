@@ -13,6 +13,10 @@ body:not(.logged-in) .auth-lock {
     opacity: 0.6 !important;
     filter: grayscale(100%);
 }
+body.staff-logged-in .auth-lock {
+    pointer-events: none !important;
+    cursor: default !important;
+}
 
 body:not(.logged-in) #manage-boat-modal input,
 body:not(.logged-in) #manage-boat-modal select,
@@ -306,7 +310,7 @@ body.is-dragging .tooltip-content {
     
     /* Expand daily main content to full screen */
     #view-daily > div.flex-1 {
-        padding: 1rem !important;
+        padding: 1.75rem 1rem 1rem 1rem !important;
         overflow-y: auto !important;
     }
     
@@ -317,14 +321,14 @@ body.is-dragging .tooltip-content {
     /* 3. Dynamic Daily Grid Column Selector */
     #daily-grid-container {
         display: grid !important;
-        grid-template-cols: 55px 1fr !important;
+        grid-template-columns: 1fr !important;
         min-width: 0 !important;
-        gap: 0.75rem !important;
+        gap: 1.25rem !important;
     }
     
-    /* Time labels column always visible */
+    /* Hide the left time labels column on mobile entirely */
     #daily-grid-container > div:nth-child(1) {
-        display: flex !important;
+        display: none !important;
     }
 
     /* Hide Ares, Kaiser, Shore columns by default */
@@ -354,12 +358,10 @@ body.is-dragging .tooltip-content {
         gap: 0.5rem !important;
     }
     
-    /* Let the time labels column maintain spacing */
-    #daily-grid-container > div:nth-child(1) > div {
-        height: auto !important;
-        min-height: 100px !important;
-        padding-top: 1rem !important;
-        margin-bottom: 0.5rem !important;
+    /* Elegant and compact 60px height empty dashed slots */
+    #daily-grid-container .h-\[130px\] > .border-dashed {
+        height: 60px !important;
+        min-height: 60px !important;
     }
 
     /* Override card height constraints */
@@ -367,6 +369,7 @@ body.is-dragging .tooltip-content {
         height: auto !important;
         min-height: 90px !important;
         width: 100% !important;
+        min-width: 0 !important;
         padding-bottom: 0.75rem !important;
         cursor: pointer !important;
         overflow: visible !important;

@@ -156,10 +156,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize Mobile Date Picker (Flatpickr)
     const mInput = document.getElementById('mobile-date-picker-input');
+    const trigger = document.getElementById('mobile-calendar-trigger');
     if(mInput) {
         const fp = flatpickr(mInput, {
             dateFormat: "Y-m-d",
             defaultDate: currentDate,
+            disableMobile: true, // Prevent native date widgets that show duplicate boxes on mobile
+            positionElement: trigger || undefined,
             onChange: function(selectedDates, dateStr, instance) {
                 if(selectedDates.length > 0) {
                     currentDate = selectedDates[0];
@@ -169,7 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-        const trigger = document.getElementById('mobile-calendar-trigger');
         if(trigger) {
             trigger.addEventListener('click', () => fp.open());
         }
@@ -387,14 +389,14 @@ function renderDailyGrid() {
     const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
     
     // We establish the 4 columns: Time, Ares, Kaiser, Shore
-    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-6 pb-12 px-2 min-w-[800px] md:min-w-0';
+    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-6 pb-12 px-2 md:min-w-[800px] min-w-0 w-full';
 
     const timeCol = document.createElement('div');
     timeCol.className = 'flex flex-col gap-4 pt-[60px]';
     
     const createCol = (title) => {
         const col = document.createElement('div');
-        col.className = 'bg-orange-100/60 rounded-[24px] p-3 flex flex-col gap-4 border border-orange-200/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] min-h-[600px]';
+        col.className = 'bg-orange-100/60 rounded-[24px] p-3 flex flex-col gap-4 border border-orange-200/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] min-h-[600px] w-full min-w-0';
         
         // Enlarged font and applied the solid Mangamar Orange gradient
         col.innerHTML = `<div class="h-12 flex items-center justify-center bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl mb-1 shadow-md border border-orange-300 shrink-0 z-20">
@@ -451,7 +453,19 @@ function renderDailyGrid() {
         const appendSlot = (parentCol, mainTrip, conflictArray, boatId, timeSlot) => {
             const slotContainer = document.createElement('div');
             // Fixed height container ensures the grid NEVER shifts out of alignment
-            slotContainer.className = "h-[130px] w-full flex gap-2 relative rounded-2xl transition-all";
+            slotContainer.className = "h-[130px] w-full flex gap-2 relative rounded-2xl transition-all min-w-0";
+            
+            // Mobile-only time indicator at the top of the slot
+            const mobileTimeDivider = document.createElement('div');
+            mobileTimeDivider.className = "flex md:hidden items-center gap-2 w-full mt-2 mb-1 shrink-0 select-none";
+            mobileTimeDivider.innerHTML = `
+                <span class="text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200/85 px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-xs shrink-0">
+                    <svg class="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    ${timeSlot}
+                </span>
+                <div class="h-px bg-slate-200/80 flex-1"></div>
+            `;
+            slotContainer.appendChild(mobileTimeDivider);
             
             // Drag and Drop Zones
             slotContainer.ondragover = (e) => { e.preventDefault(); slotContainer.classList.add('bg-blue-50', 'ring-2', 'ring-blue-400'); };
@@ -516,9 +530,11 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         const guideName = window.getFirstName(group.guide || 'Sin Guía').toUpperCase();
         const apoyoName = group.apoyo ? `(APOYO: ${window.getFirstName(group.apoyo)})`.toUpperCase() : '';
         const titleText = apoyoName ? `${guideName} ${apoyoName}` : guideName;
+
         const guestsHtml = (group.guests || []).map(g => {
             const isNitrox = (g.gas || '').includes('EAN');
             const gasColorClass = isNitrox ? 'text-green-400' : 'text-blue-300';
+            const gasColorHex = isNitrox ? '#4ade80' : '#93c5fd'; // Green for Nitrox, Blue for Aire
             const gasShort = (g.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
             const arrivedDot = g.arrived ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mr-1.5" title="Llegado"></span>` : '';
             
@@ -547,17 +563,27 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                 }
             }
 
+            // Same logic as TV board to construct a mobile-only orange course badge
+            const isSnorkel = (g.baseCourse === "Snorkeling" || g.courseBadge === "Snorkel" || (g.baseCourse && g.baseCourse.toLowerCase().includes("snorkel")) || (g.course && g.course.toLowerCase().includes("snorkel")));
+            const courseText = g.courseBadge || g.course || '';
+            let mobileCourseHtml = '';
+            if (courseText && !isSnorkel) {
+                mobileCourseHtml = `<span class="inline-block md:hidden text-[8.5px] font-black text-white rounded px-1.5 py-0.5 ml-1.5 uppercase tracking-wide shrink-0 leading-none shadow-sm" style="background-color: #f97316 !important; border-color: #ea580c !important; color: #ffffff !important;">${courseText}</span>`;
+            }
+
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
                         <div class="flex items-center min-w-0 flex-1">
                             ${arrivedDot}
-                            <button onclick="if(!window.isLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
-                                    class="truncate pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock">
+                            <button onclick="if(!window.isLoggedIn || window.isStaffLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
+                                    class="block truncate flex-1 min-w-0 pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock">
                                 ${displayName}
                             </button>
+                            ${mobileCourseHtml}
                         </div>
-                        <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2">${gasShort}</span>
+                        <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2" style="color: ${gasColorHex} !important;">${gasShort}</span>
                     </div>`;
         }).join('');
+
         
         return `<div class="mb-3 last:mb-0 border-b border-white/10 pb-2 last:border-0 last:pb-0">
                     <div class="text-[8px] font-black text-orange-400 mb-1 tracking-widest">${titleText}</div>
@@ -571,15 +597,19 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.maxDives) || parseInt(trip.plazas) || parseInt(trip.pax) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 12));
     const capacity = boatId === 'shore' ? '-' : capacityNum;
     
-    col.draggable = true;
-    col.ondragstart = (e) => {
-        e.stopPropagation();
-        e.dataTransfer.setData('text/plain', trip.id);
-        document.body.classList.add('is-dragging');
-    };
-    col.ondragend = (e) => {
-        document.body.classList.remove('is-dragging');
-    };
+    if (!window.isStaffLoggedIn) {
+        col.draggable = true;
+        col.ondragstart = (e) => {
+            e.stopPropagation();
+            e.dataTransfer.setData('text/plain', trip.id);
+            document.body.classList.add('is-dragging');
+        };
+        col.ondragend = (e) => {
+            document.body.classList.remove('is-dragging');
+        };
+    } else {
+        col.draggable = false;
+    }
 
     let capName = trip.captain ? window.getFirstName(trip.captain) : 'Sin Asignar';
     let isShore = boatId === 'shore';
@@ -590,8 +620,13 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     let cardBaseClass = isConflict ? "bg-red-50 border-red-500 shadow-md border-2" : "bg-white border-slate-200 shadow-sm border hover:shadow-md hover:border-blue-300";
     
     // Increased height to 115px to fit the new lines comfortably
-    col.className = `group-tooltip relative rounded-2xl transition-all cursor-grab active:cursor-grabbing flex flex-col h-[115px] shrink-0 z-10 hover:z-[100] ${isCompact ? 'flex-1 min-w-0' : 'w-full'} ${cardBaseClass}`;
-    col.onclick = () => openManageBoatModal(trip, boatId, time, dateStr);
+    col.className = `group-tooltip relative rounded-2xl transition-all flex flex-col h-[115px] shrink-0 z-10 hover:z-[100] ${isCompact ? 'flex-1 min-w-0' : 'w-full'} ${cardBaseClass}`;
+    if (!window.isStaffLoggedIn) {
+        col.className += " cursor-grab active:cursor-grabbing";
+        col.onclick = () => openManageBoatModal(trip, boatId, time, dateStr);
+    } else {
+        col.className += " cursor-default";
+    }
 
     let guideNames = 'Sin Asignar';
     if (trip.groups && trip.groups.length > 0) {
@@ -605,7 +640,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     } else if (trip.guide) { guideNames = window.getFirstName(trip.guide); }
 
     const radioTimesHtml = `
-    <div class="grid grid-cols-3 gap-2 text-center mb-3">
+    <div class="md:grid hidden grid-cols-3 gap-2 text-center mb-3">
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeSaliendo ? 'bg-orange-500/10 border-orange-500/30 text-orange-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Saliendo">
             <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Saliendo</span>
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
@@ -994,6 +1029,11 @@ window.updateAuthButtonUI = function() {
 
 window.toggleAuthDropdown = function() {
     const dd = document.getElementById('auth-dropdown');
+    if(dd) dd.classList.toggle('hidden');
+};
+
+window.toggleMobileAuthDropdown = function() {
+    const dd = document.getElementById('m-auth-dropdown');
     if(dd) dd.classList.toggle('hidden');
 };
 
