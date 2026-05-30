@@ -887,8 +887,11 @@ window.saveCustomerEdits = async function () {
             }
         }
 
-        // 2. Auto-sync Master List (ASYNC NON-BLOCKING)
+        // 2. Auto-sync Master List and Individual Customer Profile (ASYNC NON-BLOCKING)
         db.collection('mangamar_directory').doc('master_list').set({ clients: customerDatabase }, { merge: true }).catch(e => console.error("Error bg master sync:", e));
+        if (index > -1 && typeof db !== 'undefined') {
+            db.collection('mangamar_customers').doc(dni).set(customerDatabase[index], { merge: true }).catch(e => console.error("Error bg customer sync:", e));
+        }
 
         // 3. Update active boat manifests via mergedAllocations natively
         let boatSyncPromises = [];
@@ -899,7 +902,7 @@ window.saveCustomerEdits = async function () {
                     if (group.guests) {
                         group.guests.forEach(guest => {
                             if (guest.dni === dni) {
-                                let newFullName = window.getFullName(customerDatabase[index]);
+                                let newFullName = window.getFirstAndLastName(window.getFullName(customerDatabase[index]));
                                 let newTitulacion = customerDatabase[index].titulacion || '';
                                 let newTelefono = customerDatabase[index].telefono || '';
                                 let newEmail = customerDatabase[index].email || '';
@@ -922,7 +925,7 @@ window.saveCustomerEdits = async function () {
                             if (g.guests) {
                                 g.guests.forEach(gst => {
                                     if (gst.dni === dni) {
-                                        gst.nombre = window.getFullName(customerDatabase[index]);
+                                        gst.nombre = window.getFirstAndLastName(window.getFullName(customerDatabase[index]));
                                         gst.titulacion = customerDatabase[index].titulacion || '';
                                         gst.telefono = customerDatabase[index].telefono || '';
                                         gst.email = customerDatabase[index].email || '';
@@ -1024,6 +1027,58 @@ window.executeDeleteCustomer = function () {
                 let data = docSnap.data().clients || [];
                 let updated = data.filter(c => c.dni !== dni);
                 await db.collection('mangamar_directory').doc('master_list').set({ clients: updated }, { merge: true });
+            }
+
+            // 4. Remove customer from every trip booking (manifest groups, guests, and waitlists) month-wide
+            if (typeof mergedAllocations !== 'undefined') {
+                let boatSyncPromises = [];
+                mergedAllocations.forEach(trip => {
+                    let modified = false;
+                    if (trip.groups) {
+                        trip.groups.forEach(group => {
+                            if (group.guests) {
+                                const originalLength = group.guests.length;
+                                group.guests = group.guests.filter(gst => !window.isSameDni(gst.dni, dni));
+                                if (group.guests.length !== originalLength) {
+                                    modified = true;
+                                }
+                            }
+                        });
+                    }
+                    if (trip.waitlist) {
+                        const originalWlLength = trip.waitlist.length;
+                        trip.waitlist = trip.waitlist.filter(w => !window.isSameDni(w.dni, dni));
+                        if (trip.waitlist.length !== originalWlLength) {
+                            modified = true;
+                        }
+                    }
+                    if (modified) {
+                        // Sync active boat UI in real-time
+                        if (window.activeBoatItem && window.activeBoatItem.id === trip.id) {
+                            window.activeBoatItem.groups = trip.groups;
+                            window.activeBoatItem.waitlist = trip.waitlist;
+                            if (typeof window.renderGroups === 'function') window.renderGroups();
+                            if (typeof window.updateModalSubtitle === 'function') window.updateModalSubtitle();
+                            if (typeof window.renderWaitlist === 'function') window.renderWaitlist();
+                        }
+                        // Save updated boat sheet in Firestore
+                        const payload = {
+                            captain: trip.captain || '',
+                            guide: trip.guide || '',
+                            groups: trip.groups || [],
+                            isInternalTrip: true
+                        };
+                        if (trip.waitlist) payload.waitlist = trip.waitlist;
+                        if (trip.isVisorTrip) payload.visorTripFallback = true;
+                        if (typeof window.saveInternalBoatData === 'function') {
+                            boatSyncPromises.push(window.saveInternalBoatData(trip.id, trip.date, payload));
+                        }
+                    }
+                });
+                if (boatSyncPromises.length > 0) {
+                    await Promise.all(boatSyncPromises);
+                    if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+                }
             }
         } catch (e) {
             console.error("Error background deleting customer:", e);

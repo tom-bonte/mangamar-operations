@@ -348,8 +348,19 @@ function renderCaptainDropdown() {
     }
 }
 
-function copyStaffDni(type, name) {
+function copyStaffDni(type, name, groupIndex) {
     if(!name) return;
+    if (groupIndex !== undefined && activeBoatItem && activeBoatItem.groups[groupIndex]) {
+        const group = activeBoatItem.groups[groupIndex];
+        if (group.guide === name && group.guideDni) {
+            copyData(group.guideDni, 'DNI de Guía Personalizado');
+            return;
+        }
+        if (group.apoyo === name && group.apoyoDni) {
+            copyData(group.apoyoDni, 'DNI de Apoyo Personalizado');
+            return;
+        }
+    }
     const person = (staffDatabase[type] || []).find(p => p.nombre === name);
     if(person) copyData(person.dni, 'DNI de Staff');
 }
@@ -490,7 +501,7 @@ function renderGroups(skipAutoSave = false) {
                             ${guideOpts}
                         </select>
                         ${group.guide ? `<button onclick="window.clearGuide(${groupIndex})" title="Quitar Guía" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
-                        <button onclick="copyStaffDni('guias', document.getElementById('guide-select-${groupIndex}').value)" title="Copiar DNI del Guía" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                        <button onclick="copyStaffDni('guias', '${(group.guide || '').replace(/'/g, "\\'")}', ${groupIndex})" title="Copiar DNI del Guía" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
                     </div>
                     
                     <div class="flex items-center gap-1.5">
@@ -502,7 +513,7 @@ function renderGroups(skipAutoSave = false) {
                             ${apoyoOpts}
                         </select>
                         ${group.apoyo ? `<button onclick="window.clearApoyo(${groupIndex})" title="Quitar Apoyo" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
-                        <button onclick="copyStaffDni('guias', document.getElementById('apoyo-select-${groupIndex}').value)" title="Copiar DNI del Apoyo" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                        <button onclick="copyStaffDni('guias', '${(group.apoyo || '').replace(/'/g, "\\'")}', ${groupIndex})" title="Copiar DNI del Apoyo" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
                     </div>
                 </div>
                 <button onclick="removeGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 p-1" title="Eliminar Grupo"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
@@ -666,13 +677,19 @@ function renderGroups(skipAutoSave = false) {
                 if (cleanIns === 'INC') {
                     insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro Incluido" class="w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0">INC</button>`;
                 } else if (cleanIns !== '0') {
-                    const isBought = insCurrent.toString().includes(' ✔') || cleanIns === 'Propio';
-                    if (isBought) {
-                        let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✓ (${cleanIns})` : 'Seg ✓';
-                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns} (Comprado)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600">${displayVal}</button>`;
+                    const isTemp = ['1D', '1W', '1M', '1Y'].includes(cleanIns);
+                    if (isTemp) {
+                        const isBought = insCurrent.toString().includes(' ✔');
+                        if (isBought) {
+                            let displayVal = `Seg ✓ (${cleanIns})`;
+                            insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns} (Comprado)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600">${displayVal}</button>`;
+                        } else {
+                            let displayVal = `Seg (${cleanIns})`;
+                            insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns} (Pendiente de comprar)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-orange-600">${displayVal}</button>`;
+                        }
                     } else {
-                        let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg (${cleanIns})` : 'Seg';
-                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns} (Pendiente de comprar)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-orange-600">${displayVal}</button>`;
+                        let displayVal = 'Seg ✓';
+                        insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Seguro: ${cleanIns} (Activo)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600">${displayVal}</button>`;
                     }
                 } else {
                     insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex})" title="Falta Seguro" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-bold bg-red-500 text-white border-red-600 hover:bg-red-600 cursor-pointer shrink-0 whitespace-nowrap">Seg 🛑</button>`;
@@ -790,29 +807,88 @@ function removeGroup(groupIndex) {
     }); 
 }
 
-function updateGuide(groupIndex, value) { 
-    if (value === "CUSTOM_NAME_PROMPT") {
-        if (typeof window.showAppPrompt === 'function') {
-            window.showAppPrompt("Escribe el nombre personalizado del guía:", "", (name) => {
-                if (name && name.trim()) {
-                    activeBoatItem.groups[groupIndex].guide = name.trim();
-                }
-                renderGroups();
-                renderCaptainDropdown();
-                triggerAutoSave();
-            });
-            return; // Exit synchronously as modal callback executes asynchronously
-        } else {
-            const name = prompt("Escribe el nombre personalizado del guía:");
-            if (name && name.trim()) {
-                activeBoatItem.groups[groupIndex].guide = name.trim();
-            } else {
-                renderGroups();
-                return;
-            }
+// --- CUSTOM GUIDE/APOYO MODAL LOGIC ---
+let pendingGuideGroupIdx = null;
+let pendingGuideType = null; // 'guide' or 'apoyo'
+
+window.openCustomGuideModal = function(groupIndex, type) {
+    pendingGuideGroupIdx = groupIndex;
+    pendingGuideType = type;
+    
+    const group = activeBoatItem.groups[groupIndex];
+    let defaultName = '';
+    let defaultDni = '';
+    
+    if (type === 'guide') {
+        document.getElementById('custom-guide-title').innerHTML = `
+            <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            Escribe el nombre personalizado del guía:
+        `;
+        document.getElementById('custom-guide-name-label').innerText = 'Nombre del Guía';
+        if (group.guide && group.guide !== 'CUSTOM_NAME_PROMPT') {
+            defaultName = group.guide;
+            defaultDni = group.guideDni || '';
         }
     } else {
+        document.getElementById('custom-guide-title').innerHTML = `
+            <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            Escribe el nombre personalizado del apoyo:
+        `;
+        document.getElementById('custom-guide-name-label').innerText = 'Nombre del Apoyo';
+        if (group.apoyo && group.apoyo !== 'CUSTOM_NAME_PROMPT') {
+            defaultName = group.apoyo;
+            defaultDni = group.apoyoDni || '';
+        }
+    }
+    
+    document.getElementById('custom-guide-name-input').value = defaultName;
+    document.getElementById('custom-guide-dni-input').value = defaultDni;
+    
+    document.getElementById('custom-guide-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('custom-guide-name-input').focus(), 50);
+};
+
+window.closeCustomGuideModal = function() {
+    document.getElementById('custom-guide-modal').classList.add('hidden');
+    pendingGuideGroupIdx = null;
+    pendingGuideType = null;
+    renderGroups(); // Refresh select dropdowns
+};
+
+window.confirmCustomGuideModal = function() {
+    if (pendingGuideGroupIdx === null || !pendingGuideType) return;
+    const name = document.getElementById('custom-guide-name-input').value.trim();
+    const dni = document.getElementById('custom-guide-dni-input').value.trim();
+    
+    if (name) {
+        const group = activeBoatItem.groups[pendingGuideGroupIdx];
+        if (pendingGuideType === 'guide') {
+            group.guide = name;
+            group.guideDni = dni || '';
+        } else {
+            group.apoyo = name;
+            group.apoyoDni = dni || '';
+        }
+    }
+    
+    document.getElementById('custom-guide-modal').classList.add('hidden');
+    pendingGuideGroupIdx = null;
+    pendingGuideType = null;
+    
+    renderGroups();
+    renderCaptainDropdown();
+    triggerAutoSave();
+};
+
+function updateGuide(groupIndex, value) { 
+    if (value === "CUSTOM_NAME_PROMPT") {
+        window.openCustomGuideModal(groupIndex, 'guide');
+        return;
+    } else {
         activeBoatItem.groups[groupIndex].guide = value; 
+        if (activeBoatItem.groups[groupIndex].guideDni) {
+            delete activeBoatItem.groups[groupIndex].guideDni;
+        }
     }
     renderGroups();
     renderCaptainDropdown();
@@ -821,27 +897,13 @@ function updateGuide(groupIndex, value) {
 
 function updateApoyo(groupIndex, value) {
     if (value === "CUSTOM_NAME_PROMPT") {
-        if (typeof window.showAppPrompt === 'function') {
-            window.showAppPrompt("Escribe el nombre personalizado del apoyo:", "", (name) => {
-                if (name && name.trim()) {
-                    activeBoatItem.groups[groupIndex].apoyo = name.trim();
-                }
-                renderGroups();
-                renderCaptainDropdown();
-                triggerAutoSave();
-            });
-            return; // Exit synchronously as modal callback executes asynchronously
-        } else {
-            const name = prompt("Escribe el nombre personalizado del apoyo:");
-            if (name && name.trim()) {
-                activeBoatItem.groups[groupIndex].apoyo = name.trim();
-            } else {
-                renderGroups();
-                return;
-            }
-        }
+        window.openCustomGuideModal(groupIndex, 'apoyo');
+        return;
     } else {
         activeBoatItem.groups[groupIndex].apoyo = value;
+        if (activeBoatItem.groups[groupIndex].apoyoDni) {
+            delete activeBoatItem.groups[groupIndex].apoyoDni;
+        }
     }
     renderGroups();
     renderCaptainDropdown();
@@ -1203,30 +1265,95 @@ window.setIns = async function(type) {
     }
     
     // Targeted DOM Update
-    const btn = document.getElementById(`btn-ins-${activeInsGroup}-${activeInsGuest}`);
-    if (btn) {
-        let insRaw = guest.insurance || 0;
-        if (insRaw && typeof insRaw === 'object') {
-            insRaw = insRaw.type || 0;
+    window.updateGuestInsuranceButton(activeInsGroup, activeInsGuest);
+    
+    if (guest.dni) {
+        window.propagateEquipmentInRAM(guest.dni, { insurance: guest.insurance });
+    }
+    triggerAutoSave();
+};
+
+window.updateGuestInsuranceButton = function(groupIndex, guestIndex) {
+    const btn = document.getElementById(`btn-ins-${groupIndex}-${guestIndex}`);
+    if (!btn) return;
+    
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    if (!guest) return;
+    
+    let globalIns = null;
+    let isInsExpired = false;
+    if (guest.dni && !guest.course) {
+        const profile = customerDatabase.find(c => c.dni === guest.dni);
+        if (profile && profile.insurance) {
+            globalIns = profile.insurance;
+            const expiryStr = window.normalizeDateStr(globalIns.expiry);
+            if (expiryStr < activeBoatItem.date) {
+                isInsExpired = true;
+            }
         }
-        let insVal = insRaw.toString();
-        let cleanIns = insVal.replace(' ✔', '');
+    }
+    
+    let insRaw = guest.insurance || 0;
+    if (insRaw && typeof insRaw === 'object') {
+        insRaw = insRaw.type || 0;
+    }
+    let insVal = insRaw.toString();
+    let cleanIns = insVal.replace(' ✔', '');
+    
+    if (globalIns) {
+        let displayVal = 'Seg ✓';
+        if (isInsExpired) {
+            displayVal = 'Seg 🛑';
+            btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-red-500 text-white border-red-600 hover:bg-red-600 cursor-pointer shrink-0 whitespace-nowrap";
+            btn.innerText = displayVal;
+            btn.title = `Seguro CADUCADO el ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns})`;
+        } else {
+            const isTemp = ['1D', '1W', '1M', '1Y'].includes(cleanIns);
+            if (isTemp) {
+                const isBought = insVal.includes(' ✔');
+                if (isBought) {
+                    displayVal = `Seg ✓ (${cleanIns})`;
+                    btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap";
+                    btn.innerText = displayVal;
+                    btn.title = `Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Comprado)`;
+                } else {
+                    displayVal = `Seg (${cleanIns})`;
+                    btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner hover:bg-orange-600 cursor-pointer shrink-0 whitespace-nowrap";
+                    btn.innerText = displayVal;
+                    btn.title = `Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Pendiente de comprar)`;
+                }
+            } else {
+                displayVal = 'Seg ✓';
+                btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap";
+                btn.innerText = displayVal;
+                btn.title = `Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${globalIns.type})`;
+            }
+        }
+    } else {
         if (cleanIns === 'INC') {
             btn.className = "w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0";
             btn.innerText = "INC";
             btn.title = "Seguro Incluido";
         } else if (cleanIns !== '0' && cleanIns !== 0) {
-            const isBought = insVal.includes(' ✔') || cleanIns === 'Propio';
-            if (isBought) {
-                btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600";
-                let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✓ (${cleanIns})` : 'Seg ✓';
-                btn.innerText = displayVal;
-                btn.title = `Seguro: ${cleanIns} (Comprado)`;
+            const isTemp = ['1D', '1W', '1M', '1Y'].includes(cleanIns);
+            if (isTemp) {
+                const isBought = insVal.includes(' ✔');
+                if (isBought) {
+                    let displayVal = `Seg ✓ (${cleanIns})`;
+                    btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600";
+                    btn.innerText = displayVal;
+                    btn.title = `Seguro: ${cleanIns} (Comprado)`;
+                } else {
+                    let displayVal = `Seg (${cleanIns})`;
+                    btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-orange-600";
+                    btn.innerText = displayVal;
+                    btn.title = `Seguro: ${cleanIns} (Pendiente de comprar)`;
+                }
             } else {
-                btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-orange-600";
-                let displayVal = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg (${cleanIns})` : 'Seg';
+                let displayVal = 'Seg ✓';
+                btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-600";
                 btn.innerText = displayVal;
-                btn.title = `Seguro: ${cleanIns} (Pendiente de comprar)`;
+                btn.title = `Seguro: ${cleanIns} (Activo)`;
             }
         } else {
             btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-bold bg-red-500 text-white border-red-600 hover:bg-red-600 shrink-0 whitespace-nowrap cursor-pointer";
@@ -1234,10 +1361,143 @@ window.setIns = async function(type) {
             btn.title = "Falta Seguro";
         }
     }
+};
+
+window.openSeguroPropioModal = function() {
+    // Hide the dropdown menu list
+    document.getElementById('ins-popup').classList.add('hidden');
+    
+    if (activeInsGroup === null || activeInsGuest === null) return;
+    
+    const guest = activeBoatItem.groups[activeInsGroup].guests[activeInsGuest];
+    if (!guest) return;
+    
+    // Default initial form values
+    let typeVal = "";
+    let expVal = "";
+    
     if (guest.dni) {
+        const profile = customerDatabase.find(c => c.dni === guest.dni);
+        if (profile && profile.insurance) {
+            typeVal = profile.insurance.type || "";
+            if (profile.insurance.expiry) {
+                expVal = window.normalizeDateStr(profile.insurance.expiry);
+            }
+        } else if (guest.insurance && guest.insurance !== '0' && guest.insurance !== 0) {
+            let currentIns = guest.insurance;
+            if (typeof currentIns === 'object') {
+                typeVal = currentIns.type || "";
+                if (currentIns.expiry) {
+                    expVal = window.normalizeDateStr(currentIns.expiry);
+                }
+            } else {
+                typeVal = currentIns.toString();
+            }
+        }
+    } else if (guest.insurance && guest.insurance !== '0' && guest.insurance !== 0) {
+        let currentIns = guest.insurance;
+        if (typeof currentIns === 'object') {
+            typeVal = currentIns.type || "";
+            if (currentIns.expiry) {
+                expVal = window.normalizeDateStr(currentIns.expiry);
+            }
+        } else {
+            typeVal = currentIns.toString();
+        }
+    }
+    
+    document.getElementById('seguro-propio-tipo').value = typeVal;
+    document.getElementById('seguro-propio-expiracion').value = expVal;
+    
+    // Show the modal
+    document.getElementById('seguro-propio-modal').classList.remove('hidden');
+};
+
+window.closeSeguroPropioModal = function() {
+    document.getElementById('seguro-propio-modal').classList.add('hidden');
+};
+
+window.saveSeguroPropioChanges = async function() {
+    const type = document.getElementById('seguro-propio-tipo').value.trim();
+    const expiry = document.getElementById('seguro-propio-expiracion').value;
+    
+    if (activeInsGroup === null || activeInsGuest === null) {
+        closeSeguroPropioModal();
+        return;
+    }
+    
+    const guest = activeBoatItem.groups[activeInsGroup].guests[activeInsGuest];
+    if (!guest) {
+        closeSeguroPropioModal();
+        return;
+    }
+    
+    if (!type) {
+        // If type is left blank, remove/clear insurance just like 'Remove' action
+        guest.insurance = 0;
+        if (guest.dni) {
+            db.collection('mangamar_customers').doc(guest.dni).update({ insurance: firebase.firestore.FieldValue.delete() }).catch(e=>{});
+            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
+            masterDocRef.get().then(doc => {
+                if (doc.exists) {
+                    let clients = doc.data().clients || [];
+                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    if (idx > -1) {
+                        delete clients[idx].insurance;
+                        masterDocRef.set({ clients }, { merge: true }).catch(e => console.error("Error saving master list:", e));
+                    }
+                }
+            });
+            const profile = customerDatabase.find(c => c.dni === guest.dni);
+            if (profile) delete profile.insurance;
+        }
+    } else {
+        guest.insurance = type;
+        if (guest.dni) {
+            const newIns = { type, expiry, purchaseDate: activeBoatItem.date };
+            
+            // Update local memory database
+            const profile = customerDatabase.find(c => c.dni === guest.dni);
+            if (profile) profile.insurance = newIns;
+            
+            // Save to Firestore for this customer
+            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns }, { merge: true }).catch(e => console.error("Error saving insurance to Firestore:", e));
+            
+            // Update master_list
+            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
+            masterDocRef.get().then(doc => {
+                if (doc.exists) {
+                    let clients = doc.data().clients || [];
+                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    if (idx > -1) {
+                        clients[idx].insurance = newIns;
+                        masterDocRef.set({ clients }, { merge: true }).catch(e => console.error("Error saving master list:", e));
+                    }
+                }
+            });
+        }
+    }
+    
+    // Propagate equipment changes if applicable
+    if (guest.dni && typeof window.propagateEquipmentInRAM === 'function') {
         window.propagateEquipmentInRAM(guest.dni, { insurance: guest.insurance });
     }
-    triggerAutoSave();
+    
+    // Refresh customer profile (diver's ficha) UI if it's currently open!
+    if (guest.dni && window.activeFichaDni === guest.dni && typeof window.openCustomerProfile === 'function') {
+        const currentTab = (document.getElementById('tab-content-caja') && !document.getElementById('tab-content-caja').classList.contains('hidden')) ? 'caja' : 'historial';
+        window.openCustomerProfile(guest.dni, guest.nombre, false, currentTab);
+    }
+    
+    // Targeted DOM Update for the grid button
+    window.updateGuestInsuranceButton(activeInsGroup, activeInsGuest);
+    
+    // Auto-save changes
+    if (typeof triggerAutoSave === 'function') {
+        triggerAutoSave();
+    }
+    
+    closeSeguroPropioModal();
 };
 
 window.toggleTramitado = function() {
@@ -1303,6 +1563,9 @@ window.toggleTramitado = function() {
         }
     }
 
+    // Targeted DOM Update
+    window.updateGuestInsuranceButton(activeInsGroup, activeInsGuest);
+    
     if (guest.dni) {
         window.propagateEquipmentInRAM(guest.dni, { insurance: newInsVal });
     }
@@ -1397,7 +1660,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
     const guestTempId = guest.tempId || null;
 
     const tag = findActiveTagForGuest(data.dni, fullName); // Auto-sync group!
-    guest.nombre = fullName; guest.titulacion = data.titulacion || ''; guest.telefono = data.telefono || ''; 
+    guest.nombre = window.getFirstAndLastName(fullName); guest.titulacion = data.titulacion || ''; guest.telefono = data.telefono || ''; 
     guest.email = data.email || ''; guest.dni = data.dni || ''; guest.isManual = false; guest.isRelinking = false;
     if (tag) guest.bookingTag = tag;
     if (guestTempId) delete guest.tempId;
@@ -1480,6 +1743,8 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                         let isMatch = false;
                         if (guestTempId && otherGuest.tempId === guestTempId) {
                             isMatch = true;
+                        } else if (data.dni && otherGuest.dni && window.normalizeDni(otherGuest.dni) === window.normalizeDni(data.dni)) {
+                            isMatch = true;
                         } else if (matchTarget) {
                             const normOther = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(otherGuest.nombre || '') : (otherGuest.nombre || '').trim().toLowerCase();
                             isMatch = (!otherGuest.dni && otherGuest.nombre && normOther === matchTarget);
@@ -1487,7 +1752,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
 
                         if (isMatch) {
                             otherGuest.dni = data.dni || '';
-                            otherGuest.nombre = fullName;
+                            otherGuest.nombre = window.getFirstAndLastName(fullName);
                             otherGuest.titulacion = data.titulacion || '';
                             otherGuest.telefono = data.telefono || '';
                             otherGuest.email = data.email || '';
@@ -1585,6 +1850,8 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
             let isMatch = false;
             if (guestTempId && otherGuest.tempId === guestTempId) {
                 isMatch = true;
+            } else if (data.dni && otherGuest.dni && window.normalizeDni(otherGuest.dni) === window.normalizeDni(data.dni)) {
+                isMatch = true;
             } else if (oldNameLower) {
                 const normOther = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(otherGuest.nombre || '') : (otherGuest.nombre || '').trim().toLowerCase();
                 const matchTarget = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(oldNameLower) : oldNameLower.trim();
@@ -1593,7 +1860,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
 
             if (isMatch) {
                 otherGuest.dni = data.dni || '';
-                otherGuest.nombre = fullName;
+                otherGuest.nombre = window.getFirstAndLastName(fullName);
                 otherGuest.titulacion = data.titulacion || '';
                 otherGuest.telefono = data.telefono || '';
                 otherGuest.email = data.email || '';
@@ -1642,25 +1909,216 @@ function openEditGuestModal(groupIndex, guestIndex) {
     editingLocalGuestInfo = { groupIndex, guestIndex };
     document.getElementById('edit-g-name').value = guest.nombre || '';
     document.getElementById('edit-g-tit').value = guest.titulacion || '';
+    document.getElementById('edit-g-dni').value = guest.dni || '';
     document.getElementById('edit-g-phone').value = guest.telefono || '';
     document.getElementById('edit-g-email').value = guest.email || '';
 
     document.getElementById('edit-guest-modal').classList.remove('hidden');
 }
 
-window.saveLocalGuestEdit = function() {
+window.saveLocalGuestEdit = async function() {
     if(!editingLocalGuestInfo) return;
     const { groupIndex, guestIndex } = editingLocalGuestInfo;
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
     
-    // Only update these fields locally! Do not touch gas, deposits, or roles.
-    guest.nombre = document.getElementById('edit-g-name').value.trim();
-    guest.titulacion = document.getElementById('edit-g-tit').value.trim();
-    guest.telefono = document.getElementById('edit-g-phone').value.trim();
-    guest.email = document.getElementById('edit-g-email').value.trim();
+    const modalName = document.getElementById('edit-g-name').value.trim();
+    const modalTit = document.getElementById('edit-g-tit').value.trim();
+    const rawDni = document.getElementById('edit-g-dni').value.trim();
+    const modalPhone = document.getElementById('edit-g-phone').value.trim();
+    const modalEmail = document.getElementById('edit-g-email').value.trim();
+    
+    const normDni = window.normalizeDni(rawDni);
+    
+    const isEmptyValue = (val) => {
+        if (!val) return true;
+        const s = val.toString().trim();
+        return s === '' || s === '-' || s === '---' || s.toLowerCase() === 'sin titulación' || s.toLowerCase() === 'sin titulacion';
+    };
+    
+    if (normDni) {
+        guest.dni = normDni;
+        
+        // 1. Check or create/update in CRM database
+        let existingProfile = customerDatabase.find(c => window.normalizeDni(c.dni) === normDni);
+        
+        // Dynamic direct fetch from Firestore to always get the most complete registration ficha
+        try {
+            const doc = await db.collection('mangamar_customers').doc(normDni).get();
+            if (doc.exists) {
+                const dbData = doc.data();
+                if (existingProfile) {
+                    // DEFENSIVE MERGE: Only overwrite if dbData has non-empty values
+                    Object.keys(dbData).forEach(key => {
+                        const val = dbData[key];
+                        if (!isEmptyValue(val)) {
+                            existingProfile[key] = val;
+                        }
+                    });
+                } else {
+                    existingProfile = { dni: normDni, ...dbData };
+                    customerDatabase.push(existingProfile);
+                }
+            }
+        } catch (err) {
+            console.error("Error fetching rich customer profile from Firestore:", err);
+        }
+        
+        if (existingProfile) {
+            // SMART INHERITANCE: Prioritize rich existing database info but fill gaps if user entered something new
+            if (modalName && (isEmptyValue(existingProfile.nombre) || existingProfile.nombre.toLowerCase().includes('sin nombre'))) {
+                existingProfile.nombre = modalName;
+            }
+            if (modalTit && isEmptyValue(existingProfile.titulacion)) {
+                existingProfile.titulacion = modalTit;
+            }
+            if (modalPhone && isEmptyValue(existingProfile.telefono)) {
+                existingProfile.telefono = modalPhone;
+            }
+            if (modalEmail && isEmptyValue(existingProfile.email)) {
+                existingProfile.email = modalEmail;
+            }
+            
+            // Assign rich database profile values back to the local guest (using first and last name only)
+            const dbFullName = window.getFullName(existingProfile);
+            guest.nombre = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : (modalName || guest.nombre);
+            guest.titulacion = !isEmptyValue(existingProfile.titulacion) ? existingProfile.titulacion : (modalTit || guest.titulacion);
+            guest.telefono = !isEmptyValue(existingProfile.telefono) ? existingProfile.telefono : (modalPhone || guest.telefono);
+            guest.email = !isEmptyValue(existingProfile.email) ? existingProfile.email : (modalEmail || guest.email);
+            
+            // Handle active insurance check
+            if (existingProfile.insurance) {
+                const insObj = existingProfile.insurance;
+                const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+                const activeDate = activeBoatItem ? activeBoatItem.date : '';
+                if (expiry && expiry >= activeDate) {
+                    guest.insurance = insObj.type || 0;
+                } else {
+                    guest.insurance = 0; // Expired for this trip date
+                }
+            }
+        } else {
+            // Create a brand new skeleton profile in the CRM
+            existingProfile = {
+                dni: normDni,
+                nombre: modalName || 'Sin Nombre',
+                titulacion: modalTit,
+                telefono: modalPhone,
+                email: modalEmail
+            };
+            customerDatabase.push(existingProfile);
+            
+            guest.nombre = modalName;
+            guest.titulacion = modalTit;
+            guest.telefono = modalPhone;
+            guest.email = modalEmail;
+        }
+        
+        // 2. Sync to Firestore (mangamar_customers + master_list)
+        db.collection('mangamar_customers').doc(normDni).set(existingProfile, { merge: true }).catch(e => console.error("Error saving customer to Firestore:", e));
+        db.collection('mangamar_directory').doc('master_list').set({ clients: customerDatabase }, { merge: true }).catch(e => console.error("Error bg master sync:", e));
+        
+        // 3. Propagate this rich database info to all matching trip bookings month-wide in mergedAllocations
+        let boatSyncPromises = [];
+        mergedAllocations.forEach(trip => {
+            let modified = false;
+            if (trip.groups) {
+                trip.groups.forEach(group => {
+                    if (group.guests) {
+                        group.guests.forEach(gst => {
+                            if (gst.dni && window.normalizeDni(gst.dni) === normDni) {
+                                // Inherit full details from profile
+                                const dbFullName = window.getFullName(existingProfile);
+                                const profileName = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : gst.nombre;
+                                const profileTit = !isEmptyValue(existingProfile.titulacion) ? existingProfile.titulacion : gst.titulacion;
+                                const profilePhone = !isEmptyValue(existingProfile.telefono) ? existingProfile.telefono : gst.telefono;
+                                const profileEmail = !isEmptyValue(existingProfile.email) ? existingProfile.email : gst.email;
+                                
+                                let profileIns = gst.insurance || 0;
+                                if (existingProfile.insurance) {
+                                    const insObj = existingProfile.insurance;
+                                    const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+                                    const activeDate = trip.date || '';
+                                    if (expiry && expiry >= activeDate) {
+                                        profileIns = insObj.type || 0;
+                                    } else {
+                                        profileIns = 0;
+                                    }
+                                }
+                                
+                                 if (gst.nombre !== profileName || gst.titulacion !== profileTit || gst.telefono !== profilePhone || gst.email !== profileEmail || gst.insurance !== profileIns) {
+                                    gst.nombre = profileName;
+                                    gst.titulacion = profileTit;
+                                    gst.telefono = profilePhone;
+                                    gst.email = profileEmail;
+                                    gst.insurance = profileIns;
+                                    modified = true;
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+            if (modified) {
+                // If active in editor UI, keep it synced in activeBoatItem
+                if (activeBoatItem && activeBoatItem.id === trip.id) {
+                    activeBoatItem.groups.forEach(g => {
+                        if (g.guests) {
+                            g.guests.forEach(gst => {
+                                if (gst.dni && window.normalizeDni(gst.dni) === normDni) {
+                                    const dbFullName = window.getFullName(existingProfile);
+                                    gst.nombre = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : gst.nombre;
+                                    gst.titulacion = !isEmptyValue(existingProfile.titulacion) ? existingProfile.titulacion : gst.titulacion;
+                                    gst.telefono = !isEmptyValue(existingProfile.telefono) ? existingProfile.telefono : gst.telefono;
+                                    gst.email = !isEmptyValue(existingProfile.email) ? existingProfile.email : gst.email;
+                                    
+                                    let profileIns = gst.insurance || 0;
+                                    if (existingProfile.insurance) {
+                                        const insObj = existingProfile.insurance;
+                                        const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+                                        const activeDate = activeBoatItem.date || '';
+                                        if (expiry && expiry >= activeDate) {
+                                            profileIns = insObj.type || 0;
+                                        } else {
+                                            profileIns = 0;
+                                        }
+                                    }
+                                    gst.insurance = profileIns;
+                                }
+                            });
+                        }
+                    });
+                }
+                
+                const payload = {
+                    captain: trip.captain || '',
+                    guide: trip.guide || '',
+                    groups: trip.groups || [],
+                    isInternalTrip: true
+                };
+                if (trip.isVisorTrip) payload.visorTripFallback = true;
+                if (typeof window.saveInternalBoatData === 'function') {
+                    boatSyncPromises.push(window.saveInternalBoatData(trip.id, trip.date, payload));
+                }
+            }
+        });
+        if (boatSyncPromises.length > 0) {
+            Promise.all(boatSyncPromises).catch(e => console.error("Error bg boat sync in guest edit:", e));
+        }
+    } else {
+        guest.nombre = modalName;
+        guest.titulacion = modalTit;
+        guest.telefono = modalPhone;
+        guest.email = modalEmail;
+        guest.isManual = true;
+        if (guest.hasOwnProperty('dni')) {
+            delete guest.dni;
+        }
+    }
     
     document.getElementById('edit-guest-modal').classList.add('hidden');
-    renderGroups(); updateModalSubtitle();
+    renderGroups(); 
+    updateModalSubtitle();
+    triggerAutoSave();
 };
 
 function getGlobalDropdown() {
@@ -1788,7 +2246,7 @@ window.selectCustomer = function(groupIndex, encodedData) {
         }
 
         const newGuest = { 
-            nombre: fullName, 
+            nombre: window.getFirstAndLastName(fullName), 
             titulacion: data.titulacion || '', 
             telefono: data.telefono || '', 
             email: data.email || '', 
@@ -1854,7 +2312,7 @@ function checkEnter(event, groupIndex) {
         // Hide the dropdown — user chose not to select any result
         const d = document.getElementById('global-autocomplete');
         if (d) d.classList.add('hidden');
-
+ 
         const input = document.getElementById(`search-${groupIndex}`);
         const fullName = input.value.trim();
         if (fullName !== '') {
@@ -1864,7 +2322,12 @@ function checkEnter(event, groupIndex) {
             const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             activeBoatItem.groups[groupIndex].guests.push({ nombre: fullName, titulacion: '', telefono: '', email: '', dni: '', gas: '15L Aire', isManual: true, bookingTag: tag, tempId: tempId });
             input.value = '';
-            updateModalSubtitle(); renderGroups();
+            updateModalSubtitle(); 
+            renderGroups();
+            
+            // Auto-open Edit Guest modal to let user add DNI and details immediately
+            const newGuestIdx = activeBoatItem.groups[groupIndex].guests.length - 1;
+            openEditGuestModal(groupIndex, newGuestIdx);
         }
     }
 }

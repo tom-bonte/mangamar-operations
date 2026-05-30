@@ -170,6 +170,15 @@ window.getFullName = function(c, includeApodo = true) {
     return formatted;
 };
 
+window.getFirstAndLastName = function(fullName) {
+    if (!fullName) return '';
+    // Strip apodo suffix if present, e.g. "Tom E Bonte (Tom)" -> "Tom E Bonte"
+    let cleanName = fullName.split(' (')[0].trim();
+    const parts = cleanName.split(/\s+/);
+    if (parts.length <= 2) return cleanName;
+    return parts[0] + ' ' + parts[parts.length - 1];
+};
+
 window.getTripLocationName = function(t) {
     if (t.assignedBoat === 'ares') return 'Ares';
     if (t.assignedBoat === 'kaiser') return 'Kaiser';

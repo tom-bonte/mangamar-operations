@@ -1350,11 +1350,26 @@ window.syncJotformCustomers = async function() {
             if (existing) {
                 // SMART MERGE: If it's a blank shell (e.g. from boat manifest), fill it in!
                 let modified = false;
+                let nameModified = false;
+                const sheetFullName = [sheetClient.nombre, sheetClient.apellido].filter(Boolean).join(' ').trim();
+                const existingFullName = [existing.nombre, existing.apellido].filter(Boolean).join(' ').trim();
+                
                 if (!existing.nombre || existing.nombre === 'Sin Nombre' || existing.nombre.toLowerCase().includes('sin nombre')) {
                     existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
+                    nameModified = true;
+                } else if (sheetFullName && (existingFullName.toLowerCase() === 'sin nombre' || existingFullName.length < sheetFullName.length || existingFullName.split(/\s+/).length < sheetFullName.split(/\s+/).length)) {
+                    // Update name to Jotform's full official details
+                    existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
+                    nameModified = true;
+                }
+                
+                if (nameModified) {
+                    if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
+                    modified = true;
+                } else if (!existing.apellido && sheetClient.apellido) {
+                    existing.apellido = fixNameCaps(sheetClient.apellido);
                     modified = true;
                 }
-                if (!existing.apellido && sheetClient.apellido) { existing.apellido = fixNameCaps(sheetClient.apellido); modified = true; }
                 if (!existing.email && sheetClient.email) { existing.email = sheetClient.email; modified = true; }
                 if (!existing.telefono && sheetClient.telefono) { existing.telefono = sheetClient.telefono; modified = true; }
                 if (!existing.titulacion && sheetClient.titulacion) { existing.titulacion = sheetClient.titulacion; modified = true; }
@@ -1402,6 +1417,121 @@ window.syncJotformCustomers = async function() {
 
         if (newCount > 0 || mergedCount > 0) {
             await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+            
+            // Sync all updated/created customer profiles to their individual Firestore documents as well
+            if (typeof db !== 'undefined') {
+                const syncPromises = customerDatabase.map(c => {
+                    if (c.dni) {
+                        return db.collection('mangamar_customers').doc(c.dni).set(c, { merge: true })
+                            .catch(err => console.error("Error syncing individual doc inside jotform:", err));
+                    }
+                });
+                await Promise.all(syncPromises);
+            }
+
+            // Propagate these updated details month-wide to all manifest sheets and waitlists
+            if (typeof mergedAllocations !== 'undefined') {
+                const isEmptyValue = (val) => {
+                    if (!val) return true;
+                    const s = val.toString().trim();
+                    return s === '' || s === '-' || s === '---' || s.toLowerCase() === 'sin titulación' || s.toLowerCase() === 'sin titulacion';
+                };
+                
+                let boatSyncPromises = [];
+                mergedAllocations.forEach(trip => {
+                    let modified = false;
+                    if (trip.groups) {
+                        trip.groups.forEach(group => {
+                            if (group.guests) {
+                                group.guests.forEach(gst => {
+                                    if (gst.dni) {
+                                        const normDni = window.normalizeDni(gst.dni);
+                                        const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === normDni);
+                                        if (profile) {
+                                            const dbFullName = window.getFullName(profile);
+                                            const profileName = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : gst.nombre;
+                                            const profileTit = !isEmptyValue(profile.titulacion) ? profile.titulacion : gst.titulacion;
+                                            const profilePhone = !isEmptyValue(profile.telefono) ? profile.telefono : gst.telefono;
+                                            const profileEmail = !isEmptyValue(profile.email) ? profile.email : gst.email;
+                                            
+                                            let profileIns = gst.insurance || 0;
+                                            if (profile.insurance) {
+                                                const insObj = profile.insurance;
+                                                const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+                                                const activeDate = trip.date || '';
+                                                if (expiry && expiry >= activeDate) {
+                                                    profileIns = insObj.type || 0;
+                                                } else {
+                                                    profileIns = 0;
+                                                }
+                                            }
+                                            
+                                            if (gst.nombre !== profileName || gst.titulacion !== profileTit || gst.telefono !== profilePhone || gst.email !== profileEmail || gst.insurance !== profileIns) {
+                                                gst.nombre = profileName;
+                                                gst.titulacion = profileTit;
+                                                gst.telefono = profilePhone;
+                                                gst.email = profileEmail;
+                                                gst.insurance = profileIns;
+                                                modified = true;
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    if (trip.waitlist) {
+                        trip.waitlist.forEach(w => {
+                            if (w.dni) {
+                                const normDni = window.normalizeDni(w.dni);
+                                const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === normDni);
+                                if (profile) {
+                                    const dbFullName = window.getFullName(profile);
+                                    const profileName = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : w.nombre;
+                                    const profileTit = !isEmptyValue(profile.titulacion) ? profile.titulacion : w.titulacion;
+                                    const profilePhone = !isEmptyValue(profile.telefono) ? profile.telefono : w.telefono;
+                                    const profileEmail = !isEmptyValue(profile.email) ? profile.email : w.email;
+                                    
+                                    if (w.nombre !== profileName || w.titulacion !== profileTit || w.telefono !== profilePhone || w.email !== profileEmail) {
+                                        w.nombre = profileName;
+                                        w.titulacion = profileTit;
+                                        w.telefono = profilePhone;
+                                        w.email = profileEmail;
+                                        modified = true;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    if (modified) {
+                        // Sync active boat UI in real-time
+                        if (window.activeBoatItem && window.activeBoatItem.id === trip.id) {
+                            window.activeBoatItem.groups = trip.groups;
+                            window.activeBoatItem.waitlist = trip.waitlist;
+                            if (typeof window.renderGroups === 'function') window.renderGroups();
+                            if (typeof window.updateModalSubtitle === 'function') window.updateModalSubtitle();
+                            if (typeof window.renderWaitlist === 'function') window.renderWaitlist();
+                        }
+                        // Save updated boat sheet in Firestore
+                        const payload = {
+                            captain: trip.captain || '',
+                            guide: trip.guide || '',
+                            groups: trip.groups || [],
+                            isInternalTrip: true
+                        };
+                        if (trip.waitlist) payload.waitlist = trip.waitlist;
+                        if (trip.isVisorTrip) payload.visorTripFallback = true;
+                        if (typeof window.saveInternalBoatData === 'function') {
+                            boatSyncPromises.push(window.saveInternalBoatData(trip.id, trip.date, payload));
+                        }
+                    }
+                });
+                if (boatSyncPromises.length > 0) {
+                    await Promise.all(boatSyncPromises);
+                    if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+                }
+            }
+
             let msg = '';
             if (newCount > 0) msg += `${newCount} nuevos. `;
             if (mergedCount > 0) msg += `${mergedCount} perfiles completados.`;

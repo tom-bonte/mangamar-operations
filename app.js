@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function switchView(view) {
     // Block staff users from accessing staff management dashboard
     if (view === 'staff' && window.isStaffLoggedIn) {
-        showToast("🔒 Acceso denegado: El Personal no tiene permiso para ver la gestión de staff.", "error");
+        showToast("🔒 Acceso denegado", "error");
         return;
     }
     activeViewMode = view;
@@ -724,7 +724,7 @@ function toggleHelpLanguage(lang) {
 
 window.handleDrop = async function(event, targetBoat, targetTime) {
     if (window.isStaffLoggedIn) {
-        showToast("🔒 Acceso denegado: El Personal no tiene permiso para mover salidas.", "error");
+        showToast("🔒 Acceso denegado", "error");
         return;
     }
     const tripId = event.dataTransfer.getData('text/plain');
