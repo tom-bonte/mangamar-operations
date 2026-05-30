@@ -179,6 +179,13 @@ window.getFirstAndLastName = function(fullName) {
     return parts[0] + ' ' + parts[parts.length - 1];
 };
 
+window.isProfileComplete = function(p) {
+    if (!p) return false;
+    const hasPhone = p.telefono && p.telefono.toString().trim() !== '' && p.telefono.toString().trim() !== '-' && p.telefono.toString().trim() !== '---';
+    const hasEmail = p.email && p.email.toString().trim() !== '' && p.email.toString().trim() !== '-' && p.email.toString().trim() !== '---';
+    return !!(hasPhone && hasEmail);
+};
+
 window.getTripLocationName = function(t) {
     if (t.assignedBoat === 'ares') return 'Ares';
     if (t.assignedBoat === 'kaiser') return 'Kaiser';

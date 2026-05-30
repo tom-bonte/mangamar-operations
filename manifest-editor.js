@@ -1661,7 +1661,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
 
     const tag = findActiveTagForGuest(data.dni, fullName); // Auto-sync group!
     guest.nombre = window.getFirstAndLastName(fullName); guest.titulacion = data.titulacion || ''; guest.telefono = data.telefono || ''; 
-    guest.email = data.email || ''; guest.dni = data.dni || ''; guest.isManual = false; guest.isRelinking = false;
+    guest.email = data.email || ''; guest.dni = data.dni || ''; guest.isManual = !window.isProfileComplete(data); guest.isRelinking = false;
     if (tag) guest.bookingTag = tag;
     if (guestTempId) delete guest.tempId;
     
@@ -1756,7 +1756,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                             otherGuest.titulacion = data.titulacion || '';
                             otherGuest.telefono = data.telefono || '';
                             otherGuest.email = data.email || '';
-                            otherGuest.isManual = false;
+                            otherGuest.isManual = !window.isProfileComplete(data);
                             if (tag) otherGuest.bookingTag = tag;
                             if (otherGuest.tempId) delete otherGuest.tempId;
                             tripChanged = true;
@@ -1864,7 +1864,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                 otherGuest.titulacion = data.titulacion || '';
                 otherGuest.telefono = data.telefono || '';
                 otherGuest.email = data.email || '';
-                otherGuest.isManual = false;
+                otherGuest.isManual = !window.isProfileComplete(data);
                 if (tag) otherGuest.bookingTag = tag;
                 if (otherGuest.tempId) delete otherGuest.tempId;
             }
@@ -1985,6 +1985,9 @@ window.saveLocalGuestEdit = async function() {
             guest.telefono = !isEmptyValue(existingProfile.telefono) ? existingProfile.telefono : (modalPhone || guest.telefono);
             guest.email = !isEmptyValue(existingProfile.email) ? existingProfile.email : (modalEmail || guest.email);
             
+            // If the profile is fully complete (has phone & email), the red manual dot should disappear. Otherwise, it stays active!
+            guest.isManual = !window.isProfileComplete(existingProfile);
+            
             // Handle active insurance check
             if (existingProfile.insurance) {
                 const insObj = existingProfile.insurance;
@@ -2045,13 +2048,15 @@ window.saveLocalGuestEdit = async function() {
                                     }
                                 }
                                 
-                                 if (gst.nombre !== profileName || gst.titulacion !== profileTit || gst.telefono !== profilePhone || gst.email !== profileEmail || gst.insurance !== profileIns) {
-                                    gst.nombre = profileName;
-                                    gst.titulacion = profileTit;
-                                    gst.telefono = profilePhone;
-                                    gst.email = profileEmail;
-                                    gst.insurance = profileIns;
-                                    modified = true;
+                                const expectedIsManual = !window.isProfileComplete(existingProfile);
+                                if (gst.nombre !== profileName || gst.titulacion !== profileTit || gst.telefono !== profilePhone || gst.email !== profileEmail || gst.insurance !== profileIns || gst.isManual !== expectedIsManual) {
+                                     gst.nombre = profileName;
+                                     gst.titulacion = profileTit;
+                                     gst.telefono = profilePhone;
+                                     gst.email = profileEmail;
+                                     gst.insurance = profileIns;
+                                     gst.isManual = expectedIsManual;
+                                     modified = true;
                                 }
                             }
                         });
@@ -2083,6 +2088,7 @@ window.saveLocalGuestEdit = async function() {
                                         }
                                     }
                                     gst.insurance = profileIns;
+                                    gst.isManual = !window.isProfileComplete(existingProfile);
                                 }
                             });
                         }
@@ -2252,7 +2258,7 @@ window.selectCustomer = function(groupIndex, encodedData) {
             email: data.email || '', 
             dni: data.dni || '', 
             gas: '15L Aire', 
-            isManual: false, 
+            isManual: !window.isProfileComplete(data), 
             bookingTag: tag,
             insurance: localIns
         };
