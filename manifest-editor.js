@@ -3,6 +3,7 @@ let isSaving = false;
 let hasPendingSave = false;
 window.isSaving = false;
 window.hasPendingSave = false;
+window.hasPendingWrites = false;
 
 // The Auto-Save Engine: Saves instantly (0ms delay) for lightning-fast multi-device synchronization
 window.triggerAutoSave = function() {
