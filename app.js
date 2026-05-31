@@ -251,12 +251,23 @@ function goToToday() {
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
 }
 function changeMonth(offset) {
-    currentDate.setMonth(currentDate.getMonth() + offset);
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const day = currentDate.getDate();
+    
+    // Create temporary date at the 1st of the target month
+    const targetDate = new Date(year, month + offset, 1);
+    const maxDays = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+    const targetDay = Math.min(day, maxDays);
+    
+    currentDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDay);
     miniCalendarDate = new Date(currentDate);
+    
     if (typeof window.syncActiveMonthListeners === 'function') window.syncActiveMonthListeners();
     updateDateHeaders(); renderDailyGrid(); renderMonthlyCalendar(); renderMiniCalendar();
 }
 function changeMiniMonth(offset) {
+    miniCalendarDate.setDate(1);
     miniCalendarDate.setMonth(miniCalendarDate.getMonth() + offset);
     renderMiniCalendar();
 }

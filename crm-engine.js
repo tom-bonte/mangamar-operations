@@ -1026,6 +1026,7 @@ window.closeContabilidadView = function() {
 };
 
 window.changeContabilidadMonth = function(delta) {
+    currentContaMonth.setDate(1);
     currentContaMonth.setMonth(currentContaMonth.getMonth() + delta);
     fetchContabilidadMonth();
 };

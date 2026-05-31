@@ -120,6 +120,7 @@ window.waAddManualDate = function() {
 };
 
 window.changeWaMonth = function(offset) {
+    waCalendarViewDate.setDate(1);
     waCalendarViewDate.setMonth(waCalendarViewDate.getMonth() + offset);
     renderWaCalendar();
 };
