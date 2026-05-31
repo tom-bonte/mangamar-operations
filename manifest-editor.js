@@ -4,13 +4,16 @@ let hasPendingSave = false;
 window.isSaving = false;
 window.hasPendingSave = false;
 window.hasPendingWrites = false;
+window.lastLocalEditTime = 0;
 
 // The Auto-Save Engine: Saves instantly (0ms delay) for lightning-fast multi-device synchronization
 window.triggerAutoSave = function() {
+    window.lastLocalEditTime = Date.now();
     window.triggerInstantSave();
 };
 
 window.triggerInstantSave = async function() {
+    window.lastLocalEditTime = Date.now();
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = null;
     

@@ -541,8 +541,9 @@ window.mergeAndRender = function mergeAndRender() {
     if (manageModal && !manageModal.classList.contains('hidden') && window.activeBoatItem) {
         // RACE CONDITION PREVENTION: If we are actively saving local edits, block incoming snapshots 
         // from overwriting the RAM state to prevent "1 change behind" and lost updates!
-        if (window.isSaving || window.hasPendingSave || window.hasPendingWrites) {
-            console.log("⏳ Skipping remote sync overwrite: local save or pending write is in progress.");
+        const timeSinceEdit = Date.now() - (window.lastLocalEditTime || 0);
+        if (window.isSaving || window.hasPendingSave || window.hasPendingWrites || timeSinceEdit < 2500) {
+            console.log("⏳ Skipping remote sync overwrite: local save or recent edit is in progress.");
         } else {
             const freshTrip = mergedAllocations.find(t => t.id === window.activeBoatItem.id);
             if (freshTrip) {
