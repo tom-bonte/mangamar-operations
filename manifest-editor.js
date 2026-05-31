@@ -2662,49 +2662,56 @@ async function saveBoatData() {
         }
         
         // --- 3. TRACKER: SAVE DIVE HISTORY TO CUSTOMER PROFILE (PHASE 1) ---
-        const historyBatch = db.batch();
-        let historyWrites = 0;
-        
-        // A. Delete ghost history for divers we calculated as REMOVED earlier
-        removedDnis.forEach(dni => {
-            const historyRef = db.collection('mangamar_customers').doc(dni).collection('history').doc(targetTripId);
-            historyBatch.delete(historyRef);
-            historyWrites++;
-        });
+        // Run this in the background asynchronously so it doesn't block the main save queue!
+        (async () => {
+            try {
+                const historyBatch = db.batch();
+                let historyWrites = 0;
+                
+                // A. Delete ghost history for divers we calculated as REMOVED earlier
+                removedDnis.forEach(dni => {
+                    const historyRef = db.collection('mangamar_customers').doc(dni).collection('history').doc(targetTripId);
+                    historyBatch.delete(historyRef);
+                    historyWrites++;
+                });
 
-        // B. Fetch existing network history profiles to ensure we don't accidentally overwrite payment states via autosave
-        const validGuests = flatGuests.filter(g => g.dni);
-        const checkPromises = validGuests.map(gst => db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(targetTripId).get());
-        const historicSnaps = await Promise.all(checkPromises);
-        
-        validGuests.forEach((gst, idx) => {
-            const historyRef = historicSnaps[idx].ref;
-            const curDoc = historicSnaps[idx];
-            // CRITICAL BUGFIX: Detect if the invoice was already liquidated manually in the CRM, never overwrite to pending.
-            const persistentState = (curDoc.exists && curDoc.data().paymentStatus) ? curDoc.data().paymentStatus : (gst.paymentStatus || 'pending');
+                // B. Fetch existing network history profiles to ensure we don't accidentally overwrite payment states via autosave
+                const validGuests = flatGuests.filter(g => g.dni);
+                const checkPromises = validGuests.map(gst => db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(targetTripId).get());
+                const historicSnaps = await Promise.all(checkPromises);
+                
+                validGuests.forEach((gst, idx) => {
+                    const historyRef = historicSnaps[idx].ref;
+                    const curDoc = historicSnaps[idx];
+                    // CRITICAL BUGFIX: Detect if the invoice was already liquidated manually in the CRM, never overwrite to pending.
+                    const persistentState = (curDoc.exists && curDoc.data().paymentStatus) ? curDoc.data().paymentStatus : (gst.paymentStatus || 'pending');
 
-            historyBatch.set(historyRef, {
-                date: targetDate,
-                time: targetTime,
-                site: targetSite,
-                assignedBoat: targetAssignedBoat,
-                gas: gst.gas || '15L Aire',
-                rental: gst.rental || 0,
-                computer: gst.computer || 0,
-                computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
-                insurance: gst.insurance || 0,
-                course: gst.course || null,           
-                baseCourse: gst.baseCourse || null,   
-                courseBadge: gst.courseBadge || null, 
-                coursePrice: gst.coursePrice || 0,    
-                hasBono: gst.hasBono || false,
-                paymentStatus: persistentState,
-                certStatus: (gst.course || gst.baseCourse) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
-                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
-            }, { merge: true });
-            historyWrites++;
-        });
-        if (historyWrites > 0) await historyBatch.commit();
+                    historyBatch.set(historyRef, {
+                        date: targetDate,
+                        time: targetTime,
+                        site: targetSite,
+                        assignedBoat: targetAssignedBoat,
+                        gas: gst.gas || '15L Aire',
+                        rental: gst.rental || 0,
+                        computer: gst.computer || 0,
+                        computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
+                        insurance: gst.insurance || 0,
+                        course: gst.course || null,           
+                        baseCourse: gst.baseCourse || null,   
+                        courseBadge: gst.courseBadge || null, 
+                        coursePrice: gst.coursePrice || 0,    
+                        hasBono: gst.hasBono || false,
+                        paymentStatus: persistentState,
+                        certStatus: (gst.course || gst.baseCourse) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+                    }, { merge: true });
+                    historyWrites++;
+                });
+                if (historyWrites > 0) await historyBatch.commit();
+            } catch (err) {
+                console.error("Background history sync failed:", err);
+            }
+        })();
         
         // Update the synchronous snapshot for subsequent saves without closing the modal
         activeBoatItem.lastSavedDnis = currentDnis;
