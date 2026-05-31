@@ -5,22 +5,22 @@
  */
 
 // Core UI State
-let currentDate = new Date();
-let activeViewMode = 'daily'; // 'daily' or 'monthly'
+var currentDate = new Date();
+var activeViewMode = 'daily'; // 'daily' or 'monthly'
 
 // Data Streams
-let visorTrips = []; // STRICTLY READ-ONLY: Trips fetched from the Visor DB
-let internalTrips = []; // READ/WRITE: Mangamar's internal schedule (Naranjito, Cala, etc.)
+var visorTrips = []; // STRICTLY READ-ONLY: Trips fetched from the Visor DB
+var internalTrips = []; // READ/WRITE: Mangamar's internal schedule (Naranjito, Cala, etc.)
 
 // The Merged Result used by the UI
-let mergedAllocations = []; 
+var mergedAllocations = []; 
 
 // Active working item for the Guest Management Modal
-let activeBoatItem = null;
+var activeBoatItem = null;
 
-let customerDatabase = []; // Holds the list of all past customers
-let monthlySiteFilters = []; // Remembers which dive sites are selected in Monthly View
-let staffDatabase = { capitanes: [], guias: [] }; // Holds Mangamar Staff
+var customerDatabase = []; // Holds the list of all past customers
+var monthlySiteFilters = []; // Remembers which dive sites are selected in Monthly View
+var staffDatabase = { capitanes: [], guias: [] }; // Holds Mangamar Staff
 
 // ==========================================
 // SESSION AUTHENTICATION
