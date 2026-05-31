@@ -364,7 +364,18 @@ function copyStaffDni(type, name, groupIndex) {
     const person = (staffDatabase[type] || []).find(p => p.nombre === name);
     if(person) copyData(person.dni, 'DNI de Staff');
 }
-function closeManageBoatModal() { 
+async function closeManageBoatModal() { 
+    if (autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = null;
+        if (activeBoatItem && typeof saveBoatData === 'function') {
+            try {
+                await saveBoatData();
+            } catch (e) {
+                console.error("Error saving manifest before close:", e);
+            }
+        }
+    }
     document.getElementById('manage-boat-modal').classList.add('hidden'); 
     activeBoatItem = null; 
     window.clearModalHistory(); 

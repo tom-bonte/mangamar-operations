@@ -223,7 +223,7 @@ function startFirestoreListeners() {
             if (doc.exists) {
                 staffDatabase = doc.data();
                 if (typeof renderStaffView === 'function') renderStaffView();
-                if (typeof renderGroups === 'function' && activeBoatItem) renderGroups();
+                if (typeof renderGroups === 'function' && activeBoatItem) renderGroups(true);
             }
         });
 
@@ -572,7 +572,7 @@ window.mergeAndRender = function mergeAndRender() {
                     const activeElementId = document.activeElement ? document.activeElement.id : null;
                     const activeElementValue = document.activeElement ? document.activeElement.value : '';
                     
-                    renderGroups();
+                    renderGroups(true);
                     
                     // Restore focus if it was a search or input field
                     if (activeElementId && activeElementId.startsWith('search-')) {
