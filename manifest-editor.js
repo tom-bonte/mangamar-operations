@@ -1,13 +1,16 @@
 let autoSaveTimeout = null;
 
-// The Auto-Save Engine: Waits 0.5s after your last click before saving
+// The Auto-Save Engine: Saves instantly (0ms delay) for lightning-fast multi-device synchronization
 window.triggerAutoSave = function() {
+    window.triggerInstantSave();
+};
+
+window.triggerInstantSave = function() {
     clearTimeout(autoSaveTimeout);
-    autoSaveTimeout = setTimeout(() => {
-        if (activeBoatItem && typeof saveBoatData === 'function') {
-            saveBoatData(); // Guardado silencioso en segundo plano
-        }
-    }, 500); 
+    autoSaveTimeout = null;
+    if (activeBoatItem && typeof saveBoatData === 'function') {
+        saveBoatData(); // Guardado instantáneo
+    }
 };
 
 window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
@@ -290,7 +293,7 @@ function renderCaptainDropdown() {
         capInlineContainer.classList.remove('hidden');
         capInlineContainer.innerHTML = `
             <span class="text-xs font-black text-black uppercase tracking-wider shrink-0">Capitán:</span>
-            <select id="input-captain" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]" onchange="activeBoatItem.captain = this.value; renderCaptainDropdown(); renderGroups(); window.triggerAutoSave();">
+            <select id="input-captain" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]" onchange="activeBoatItem.captain = this.value; renderCaptainDropdown(); renderGroups(); window.triggerInstantSave();">
                 <option value="">${window.isLoggedIn ? 'Seleccionar Capitán...' : 'Sin Asignar'}</option>
                 ${options}
             </select>
@@ -799,9 +802,9 @@ function renderGroups(skipAutoSave = false) {
         container.appendChild(groupDiv);
     });
     
-    // Automatically saves 0.5s after the UI updates
+    // Automatically saves instantly after the UI updates
     if (!skipAutoSave) {
-        triggerAutoSave(); 
+        triggerInstantSave(); 
     }
 }
 
@@ -1014,7 +1017,7 @@ function cycleRental(groupIndex, guestIndex) {
     if (guest.dni) {
         window.propagateEquipmentInRAM(guest.dni, { rental: nextRental });
     }
-    triggerAutoSave();
+    triggerInstantSave();
 }
 
 window.toggleBono = function(groupIndex, guestIndex) {
@@ -1028,7 +1031,7 @@ window.toggleBono = function(groupIndex, guestIndex) {
         const bonoClass = guest.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200 hover:bg-slate-50';
         btn.className = `w-8 h-7 flex justify-center items-center rounded border transition-colors text-[11px] font-black shrink-0 ${bonoClass}`;
     }
-    triggerAutoSave();
+    triggerInstantSave();
 };
 
 window.toggleArrived = function(groupIndex, guestIndex) {
@@ -1059,7 +1062,7 @@ window.toggleArrived = function(groupIndex, guestIndex) {
         }
     }
 
-    triggerAutoSave();
+    triggerInstantSave();
 };
 
 window.toggleComputer = function(groupIndex, guestIndex) {
@@ -1092,7 +1095,7 @@ window.toggleComputer = function(groupIndex, guestIndex) {
     if (guest.dni) {
         window.propagateEquipmentInRAM(guest.dni, { computer: guest.computer, computerPrice: guest.computer ? guest.computerPrice : 0 });
     }
-    triggerAutoSave();
+    triggerInstantSave();
 };
 let activeInsGroup = null;
 let activeInsGuest = null;

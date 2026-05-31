@@ -42,11 +42,11 @@ window.migrateCustomerHistory = async function(oldDni, newDni) {
     }
 };
 
-// Enable Offline Persistence for lightning-fast loads
-db.enablePersistence({ synchronizeTabs: true })
-    .catch((err) => {
-        console.warn("Firestore offline persistence not enabled:", err.code);
-    });
+// Enable Offline Persistence for lightning-fast loads (Disabled to resolve file:/// sandbox write queuing bugs)
+// db.enablePersistence({ synchronizeTabs: true })
+//     .catch((err) => {
+//         console.warn("Firestore offline persistence not enabled:", err.code);
+//     });
 
 // --- CRITICAL SECURITY SAFEGUARD: Protect the Visor Database ---
 // We intercept Firestore calls to definitively block any accidental writes 
