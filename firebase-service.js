@@ -295,6 +295,11 @@ function startFirestoreListeners() {
                 const cleanClients = [...dedupMap.values(), ...nonDniClients];
                 customerDatabase = cleanClients;
 
+                // Re-merge and render manifests now that the CRM database has loaded!
+                if (typeof compileAndMerge === 'function') {
+                    compileAndMerge();
+                }
+
                 if (cleanClients.length < rawClients.length) {
                     console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicate customer records.`);
                     db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
