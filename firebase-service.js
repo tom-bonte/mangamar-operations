@@ -301,6 +301,13 @@ function startFirestoreListeners() {
                         .catch(e => console.error("Error auto-healing CRM:", e));
                 }
 
+                // Trigger non-blocking database-wide auto-heal sweep to correct name formats in all historic/current boat sheets
+                setTimeout(() => {
+                    if (typeof window.repairAllManifestNames === 'function') {
+                        window.repairAllManifestNames();
+                    }
+                }, 3000);
+
                 // If CRM modal table is open, refresh it now that data has loaded
                 const crmModal = document.getElementById('crm-modal');
                 if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
@@ -493,16 +500,30 @@ window.mergeAndRender = function mergeAndRender() {
         }
     });
 
-    // 3. Combine both arrays and format ALL names to Title Case
+    // 3. Combine both arrays, resolve full CRM names dynamically, and format ALL names to Title Case
     mergedAllocations = [...visibleVisorTrips, ...alignedInternalTrips];
     mergedAllocations.forEach(trip => {
+        const resolveGuestName = (g) => {
+            if (g.nombre) g.nombre = fixNameCaps(g.nombre);
+            if (g.dni && window.customerDatabase) {
+                const normDni = window.normalizeDni(g.dni);
+                const profile = window.customerDatabase.find(c => window.normalizeDni(c.dni) === normDni);
+                if (profile) {
+                    const dbFullName = window.getFullName(profile);
+                    if (dbFullName) {
+                        g.nombre = window.getFirstAndLastName(dbFullName);
+                    }
+                }
+            }
+        };
+
         if (trip.guests) {
-            trip.guests.forEach(g => { if (g.nombre) g.nombre = fixNameCaps(g.nombre); });
+            trip.guests.forEach(resolveGuestName);
         }
         if (trip.groups) {
             trip.groups.forEach(group => {
                 if (group.guests) {
-                    group.guests.forEach(g => { if (g.nombre) g.nombre = fixNameCaps(g.nombre); });
+                    group.guests.forEach(resolveGuestName);
                 }
             });
         }
@@ -614,3 +635,79 @@ async function saveInternalBoatData(id, date, boatInfoPayload) {
         throw e; // Stops the modal from closing if the save failed
     }
 }
+
+/**
+ * Sweeps the entire database-wide operational manifests collection, resolves guest DNI matches 
+ * against the CRM master list, and retroactively repairs any truncated names in Firestore.
+ */
+window.repairAllManifestNames = async function() {
+    if (!window.customerDatabase || window.customerDatabase.length === 0) {
+        console.warn("⚠️ CRM sweep deferred: customerDatabase not loaded yet.");
+        return;
+    }
+    console.log("🏥 [CRM Sweep] Starting database-wide manifest name repair...");
+    try {
+        const monthlySnap = await db.collection('mangamar_monthly').get();
+        let totalUpdatedTrips = 0;
+        let totalDocsUpdated = 0;
+
+        for (const docSnap of monthlySnap.docs) {
+            if (docSnap.id === 'staff' || docSnap.id === 'settings') continue;
+            
+            const data = docSnap.data();
+            if (!data || !data.allocations) continue;
+
+            const allocations = data.allocations;
+            let docModified = false;
+
+            for (const tripId in allocations) {
+                const trip = allocations[tripId];
+                let tripModified = false;
+
+                const checkAndFixGuest = (g) => {
+                    if (g.dni) {
+                        const normDni = window.normalizeDni(g.dni);
+                        const profile = window.customerDatabase.find(c => window.normalizeDni(c.dni) === normDni);
+                        if (profile) {
+                            const dbFullName = window.getFullName(profile);
+                            if (dbFullName) {
+                                const correctName = window.getFirstAndLastName(dbFullName);
+                                if (g.nombre !== correctName) {
+                                    console.log(`🏥 [CRM Sweep] Correcting name on trip ${tripId} (${trip.date}): ${g.nombre} -> ${correctName}`);
+                                    g.nombre = correctName;
+                                    tripModified = true;
+                                }
+                            }
+                        }
+                    }
+                };
+
+                if (trip.guests) {
+                    trip.guests.forEach(checkAndFixGuest);
+                }
+                if (trip.groups) {
+                    trip.groups.forEach(group => {
+                        if (group.guests) {
+                            group.guests.forEach(checkAndFixGuest);
+                        }
+                    });
+                }
+
+                if (tripModified) {
+                    totalUpdatedTrips++;
+                    docModified = true;
+                }
+            }
+
+            if (docModified) {
+                totalDocsUpdated++;
+                await db.collection('mangamar_monthly').doc(docSnap.id).update({ allocations });
+                console.log(`💾 [CRM Sweep] Saved corrected allocations for month doc: ${docSnap.id}`);
+            }
+        }
+
+        console.log(`✅ [CRM Sweep] Repair complete. Updated ${totalUpdatedTrips} trips across ${totalDocsUpdated} monthly documents.`);
+    } catch (err) {
+        console.error("❌ [CRM Sweep] Error running repair sweep:", err);
+    }
+};
