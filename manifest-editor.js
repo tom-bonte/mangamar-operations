@@ -1,15 +1,35 @@
 let autoSaveTimeout = null;
+let isSaving = false;
+let hasPendingSave = false;
 
 // The Auto-Save Engine: Saves instantly (0ms delay) for lightning-fast multi-device synchronization
 window.triggerAutoSave = function() {
     window.triggerInstantSave();
 };
 
-window.triggerInstantSave = function() {
+window.triggerInstantSave = async function() {
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = null;
-    if (activeBoatItem && typeof saveBoatData === 'function') {
-        saveBoatData(); // Guardado instantáneo
+    
+    if (isSaving) {
+        hasPendingSave = true;
+        return;
+    }
+    
+    isSaving = true;
+    try {
+        while (activeBoatItem && typeof saveBoatData === 'function') {
+            hasPendingSave = false;
+            await saveBoatData();
+            // If another save request was queued up during the await, loop and save the fresh RAM state
+            if (!hasPendingSave) {
+                break;
+            }
+        }
+    } catch (e) {
+        console.error("Queue save failed:", e);
+    } finally {
+        isSaving = false;
     }
 };
 
@@ -371,6 +391,16 @@ async function closeManageBoatModal() {
     if (autoSaveTimeout) {
         clearTimeout(autoSaveTimeout);
         autoSaveTimeout = null;
+    }
+    
+    // Wait for the sequential save queue to completely empty out
+    if (isSaving) {
+        hasPendingSave = true; // force the queue to do one final save of the current state
+        while (isSaving) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+    } else {
+        // If no save is running, do one last instant save of any final changes
         if (activeBoatItem && typeof saveBoatData === 'function') {
             try {
                 await saveBoatData();
@@ -379,6 +409,7 @@ async function closeManageBoatModal() {
             }
         }
     }
+    
     document.getElementById('manage-boat-modal').classList.add('hidden'); 
     activeBoatItem = null; 
     window.clearModalHistory(); 
