@@ -622,7 +622,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         col.draggable = false;
     }
 
-    let capName = trip.captain ? window.getFirstName(trip.captain) : 'Sin Asignar';
+    let capName = trip.captain ? window.getFirstName(trip.captain) : '';
     let isShore = boatId === 'shore';
     let percent = isShore ? 0 : Math.min(100, Math.round((guestCount / capacityNum) * 100));
     
@@ -639,7 +639,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         col.className += " cursor-default";
     }
 
-    let guideNames = 'Sin Asignar';
+    let guideNames = '';
     if (trip.groups && trip.groups.length > 0) {
         const parts = trip.groups.map(g => {
             if (!g.guide && !g.apoyo) return null;
