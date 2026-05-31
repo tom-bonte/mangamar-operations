@@ -1,6 +1,8 @@
 let autoSaveTimeout = null;
 let isSaving = false;
 let hasPendingSave = false;
+window.isSaving = false;
+window.hasPendingSave = false;
 
 // The Auto-Save Engine: Saves instantly (0ms delay) for lightning-fast multi-device synchronization
 window.triggerAutoSave = function() {
@@ -13,13 +15,16 @@ window.triggerInstantSave = async function() {
     
     if (isSaving) {
         hasPendingSave = true;
+        window.hasPendingSave = true;
         return;
     }
     
     isSaving = true;
+    window.isSaving = true;
     try {
         while (activeBoatItem && typeof saveBoatData === 'function') {
             hasPendingSave = false;
+            window.hasPendingSave = false;
             await saveBoatData();
             // If another save request was queued up during the await, loop and save the fresh RAM state
             if (!hasPendingSave) {
@@ -30,6 +35,7 @@ window.triggerInstantSave = async function() {
         console.error("Queue save failed:", e);
     } finally {
         isSaving = false;
+        window.isSaving = false;
     }
 };
 
@@ -396,6 +402,7 @@ async function closeManageBoatModal() {
     // Wait for the sequential save queue to completely empty out
     if (isSaving) {
         hasPendingSave = true; // force the queue to do one final save of the current state
+        window.hasPendingSave = true;
         while (isSaving) {
             await new Promise(resolve => setTimeout(resolve, 50));
         }

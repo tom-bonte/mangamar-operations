@@ -538,53 +538,59 @@ window.mergeAndRender = function mergeAndRender() {
     // If the manage boat modal is open, find the fresh allocation and update it in-place in activeBoatItem
     const manageModal = document.getElementById('manage-boat-modal');
     if (manageModal && !manageModal.classList.contains('hidden') && window.activeBoatItem) {
-        const freshTrip = mergedAllocations.find(t => t.id === window.activeBoatItem.id);
-        if (freshTrip) {
-            // Check if there are actual changes to prevent unnecessary re-rendering
-            const freshStr = JSON.stringify(freshTrip.groups);
-            const currentStr = JSON.stringify(window.activeBoatItem.groups);
-            const freshWlStr = JSON.stringify(freshTrip.waitlist || []);
-            const currentWlStr = JSON.stringify(window.activeBoatItem.waitlist || []);
-            
-            if (freshStr !== currentStr || freshWlStr !== currentWlStr || window.activeBoatItem.captain !== freshTrip.captain || window.activeBoatItem.guide !== freshTrip.guide || window.activeBoatItem.apoyo !== freshTrip.apoyo || window.activeBoatItem.site !== freshTrip.site) {
-                // Preserve active selection or pending edits if possible, but update groups
-                window.activeBoatItem.groups = JSON.parse(freshStr);
-                window.activeBoatItem.waitlist = JSON.parse(freshWlStr);
+        // RACE CONDITION PREVENTION: If we are actively saving local edits, block incoming snapshots 
+        // from overwriting the RAM state to prevent "1 change behind" and lost updates!
+        if (window.isSaving || window.hasPendingSave) {
+            console.log("⏳ Skipping remote sync overwrite: local save is in progress.");
+        } else {
+            const freshTrip = mergedAllocations.find(t => t.id === window.activeBoatItem.id);
+            if (freshTrip) {
+                // Check if there are actual changes to prevent unnecessary re-rendering
+                const freshStr = JSON.stringify(freshTrip.groups);
+                const currentStr = JSON.stringify(window.activeBoatItem.groups);
+                const freshWlStr = JSON.stringify(freshTrip.waitlist || []);
+                const currentWlStr = JSON.stringify(window.activeBoatItem.waitlist || []);
                 
-                // Keep captain, guide, site, etc in sync
-                window.activeBoatItem.captain = freshTrip.captain || '';
-                window.activeBoatItem.guide = freshTrip.guide || '';
-                window.activeBoatItem.apoyo = freshTrip.apoyo || '';
-                window.activeBoatItem.site = freshTrip.site || '';
-                
-                // Re-render captains dropdown to sync conflicts
-                if (typeof renderCaptainDropdown === 'function') renderCaptainDropdown();
-                
-                // Keep select values in sync
-                const capSelect = document.getElementById('input-captain');
-                if (capSelect) capSelect.value = freshTrip.captain || 'Seleccionar Capitán...';
-                
-                const siteSelect = document.getElementById('input-site');
-                if (siteSelect) siteSelect.value = freshTrip.site || '';
-                
-                if (typeof renderGroups === 'function') {
-                    // Render groups without losing active focus on search input if possible
-                    const activeElementId = document.activeElement ? document.activeElement.id : null;
-                    const activeElementValue = document.activeElement ? document.activeElement.value : '';
+                if (freshStr !== currentStr || freshWlStr !== currentWlStr || window.activeBoatItem.captain !== freshTrip.captain || window.activeBoatItem.guide !== freshTrip.guide || window.activeBoatItem.apoyo !== freshTrip.apoyo || window.activeBoatItem.site !== freshTrip.site) {
+                    // Preserve active selection or pending edits if possible, but update groups
+                    window.activeBoatItem.groups = JSON.parse(freshStr);
+                    window.activeBoatItem.waitlist = JSON.parse(freshWlStr);
                     
-                    renderGroups(true);
+                    // Keep captain, guide, site, etc in sync
+                    window.activeBoatItem.captain = freshTrip.captain || '';
+                    window.activeBoatItem.guide = freshTrip.guide || '';
+                    window.activeBoatItem.apoyo = freshTrip.apoyo || '';
+                    window.activeBoatItem.site = freshTrip.site || '';
                     
-                    // Restore focus if it was a search or input field
-                    if (activeElementId && activeElementId.startsWith('search-')) {
-                        const el = document.getElementById(activeElementId);
-                        if (el) {
-                            el.focus();
-                            el.value = activeElementValue;
+                    // Re-render captains dropdown to sync conflicts
+                    if (typeof renderCaptainDropdown === 'function') renderCaptainDropdown();
+                    
+                    // Keep select values in sync
+                    const capSelect = document.getElementById('input-captain');
+                    if (capSelect) capSelect.value = freshTrip.captain || 'Seleccionar Capitán...';
+                    
+                    const siteSelect = document.getElementById('input-site');
+                    if (siteSelect) siteSelect.value = freshTrip.site || '';
+                    
+                    if (typeof renderGroups === 'function') {
+                        // Render groups without losing active focus on search input if possible
+                        const activeElementId = document.activeElement ? document.activeElement.id : null;
+                        const activeElementValue = document.activeElement ? document.activeElement.value : '';
+                        
+                        renderGroups(true);
+                        
+                        // Restore focus if it was a search or input field
+                        if (activeElementId && activeElementId.startsWith('search-')) {
+                            const el = document.getElementById(activeElementId);
+                            if (el) {
+                                el.focus();
+                                el.value = activeElementValue;
+                            }
                         }
                     }
+                    if (typeof renderWaitlist === 'function') renderWaitlist();
+                    if (typeof updateModalSubtitle === 'function') updateModalSubtitle();
                 }
-                if (typeof renderWaitlist === 'function') renderWaitlist();
-                if (typeof updateModalSubtitle === 'function') updateModalSubtitle();
             }
         }
     }
