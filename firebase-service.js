@@ -566,9 +566,15 @@ window.mergeAndRender = function mergeAndRender() {
         } else {
             const freshTrip = mergedAllocations.find(t => t.id === window.activeBoatItem.id);
             if (freshTrip) {
+                // Determine fresh groups, falling back to flat guests mapped to a group if it is a fresh Visor trip
+                let freshGroups = freshTrip.groups;
+                if (!freshGroups && (freshTrip.isVisorTrip || freshTrip.isVisor) && freshTrip.guests) {
+                    freshGroups = [{ guide: '', apoyo: '', guests: freshTrip.guests }];
+                }
+                
                 // Check if there are actual changes to prevent unnecessary re-rendering
-                const freshStr = JSON.stringify(freshTrip.groups);
-                const currentStr = JSON.stringify(window.activeBoatItem.groups);
+                const freshStr = JSON.stringify(freshGroups || [{ guide: '', apoyo: '', guests: [] }]);
+                const currentStr = JSON.stringify(window.activeBoatItem.groups || [{ guide: '', apoyo: '', guests: [] }]);
                 const freshWlStr = JSON.stringify(freshTrip.waitlist || []);
                 const currentWlStr = JSON.stringify(window.activeBoatItem.waitlist || []);
                 
