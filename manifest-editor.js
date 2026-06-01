@@ -3127,6 +3127,10 @@ async function confirmDeleteBoatData() {
         // Update history Batch
         if (historyWrites > 0) await historyBatch.commit();
         
+        // Clear activeBoatItem first to prevent closeManageBoatModal from reviving it!
+        activeBoatItem = null;
+        window.activeBoatItem = null;
+
         // Unlock the autosave engine
         window.isDeletingTrip = false;
         
