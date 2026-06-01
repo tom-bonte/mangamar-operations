@@ -1048,10 +1048,6 @@ function cycleGas(groupIndex, guestIndex) {
         btn.className = `w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}`;
         btn.innerText = nextGas.replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
     }
-    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
-    if (guest.dni) {
-        window.propagateEquipmentInRAM(guest.dni, { gas: nextGas });
-    }
     triggerAutoSave();
 }
 
