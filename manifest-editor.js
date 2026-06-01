@@ -206,12 +206,24 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
 
     recordModalHistory({ type: 'boat', args: [activeBoatItem.id, boatId, time, dateStr], isNavBackForward });
 
-    if (!activeBoatItem.groups || activeBoatItem.groups.length === 0) {
-        // Migration: If there are flat guests from a Visor trip, populate them in the first group so we don't lose them!
+    // Double-safety check: if groups is missing, empty, or has a total of 0 guests, but flat guests exist (e.g. from Visor), migrate them!
+    let totalGroupGuests = 0;
+    if (activeBoatItem.groups) {
+        activeBoatItem.groups.forEach(g => {
+            if (g.guests) totalGroupGuests += g.guests.length;
+        });
+    }
+
+    if (!activeBoatItem.groups || activeBoatItem.groups.length === 0 || totalGroupGuests === 0) {
         const initialGuests = (activeBoatItem.guests && activeBoatItem.guests.length > 0)
             ? JSON.parse(JSON.stringify(activeBoatItem.guests))
             : [];
-        activeBoatItem.groups = [{ guide: '', apoyo: '', guests: initialGuests }];
+        
+        if (initialGuests.length > 0) {
+            activeBoatItem.groups = [{ guide: '', apoyo: '', guests: initialGuests }];
+        } else if (!activeBoatItem.groups || activeBoatItem.groups.length === 0) {
+            activeBoatItem.groups = [{ guide: '', apoyo: '', guests: [] }];
+        }
     }
 
     // 🚨 CRITICAL TIMING FIX: Snapshot the DNIS synchronously when opening the modal to prevent network race conditions when tracking removed divers.

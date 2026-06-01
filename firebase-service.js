@@ -566,9 +566,14 @@ window.mergeAndRender = function mergeAndRender() {
         } else {
             const freshTrip = mergedAllocations.find(t => t.id === window.activeBoatItem.id);
             if (freshTrip) {
-                // Determine fresh groups, falling back to flat guests mapped to a group if it is a fresh Visor trip
+                // Determine fresh groups, falling back to flat guests mapped to a group if it is a Visor trip with 0 group passengers
                 let freshGroups = freshTrip.groups;
-                if (!freshGroups && (freshTrip.isVisorTrip || freshTrip.isVisor) && freshTrip.guests) {
+                let freshTotalGuests = 0;
+                if (freshGroups) {
+                    freshGroups.forEach(g => { if (g.guests) freshTotalGuests += g.guests.length; });
+                }
+                
+                if ((!freshGroups || freshGroups.length === 0 || freshTotalGuests === 0) && (freshTrip.isVisorTrip || freshTrip.isVisor) && freshTrip.guests && freshTrip.guests.length > 0) {
                     freshGroups = [{ guide: '', apoyo: '', guests: freshTrip.guests }];
                 }
                 
