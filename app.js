@@ -52,6 +52,28 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
             (document.getElementById('bulk-add-modal') && !document.getElementById('bulk-add-modal').classList.contains('hidden')) ||
             (document.getElementById('guest-note-modal') && !document.getElementById('guest-note-modal').classList.contains('hidden'));
             
+        // Check if TV view is open
+        const tvModal = document.getElementById('tv-view-modal');
+        const isTvOpen = tvModal && !tvModal.classList.contains('hidden');
+        
+        if (isTvOpen) {
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                changeDate(-1);
+                if (typeof window._buildTVContent === 'function') {
+                    window._buildTVContent();
+                }
+                return;
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                changeDate(1);
+                if (typeof window._buildTVContent === 'function') {
+                    window._buildTVContent();
+                }
+                return;
+            }
+        }
+            
         if (!anyModalOpen) {
             const isSearchFocused = activeEl && activeEl.id === 'daily-search-input';
             
