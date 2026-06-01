@@ -1977,7 +1977,7 @@ window.saveLocalGuestEdit = async function() {
     const { groupIndex, guestIndex } = editingLocalGuestInfo;
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
     
-    const modalName = document.getElementById('edit-g-name').value.trim();
+    const modalName = window.formatNameStr(document.getElementById('edit-g-name').value.trim());
     const modalTit = document.getElementById('edit-g-tit').value.trim();
     const rawDni = document.getElementById('edit-g-dni').value.trim();
     const modalPhone = document.getElementById('edit-g-phone').value.trim();
@@ -2376,7 +2376,7 @@ function checkEnter(event, groupIndex) {
         if (d) d.classList.add('hidden');
  
         const input = document.getElementById(`search-${groupIndex}`);
-        const fullName = input.value.trim();
+        const fullName = window.formatNameStr(input.value.trim());
         if (fullName !== '') {
             const conflict = checkDiverConflict(null, fullName);
             if (conflict.conflict) { showAppAlert(`Imposible: Asignado en ${conflict.where}`); return; }
@@ -2398,6 +2398,16 @@ function checkEnter(event, groupIndex) {
 // --- SAVING & DELETING DATA ---
 async function saveBoatData() {
     if (!activeBoatItem) return false;
+    
+    // Proactive formatting guardrail: enforce Title Case for all guests in this trip before saving
+    activeBoatItem.groups.forEach(g => {
+        if (g.guests) {
+            g.guests.forEach(gst => {
+                if (gst.nombre) gst.nombre = window.formatNameStr(gst.nombre);
+            });
+        }
+    });
+
     if (window.isDeletingTrip) {
         console.warn("⚠️ Save aborted globally because a deletion is in progress!");
         return false;

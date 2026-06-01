@@ -844,7 +844,7 @@ window.promptEditCustomer = function () {
 window.saveCustomerEdits = async function () {
     if (!window.activeFichaDni) return;
     const dni = window.activeFichaDni;
-    const nombre = document.getElementById('edit-f-nombre').value.trim();
+    const nombre = window.formatNameStr(document.getElementById('edit-f-nombre').value.trim());
     if (!nombre) {
         showAppAlert("El nombre es un campo obligatorio.");
         return;

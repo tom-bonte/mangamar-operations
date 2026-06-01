@@ -235,8 +235,25 @@ function startFirestoreListeners() {
                     let rawClients = doc.data().clients || [];
                     let dedupMap = new Map();
                     let nonDniClients = [];
+                    let crmNamesModified = false;
     
                     rawClients.forEach(c => {
+                        // Standardize capitalization to Title-Case (Never allow ALL CAPS)
+                        if (c.nombre) {
+                            const formattedNombre = window.formatNameStr(c.nombre);
+                            if (c.nombre !== formattedNombre) {
+                                c.nombre = formattedNombre;
+                                crmNamesModified = true;
+                            }
+                        }
+                        if (c.apellido) {
+                            const formattedApellido = window.formatNameStr(c.apellido);
+                            if (c.apellido !== formattedApellido) {
+                                c.apellido = formattedApellido;
+                                crmNamesModified = true;
+                            }
+                        }
+
                         if (c.dni && c.dni.trim() !== '') {
                             const originalDni = c.dni;
                             const key = window.normalizeDni(originalDni);
@@ -302,8 +319,8 @@ function startFirestoreListeners() {
                         compileAndMerge();
                     }
     
-                    if (cleanClients.length < rawClients.length) {
-                        console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicate customer records.`);
+                    if (cleanClients.length < rawClients.length || crmNamesModified) {
+                        console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicates or corrected ALL CAPS formatting.`);
                         db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
                             .catch(e => console.error("Error auto-healing CRM:", e));
                     }
