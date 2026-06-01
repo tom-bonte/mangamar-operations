@@ -575,24 +575,34 @@ window.mergeAndRender = function mergeAndRender() {
                 
                 if ((!freshGroups || freshGroups.length === 0 || freshTotalGuests === 0) && (freshTrip.isVisorTrip || freshTrip.isVisor) && freshTrip.guests && freshTrip.guests.length > 0) {
                     freshGroups = [{ guide: '', apoyo: '', guests: freshTrip.guests }];
+                    freshTotalGuests = freshTrip.guests.length;
                 }
                 
-                // Check if there are actual changes to prevent unnecessary re-rendering
-                const freshStr = JSON.stringify(freshGroups || [{ guide: '', apoyo: '', guests: [] }]);
-                const currentStr = JSON.stringify(window.activeBoatItem.groups || [{ guide: '', apoyo: '', guests: [] }]);
-                const freshWlStr = JSON.stringify(freshTrip.waitlist || []);
-                const currentWlStr = JSON.stringify(window.activeBoatItem.waitlist || []);
+                // --- STRICT FIREWALL GUARD ---
+                let currentTotalGuests = 0;
+                if (window.activeBoatItem.groups) {
+                    window.activeBoatItem.groups.forEach(g => { if (g.guests) currentTotalGuests += g.guests.length; });
+                }
                 
-                if (freshStr !== currentStr || freshWlStr !== currentWlStr || window.activeBoatItem.captain !== freshTrip.captain || window.activeBoatItem.guide !== freshTrip.guide || window.activeBoatItem.apoyo !== freshTrip.apoyo || window.activeBoatItem.site !== freshTrip.site) {
-                    // Preserve active selection or pending edits if possible, but update groups
-                    window.activeBoatItem.groups = JSON.parse(freshStr);
-                    window.activeBoatItem.waitlist = JSON.parse(freshWlStr);
+                if (currentTotalGuests > 0 && freshTotalGuests === 0) {
+                    console.warn("⚠️ [Sync Firewall] Blocked remote snapshot from emptying the active manifest passengers!");
+                } else {
+                    // Check if there are actual changes to prevent unnecessary re-rendering
+                    const freshStr = JSON.stringify(freshGroups || [{ guide: '', apoyo: '', guests: [] }]);
+                    const currentStr = JSON.stringify(window.activeBoatItem.groups || [{ guide: '', apoyo: '', guests: [] }]);
+                    const freshWlStr = JSON.stringify(freshTrip.waitlist || []);
+                    const currentWlStr = JSON.stringify(window.activeBoatItem.waitlist || []);
                     
-                    // Keep captain, guide, site, etc in sync
-                    window.activeBoatItem.captain = freshTrip.captain || '';
-                    window.activeBoatItem.guide = freshTrip.guide || '';
-                    window.activeBoatItem.apoyo = freshTrip.apoyo || '';
-                    window.activeBoatItem.site = freshTrip.site || '';
+                    if (freshStr !== currentStr || freshWlStr !== currentWlStr || window.activeBoatItem.captain !== freshTrip.captain || window.activeBoatItem.guide !== freshTrip.guide || window.activeBoatItem.apoyo !== freshTrip.apoyo || window.activeBoatItem.site !== freshTrip.site) {
+                        // Preserve active selection or pending edits if possible, but update groups
+                        window.activeBoatItem.groups = JSON.parse(freshStr);
+                        window.activeBoatItem.waitlist = JSON.parse(freshWlStr);
+                        
+                        // Keep captain, guide, site, etc in sync
+                        window.activeBoatItem.captain = freshTrip.captain || '';
+                        window.activeBoatItem.guide = freshTrip.guide || '';
+                        window.activeBoatItem.apoyo = freshTrip.apoyo || '';
+                        window.activeBoatItem.site = freshTrip.site || '';
                     
                     // Re-render captains dropdown to sync conflicts
                     if (typeof renderCaptainDropdown === 'function') renderCaptainDropdown();
@@ -626,6 +636,7 @@ window.mergeAndRender = function mergeAndRender() {
             }
         }
     }
+}
 
     // 4. Check if the UI rendering functions exist, then paint both grids
     if (typeof renderDailyGrid === 'function') {
