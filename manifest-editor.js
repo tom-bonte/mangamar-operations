@@ -6,10 +6,13 @@ window.hasPendingSave = false;
 window.hasPendingWrites = false;
 window.lastLocalEditTime = 0;
 
-// The Auto-Save Engine: Saves instantly (0ms delay) for lightning-fast multi-device synchronization
+// The Auto-Save Engine: Debounced to 1000ms for lightning-fast UI response times and reduced network congestion
 window.triggerAutoSave = function() {
     window.lastLocalEditTime = Date.now();
-    window.triggerInstantSave();
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        window.triggerInstantSave();
+    }, 1000);
 };
 
 window.triggerInstantSave = async function() {
@@ -2546,20 +2549,17 @@ async function saveBoatData() {
                     if (otherGuest.dni) {
                         const meInCurrentBoat = flatGuests.find(tg => tg.dni && tg.dni === otherGuest.dni);
                         if (meInCurrentBoat) {
-                            const oldGas = otherGuest.gas;
                             const oldRental = otherGuest.rental;
                             const oldComp = otherGuest.computer;
                             const oldCompPrice = otherGuest.computerPrice;
                             const oldIns = otherGuest.insurance;
 
-                            otherGuest.gas = meInCurrentBoat.gas || '15L Aire';
                             otherGuest.rental = meInCurrentBoat.rental || 0;
                             otherGuest.computer = meInCurrentBoat.computer || 0;
                             otherGuest.computerPrice = meInCurrentBoat.computerPrice || 0;
                             otherGuest.insurance = meInCurrentBoat.insurance || 0;
 
-                            if (oldGas !== otherGuest.gas || 
-                                oldRental !== otherGuest.rental || 
+                            if (oldRental !== otherGuest.rental || 
                                 oldComp !== otherGuest.computer || 
                                 oldCompPrice !== otherGuest.computerPrice || 
                                 oldIns !== otherGuest.insurance) {
@@ -3058,6 +3058,15 @@ function deleteBoatData() {
 
 async function confirmDeleteBoatData() {
     if (typeof autoSaveTimeout !== 'undefined') clearTimeout(autoSaveTimeout);
+    
+    // CRITICAL Safeguard: Wait for any active Firestore auto-saves to fully complete first 
+    // to prevent network race conditions from resurrecting the trip document in Firestore.
+    if (isSaving) {
+        while (isSaving) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+    }
+    
     try {
         let originalTrip = mergedAllocations.find(t => t.id === activeBoatItem.id && t.isInternalTrip) || mergedAllocations.find(t => t.id === activeBoatItem.id);
         const internalTargetMonth = originalTrip && originalTrip._sourceDocId ? originalTrip._sourceDocId : activeBoatItem.date.substring(0, 7);
