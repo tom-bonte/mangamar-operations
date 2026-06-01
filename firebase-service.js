@@ -228,99 +228,101 @@ function startFirestoreListeners() {
             }
         });
 
-        // CRM Master List (Heavy 1MB Download - Deferring preserves UI interaction!)
-        db.collection("mangamar_directory").doc("master_list").get().then((doc) => {
-            if (doc.exists) {
-                let rawClients = doc.data().clients || [];
-                let dedupMap = new Map();
-                let nonDniClients = [];
-
-                rawClients.forEach(c => {
-                    if (c.dni && c.dni.trim() !== '') {
-                        const originalDni = c.dni;
-                        const key = window.normalizeDni(originalDni);
-                        c.dni = key;
-
-                        if (originalDni !== key) {
-                            window.migrateCustomerHistory(originalDni, key);
-                        }
-
-                        if (dedupMap.has(key)) {
-                            let existing = dedupMap.get(key);
-                            let merged = { ...existing };
-                            
-                            // Smart Merge: Merge fields prioritizing more complete data
-                            for (let prop in c) {
-                                const valC = c[prop];
-                                const valE = existing[prop];
-                                if (valC !== undefined && valC !== null && valC !== '') {
-                                    if (valE === undefined || valE === null || valE === '') {
-                                        merged[prop] = valC;
-                                    } else {
-                                        // Both have values. Choose the best one!
-                                        if (prop === 'titulacion') {
-                                            const isCapC = valC === valC.toUpperCase();
-                                            const isCapE = valE === valE.toUpperCase();
-                                            if (isCapC && !isCapE) {
-                                                merged[prop] = valC;
-                                            } else if (!isCapC && isCapE) {
-                                                merged[prop] = valE;
-                                            } else {
-                                                merged[prop] = valC.length >= valE.length ? valC : valE;
-                                            }
-                                        } else if (prop === 'nombre' || prop === 'apellido') {
-                                            merged[prop] = valC.length >= valE.length ? valC : valE;
-                                        } else if (prop === 'insurance') {
-                                            const expC = typeof valC === 'object' ? valC.expiry : '';
-                                            const expE = typeof valE === 'object' ? valE.expiry : '';
-                                            if (expC && expE) {
-                                                merged[prop] = expC >= expE ? valC : valE;
-                                            } else if (valC && !valE) {
-                                                merged[prop] = valC;
-                                            }
+        // CRM Master List (Heavy 1MB Download - Deferred to prioritize critical schedule bandwidth on load)
+        setTimeout(() => {
+            db.collection("mangamar_directory").doc("master_list").get().then((doc) => {
+                if (doc.exists) {
+                    let rawClients = doc.data().clients || [];
+                    let dedupMap = new Map();
+                    let nonDniClients = [];
+    
+                    rawClients.forEach(c => {
+                        if (c.dni && c.dni.trim() !== '') {
+                            const originalDni = c.dni;
+                            const key = window.normalizeDni(originalDni);
+                            c.dni = key;
+    
+                            if (originalDni !== key) {
+                                window.migrateCustomerHistory(originalDni, key);
+                            }
+    
+                            if (dedupMap.has(key)) {
+                                let existing = dedupMap.get(key);
+                                let merged = { ...existing };
+                                
+                                // Smart Merge: Merge fields prioritizing more complete data
+                                for (let prop in c) {
+                                    const valC = c[prop];
+                                    const valE = existing[prop];
+                                    if (valC !== undefined && valC !== null && valC !== '') {
+                                        if (valE === undefined || valE === null || valE === '') {
+                                            merged[prop] = valC;
                                         } else {
-                                            merged[prop] = String(valC).length >= String(valE).length ? valC : valE;
+                                            // Both have values. Choose the best one!
+                                            if (prop === 'titulacion') {
+                                                const isCapC = valC === valC.toUpperCase();
+                                                const isCapE = valE === valE.toUpperCase();
+                                                if (isCapC && !isCapE) {
+                                                    merged[prop] = valC;
+                                                } else if (!isCapC && isCapE) {
+                                                    merged[prop] = valE;
+                                                } else {
+                                                    merged[prop] = valC.length >= valE.length ? valC : valE;
+                                                }
+                                            } else if (prop === 'nombre' || prop === 'apellido') {
+                                                merged[prop] = valC.length >= valE.length ? valC : valE;
+                                            } else if (prop === 'insurance') {
+                                                const expC = typeof valC === 'object' ? valC.expiry : '';
+                                                const expE = typeof valE === 'object' ? valE.expiry : '';
+                                                if (expC && expE) {
+                                                    merged[prop] = expC >= expE ? valC : valE;
+                                                } else if (valC && !valE) {
+                                                    merged[prop] = valC;
+                                                }
+                                            } else {
+                                                merged[prop] = String(valC).length >= String(valE).length ? valC : valE;
+                                            }
                                         }
                                     }
                                 }
+                                dedupMap.set(key, merged);
+                            } else {
+                                dedupMap.set(key, c);
                             }
-                            dedupMap.set(key, merged);
                         } else {
-                            dedupMap.set(key, c);
+                            nonDniClients.push(c);
                         }
-                    } else {
-                        nonDniClients.push(c);
+                    });
+    
+                    const cleanClients = [...dedupMap.values(), ...nonDniClients];
+                    customerDatabase = cleanClients;
+    
+                    // Re-merge and render manifests now that the CRM database has loaded!
+                    if (typeof compileAndMerge === 'function') {
+                        compileAndMerge();
                     }
-                });
-
-                const cleanClients = [...dedupMap.values(), ...nonDniClients];
-                customerDatabase = cleanClients;
-
-                // Re-merge and render manifests now that the CRM database has loaded!
-                if (typeof compileAndMerge === 'function') {
-                    compileAndMerge();
-                }
-
-                if (cleanClients.length < rawClients.length) {
-                    console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicate customer records.`);
-                    db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
-                        .catch(e => console.error("Error auto-healing CRM:", e));
-                }
-
-                // Trigger non-blocking database-wide auto-heal sweep to correct name formats in all historic/current boat sheets
-                setTimeout(() => {
-                    if (typeof window.repairAllManifestNames === 'function') {
-                        window.repairAllManifestNames();
+    
+                    if (cleanClients.length < rawClients.length) {
+                        console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicate customer records.`);
+                        db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
+                            .catch(e => console.error("Error auto-healing CRM:", e));
                     }
-                }, 3000);
-
-                // If CRM modal table is open, refresh it now that data has loaded
-                const crmModal = document.getElementById('crm-modal');
-                if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
-                    renderCrmTable();
+    
+                    // Trigger non-blocking database-wide auto-heal sweep to correct name formats in all historic/current boat sheets
+                    setTimeout(() => {
+                        if (typeof window.repairAllManifestNames === 'function') {
+                            window.repairAllManifestNames();
+                        }
+                    }, 3000);
+    
+                    // If CRM modal table is open, refresh it now that data has loaded
+                    const crmModal = document.getElementById('crm-modal');
+                    if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
+                        renderCrmTable();
+                    }
                 }
-            }
-        });
+            });
+        }, 4500);
 
         // Global Settings Listener
         db.collection("mangamar_directory").doc("settings").onSnapshot((doc) => {

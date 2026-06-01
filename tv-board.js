@@ -388,3 +388,26 @@ window.addEventListener('resize', () => {
         window.adjustCardScaling();
     }
 });
+
+// --- OPTIMIZED TV DATE NAVIGATION AND MODAL CLOSING ---
+window._lastTvNavTime = 0;
+
+window.changeTVDate = function(offset) {
+    currentDate.setDate(currentDate.getDate() + offset);
+    if (typeof miniCalendarDate !== 'undefined') {
+        miniCalendarDate = new Date(currentDate);
+    }
+    if (typeof window.syncActiveMonthListeners === 'function') {
+        window.syncActiveMonthListeners();
+    }
+    window._buildTVContent();
+};
+
+window.closeTVView = function() {
+    document.getElementById('tv-view-modal').classList.add('hidden');
+    // Catch up the background daily/monthly calendar rendering now that TV view is closed
+    if (typeof updateDateHeaders === 'function') updateDateHeaders();
+    if (typeof renderDailyGrid === 'function') renderDailyGrid();
+    if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
+    if (typeof renderMiniCalendar === 'function') renderMiniCalendar();
+};

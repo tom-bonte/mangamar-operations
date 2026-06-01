@@ -57,18 +57,19 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
         const isTvOpen = tvModal && !tvModal.classList.contains('hidden');
         
         if (isTvOpen) {
-            if (e.key === 'ArrowLeft') {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                 e.preventDefault();
-                changeDate(-1);
-                if (typeof window._buildTVContent === 'function') {
-                    window._buildTVContent();
+                const now = Date.now();
+                if (now - (window._lastTvNavTime || 0) < 150) {
+                    return; // Throttle to prevent keydown repeat event storms
                 }
-                return;
-            } else if (e.key === 'ArrowRight') {
-                e.preventDefault();
-                changeDate(1);
-                if (typeof window._buildTVContent === 'function') {
-                    window._buildTVContent();
+                window._lastTvNavTime = now;
+                
+                const offset = e.key === 'ArrowLeft' ? -1 : 1;
+                if (typeof window.changeTVDate === 'function') {
+                    window.changeTVDate(offset);
+                } else {
+                    changeDate(offset);
                 }
                 return;
             }
