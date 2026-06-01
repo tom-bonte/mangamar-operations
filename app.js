@@ -1250,7 +1250,8 @@ window.executeDailySearch = function(query) {
     
     let matchCount = 0;
     const matchingTripIds = new Set();
-    const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
+    const allMergedTrips = typeof getMergedTrips === 'function' ? getMergedTrips(mergedAllocations) : mergedAllocations;
+    const todaysTrips = allMergedTrips.filter(t => t.date === targetDateStr);
     
     todaysTrips.forEach(trip => {
         const guests = trip.guests || [];
@@ -1415,7 +1416,8 @@ window.unhoverSearchCard = function(tripId) {
 
 
 window.openSearchManageBoatModal = function(tripId) {
-    const trip = mergedAllocations.find(t => t.id === tripId);
+    const allTrips = typeof getMergedTrips === 'function' ? getMergedTrips(mergedAllocations) : mergedAllocations;
+    const trip = allTrips.find(t => t.id === tripId);
     if (trip) {
         const card = document.querySelector(`[data-trip-id="${tripId}"]`);
         if (card) {
