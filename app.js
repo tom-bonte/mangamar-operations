@@ -630,8 +630,18 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                             if (snap.exists) {
                                 const debtVal = snap.data().outstandingDebt;
                                 if (debtVal !== undefined) {
-                                    customerInfo.outstandingDebt = debtVal;
-                                    if (window.mergeAndRender) window.mergeAndRender();
+                                    // If this guest's trip is paid but Firestore shows debt > 0,
+                                    // the stored value is stale (e.g. from before a payment was fixed).
+                                    // Recalculate from scratch so the Euro badge appears correctly.
+                                    if (debtVal > 0 && g.paymentStatus === 'paid' && typeof window.updateCustomerOutstandingDebt === 'function') {
+                                        window.updateCustomerOutstandingDebt(g.dni).then(calculatedDebt => {
+                                            customerInfo.outstandingDebt = calculatedDebt;
+                                            if (window.mergeAndRender) window.mergeAndRender();
+                                        });
+                                    } else {
+                                        customerInfo.outstandingDebt = debtVal;
+                                        if (window.mergeAndRender) window.mergeAndRender();
+                                    }
                                 } else {
                                     // Legacy client without computed debt. Recalculate dynamically.
                                     if (typeof window.updateCustomerOutstandingDebt === 'function') {

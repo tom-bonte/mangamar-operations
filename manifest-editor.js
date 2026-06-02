@@ -310,9 +310,10 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
                     };
                 }
             });
-            if (needsReRender) {
-                renderGroups(true);
-            }
+            // Always re-render after the Firestore fetch completes so that
+            // outstandingDebt from activeTripPayments is reflected in the
+            // green card icon and DEPÓSITO column.
+            renderGroups(true);
         }).catch(err => console.error("Error fetching payment states:", err));
     }
 

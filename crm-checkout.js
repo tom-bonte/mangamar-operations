@@ -156,8 +156,9 @@ window.syncPaymentToManifest = async function(dni, tripId, paymentStatus, paymen
             const updates = {};
             updates[`allocations.${tripId}.groups`] = groups;
             
+            let flatGuests = null;
             if (trip.guests) {
-                const flatGuests = JSON.parse(JSON.stringify(trip.guests));
+                flatGuests = JSON.parse(JSON.stringify(trip.guests));
                 flatGuests.forEach(gst => {
                     if ((gst.dni || '').toLowerCase() === (dni || '').toLowerCase()) {
                         if (paymentStatus === 'paid') {
@@ -178,6 +179,12 @@ window.syncPaymentToManifest = async function(dni, tripId, paymentStatus, paymen
                 updates[`allocations.${tripId}.guests`] = flatGuests;
             }
             await db.collection('mangamar_monthly').doc(monthKey).update(updates);
+
+            // Also update mergedAllocations in-memory so that reopening the manifest modal
+            // immediately reflects the correct localDeposit and payment state without a page reload.
+            trip.groups = groups;
+            if (flatGuests) trip.guests = flatGuests;
+
             console.log(`[syncPaymentToManifest] Updated manifest for trip ${tripId}, guest ${dni}`);
         }
     } catch (e) {
