@@ -132,6 +132,7 @@ function compileAndMerge() {
     window.internalTrips = internalTrips = allInternal;
 
     mergeAndRender();
+    updateSalidasLoadingState();
 }
 
 /**
@@ -205,8 +206,33 @@ function syncActiveMonthListeners() {
             activeMonthListeners.set(monthKey, listeners);
         }
     });
+    updateSalidasLoadingState();
 }
 
+function updateSalidasLoadingState() {
+    const refDate = (typeof currentDate !== 'undefined' && currentDate) ? currentDate : new Date();
+    const targetMonths = getActiveMonthKeys(refDate);
+    
+    let isLoading = false;
+    for (const key of targetMonths) {
+        if (!internalMonthData.has(key) || !visorMonthData.has(key)) {
+            isLoading = true;
+            break;
+        }
+    }
+    
+    const loadingScreen = document.getElementById('salidas-loading-screen');
+    if (loadingScreen) {
+        if (isLoading) {
+            loadingScreen.classList.remove('pointer-events-none', 'opacity-0');
+            loadingScreen.classList.add('opacity-100');
+        } else {
+            loadingScreen.classList.remove('opacity-100');
+            loadingScreen.classList.add('opacity-0', 'pointer-events-none');
+        }
+    }
+}
+window.updateSalidasLoadingState = updateSalidasLoadingState;
 window.syncActiveMonthListeners = syncActiveMonthListeners;
 
 /**

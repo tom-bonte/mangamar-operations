@@ -481,16 +481,39 @@ window.togglePaymentStatus = async function (dni, boatId, currentStatus) {
         // Simple Undo: Paid -> Pending (no money exchanged, just reversing a mistake)
         showAppConfirm("¿Deshacer cobro y volver a marcar como Pendiente?", async () => {
             try {
-                await db.collection('mangamar_customers').doc(dni).collection('history').doc(boatId).update({
-                    paymentStatus: 'pending',
-                    paymentMethod: firebase.firestore.FieldValue.delete(),
-                    paidAt: firebase.firestore.FieldValue.delete(),
-                    paidBy: firebase.firestore.FieldValue.delete()
+                const historyRef = db.collection('mangamar_customers').doc(dni).collection('history');
+                const pagosSnap = await historyRef.where('type', '==', 'pago').get();
+                const batch = db.batch();
+                
+                let settledIds = [boatId];
+                pagosSnap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.settledDocIds && Array.isArray(data.settledDocIds) && data.settledDocIds.includes(boatId)) {
+                        batch.delete(docSnap.ref);
+                        data.settledDocIds.forEach(id => {
+                            if (!settledIds.includes(id)) settledIds.push(id);
+                        });
+                    }
                 });
+
+                // Update all settled items to pending in Firestore
+                settledIds.forEach(id => {
+                    batch.update(historyRef.doc(id), {
+                        paymentStatus: 'pending',
+                        paymentMethod: firebase.firestore.FieldValue.delete(),
+                        paidAt: firebase.firestore.FieldValue.delete(),
+                        paidBy: firebase.firestore.FieldValue.delete()
+                    });
+                });
+
+                await batch.commit();
                 showToast("Dato restaurado a Pendiente.");
                 
-                // Sync back to manifest allocations in Firestore
-                await window.syncPaymentToManifest(dni, boatId, 'pending');
+                // Sync all settled items back to manifest allocations in Firestore
+                const syncPromises = settledIds.map(id => 
+                    window.syncPaymentToManifest(dni, id, 'pending')
+                );
+                await Promise.all(syncPromises);
 
                 // Clear RAM caches immediately
                 if (window.activeTripPayments && window.activeTripPayments[dni]) {
@@ -500,10 +523,14 @@ window.togglePaymentStatus = async function (dni, boatId, currentStatus) {
                 if (window.activeBoatItem && window.activeBoatItem.groups) {
                     window.activeBoatItem.groups.forEach(g => {
                         (g.guests || []).forEach(gst => {
-                            if ((gst.dni || '').toLowerCase() === (dni || '').toLowerCase() && window.activeBoatItem.id === boatId) {
-                                delete gst.paymentStatus;
-                                delete gst.paymentMethod;
-                                delete gst.paidBy;
+                            if ((gst.dni || '').toLowerCase() === (dni || '').toLowerCase()) {
+                                settledIds.forEach(id => {
+                                    if (window.activeBoatItem.id === id) {
+                                        delete gst.paymentStatus;
+                                        delete gst.paymentMethod;
+                                        delete gst.paidBy;
+                                    }
+                                });
                             }
                         });
                     });
