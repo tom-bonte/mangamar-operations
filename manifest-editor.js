@@ -894,12 +894,12 @@ function renderGroups(skipAutoSave = false) {
                         ${guest.dni ? (() => {
                             const payInfo = (window.activeTripPayments && window.activeTripPayments[guest.dni]) ? window.activeTripPayments[guest.dni] : { paymentStatus: guest.paymentStatus || 'pending', paymentMethod: guest.paymentMethod || '', paidBy: guest.paidBy || '' };
                             const isPaid = payInfo.paymentStatus === 'paid';
-                            const btnClass = isPaid ? 'text-emerald-500 hover:text-emerald-600 transition-colors mr-2' : 'text-slate-300 hover:text-emerald-500 transition-colors mr-2';
+                            const btnClass = 'text-slate-300 hover:text-emerald-500 transition-colors mr-2';
                             const btnTitle = isPaid 
                                 ? `Cobrado con ${payInfo.paymentMethod || 'Tarjeta'} por ${payInfo.paidBy || 'N/A'}` 
                                 : 'Ficha del Cliente / Cuenta (Pendiente de Pago)';
                             const svgHtml = isPaid 
-                                ? `<svg class="w-4 h-4 inline" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect width="18" height="14" x="3" y="5" rx="3" fill="currentColor" /><rect width="18" height="2.5" x="3" y="8.5" fill="white" opacity="0.85" /><rect width="3.5" height="2.5" x="6" y="13.5" rx="0.5" fill="white" opacity="0.85" /></svg>`
+                                ? `<svg class="w-4 h-4 inline" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect width="18" height="14" x="3" y="5" rx="3" fill="#10b981" /><rect width="18" height="14" x="3" y="5" rx="3" stroke="currentColor" stroke-width="2" /><rect width="18" height="2.5" x="3" y="8.5" fill="white" opacity="0.85" /><rect width="3.5" height="2.5" x="6" y="13.5" rx="0.5" fill="white" opacity="0.85" /></svg>`
                                 : `<svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>`;
                             return `<button onclick="openCustomerProfile('${guest.dni}', '${guest.nombre.replace(/'/g, "\\'")}')" class="${btnClass}" title="${btnTitle}">${svgHtml}</button>`;
                         })() : ''}
