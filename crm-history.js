@@ -45,10 +45,38 @@ window.deleteHistoryItem = async function (dni, boatId, monthKey, itemType = 'bu
                         batch.update(historyRef.doc(id), {
                             paymentStatus: 'pending',
                             paymentMethod: firebase.firestore.FieldValue.delete(),
-                            paidAt: firebase.firestore.FieldValue.delete()
+                            paidAt: firebase.firestore.FieldValue.delete(),
+                            paidBy: firebase.firestore.FieldValue.delete()
                         });
+
+                        // Clean up RAM activeBoatItem groups
+                        if (window.activeBoatItem && window.activeBoatItem.id === id && window.activeBoatItem.groups) {
+                            window.activeBoatItem.groups.forEach(g => {
+                                (g.guests || []).forEach(gst => {
+                                    if ((gst.dni || '').toLowerCase() === (dni || '').toLowerCase()) {
+                                        delete gst.paymentStatus;
+                                        delete gst.paymentMethod;
+                                        delete gst.paidBy;
+                                    }
+                                });
+                            });
+                        }
                     });
-                    revertPromise = batch.commit();
+
+                    // Clear RAM caches immediately
+                    if (window.activeTripPayments && window.activeTripPayments[dni]) {
+                        delete window.activeTripPayments[dni];
+                    }
+
+                    // Re-render groups if manifest is open
+                    if (typeof renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
+                        setTimeout(() => renderGroups(true), 50);
+                    }
+
+                    const syncPromises = pagoData.settledDocIds.map(id => 
+                        window.syncPaymentToManifest(dni, id, 'pending')
+                    );
+                    revertPromise = Promise.all([batch.commit(), ...syncPromises]);
                 } else if (pagoData.description && pagoData.description.includes('Liquidación')) {
                     showToast("⚠️ Pago antiguo: Vuelve a marcar las inmersiones como 'Pendientes' manualmente.", 5000);
                 }
@@ -370,9 +398,46 @@ window.historialBulkMarkPending = async function () {
             const batch = db.batch();
             itemsToUnpay.forEach(item => {
                 const ref = db.collection('mangamar_customers').doc(item.dni).collection('history').doc(item.docId);
-                batch.update(ref, { paymentStatus: 'pending' });
+                batch.update(ref, { 
+                    paymentStatus: 'pending',
+                    paymentMethod: firebase.firestore.FieldValue.delete(),
+                    paidAt: firebase.firestore.FieldValue.delete(),
+                    paidBy: firebase.firestore.FieldValue.delete()
+                });
+
+                // Clean up RAM activeBoatItem groups
+                if (window.activeBoatItem && window.activeBoatItem.id === item.docId && window.activeBoatItem.groups) {
+                    window.activeBoatItem.groups.forEach(g => {
+                        (g.guests || []).forEach(gst => {
+                            if ((gst.dni || '').toLowerCase() === (item.dni || '').toLowerCase()) {
+                                delete gst.paymentStatus;
+                                delete gst.paymentMethod;
+                                delete gst.paidBy;
+                            }
+                        });
+                    });
+                }
             });
             await batch.commit();
+
+            // Clear RAM caches immediately
+            itemsToUnpay.forEach(item => {
+                if (window.activeTripPayments && window.activeTripPayments[item.dni]) {
+                    delete window.activeTripPayments[item.dni];
+                }
+            });
+
+            // Re-render groups if manifest is open
+            if (typeof renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
+                setTimeout(() => renderGroups(true), 50);
+            }
+
+            // Sync each to manifest allocations in Firestore
+            const syncPromises = itemsToUnpay.map(item => 
+                window.syncPaymentToManifest(item.dni, item.docId, 'pending')
+            );
+            await Promise.all(syncPromises);
+
             showToast("⚠️ Marcados de nuevo como pendiente");
 
             // Reload the profile silently!

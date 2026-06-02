@@ -500,7 +500,7 @@ window.togglePaymentStatus = async function (dni, boatId, currentStatus) {
                 if (window.activeBoatItem && window.activeBoatItem.groups) {
                     window.activeBoatItem.groups.forEach(g => {
                         (g.guests || []).forEach(gst => {
-                            if (gst.dni === dni && window.activeBoatItem.id === boatId) {
+                            if ((gst.dni || '').toLowerCase() === (dni || '').toLowerCase() && window.activeBoatItem.id === boatId) {
                                 delete gst.paymentStatus;
                                 delete gst.paymentMethod;
                                 delete gst.paidBy;
