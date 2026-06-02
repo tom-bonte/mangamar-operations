@@ -123,6 +123,74 @@ window.calculateDivePrice = calculateDivePrice;
 
 window.activePaymentContext = null;
 
+window.syncPaymentToManifest = async function(dni, tripId, paymentStatus, paymentMethod = '', paidBy = '') {
+    try {
+        const trip = (window.mergedAllocations || []).find(t => t.id === tripId);
+        if (!trip) return;
+
+        const groups = JSON.parse(JSON.stringify(trip.groups || []));
+        let updated = false;
+        groups.forEach(g => {
+            (g.guests || []).forEach(gst => {
+                if ((gst.dni || '').toLowerCase() === (dni || '').toLowerCase()) {
+                    if (paymentStatus === 'paid') {
+                        gst.paymentStatus = 'paid';
+                        gst.paymentMethod = paymentMethod;
+                        gst.paidBy = paidBy;
+                    } else {
+                        delete gst.paymentStatus;
+                        delete gst.paymentMethod;
+                        delete gst.paidBy;
+                    }
+                    updated = true;
+                }
+            });
+        });
+
+        if (updated) {
+            const monthKey = trip.date.substring(0, 7);
+            const updates = {};
+            updates[`allocations.${tripId}.groups`] = groups;
+            
+            if (trip.guests) {
+                const flatGuests = JSON.parse(JSON.stringify(trip.guests));
+                flatGuests.forEach(gst => {
+                    if ((gst.dni || '').toLowerCase() === (dni || '').toLowerCase()) {
+                        if (paymentStatus === 'paid') {
+                            gst.paymentStatus = 'paid';
+                            gst.paymentMethod = paymentMethod;
+                            gst.paidBy = paidBy;
+                        } else {
+                            delete gst.paymentStatus;
+                            delete gst.paymentMethod;
+                            delete gst.paidBy;
+                        }
+                    }
+                });
+                updates[`allocations.${tripId}.guests`] = flatGuests;
+            }
+            await db.collection('mangamar_monthly').doc(monthKey).update(updates);
+            console.log(`[syncPaymentToManifest] Updated manifest for trip ${tripId}, guest ${dni}`);
+        }
+    } catch (e) {
+        console.error("[syncPaymentToManifest] Error syncing payment to manifest:", e);
+    }
+};
+
+window.toggleCustomCollectorField = function() {
+    const isCustom = document.getElementById('collector-radio-custom').checked;
+    const wrapper = document.getElementById('payment-engine-custom-collector-wrapper');
+    if (wrapper) {
+        if (isCustom) {
+            wrapper.classList.remove('hidden');
+            const input = document.getElementById('payment-engine-custom-collector');
+            if (input) input.focus();
+        } else {
+            wrapper.classList.add('hidden');
+        }
+    }
+};
+
 window.promptPaymentGateway = function(dni, totalDebt, docIds, mode) {
     window.activePaymentContext = {
         dni, totalDebt, docIds, mode, originalDeposit: 0
@@ -140,6 +208,14 @@ window.promptPaymentGateway = function(dni, totalDebt, docIds, mode) {
     // Reset inputs
     document.querySelector('input[name="payMethod"][value="Tarjeta"]').checked = true;
     document.getElementById('payment-engine-partial-label').classList.add('hidden');
+    
+    // Reset collector inputs
+    const tbRadio = document.querySelector('input[name="payCollector"][value="TB"]');
+    if (tbRadio) tbRadio.checked = true;
+    const customWrapper = document.getElementById('payment-engine-custom-collector-wrapper');
+    if (customWrapper) customWrapper.classList.add('hidden');
+    const customInput = document.getElementById('payment-engine-custom-collector');
+    if (customInput) customInput.value = '';
     
     // Listener for partial payment UI
     const amtInput = document.getElementById('payment-engine-amount');
@@ -166,6 +242,12 @@ window.executePaymentGateway = async function() {
     const amountPaid = parseFloat(amountStr);
     const method = document.querySelector('input[name="payMethod"]:checked').value;
 
+    const collectorRadio = document.querySelector('input[name="payCollector"]:checked');
+    let collector = collectorRadio ? collectorRadio.value : 'TB';
+    if (collector === 'Custom') {
+        collector = (document.getElementById('payment-engine-custom-collector').value || '').trim().toUpperCase() || 'OTRO';
+    }
+
     if (isNaN(amountPaid) || amountPaid <= 0) {
         showAppAlert("Introduce un monto válido mayor a 0.");
         return;
@@ -191,6 +273,7 @@ window.executePaymentGateway = async function() {
                     customPrice: -Math.abs(amountPaid),
                     paymentStatus: 'paid',
                     paymentMethod: method,
+                    paidBy: collector,
                     isPartialAbono: true,
                     date: dateStr,
                 },
@@ -201,13 +284,17 @@ window.executePaymentGateway = async function() {
             // Mark all items as paid locally
             ctx.docIds.forEach(id => {
                 let dive = window.activeFichaDives.find(i => i.doc.id === id);
-                if (dive) dive.data.paymentStatus = 'paid';
+                if (dive) {
+                    dive.data.paymentStatus = 'paid';
+                    dive.data.paymentMethod = method;
+                    dive.data.paidBy = collector;
+                }
             });
             // Insert the liquidation payment with a proper p object
             const liqAmt = Math.abs(amountPaid);
             window.activeFichaDives.unshift({
                 doc: { id: "temp_pago_" + Date.now() },
-                data: { type: 'pago', description: `Liquidación de Cuenta (${method})`, customPrice: -liqAmt, paymentStatus: 'paid', paymentMethod: method, date: dateStr },
+                data: { type: 'pago', description: `Liquidación de Cuenta (${method})`, customPrice: -liqAmt, paymentStatus: 'paid', paymentMethod: method, paidBy: collector, date: dateStr },
                 p: { dive:0, tasa:0, gas:0, rental:0, insurance:0, computer:0, course:0, custom: -liqAmt, total: -liqAmt },
                 cleanIns: 0, isCovered: false, isCourseCovered: false
             });
@@ -216,7 +303,7 @@ window.executePaymentGateway = async function() {
                 const depAmt = Math.abs(ctx.originalDeposit);
                 window.activeFichaDives.unshift({
                     doc: { id: "temp_deposit_" + Date.now() },
-                    data: { type: 'pago', description: `Aplicación de Depósito a Cuenta`, customPrice: -depAmt, paymentStatus: 'paid', paymentMethod: 'Depósito Previo', date: dateStr },
+                    data: { type: 'pago', description: `Aplicación de Depósito a Cuenta`, customPrice: -depAmt, paymentStatus: 'paid', paymentMethod: 'Depósito Previo', paidBy: collector, date: dateStr },
                     p: { dive:0, tasa:0, gas:0, rental:0, insurance:0, computer:0, course:0, custom: -depAmt, total: -depAmt },
                     cleanIns: 0, isCovered: false, isCourseCovered: false
                 });
@@ -227,7 +314,28 @@ window.executePaymentGateway = async function() {
         }
     }
 
-        // showToast(`✅ Pago de ${amountPaid}€ procesado correctamente.`);
+    // Sync to manifest RAM immediately
+    if (!isPartial) {
+        if (!window.activeTripPayments) window.activeTripPayments = {};
+        window.activeTripPayments[ctx.dni] = {
+            paymentStatus: 'paid',
+            paymentMethod: method,
+            paidBy: collector
+        };
+
+        if (window.activeBoatItem && window.activeBoatItem.groups) {
+            window.activeBoatItem.groups.forEach(g => {
+                (g.guests || []).forEach(gst => {
+                    if (gst.dni === ctx.dni && ctx.docIds.includes(window.activeBoatItem.id)) {
+                        gst.paymentStatus = 'paid';
+                        gst.paymentMethod = method;
+                        gst.paidBy = collector;
+                    }
+                });
+            });
+        }
+    }
+
     document.getElementById('payment-engine-modal').classList.add('opacity-0');
     setTimeout(() => {
         document.getElementById('payment-engine-modal').classList.add('hidden');
@@ -242,6 +350,11 @@ window.executePaymentGateway = async function() {
         window.renderFichaFromCache(ctx.dni, contextLayer);
     } else if (!document.getElementById('today-divers-modal').classList.contains('hidden')) {
         openTodayDiversModal();
+    }
+
+    // Re-render open manifest modal groups if visible
+    if (typeof renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
+        renderGroups(true);
     }
 
     // --- ASYNC BACKGROUND SYNC ---
@@ -259,6 +372,7 @@ window.executePaymentGateway = async function() {
                     customPrice: -Math.abs(amountPaid),
                     paymentStatus: 'paid',
                     paymentMethod: method,
+                    paidBy: collector,
                     isPartialAbono: true,
                     date: dateStr,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -271,7 +385,8 @@ window.executePaymentGateway = async function() {
                     
                     let updatePayload = {
                         paymentStatus: 'paid',
-                        paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                        paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        paidBy: collector
                     };
                     
                     // ONLY overwrite the payment method if it's a dive/product.
@@ -294,6 +409,7 @@ window.executePaymentGateway = async function() {
                     customPrice: -Math.abs(amountPaid),
                     paymentStatus: 'paid', // Immediately settled since it balanced the account
                     paymentMethod: method,
+                    paidBy: collector,
                     date: dateStr,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     paidAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -311,6 +427,7 @@ window.executePaymentGateway = async function() {
                         customPrice: -Math.abs(ctx.originalDeposit),
                         paymentStatus: 'paid',
                         paymentMethod: ctx.originalDepositMethod || 'Efectivo',
+                        paidBy: collector,
                         date: dateStr,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                         paidAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -319,6 +436,17 @@ window.executePaymentGateway = async function() {
             }
 
             await batch.commit();
+
+            // Sync to Firestore manifest allocations
+            if (!isPartial) {
+                ctx.docIds.forEach(docId => {
+                    const diveObj = window.activeFichaDives ? window.activeFichaDives.find(d => d.doc.id === docId) : null;
+                    const isPagoItem = diveObj && diveObj.data && diveObj.data.type === 'pago';
+                    if (!isPagoItem) {
+                        window.syncPaymentToManifest(ctx.dni, docId, 'paid', method, collector);
+                    }
+                });
+            }
 
             if (shouldClearDeposit) {
                 const custIndex = customerDatabase.findIndex(c => c.dni === ctx.dni);
@@ -356,9 +484,30 @@ window.togglePaymentStatus = async function (dni, boatId, currentStatus) {
                 await db.collection('mangamar_customers').doc(dni).collection('history').doc(boatId).update({
                     paymentStatus: 'pending',
                     paymentMethod: firebase.firestore.FieldValue.delete(),
-                    paidAt: firebase.firestore.FieldValue.delete()
+                    paidAt: firebase.firestore.FieldValue.delete(),
+                    paidBy: firebase.firestore.FieldValue.delete()
                 });
                 showToast("Dato restaurado a Pendiente.");
+                
+                // Sync back to manifest allocations in Firestore
+                await window.syncPaymentToManifest(dni, boatId, 'pending');
+
+                // Clear RAM caches immediately
+                if (window.activeTripPayments && window.activeTripPayments[dni]) {
+                    delete window.activeTripPayments[dni];
+                }
+
+                if (window.activeBoatItem && window.activeBoatItem.groups) {
+                    window.activeBoatItem.groups.forEach(g => {
+                        (g.guests || []).forEach(gst => {
+                            if (gst.dni === dni && window.activeBoatItem.id === boatId) {
+                                delete gst.paymentStatus;
+                                delete gst.paymentMethod;
+                                delete gst.paidBy;
+                            }
+                        });
+                    });
+                }
                 
                 if (window.activeFichaDni === dni) {
                     const currentName = document.getElementById('profile-modal-name').innerText;
@@ -366,6 +515,11 @@ window.togglePaymentStatus = async function (dni, boatId, currentStatus) {
                     openCustomerProfile(dni, currentName, false, contextLayer);
                 } else {
                     openTodayDiversModal();
+                }
+
+                // If manifest is open, re-render to update classes
+                if (typeof renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
+                    renderGroups(true);
                 }
             } catch (e) {
                 console.error(e);

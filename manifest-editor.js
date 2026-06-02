@@ -234,6 +234,50 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     activeBoatItem.groups.forEach(g => { if(g.guests) allGuests.push(...g.guests); });
     activeBoatItem.lastSavedDnis = allGuests.map(g => g.dni).filter(Boolean);
 
+    // Fetch payment status and collector for guests in the background (as a fallback/sync)
+    window.activeTripPayments = {};
+    const dnis = allGuests.map(g => g.dni).filter(Boolean);
+    if (dnis.length > 0) {
+        const promises = dnis.map(dni => db.collection('mangamar_customers').doc(dni).collection('history').doc(activeBoatItem.id).get());
+        Promise.all(promises).then(snaps => {
+            let needsReRender = false;
+            snaps.forEach((snap, idx) => {
+                const targetDni = dnis[idx];
+                if (snap.exists) {
+                    const data = snap.data();
+                    window.activeTripPayments[targetDni] = {
+                        paymentStatus: data.paymentStatus || 'pending',
+                        paymentMethod: data.paymentMethod || '',
+                        paidBy: data.paidBy || ''
+                    };
+                    
+                    // Sync into in-memory activeBoatItem
+                    activeBoatItem.groups.forEach(g => {
+                        (g.guests || []).forEach(gst => {
+                            if (gst.dni === targetDni) {
+                                if (data.paymentStatus === 'paid' && gst.paymentStatus !== 'paid') {
+                                    gst.paymentStatus = 'paid';
+                                    gst.paymentMethod = data.paymentMethod || '';
+                                    gst.paidBy = data.paidBy || '';
+                                    needsReRender = true;
+                                }
+                            }
+                        });
+                    });
+                } else {
+                    window.activeTripPayments[targetDni] = {
+                        paymentStatus: 'pending',
+                        paymentMethod: '',
+                        paidBy: ''
+                    };
+                }
+            });
+            if (needsReRender) {
+                renderGroups(true);
+            }
+        }).catch(err => console.error("Error fetching payment states:", err));
+    }
+
     const boatConfig = BOATS[boatId] || { name: 'Barco Desconocido' };
     
     let formattedDate = dateStr || '';
@@ -847,7 +891,15 @@ function renderGroups(skipAutoSave = false) {
                     <td class="p-3 text-center align-middle ${window.isLoggedIn ? '' : 'hidden'}">${dniHtml}</td>
                     <td class="p-3 text-center align-middle whitespace-nowrap ${window.isLoggedIn ? '' : 'hidden'}">${contactHtml}</td>
                     <td class="p-3 text-center align-middle whitespace-nowrap ${window.isLoggedIn ? '' : 'hidden'}">
-                        ${guest.dni ? `<button onclick="openCustomerProfile('${guest.dni}', '${guest.nombre.replace(/'/g, "\\'")}')" class="text-slate-300 hover:text-emerald-500 transition-colors mr-2" title="Ficha del Cliente / Cuenta"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg></button>` : ''}
+                        ${guest.dni ? (() => {
+                            const payInfo = (window.activeTripPayments && window.activeTripPayments[guest.dni]) ? window.activeTripPayments[guest.dni] : { paymentStatus: guest.paymentStatus || 'pending', paymentMethod: guest.paymentMethod || '', paidBy: guest.paidBy || '' };
+                            const isPaid = payInfo.paymentStatus === 'paid';
+                            const btnClass = isPaid ? 'text-emerald-500 hover:text-emerald-600 transition-colors mr-2' : 'text-slate-300 hover:text-emerald-500 transition-colors mr-2';
+                            const btnTitle = isPaid 
+                                ? `Cobrado con ${payInfo.paymentMethod || 'Tarjeta'} por ${payInfo.paidBy || 'N/A'}` 
+                                : 'Ficha del Cliente / Cuenta (Pendiente de Pago)';
+                            return `<button onclick="openCustomerProfile('${guest.dni}', '${guest.nombre.replace(/'/g, "\\'")}')" class="${btnClass}" title="${btnTitle}"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg></button>`;
+                        })() : ''}
                         <button onclick="openEditGuestModal(${groupIndex}, ${guestIndex})" class="text-slate-300 hover:text-blue-500 transition-colors mr-2" title="Editar Info"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
                         ${guest.note ? `<div class="relative group/note inline-block mr-2"><button onclick="toggleGuestNote(${groupIndex}, ${guestIndex})" class="text-amber-400 hover:text-amber-600 transition-colors"><svg class="w-4 h-4 inline" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></button><div class="absolute bottom-full right-0 mb-1.5 w-max max-w-[180px] bg-slate-800 text-white text-[10px] font-semibold rounded-lg px-2.5 py-1.5 shadow-lg opacity-0 group-hover/note:opacity-100 transition-opacity pointer-events-none z-50 whitespace-pre-wrap break-words">${guest.note}</div></div>` : `<button onclick="toggleGuestNote(${groupIndex}, ${guestIndex})" title="Añadir nota" class="text-slate-200 hover:text-amber-400 transition-colors mr-2"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></button>`}
                         <button onclick="removeGuest(${groupIndex}, ${guestIndex})" class="text-slate-300 hover:text-red-500 transition-colors" title="Eliminar Cliente"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>

@@ -611,12 +611,18 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
             const cancelledClass = g.cancelled ? 'line-through text-slate-400/80 opacity-60' : 'text-white group-hover:text-blue-300 hover:text-blue-400';
 
+            // Unpaid/Pending indicator (orange dollar sign)
+            const isPaid = g.paymentStatus === 'paid';
+            const dollarSign = (!isPaid && !g.cancelled) 
+                ? `<span class="text-amber-500 font-black ml-1" title="Pendiente de Pago">$</span>` 
+                : '';
+
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
                         <div class="flex items-center min-w-0 flex-1">
                             ${arrivedDot}
                             <button onclick="if(!window.isLoggedIn || window.isStaffLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
                                     class="block truncate flex-1 min-w-0 pr-2 font-bold focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock ${cancelledClass}">
-                                ${displayName}
+                                ${displayName}${dollarSign}
                             </button>
                             ${mobileCourseHtml}
                         </div>
