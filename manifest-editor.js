@@ -504,15 +504,10 @@ function copyStaffDni(type, name, groupIndex) {
     const person = (staffDatabase[type] || []).find(p => p.nombre === name);
     if(person) copyData(person.dni, 'DNI de Staff');
 }
-async function closeManageBoatModal() { 
-    if (autoSaveTimeout) {
-        clearTimeout(autoSaveTimeout);
-        autoSaveTimeout = null;
-    }
-
-    // Cancel any pending RAF renders that were queued before the close was triggered.
-    // Without this, a pending _renderGroupsRAF would fire after activeBoatItem = null
-    // and either crash or silently block the modal from visually hiding.
+function closeManageBoatModal() {
+    // ── Step 1: Cancel any pending deferred renders ──────────────────────────
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = null;
     if (_renderGroupsRAF) {
         cancelAnimationFrame(_renderGroupsRAF);
         _renderGroupsRAF = null;
@@ -522,42 +517,43 @@ async function closeManageBoatModal() {
         cancelAnimationFrame(window._gridRenderRAF);
         window._gridRenderRAF = null;
     }
-    
-    // Wait for the sequential save queue to completely empty out
-    if (isSaving) {
-        hasPendingSave = true; // force the queue to do one final save of the current state
-        window.hasPendingSave = true;
-        while (isSaving) {
-            await new Promise(resolve => setTimeout(resolve, 50));
-        }
-    } else {
-        // If no save is running, do one last instant save of any final changes
-        if (activeBoatItem && typeof saveBoatData === 'function') {
-            try {
-                await saveBoatData();
-            } catch (e) {
-                console.error("Error saving manifest before close:", e);
-            }
-        }
-    }
-    
-    document.getElementById('manage-boat-modal').classList.add('hidden'); 
-    activeBoatItem = null; 
-    window.clearModalHistory(); 
 
-    // Preserve search state and popover popup on modal close if query is active
+    // ── Step 2: Hide the modal IMMEDIATELY ───────────────────────────────────
+    // Never make the user wait for a Firestore save before seeing the modal close.
+    const modal = document.getElementById('manage-boat-modal');
+    if (modal) modal.classList.add('hidden');
+
+    // ── Step 3: Capture item and clear state ─────────────────────────────────
+    const itemSnapshot = activeBoatItem;
+    activeBoatItem = null;
+    window.clearModalHistory();
+
+    // ── Step 4: Restore search state ─────────────────────────────────────────
     if (window.activeDailySearchQuery && window.activeDailySearchQuery.trim().length >= 3) {
-        if (typeof window.expandDailySearch === 'function') {
-            window.expandDailySearch();
-        }
-        if (typeof window.executeDailySearch === 'function') {
-            window.executeDailySearch(window.activeDailySearchQuery);
-        }
+        if (typeof window.expandDailySearch === 'function') window.expandDailySearch();
+        if (typeof window.executeDailySearch === 'function') window.executeDailySearch(window.activeDailySearchQuery);
     }
 
-    // Re-schedule grid render after close so the daily grid updates correctly
-    // without the manifest modal interfering.
+    // ── Step 5: Refresh daily grid ───────────────────────────────────────────
     if (typeof mergeAndRender === 'function') mergeAndRender();
+
+    // ── Step 6: Background save (user already sees modal closed) ─────────────
+    // Temporarily restore the captured item so saveBoatData can read it,
+    // then clear again when the save resolves.
+    if (itemSnapshot && typeof saveBoatData === 'function') {
+        if (isSaving) {
+            // A save is already in-flight — mark pending so the queue loop re-saves
+            hasPendingSave = true;
+            window.hasPendingSave = true;
+        } else {
+            // Run a background save without blocking the UI at all
+            activeBoatItem = itemSnapshot;
+            window.triggerInstantSave().finally(() => {
+                // Only null activeBoatItem when no other modal opened in the meantime
+                if (activeBoatItem === itemSnapshot) activeBoatItem = null;
+            });
+        }
+    }
 }
 
 
