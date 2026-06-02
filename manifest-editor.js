@@ -509,6 +509,19 @@ async function closeManageBoatModal() {
         clearTimeout(autoSaveTimeout);
         autoSaveTimeout = null;
     }
+
+    // Cancel any pending RAF renders that were queued before the close was triggered.
+    // Without this, a pending _renderGroupsRAF would fire after activeBoatItem = null
+    // and either crash or silently block the modal from visually hiding.
+    if (_renderGroupsRAF) {
+        cancelAnimationFrame(_renderGroupsRAF);
+        _renderGroupsRAF = null;
+        _renderGroupsSavePending = false;
+    }
+    if (window._gridRenderRAF) {
+        cancelAnimationFrame(window._gridRenderRAF);
+        window._gridRenderRAF = null;
+    }
     
     // Wait for the sequential save queue to completely empty out
     if (isSaving) {
@@ -541,6 +554,10 @@ async function closeManageBoatModal() {
             window.executeDailySearch(window.activeDailySearchQuery);
         }
     }
+
+    // Re-schedule grid render after close so the daily grid updates correctly
+    // without the manifest modal interfering.
+    if (typeof mergeAndRender === 'function') mergeAndRender();
 }
 
 
@@ -599,7 +616,10 @@ function renderGroups(skipAutoSave = false) {
 }
 
 function _renderGroupsCore(skipAutoSave = false) {
+    // Safety guard: if the modal was closed before this RAF fired, bail out silently.
+    if (!activeBoatItem) return;
     const container = document.getElementById('groups-container');
+    if (!container) return;
     container.innerHTML = '';
     
     // --- INJECT LINK ACTION BAR ---
