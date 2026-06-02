@@ -112,6 +112,11 @@ function getActiveMonthKeys(date) {
 /**
  * Compiles dynamic monthly data segments into global visorTrips and internalTrips arrays.
  */
+
+// Debounce timer so that rapid Firestore snapshot bursts (up to 3 listeners firing
+// within ~50ms on load or save) coalesce into a single expensive UI repaint.
+let _compileAndRenderTimer = null;
+
 function compileAndMerge() {
     const allVisor = [];
     for (const list of visorMonthData.values()) {
@@ -131,8 +136,13 @@ function compileAndMerge() {
     }
     window.internalTrips = internalTrips = allInternal;
 
-    mergeAndRender();
+    // Always update the loading indicator immediately (cheap, no DOM repaint)
     updateSalidasLoadingState();
+
+    // Debounce the expensive full UI repaint to 60ms.
+    // If 3 listeners all fire within that window, only one render executes.
+    clearTimeout(_compileAndRenderTimer);
+    _compileAndRenderTimer = setTimeout(mergeAndRender, 60);
 }
 
 /**
@@ -553,12 +563,22 @@ window.mergeAndRender = function mergeAndRender() {
 
     // 3. Combine both arrays, resolve full CRM names dynamically, and format ALL names to Title Case
     mergedAllocations = [...visibleVisorTrips, ...alignedInternalTrips];
+
+    // Build a Map for O(1) DNI → profile lookup instead of O(n) Array.find per guest.
+    // For a trip with 22 guests and a 500-entry customer DB that's 11,000 comparisons → 22.
+    let customerMap = null;
+    if (window.customerDatabase && window.customerDatabase.length > 0) {
+        customerMap = new Map();
+        window.customerDatabase.forEach(c => {
+            if (c.dni) customerMap.set(window.normalizeDni(c.dni), c);
+        });
+    }
+
     mergedAllocations.forEach(trip => {
         const resolveGuestName = (g) => {
             if (g.nombre) g.nombre = fixNameCaps(g.nombre);
-            if (g.dni && window.customerDatabase) {
-                const normDni = window.normalizeDni(g.dni);
-                const profile = window.customerDatabase.find(c => window.normalizeDni(c.dni) === normDni);
+            if (g.dni && customerMap) {
+                const profile = customerMap.get(window.normalizeDni(g.dni));
                 if (profile) {
                     const dbFullName = window.getFullName(profile);
                     if (dbFullName) {
@@ -664,19 +684,19 @@ window.mergeAndRender = function mergeAndRender() {
     }
 }
 
-    // 4. Check if the UI rendering functions exist, then paint both grids
-    if (typeof renderDailyGrid === 'function') {
-        renderDailyGrid();
-    }
-    if (typeof renderMonthlyCalendar === 'function') {
-        renderMonthlyCalendar();
-    }
-
-    // Auto-refresh the TV board if it is currently open
-    const tvModal = document.getElementById('tv-view-modal');
-    if (tvModal && !tvModal.classList.contains('hidden') && typeof openTVView === 'function') {
-        openTVView();
-    }
+    // 4. RAF-deferred grid rendering: cancels any pending frame before scheduling a new one.
+    // If mergeAndRender is called again before the frame fires, only the latest render runs.
+    if (window._gridRenderRAF) cancelAnimationFrame(window._gridRenderRAF);
+    window._gridRenderRAF = requestAnimationFrame(() => {
+        window._gridRenderRAF = null;
+        if (typeof renderDailyGrid === 'function') renderDailyGrid();
+        if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
+        // Auto-refresh the TV board if it is currently open
+        const tvModal = document.getElementById('tv-view-modal');
+        if (tvModal && !tvModal.classList.contains('hidden') && typeof openTVView === 'function') {
+            openTVView();
+        }
+    });
 }
 
 /**

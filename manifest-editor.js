@@ -6,6 +6,11 @@ window.hasPendingSave = false;
 window.hasPendingWrites = false;
 window.lastLocalEditTime = 0;
 
+// RAF-debounce state for renderGroups.
+// Coalesces rapid consecutive calls into a single DOM update per animation frame.
+let _renderGroupsRAF = null;
+let _renderGroupsSavePending = false;
+
 // The Auto-Save Engine: Debounced to 1000ms for lightning-fast UI response times and reduced network congestion
 window.triggerAutoSave = function() {
     window.lastLocalEditTime = Date.now();
@@ -577,7 +582,23 @@ window.handleDiverMove = function(event, targetGroupIdx, targetGuestIdx = -1) {
     renderGroups();
 };
 
+// RAF-debounced public entry point for group rendering.
+// Any calls fired within the same animation frame are coalesced: only the last one
+// runs, saving expensive innerHTML rebuilds when a Firestore snapshot and a
+// background fetch both land at the same moment (very common with 22 guests).
 function renderGroups(skipAutoSave = false) {
+    // If any call in this batch needs a save, the whole batch will save
+    if (!skipAutoSave) _renderGroupsSavePending = true;
+    if (_renderGroupsRAF) cancelAnimationFrame(_renderGroupsRAF);
+    _renderGroupsRAF = requestAnimationFrame(() => {
+        _renderGroupsRAF = null;
+        const effectiveSkipSave = !_renderGroupsSavePending;
+        _renderGroupsSavePending = false;
+        _renderGroupsCore(effectiveSkipSave);
+    });
+}
+
+function _renderGroupsCore(skipAutoSave = false) {
     const container = document.getElementById('groups-container');
     container.innerHTML = '';
     

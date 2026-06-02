@@ -1100,7 +1100,7 @@ window.executeDeleteCustomer = function () {
     })();
 };
 
-window.updateCustomerOutstandingDebt = async function(dni) {
+window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite = false) {
     if (!dni) return 0;
     try {
         const snapshot = await db.collection('mangamar_customers').doc(dni).collection('history').get();
@@ -1212,8 +1212,13 @@ window.updateCustomerOutstandingDebt = async function(dni) {
         const index = customerDatabase.findIndex(c => c.dni === dni);
         if (index !== -1) {
             customerDatabase[index].outstandingDebt = totalAPagar;
-            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
-            await db.collection('mangamar_directory').doc('master_list').update({ clients: cleanDatabase });
+            // Only write master_list here when called individually.
+            // updateMultipleCustomersOutstandingDebt passes skipMasterListWrite=true
+            // and does a single batch write at the end (22 writes → 1).
+            if (!skipMasterListWrite) {
+                const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+                await db.collection('mangamar_directory').doc('master_list').update({ clients: cleanDatabase });
+            }
             await db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true });
         }
         return totalAPagar;
@@ -1226,9 +1231,23 @@ window.updateCustomerOutstandingDebt = async function(dni) {
 window.updateMultipleCustomersOutstandingDebt = async function(dnis) {
     if (!dnis || dnis.length === 0) return;
     const uniqueDnis = Array.from(new Set(dnis)).filter(Boolean);
+
+    // Process each DNI sequentially but skip the master_list write per-iteration.
+    // This reduces N master_list writes down to 1 at the end.
     for (const dni of uniqueDnis) {
-        await window.updateCustomerOutstandingDebt(dni);
+        await window.updateCustomerOutstandingDebt(dni, true /* skipMasterListWrite */);
     }
+
+    // Single master_list write for all updated customers at once
+    if (uniqueDnis.length > 0) {
+        try {
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            await db.collection('mangamar_directory').doc('master_list').update({ clients: cleanDatabase });
+        } catch (e) {
+            console.error('[updateMultipleCustomersOutstandingDebt] master_list write failed:', e);
+        }
+    }
+
     if (typeof renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
         renderGroups(true);
     }

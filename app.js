@@ -632,26 +632,39 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                                 if (debtVal !== undefined) {
                                     // If this guest's trip is paid but Firestore shows debt > 0,
                                     // the stored value is stale (e.g. from before a payment was fixed).
-                                    // Recalculate from scratch so the Euro badge appears correctly.
-                                    if (debtVal > 0 && g.paymentStatus === 'paid' && typeof window.updateCustomerOutstandingDebt === 'function') {
-                                        window.updateCustomerOutstandingDebt(g.dni).then(calculatedDebt => {
-                                            customerInfo.outstandingDebt = calculatedDebt;
-                                            if (window.mergeAndRender) window.mergeAndRender();
-                                        });
+                                    // Queue for batched recalculation — avoids 22 simultaneous
+                                    // history-collection reads + Firestore writes when a large trip loads.
+                                    if (debtVal > 0 && g.paymentStatus === 'paid') {
+                                        if (!window._pendingDebtRecalcDnis) window._pendingDebtRecalcDnis = new Set();
+                                        window._pendingDebtRecalcDnis.add(g.dni);
+                                        clearTimeout(window._debtRecalcTimer);
+                                        window._debtRecalcTimer = setTimeout(() => {
+                                            const dnis = Array.from(window._pendingDebtRecalcDnis);
+                                            window._pendingDebtRecalcDnis.clear();
+                                            window._debtRecalcTimer = null;
+                                            // updateMultipleCustomersOutstandingDebt runs them sequentially
+                                            // (one history fetch at a time) and does a single master_list write.
+                                            if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
+                                                window.updateMultipleCustomersOutstandingDebt(dnis);
+                                            }
+                                        }, 500);
                                     } else {
                                         customerInfo.outstandingDebt = debtVal;
                                         if (window.mergeAndRender) window.mergeAndRender();
                                     }
                                 } else {
-                                    // Legacy client without computed debt. Recalculate dynamically.
-                                    if (typeof window.updateCustomerOutstandingDebt === 'function') {
-                                        window.updateCustomerOutstandingDebt(g.dni).then(calculatedDebt => {
-                                            customerInfo.outstandingDebt = calculatedDebt;
-                                            if (window.mergeAndRender) window.mergeAndRender();
-                                        });
-                                    } else {
-                                        customerInfo.outstandingDebt = 999;
-                                    }
+                                    // Legacy client without computed debt — also batch.
+                                    if (!window._pendingDebtRecalcDnis) window._pendingDebtRecalcDnis = new Set();
+                                    window._pendingDebtRecalcDnis.add(g.dni);
+                                    clearTimeout(window._debtRecalcTimer);
+                                    window._debtRecalcTimer = setTimeout(() => {
+                                        const dnis = Array.from(window._pendingDebtRecalcDnis);
+                                        window._pendingDebtRecalcDnis.clear();
+                                        window._debtRecalcTimer = null;
+                                        if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
+                                            window.updateMultipleCustomersOutstandingDebt(dnis);
+                                        }
+                                    }, 500);
                                 }
                             } else {
                                 customerInfo.outstandingDebt = 999;
