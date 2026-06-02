@@ -123,7 +123,7 @@ window.calculateDivePrice = calculateDivePrice;
 
 window.activePaymentContext = null;
 
-window.syncPaymentToManifest = async function(dni, tripId, paymentStatus, paymentMethod = '', paidBy = '') {
+window.syncPaymentToManifest = async function(dni, tripId, paymentStatus, paymentMethod = '', paidBy = '', deposit = 0, depositMethod = '') {
     try {
         const trip = (window.mergedAllocations || []).find(t => t.id === tripId);
         if (!trip) return;
@@ -137,6 +137,10 @@ window.syncPaymentToManifest = async function(dni, tripId, paymentStatus, paymen
                         gst.paymentStatus = 'paid';
                         gst.paymentMethod = paymentMethod;
                         gst.paidBy = paidBy;
+                        if (deposit > 0) {
+                            gst.localDeposit = deposit;
+                            gst.localDepositMethod = depositMethod;
+                        }
                     } else {
                         delete gst.paymentStatus;
                         delete gst.paymentMethod;
@@ -160,6 +164,10 @@ window.syncPaymentToManifest = async function(dni, tripId, paymentStatus, paymen
                             gst.paymentStatus = 'paid';
                             gst.paymentMethod = paymentMethod;
                             gst.paidBy = paidBy;
+                            if (deposit > 0) {
+                                gst.localDeposit = deposit;
+                                gst.localDepositMethod = depositMethod;
+                            }
                         } else {
                             delete gst.paymentStatus;
                             delete gst.paymentMethod;
@@ -330,6 +338,10 @@ window.executePaymentGateway = async function() {
                         gst.paymentStatus = 'paid';
                         gst.paymentMethod = method;
                         gst.paidBy = collector;
+                        if (ctx.originalDeposit > 0) {
+                            gst.localDeposit = ctx.originalDeposit;
+                            gst.localDepositMethod = ctx.originalDepositMethod || 'Efectivo';
+                        }
                     }
                 });
             });
@@ -443,7 +455,7 @@ window.executePaymentGateway = async function() {
                     const diveObj = window.activeFichaDives ? window.activeFichaDives.find(d => d.doc.id === docId) : null;
                     const isPagoItem = diveObj && diveObj.data && diveObj.data.type === 'pago';
                     if (!isPagoItem) {
-                        window.syncPaymentToManifest(ctx.dni, docId, 'paid', method, collector);
+                        window.syncPaymentToManifest(ctx.dni, docId, 'paid', method, collector, ctx.originalDeposit, ctx.originalDepositMethod);
                     }
                 });
             }

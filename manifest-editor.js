@@ -265,6 +265,15 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
                                 customerDatabase[index].outstandingDebt = outstandingDebt;
                             } else {
                                 delete customerDatabase[index].outstandingDebt;
+                                // Legacy client without computed debt. Recalculate dynamically.
+                                if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                                    window.updateCustomerOutstandingDebt(dni).then(calculatedDebt => {
+                                        if (window.activeTripPayments && window.activeTripPayments[dni]) {
+                                            window.activeTripPayments[dni].outstandingDebt = calculatedDebt;
+                                            renderGroups(true);
+                                        }
+                                    });
+                                }
                             }
                         }
                     }
@@ -865,8 +874,14 @@ function renderGroups(skipAutoSave = false) {
             if (guest.dni) {
                 const profile = customerDatabase.find(c => c.dni === guest.dni);
                 if (profile) {
-                    if (profile.deposit !== undefined) customerDeposit = profile.deposit;
-                    if (profile.depositContasimple !== undefined) depositContasimple = profile.depositContasimple;
+                    // Only overwrite with profile.deposit if the trip is not paid.
+                    // If the trip is paid, the profile's deposit has been cleared to 0, 
+                    // but we want to retain the localDeposit mention showing what was applied!
+                    const isPaid = (guest.paymentStatus === 'paid') || (window.activeTripPayments && window.activeTripPayments[guest.dni] && window.activeTripPayments[guest.dni].paymentStatus === 'paid');
+                    if (!isPaid) {
+                        if (profile.deposit !== undefined) customerDeposit = profile.deposit;
+                        if (profile.depositContasimple !== undefined) depositContasimple = profile.depositContasimple;
+                    }
                 }
             }
             

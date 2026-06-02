@@ -629,8 +629,22 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                         db.collection('mangamar_customers').doc(g.dni).get().then(snap => {
                             if (snap.exists) {
                                 const debtVal = snap.data().outstandingDebt;
-                                customerInfo.outstandingDebt = debtVal !== undefined ? debtVal : 999;
-                                if (window.mergeAndRender) window.mergeAndRender();
+                                if (debtVal !== undefined) {
+                                    customerInfo.outstandingDebt = debtVal;
+                                    if (window.mergeAndRender) window.mergeAndRender();
+                                } else {
+                                    // Legacy client without computed debt. Recalculate dynamically.
+                                    if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                                        window.updateCustomerOutstandingDebt(g.dni).then(calculatedDebt => {
+                                            customerInfo.outstandingDebt = calculatedDebt;
+                                            if (window.mergeAndRender) window.mergeAndRender();
+                                        });
+                                    } else {
+                                        customerInfo.outstandingDebt = 999;
+                                    }
+                                }
+                            } else {
+                                customerInfo.outstandingDebt = 999;
                             }
                             window._fetchingDnis.delete(g.dni);
                         }).catch(() => window._fetchingDnis.delete(g.dni));
