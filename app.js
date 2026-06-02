@@ -611,10 +611,10 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
             const cancelledClass = g.cancelled ? 'line-through text-slate-400/80 opacity-60' : 'text-white group-hover:text-blue-300 hover:text-blue-400';
 
-            // Paid indicator (green euro coin badge)
+            // Paid indicator (gold euro coin badge)
             const isPaid = g.paymentStatus === 'paid';
             const euroBadge = (isPaid && !g.cancelled) 
-                ? `<span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-emerald-500 text-white font-black text-[9px] ml-1 shadow-sm shrink-0 select-none" style="vertical-align: middle; line-height: 1;" title="Liquidado (Pagado)">€</span>` 
+                ? `<span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white font-black text-[9px] ml-1 shadow-sm shrink-0 select-none" style="vertical-align: middle; line-height: 1; background: linear-gradient(135deg, #f59e0b, #d97706);" title="Liquidado (Pagado)">€</span>` 
                 : '';
 
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
