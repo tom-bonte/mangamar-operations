@@ -612,7 +612,33 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             const cancelledClass = g.cancelled ? 'line-through text-slate-400/80 opacity-60' : 'text-white group-hover:text-blue-300 hover:text-blue-400';
 
             // Paid indicator (gold euro coin badge)
-            const isPaid = g.paymentStatus === 'paid';
+            let outstandingDebt = undefined;
+            const customerInfo = (window.customerDatabase || []).find(c => c.dni === g.dni);
+            if (customerInfo) {
+                outstandingDebt = customerInfo.outstandingDebt;
+                
+                const now = Date.now();
+                const shouldFetch = (outstandingDebt === undefined) || 
+                                    (g.paymentStatus === 'paid' && outstandingDebt > 0 && (!customerInfo.lastDebtFetchTime || now - customerInfo.lastDebtFetchTime > 8000));
+                
+                if (shouldFetch && !g.cancelled) {
+                    if (!window._fetchingDnis) window._fetchingDnis = new Set();
+                    if (!window._fetchingDnis.has(g.dni)) {
+                        window._fetchingDnis.add(g.dni);
+                        customerInfo.lastDebtFetchTime = now;
+                        db.collection('mangamar_customers').doc(g.dni).get().then(snap => {
+                            if (snap.exists) {
+                                const debtVal = snap.data().outstandingDebt;
+                                customerInfo.outstandingDebt = debtVal !== undefined ? debtVal : 999;
+                                if (window.mergeAndRender) window.mergeAndRender();
+                            }
+                            window._fetchingDnis.delete(g.dni);
+                        }).catch(() => window._fetchingDnis.delete(g.dni));
+                    }
+                }
+            }
+
+            const isPaid = (g.paymentStatus === 'paid') && (outstandingDebt === 0 || outstandingDebt === undefined);
             const euroBadge = (isPaid && !g.cancelled) 
                 ? `<span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full ml-1 shadow-sm shrink-0 select-none" style="vertical-align: middle; background: linear-gradient(135deg, #ffe066, #d4af37);" title="Liquidado (Pagado)"><svg class="w-2.5 h-2.5 shrink-0" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 2.5C8 2.1 7.3 1.8 6.5 1.8C4.3 1.8 2.5 3.2 2.5 5C2.5 6.8 4.3 8.2 6.5 8.2C7.3 8.2 8.0 7.9 8.5 7.5M1.5 4.2H6M1.5 5.8H6" stroke="black" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` 
                 : '';

@@ -234,27 +234,51 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     activeBoatItem.groups.forEach(g => { if(g.guests) allGuests.push(...g.guests); });
     activeBoatItem.lastSavedDnis = allGuests.map(g => g.dni).filter(Boolean);
 
-    // Fetch payment status and collector for guests in the background (as a fallback/sync)
+    // Fetch payment status, collector, and overall customer outstandingDebt for guests in the background (as a fallback/sync)
     window.activeTripPayments = {};
     const dnis = allGuests.map(g => g.dni).filter(Boolean);
     if (dnis.length > 0) {
-        const promises = dnis.map(dni => db.collection('mangamar_customers').doc(dni).collection('history').doc(activeBoatItem.id).get());
-        Promise.all(promises).then(snaps => {
+        const promises = dnis.map(async (dni) => {
+            try {
+                const [tripHistSnap, customerSnap] = await Promise.all([
+                    db.collection('mangamar_customers').doc(dni).collection('history').doc(activeBoatItem.id).get(),
+                    db.collection('mangamar_customers').doc(dni).get()
+                ]);
+                return { dni, tripHistSnap, customerSnap };
+            } catch (e) {
+                console.error(`Error loading payment and customer data for ${dni}:`, e);
+                return { dni, tripHistSnap: null, customerSnap: null };
+            }
+        });
+        Promise.all(promises).then(results => {
             let needsReRender = false;
-            snaps.forEach((snap, idx) => {
-                const targetDni = dnis[idx];
-                if (snap.exists) {
-                    const data = snap.data();
-                    window.activeTripPayments[targetDni] = {
+            results.forEach(({ dni, tripHistSnap, customerSnap }) => {
+                let outstandingDebt = undefined;
+                if (customerSnap && customerSnap.exists) {
+                    const customerDocData = customerSnap.data();
+                    outstandingDebt = customerDocData.outstandingDebt;
+                    // Update in-memory customerDatabase to keep it perfectly updated
+                    if (typeof customerDatabase !== 'undefined' && Array.isArray(customerDatabase)) {
+                        const index = customerDatabase.findIndex(c => c.dni === dni);
+                        if (index !== -1) {
+                            customerDatabase[index].outstandingDebt = outstandingDebt;
+                        }
+                    }
+                }
+                
+                if (tripHistSnap && tripHistSnap.exists) {
+                    const data = tripHistSnap.data();
+                    window.activeTripPayments[dni] = {
                         paymentStatus: data.paymentStatus || 'pending',
                         paymentMethod: data.paymentMethod || '',
-                        paidBy: data.paidBy || ''
+                        paidBy: data.paidBy || '',
+                        outstandingDebt: outstandingDebt
                     };
                     
                     // Sync into in-memory activeBoatItem
                     activeBoatItem.groups.forEach(g => {
                         (g.guests || []).forEach(gst => {
-                            if (gst.dni === targetDni) {
+                            if (gst.dni === dni) {
                                 if (data.paymentStatus === 'paid' && gst.paymentStatus !== 'paid') {
                                     gst.paymentStatus = 'paid';
                                     gst.paymentMethod = data.paymentMethod || '';
@@ -265,10 +289,11 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
                         });
                     });
                 } else {
-                    window.activeTripPayments[targetDni] = {
+                    window.activeTripPayments[dni] = {
                         paymentStatus: 'pending',
                         paymentMethod: '',
-                        paidBy: ''
+                        paidBy: '',
+                        outstandingDebt: outstandingDebt
                     };
                 }
             });
@@ -893,7 +918,14 @@ function renderGroups(skipAutoSave = false) {
                     <td class="p-3 text-center align-middle whitespace-nowrap ${window.isLoggedIn ? '' : 'hidden'}">
                         ${guest.dni ? (() => {
                             const payInfo = (window.activeTripPayments && window.activeTripPayments[guest.dni]) ? window.activeTripPayments[guest.dni] : { paymentStatus: guest.paymentStatus || 'pending', paymentMethod: guest.paymentMethod || '', paidBy: guest.paidBy || '' };
-                            const isPaid = payInfo.paymentStatus === 'paid';
+                            
+                            let outstandingDebt = payInfo.outstandingDebt;
+                            if (outstandingDebt === undefined) {
+                                const customerInfo = (window.customerDatabase || []).find(c => c.dni === guest.dni);
+                                if (customerInfo) outstandingDebt = customerInfo.outstandingDebt;
+                            }
+                            
+                            const isPaid = (payInfo.paymentStatus === 'paid') && (outstandingDebt === 0 || outstandingDebt === undefined);
                             const btnClass = 'text-slate-300 hover:text-emerald-500 transition-colors mr-2';
                             const btnTitle = isPaid 
                                 ? `Cobrado con ${payInfo.paymentMethod || 'Tarjeta'} por ${payInfo.paidBy || 'N/A'}` 
@@ -2821,7 +2853,13 @@ async function saveBoatData() {
                     }, { merge: true });
                     historyWrites++;
                 });
-                if (historyWrites > 0) await historyBatch.commit();
+                if (historyWrites > 0) {
+                    await historyBatch.commit();
+                    const affectedDnis = [...removedDnis, ...validGuests.map(g => g.dni)];
+                    if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
+                        window.updateMultipleCustomersOutstandingDebt(affectedDnis);
+                    }
+                }
             } catch (err) {
                 console.error("Background history sync failed:", err);
             }

@@ -720,6 +720,9 @@ window.updateGuestDeposit = async function (dni, amount, groupIndex, guestIndex)
             (async () => {
                 try {
                     await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                    if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                        await window.updateCustomerOutstandingDebt(dni);
+                    }
                     // if (val > 0) showToast(`Depósito de ${val}€ (${method}) guardado.`);
                 } catch (e) {
                     console.error(e);

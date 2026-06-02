@@ -134,6 +134,11 @@ window.deleteHistoryItem = async function (dni, boatId, monthKey, itemType = 'bu
             // Wait for all database updates in the background
             await Promise.all([deleteHistoryPromise, revertPromise, ripPromise]);
 
+            // Recalculate outstanding debt in the background
+            if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                window.updateCustomerOutstandingDebt(dni);
+            }
+
             // --- GARBAGE COLLECTOR TRIGGER ---
             if (window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(dni);
 
@@ -569,6 +574,11 @@ window.historialBulkDelete = async function () {
                 ...ramUpdatesPromises,
                 ...directUpdatesPromises
             ]);
+
+            // Recalculate outstanding debt in the background
+            if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                window.updateCustomerOutstandingDebt(dni);
+            }
 
             if (window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(dni);
 

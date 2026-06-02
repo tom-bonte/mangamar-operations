@@ -456,6 +456,11 @@ window.executePaymentGateway = async function() {
                 }
             }
 
+            // Recalculate outstanding debt in the background
+            if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                await window.updateCustomerOutstandingDebt(ctx.dni);
+            }
+
         } catch (e) {
             console.error("Background payment sync failed:", e);
             showToast("⚠️ Conexión inestable. El pago se sincronizará cuando vuelva la red.");
@@ -508,6 +513,11 @@ window.togglePaymentStatus = async function (dni, boatId, currentStatus) {
 
                 await batch.commit();
                 showToast("Dato restaurado a Pendiente.");
+
+                // Recalculate outstanding debt in the background
+                if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                    window.updateCustomerOutstandingDebt(dni);
+                }
                 
                 // Sync all settled items back to manifest allocations in Firestore
                 const syncPromises = settledIds.map(id => 

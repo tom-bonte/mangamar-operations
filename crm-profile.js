@@ -778,6 +778,15 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
         
         document.getElementById('ficha-caja-total').innerText = totalAPagar.toFixed(2);
 
+        // Sync the recalculated totalAPagar to customer's outstandingDebt in RAM and Firestore
+        if (customerInfo.outstandingDebt !== totalAPagar) {
+            customerInfo.outstandingDebt = totalAPagar;
+            db.collection('mangamar_directory').doc('master_list').set({ clients: customerDatabase }, { merge: true })
+                .catch(e => console.error("Error background master_list outstandingDebt sync:", e));
+            db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true })
+                .catch(e => console.error("Error background customer doc outstandingDebt sync:", e));
+        }
+
         const discType = customerInfo.discountType || 'percent';
         window.activeDiscountType = discType;
         const discVal = customerInfo.discount || 0;
@@ -1088,4 +1097,140 @@ window.executeDeleteCustomer = function () {
             btn.disabled = false;
         }
     })();
+};
+
+window.updateCustomerOutstandingDebt = async function(dni) {
+    if (!dni) return 0;
+    try {
+        const snapshot = await db.collection('mangamar_customers').doc(dni).collection('history').get();
+        const customerInfo = customerDatabase.find(c => c.dni === dni) || { telefono: '', email: '', discount: 0 };
+        
+        let pendingTotal = 0;
+        let billedCourses = new Set();
+        let activeInsExpiry = null;
+        let docsArray = [];
+        snapshot.forEach(doc => docsArray.push(doc));
+        
+        docsArray.sort((a, b) => {
+            const dateA = (a.data().date || '') + ' ' + (a.data().time || '00:00');
+            const dateB = (b.data().date || '') + ' ' + (b.data().time || '00:00');
+            return dateA.localeCompare(dateB);
+        });
+
+        let safeDocs = [];
+        docsArray.forEach(item => {
+            let data = item.data();
+            let safeToRender = true;
+            if (item.id && !item.id.startsWith('temp_') && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio') {
+                let activeTrip = (window.mergedAllocations || []).find(t => t.id === item.id) || (window.internalTrips || []).find(t => t.id === item.id);
+                if (activeTrip) {
+                    const validTripsThatDay = (window.internalTrips || []).filter(t => t.date === data.date);
+                    let isGuestOnBoat = false;
+                    for (let t of validTripsThatDay) {
+                        if ((t.guests || []).some(g => (g.dni || '').trim().toLowerCase() === (dni || '').trim().toLowerCase() && !g.cancelled)) {
+                            isGuestOnBoat = true;
+                            break;
+                        }
+                    }
+                    if (!isGuestOnBoat) {
+                        safeToRender = false;
+                    }
+                }
+            }
+            if (safeToRender) {
+                safeDocs.push(item);
+            }
+        });
+
+        safeDocs.forEach(item => {
+            let data = item.data();
+            let p = window.calculateDivePrice(data);
+
+            if (data.course) {
+                let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
+                if (!billedCourses.has(baseCourse)) {
+                    p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+                    billedCourses.add(baseCourse);
+                } else {
+                    p.course = 0;
+                }
+                p.dive = 0;
+                p.tasa = 0;
+                if (data.rental === 'INC') p.rental = 0;
+                if (data.insurance === 'INC') p.insurance = 0;
+            }
+
+            let cleanIns = (data.insurance || 0).toString().replace(' ✔', '');
+            if (['1D', '1W', '1M', '1Y'].includes(cleanIns)) {
+                if (activeInsExpiry && data.date <= activeInsExpiry) {
+                    p.insurance = 0;
+                } else {
+                    let [y, m, d] = data.date.split('-').map(Number);
+                    let dateObj = new Date(y, m - 1, d);
+                    if (cleanIns === '1D') dateObj.setDate(dateObj.getDate() + 0);
+                    if (cleanIns === '1W') dateObj.setDate(dateObj.getDate() + 6);
+                    if (cleanIns === '1M') dateObj.setMonth(dateObj.getMonth() + 1);
+                    if (cleanIns === '1Y') dateObj.setFullYear(dateObj.getFullYear() + 1);
+                    activeInsExpiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+                }
+            } else if (cleanIns !== '0' && cleanIns !== 0) {
+                p.insurance = 0;
+            }
+
+            if (customerInfo.discount > 0 && customerInfo.discountType !== 'fixed' && !data.customPrice) {
+                p.dive = p.dive * (1 - (customerInfo.discount / 100));
+                if (p.course) p.course = p.course * (1 - (customerInfo.discount / 100));
+            }
+
+            p.total = p.dive + p.tasa + p.gas + p.rental + p.insurance + (p.course || 0) + (p.computer || 0) + (p.custom || 0);
+
+            if (data.customPrice !== undefined && data.customPrice !== null) {
+                p.total = parseFloat(data.customPrice) || 0;
+            }
+
+            let isPaid = data.paymentStatus === 'paid';
+            if (data.type === 'pago' && data.isPartialAbono) {
+                isPaid = false;
+            } else if (data.type === 'pago' && data.paymentStatus === 'pending') {
+                isPaid = false;
+            }
+
+            if (!isPaid) {
+                pendingTotal += p.total;
+            }
+        });
+
+        const deposit = customerInfo.deposit || 0;
+        let fixedDiscountAmount = 0;
+        if (customerInfo.discount > 0 && customerInfo.discountType === 'fixed') {
+            fixedDiscountAmount = customerInfo.discount;
+        }
+        let totalAPagar = Math.max(0, pendingTotal - deposit - fixedDiscountAmount);
+        totalAPagar = Math.round(totalAPagar * 100) / 100;
+
+        const index = customerDatabase.findIndex(c => c.dni === dni);
+        if (index !== -1) {
+            customerDatabase[index].outstandingDebt = totalAPagar;
+            await db.collection('mangamar_directory').doc('master_list').update({ clients: customerDatabase });
+            await db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true });
+        }
+        return totalAPagar;
+    } catch (e) {
+        console.error("Error updating customer outstanding debt:", e);
+        return 0;
+    }
+};
+
+window.updateMultipleCustomersOutstandingDebt = async function(dnis) {
+    if (!dnis || dnis.length === 0) return;
+    const uniqueDnis = Array.from(new Set(dnis)).filter(Boolean);
+    for (const dni of uniqueDnis) {
+        await window.updateCustomerOutstandingDebt(dni);
+    }
+    if (typeof renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
+        renderGroups(true);
+    }
+    if (typeof renderDailyGrid === 'function') {
+        renderDailyGrid();
+    }
 };
