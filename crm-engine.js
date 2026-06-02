@@ -719,7 +719,8 @@ window.updateGuestDeposit = async function (dni, amount, groupIndex, guestIndex)
             // Background Save
             (async () => {
                 try {
-                    await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                    const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+                    await db.collection("mangamar_directory").doc("master_list").update({ clients: cleanDatabase });
                     if (typeof window.updateCustomerOutstandingDebt === 'function') {
                         await window.updateCustomerOutstandingDebt(dni);
                     }

@@ -781,7 +781,8 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
         // Sync the recalculated totalAPagar to customer's outstandingDebt in RAM and Firestore
         if (customerInfo.outstandingDebt !== totalAPagar) {
             customerInfo.outstandingDebt = totalAPagar;
-            db.collection('mangamar_directory').doc('master_list').set({ clients: customerDatabase }, { merge: true })
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            db.collection('mangamar_directory').doc('master_list').set({ clients: cleanDatabase }, { merge: true })
                 .catch(e => console.error("Error background master_list outstandingDebt sync:", e));
             db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true })
                 .catch(e => console.error("Error background customer doc outstandingDebt sync:", e));
@@ -1211,7 +1212,8 @@ window.updateCustomerOutstandingDebt = async function(dni) {
         const index = customerDatabase.findIndex(c => c.dni === dni);
         if (index !== -1) {
             customerDatabase[index].outstandingDebt = totalAPagar;
-            await db.collection('mangamar_directory').doc('master_list').update({ clients: customerDatabase });
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            await db.collection('mangamar_directory').doc('master_list').update({ clients: cleanDatabase });
             await db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true });
         }
         return totalAPagar;

@@ -452,7 +452,8 @@ window.executePaymentGateway = async function() {
                 const custIndex = customerDatabase.findIndex(c => c.dni === ctx.dni);
                 if (custIndex !== -1) {
                     customerDatabase[custIndex].deposit = 0;
-                    await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                    const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+                    await db.collection("mangamar_directory").doc("master_list").update({ clients: cleanDatabase });
                 }
             }
 
@@ -889,7 +890,8 @@ window.updateCustomerDiscount = function (val) {
     // 3. Background Database Save
     (async () => {
         try {
-            await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            await db.collection("mangamar_directory").doc("master_list").update({ clients: cleanDatabase });
             await db.collection('mangamar_customers').doc(window.activeFichaDni).set({ 
                 discount: disc, 
                 discountType: discType 

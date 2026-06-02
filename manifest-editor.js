@@ -261,7 +261,11 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
                     if (typeof customerDatabase !== 'undefined' && Array.isArray(customerDatabase)) {
                         const index = customerDatabase.findIndex(c => c.dni === dni);
                         if (index !== -1) {
-                            customerDatabase[index].outstandingDebt = outstandingDebt;
+                            if (outstandingDebt !== undefined) {
+                                customerDatabase[index].outstandingDebt = outstandingDebt;
+                            } else {
+                                delete customerDatabase[index].outstandingDebt;
+                            }
                         }
                     }
                 }
