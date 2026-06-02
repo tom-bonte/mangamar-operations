@@ -187,7 +187,7 @@ window.emergencyRebuildHistory = async function() {
     window.internalTrips.forEach(trip => {
         if (!trip.guests) return;
         trip.guests.forEach(gst => {
-            if (!gst.dni) return;
+            if (!gst.dni || gst.cancelled) return;
             const ref = db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(trip.id);
             historyBatch.set(ref, {
                 date: trip.date,
@@ -246,7 +246,7 @@ setTimeout(() => {
             
             if (realTrip) {
                 // Trip is currently in RAM. Verify the guest is actually on the manifest.
-                const isActuallyOnBoat = (realTrip.guests || []).some(g => (g.dni || '').toLowerCase() === (dni || '').toLowerCase());
+                const isActuallyOnBoat = (realTrip.guests || []).some(g => (g.dni || '').toLowerCase() === (dni || '').toLowerCase() && !g.cancelled);
                 if (!isActuallyOnBoat) {
                     console.warn(`🧹 Auto-Pruning ghost bill: ${dni} is no longer on trip ${item.id}. Deleting...`);
                     db.collection('mangamar_customers').doc(dni).collection('history').doc(item.id).delete().catch(e => console.error(e));
@@ -327,7 +327,7 @@ setTimeout(() => {
                 let isGuestOnBoat = false;
                 
                 for (let t of validTripsThatDay) {
-                    if ((t.guests || []).some(g => (g.dni || '').trim().toLowerCase() === (dni || '').trim().toLowerCase())) {
+                    if ((t.guests || []).some(g => (g.dni || '').trim().toLowerCase() === (dni || '').trim().toLowerCase() && !g.cancelled)) {
                         isGuestOnBoat = true;
                         break;
                     }
@@ -395,7 +395,7 @@ setTimeout(() => {
                         }
                     } else {
                         // Exists internally. Verify guest list!
-                        const isActuallyOnBoat = (internalTrip.guests || []).some(g => (g.dni || '').toLowerCase() === (dni || '').toLowerCase());
+                        const isActuallyOnBoat = (internalTrip.guests || []).some(g => (g.dni || '').toLowerCase() === (dni || '').toLowerCase() && !g.cancelled);
                         if (!isActuallyOnBoat) shouldDelete = true;
                     }
 

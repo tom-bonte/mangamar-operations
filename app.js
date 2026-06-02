@@ -131,7 +131,7 @@ window.checkDniMatch = function(dni, normQuery) {
 window.calculateTotalPeopleOnBoat = function(trip) {
     if (!trip) return 0;
     const guests = trip.guests || [];
-    const guestCount = guests.length;
+    const guestCount = guests.filter(g => !g.cancelled).length;
     
     const staffSet = new Set();
     
@@ -397,7 +397,7 @@ function renderMonthlyCalendar() {
         let tripsHtml = '<div class="space-y-1 mt-2">';
         tripsToday.forEach(trip => {
             const siteColor = SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-200';
-            const guests = trip.guests ? trip.guests.length : 0;
+            const guests = trip.guests ? trip.guests.filter(g => !g.cancelled).length : 0;
             tripsHtml += `<div class="text-[10px] font-bold px-1.5 py-1 rounded border ${siteColor} flex justify-between items-center truncate"><span class="truncate pr-1">${trip.site}</span><span class="opacity-70 shrink-0">${guests} pax</span></div>`;
         });
         tripsHtml += '</div>';
@@ -555,7 +555,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     const col = document.createElement('div');
     col.setAttribute('data-trip-id', trip.id);
     const guests = trip.guests || [];
-    const guestCount = guests.length;
+    const guestCount = guests.filter(g => !g.cancelled).length;
     const siteColorConfig = SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-300';
     
     let hasVisorTag = (trip.isVisor && (!trip.isInternalTrip || trip.site === trip.originalVisorSite));
@@ -567,10 +567,14 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
         const guestsHtml = (group.guests || []).map(g => {
             const isNitrox = (g.gas || '').includes('EAN');
-            const gasColorClass = isNitrox ? 'text-green-400' : 'text-blue-300';
-            const gasColorHex = isNitrox ? '#4ade80' : '#93c5fd'; // Green for Nitrox, Blue for Aire
+            const gasColorClass = g.cancelled ? 'text-slate-500 line-through' : isNitrox ? 'text-green-400' : 'text-blue-300';
+            const gasColorHex = g.cancelled ? '#64748b' : isNitrox ? '#4ade80' : '#93c5fd'; // Slate for Cancelled, Green for Nitrox, Blue for Aire
             const gasShort = (g.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
-            const arrivedDot = g.arrived ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mr-1.5" title="Llegado"></span>` : '';
+            const arrivedDot = g.cancelled 
+                ? `<span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 mr-1.5" title="Cancelado"></span>` 
+                : g.arrived 
+                    ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mr-1.5" title="Llegado"></span>` 
+                    : '';
             
             let displayName = g.nombre;
             if (window.activeDailySearchQuery) {
@@ -605,11 +609,13 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                 mobileCourseHtml = `<span class="inline-block md:hidden text-[8.5px] font-black text-white rounded px-1.5 py-0.5 ml-1.5 uppercase tracking-wide shrink-0 leading-none shadow-sm" style="background-color: #f97316 !important; border-color: #ea580c !important; color: #ffffff !important;">${courseText}</span>`;
             }
 
+            const cancelledClass = g.cancelled ? 'line-through text-slate-400/80 opacity-60' : 'text-white group-hover:text-blue-300 hover:text-blue-400';
+
             return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
                         <div class="flex items-center min-w-0 flex-1">
                             ${arrivedDot}
                             <button onclick="if(!window.isLoggedIn || window.isStaffLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
-                                    class="block truncate flex-1 min-w-0 pr-2 font-bold text-white group-hover:text-blue-300 hover:text-blue-400 focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock">
+                                    class="block truncate flex-1 min-w-0 pr-2 font-bold focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock ${cancelledClass}">
                                 ${displayName}
                             </button>
                             ${mobileCourseHtml}
@@ -819,7 +825,7 @@ window.handleDrop = async function(event, targetBoat, targetTime) {
         let historyWrites = 0;
         if (updatedTrip.guests) {
             updatedTrip.guests.forEach(gst => {
-                if (gst.dni) {
+                if (gst.dni && !gst.cancelled) {
                     const historyRef = db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(tripId);
                     historyBatch.set(historyRef, {
                         date: updatedTrip.date || '',

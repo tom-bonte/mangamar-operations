@@ -457,7 +457,7 @@ async function closeManageBoatModal() {
 
 
 function updateModalSubtitle() {
-    let total = 0; activeBoatItem.groups.forEach(g => total += g.guests.length);
+    let total = 0; activeBoatItem.groups.forEach(g => total += g.guests.filter(guest => !guest.cancelled).length);
     let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.plazas) || parseInt(activeBoatItem.pax) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
     let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : `${capacityNum} Plazas Ocupadas`;
     const totalPeople = typeof window.calculateTotalPeopleOnBoat === 'function' ? window.calculateTotalPeopleOnBoat(activeBoatItem) : total;
@@ -620,11 +620,17 @@ function renderGroups(skipAutoSave = false) {
             } else {
                 let manualDot = guest.isManual ? `<button onclick="activateRelink(${groupIndex}, ${guestIndex})" title="Cliente Manual - Click para enlazar a la Base de Datos" class="w-2.5 h-2.5 rounded-full bg-red-500 hover:bg-red-700 animate-pulse mr-2 inline-block shrink-0 shadow-sm"></button>` : '';
                 
-                // Arrived indicator circle
-                const arrivedClass = guest.arrived
-                    ? 'bg-emerald-500 border-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.25)] shadow-emerald-200'
-                    : 'bg-white border-slate-300 hover:border-emerald-400 hover:shadow-[0_0_0_2px_rgba(16,185,129,0.15)]';
-                const arrivedTitle = guest.arrived ? 'Llegado ✔ — Click para desmarcar' : 'Marcar como llegado';
+                // Arrived indicator circle (3-state: white/default, green/arrived, red/cancelled)
+                const arrivedClass = guest.cancelled
+                    ? 'bg-red-500 border-red-600 shadow-[0_0_0_3px_rgba(239,68,68,0.25)] shadow-red-200'
+                    : guest.arrived
+                        ? 'bg-emerald-500 border-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.25)] shadow-emerald-200'
+                        : 'bg-white border-slate-300 hover:border-emerald-400 hover:shadow-[0_0_0_2px_rgba(16,185,129,0.15)]';
+                const arrivedTitle = guest.cancelled 
+                    ? 'Cancelado — Click para desmarcar' 
+                    : guest.arrived 
+                        ? 'Llegado ✔ — Click para cancelar' 
+                        : 'Marcar como llegado';
                 const arrivedDot = `<button id="btn-arrived-${groupIndex}-${guestIndex}" onclick="window.toggleArrived(${groupIndex}, ${guestIndex})" title="${arrivedTitle}" class="w-5 h-5 rounded-full border-2 transition-all duration-200 shrink-0 mr-2 ${arrivedClass}"></button>`;
                 
                 nameHtml = `<div class="flex items-center">${manualDot}${arrivedDot}<span class="truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="copyData('${guest.nombre}', 'Nombre')" title="Click para copiar">${guest.nombre}</span></div>`;
@@ -812,7 +818,7 @@ function renderGroups(skipAutoSave = false) {
                     ondragover="event.preventDefault(); this.classList.add('bg-blue-100')"
                     ondragleave="this.classList.remove('bg-blue-100')"
                     ondrop="event.preventDefault(); this.classList.remove('bg-blue-100'); handleDiverMove(event, ${groupIndex}, ${guestIndex})"
-                    class="border-b border-slate-100 transition-colors h-12 ${window.isLoggedIn ? 'cursor-move' : 'cursor-default'} ${isSelectedForGroup ? 'bg-blue-50/40' : guest.arrived ? 'bg-emerald-50/40' : 'hover:bg-slate-50'}">
+                    class="border-b border-slate-100 transition-colors h-12 ${window.isLoggedIn ? 'cursor-move' : 'cursor-default'} ${isSelectedForGroup ? 'bg-blue-50/40' : guest.cancelled ? 'bg-red-50/40' : guest.arrived ? 'bg-emerald-50/40' : 'hover:bg-slate-50'}">
                     <td class="p-3 text-center align-middle">${tagHtml}</td>
                     <td class="p-3 text-sm font-bold text-slate-800 align-middle">${nameHtml}</td>
                     <td class="p-3 text-center align-middle">${titHtml}</td>
@@ -1093,14 +1099,28 @@ window.toggleBono = function(groupIndex, guestIndex) {
 
 window.toggleArrived = function(groupIndex, guestIndex) {
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
-    guest.arrived = !guest.arrived;
+    
+    // Cycle: White/Default -> Green/Arrived -> Red/Cancelled -> White/Default
+    if (!guest.arrived && !guest.cancelled) {
+        guest.arrived = true;
+        guest.cancelled = false;
+    } else if (guest.arrived) {
+        guest.arrived = false;
+        guest.cancelled = true;
+    } else {
+        guest.arrived = false;
+        guest.cancelled = false;
+    }
 
     // Targeted DOM update — no full re-render needed
     const btn = document.getElementById(`btn-arrived-${groupIndex}-${guestIndex}`);
     if (btn) {
-        if (guest.arrived) {
-            btn.className = `w-5 h-5 rounded-full border-2 transition-all duration-200 shrink-0 mr-2 bg-emerald-500 border-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.25)]`;
-            btn.title = 'Llegado ✔ — Click para desmarcar';
+        if (guest.cancelled) {
+            btn.className = `w-5 h-5 rounded-full border-2 transition-all duration-200 shrink-0 mr-2 bg-red-500 border-red-600 shadow-[0_0_0_3px_rgba(239,68,68,0.25)] shadow-red-200`;
+            btn.title = 'Cancelado — Click para desmarcar';
+        } else if (guest.arrived) {
+            btn.className = `w-5 h-5 rounded-full border-2 transition-all duration-200 shrink-0 mr-2 bg-emerald-500 border-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.25)] shadow-emerald-200`;
+            btn.title = 'Llegado ✔ — Click para cancelar';
         } else {
             btn.className = `w-5 h-5 rounded-full border-2 transition-all duration-200 shrink-0 mr-2 bg-white border-slate-300 hover:border-emerald-400 hover:shadow-[0_0_0_2px_rgba(16,185,129,0.15)]`;
             btn.title = 'Marcar como llegado';
@@ -1110,14 +1130,20 @@ window.toggleArrived = function(groupIndex, guestIndex) {
     // Also update the row background for a nice visual cue
     const row = document.getElementById(`guest-row-${groupIndex}-${guestIndex}`);
     if (row) {
-        if (guest.arrived) {
+        if (guest.cancelled) {
+            row.classList.add('bg-red-50/40');
+            row.classList.remove('bg-emerald-50/40', 'hover:bg-slate-50');
+        } else if (guest.arrived) {
             row.classList.add('bg-emerald-50/40');
-            row.classList.remove('hover:bg-slate-50');
+            row.classList.remove('bg-red-50/40', 'hover:bg-slate-50');
         } else {
-            row.classList.remove('bg-emerald-50/40');
+            row.classList.remove('bg-emerald-50/40', 'bg-red-50/40');
             row.classList.add('hover:bg-slate-50');
         }
     }
+
+    // Update modal subtitle dynamically to reflect new counts
+    updateModalSubtitle();
 
     triggerInstantSave();
 };
@@ -1874,7 +1900,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                 
                 Object.keys(updates).forEach(allocationKey => {
                     const clonedTrip = updates[allocationKey];
-                    const linkedGuests = clonedTrip.guests.filter(g => g.dni === data.dni);
+                    const linkedGuests = clonedTrip.guests.filter(g => g.dni === data.dni && !g.cancelled);
                     linkedGuests.forEach(g => {
                         const historyRef = db.collection('mangamar_customers').doc(data.dni).collection('history').doc(clonedTrip.id);
                         historyBatch.set(historyRef, {
@@ -2496,7 +2522,7 @@ async function saveBoatData() {
     // 🚨 CRITICAL TIMING FIX: Use synchronous in-memory snapshot to prevent network race conditions!
     // Never rely on mergedAllocations here, as onSnapshot delays can cause it to be stale during rapid additions/removals.
     const originalDnis = activeBoatItem.lastSavedDnis || [];
-    const currentDnis = flatGuests.map(g => g.dni).filter(Boolean);
+    const currentDnis = flatGuests.filter(g => !g.cancelled).map(g => g.dni).filter(Boolean);
     const removedDnis = originalDnis.filter(dni => !currentDnis.includes(dni));
 
     // 🚨 CRITICAL ASYNC ISOLATION: Snapshot the active trip properties synchronously.
@@ -2612,7 +2638,7 @@ async function saveBoatData() {
                 // --- HISTORY SYNC: also update those guests' history docs to match the propagated equipment ---
                 clonedTrip.groups?.forEach(g => {
                     g.guests?.forEach(gst => {
-                        if (gst.dni) {
+                        if (gst.dni && !gst.cancelled) {
                             const histRef = db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(trip.id);
                             histRef.update({
                                 gas: gst.gas || '15L Aire',
@@ -2709,7 +2735,7 @@ async function saveBoatData() {
                 });
 
                 // B. Fetch existing network history profiles to ensure we don't accidentally overwrite payment states via autosave
-                const validGuests = flatGuests.filter(g => g.dni);
+                const validGuests = flatGuests.filter(g => g.dni && !g.cancelled);
                 const checkPromises = validGuests.map(gst => db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(targetTripId).get());
                 const historicSnaps = await Promise.all(checkPromises);
                 

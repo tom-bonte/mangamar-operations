@@ -64,14 +64,14 @@ window._buildTVContent = function() {
 
     // Helper: count ONLY from groups (prevents double-counting Visor flat list + groups)
     const countGuests = trip => {
-        const fromGroups = (trip.groups || []).reduce((sum, g) => sum + (g.guests || []).length, 0);
-        return fromGroups > 0 ? fromGroups : (trip.guests || []).length;
+        const fromGroups = (trip.groups || []).reduce((sum, g) => sum + (g.guests || []).filter(guest => !guest.cancelled).length, 0);
+        return fromGroups > 0 ? fromGroups : (trip.guests || []).filter(guest => !guest.cancelled).length;
     };
 
     // Helper: does this trip have any real content to show?
     const tripHasContent = trip => {
         if (!trip) return false;
-        return (trip.groups || []).some(g => (g.guests || []).length > 0 || g.guide || g.apoyo);
+        return (trip.groups || []).some(g => (g.guests || []).some(guest => !guest.cancelled) || g.guide || g.apoyo);
     };
 
     // Helper: find the immediate previous trip with content on the same day for a boat
@@ -138,6 +138,7 @@ window._buildTVContent = function() {
                 if (prevTrip) {
                     (prevTrip.groups || []).forEach(g => {
                         (g.guests || []).forEach(guest => {
+                            if (guest.cancelled) return;
                             const key = (guest.nombre || '').trim().toUpperCase();
                             if (key) prevDivers.set(key, bId === 'ares' ? 'Ares' : 'Kaiser');
                         });
@@ -168,7 +169,7 @@ window._buildTVContent = function() {
                     const guideLabel = guideFirst.charAt(0).toUpperCase() + guideFirst.slice(1);
                     const supportFirst = (group.apoyo || '').split(' ')[0];
                     const supportLabel = supportFirst ? supportFirst.charAt(0).toUpperCase() + supportFirst.slice(1) : '';
-                    const groupGuests = group.guests || [];
+                    const groupGuests = (group.guests || []).filter(g => !g.cancelled);
 
                     if (groupGuests.length > 0 || group.guide || group.apoyo) {
                         // Cluster guests by bookingTag so we can wrap them in subtle boxes
