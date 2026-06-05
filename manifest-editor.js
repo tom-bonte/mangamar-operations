@@ -197,11 +197,6 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
         };
     }
 
-    // Capture the initial base state for 3-way merge conflict resolution
-    if (activeBoatItem) {
-        activeBoatItem.lastSyncedTripState = JSON.parse(JSON.stringify(activeBoatItem));
-    }
-
     recordModalHistory({ type: 'boat', args: [activeBoatItem.id, boatId, time, dateStr], isNavBackForward });
 
     // Double-safety check: if groups is missing, empty, or has a total of 0 guests, but flat guests exist (e.g. from Visor), migrate them!
@@ -228,6 +223,11 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     const allGuests = [];
     activeBoatItem.groups.forEach(g => { if(g.guests) allGuests.push(...g.guests); });
     activeBoatItem.lastSavedDnis = allGuests.map(g => g.dni).filter(Boolean);
+
+    // Capture the initial base state for 3-way merge conflict resolution *after* structure is migrated/stabilized
+    if (activeBoatItem) {
+        activeBoatItem.lastSyncedTripState = JSON.parse(JSON.stringify(activeBoatItem));
+    }
 
     // Fetch payment status, collector, and overall customer outstandingDebt for guests in the background (as a fallback/sync)
     window.activeTripPayments = {};
@@ -2645,6 +2645,12 @@ window.mergeManifests = function(base, local, remote) {
     local = local || {};
     remote = remote || {};
 
+    // Safeguard: If remote is empty or uninitialized (e.g. brand new trip or database sync latency),
+    // treat remote as matching base to prevent wiping out local changes.
+    if (!remote || Object.keys(remote).length === 0 || ((!remote.groups || remote.groups.length === 0) && (!remote.guests || remote.guests.length === 0))) {
+        remote = JSON.parse(JSON.stringify(base));
+    }
+
     const merged = { ...remote }; // Start with remote baseline
 
     // Helper to merge simple fields
@@ -2686,7 +2692,14 @@ window.mergeManifests = function(base, local, remote) {
 
     const indexGuests = (trip) => {
         const guestMap = new Map();
-        (trip.groups || []).forEach((group, grpIdx) => {
+        
+        let groups = trip.groups;
+        // If groups is empty but flat guests exist (e.g. from Visor), treat as group 0
+        if ((!groups || groups.length === 0) && trip.guests && trip.guests.length > 0) {
+            groups = [{ guide: '', apoyo: '', guests: trip.guests }];
+        }
+        
+        (groups || []).forEach((group, grpIdx) => {
             (group.guests || []).forEach((guest, gstIdx) => {
                 const key = getGuestKey(guest);
                 if (key) {
@@ -2751,6 +2764,23 @@ window.mergeManifests = function(base, local, remote) {
                 guest: { ...inRemote.guest },
                 targetGrpIdx: inRemote.grpIdx
             });
+        } else if (inLocal && inBase && !inRemote) {
+            // Deleted remotely. Check if we modified the guest locally.
+            const baseG = inBase.guest;
+            const localG = inLocal.guest;
+            let modified = false;
+            for (const prop in localG) {
+                if (localG[prop] !== baseG[prop]) {
+                    modified = true;
+                    break;
+                }
+            }
+            if (modified) {
+                mergedGuests.push({
+                    guest: { ...localG },
+                    targetGrpIdx: inLocal.grpIdx
+                });
+            }
         }
     }
 
@@ -2836,6 +2866,18 @@ function mergeGuestArrays(baseList, localList, remoteList) {
             mergedList.push(mergedG);
         } else if (inRemote && !inBase) {
             mergedList.push({ ...inRemote });
+        } else if (inLocal && inBase && !inRemote) {
+            // Deleted remotely. Check if modified locally.
+            let modified = false;
+            for (const prop in inLocal) {
+                if (inLocal[prop] !== (inBase ? inBase[prop] : undefined)) {
+                    modified = true;
+                    break;
+                }
+            }
+            if (modified) {
+                mergedList.push({ ...inLocal });
+            }
         }
     }
 

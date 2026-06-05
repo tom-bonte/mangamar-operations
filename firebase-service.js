@@ -651,7 +651,10 @@ window.mergeAndRender = function mergeAndRender() {
                         window.activeBoatItem.site = freshTrip.site || '';
                         
                         // Capture the fresh snapshot as the base version for subsequent 3-way merges
-                        window.activeBoatItem.lastSyncedTripState = JSON.parse(JSON.stringify(freshTrip));
+                        const baseCopy = JSON.parse(JSON.stringify(freshTrip));
+                        baseCopy.groups = JSON.parse(JSON.stringify(freshGroups || []));
+                        window.activeBoatItem.lastSyncedTripState = baseCopy;
+                    }
                     
                     // Re-render captains dropdown to sync conflicts
                     if (typeof renderCaptainDropdown === 'function') renderCaptainDropdown();
@@ -685,7 +688,6 @@ window.mergeAndRender = function mergeAndRender() {
             }
         }
     }
-}
 
     // 4. RAF-deferred grid rendering: cancels any pending frame before scheduling a new one.
     // If mergeAndRender is called again before the frame fires, only the latest render runs.
