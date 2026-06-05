@@ -108,6 +108,10 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
     const modalEl = document.getElementById('group-link-modal');
     const isCurrentlyOpen = modalEl && !modalEl.classList.contains('hidden');
 
+    if (!isCurrentlyOpen) {
+        window._groupSearchQuery = '';
+    }
+
     if (typeof window.recordModalHistory === 'function' && !isNavBackForward && !isCurrentlyOpen) {
         window.recordModalHistory({ type: 'group', args: [editGroupName], isNavBackForward: false });
     }
@@ -194,7 +198,31 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
         const bgColor = getGroupColorClass(tag);
         const textColor = getContrastYIQ(bgColor);
         const isSelected = editGroupName && editGroupName.toLowerCase() === tag.toLowerCase();
-        return `<button onclick="window.openGroupLinkModal('${tag}')" class="w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between group ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-300 bg-white shadow-xs'}" style="border-left: 6px solid ${bgColor}">
+        
+        // Fetch group members names & DNIs for searching
+        const groupObj = (window.globalGroups || []).find(g => g.name.toLowerCase() === tag.toLowerCase());
+        let memberNames = [];
+        let memberDnis = [];
+        if (groupObj) {
+            (groupObj.members || []).forEach(mDni => {
+                memberDnis.push(mDni);
+                const cx = (customerDatabase || []).find(c => c.dni === mDni);
+                if (cx) {
+                    const fullName = getFullName(cx);
+                    if (fullName) memberNames.push(fullName);
+                }
+                const isTemp = String(mDni).toLowerCase().startsWith('temp_');
+                if (isTemp && groupObj.manualNames) {
+                    const matchedKey = Object.keys(groupObj.manualNames).find(k => k.toLowerCase() === String(mDni).toLowerCase());
+                    if (matchedKey) memberNames.push(groupObj.manualNames[matchedKey]);
+                }
+            });
+        }
+        const dataGroupName = tag.replace(/"/g, '&quot;');
+        const dataMemberNames = memberNames.join(' | ').replace(/"/g, '&quot;');
+        const dataMemberDnis = memberDnis.join(' | ').replace(/"/g, '&quot;');
+
+        return `<button onclick="window.openGroupLinkModal('${tag}')" data-search-group-name="${dataGroupName}" data-search-member-names="${dataMemberNames}" data-search-member-dnis="${dataMemberDnis}" class="group-list-item-btn w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between group ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-300 bg-white shadow-xs'}" style="border-left: 6px solid ${bgColor}">
             <div>
                 <div class="text-sm font-black text-slate-800">${tag}</div>
                 <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Click para gestionar</div>
@@ -291,6 +319,17 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
     document.getElementById('group-link-modal').classList.remove('hidden');
     if (isNavBackForward) {
         if (typeof window.hideAllNavModals === 'function') window.hideAllNavModals('group-link-modal');
+    }
+    
+    // Synchronize and apply search filter
+    const activeQuery = window._groupSearchQuery || '';
+    const searchInput = document.getElementById('group-search-input');
+    const searchInputCreation = document.getElementById('group-search-input-creation');
+    if (searchInput) searchInput.value = activeQuery;
+    if (searchInputCreation) searchInputCreation.value = activeQuery;
+    
+    if (typeof window.filterGroupsList === 'function') {
+        window.filterGroupsList(activeQuery);
     }
     
     if (!editGroupName) setTimeout(() => nameInput.focus(), 100);
@@ -1028,3 +1067,40 @@ window.executeDeleteGlobalGroup = async function() {
         window.deleteGlobalGroup(groupId).catch(console.error);
     }
 }
+
+window.filterGroupsList = function(query) {
+    window._groupSearchQuery = query || '';
+    const lowerQuery = window._groupSearchQuery.toLowerCase().trim();
+    
+    // Sync the two search bars
+    const searchInput = document.getElementById('group-search-input');
+    const searchInputCreation = document.getElementById('group-search-input-creation');
+    if (searchInput && searchInput.value !== window._groupSearchQuery) {
+        searchInput.value = window._groupSearchQuery;
+    }
+    if (searchInputCreation && searchInputCreation.value !== window._groupSearchQuery) {
+        searchInputCreation.value = window._groupSearchQuery;
+    }
+
+    const buttons = document.querySelectorAll('.group-list-item-btn');
+    buttons.forEach(btn => {
+        if (!lowerQuery) {
+            btn.classList.remove('hidden');
+            return;
+        }
+        
+        const grpName = (btn.dataset.searchGroupName || '').toLowerCase();
+        const memNames = (btn.dataset.searchMemberNames || '').toLowerCase();
+        const memDnis = (btn.dataset.searchMemberDnis || '').toLowerCase();
+        
+        const isMatch = grpName.includes(lowerQuery) || 
+                        memNames.includes(lowerQuery) || 
+                        memDnis.includes(lowerQuery);
+                        
+        if (isMatch) {
+            btn.classList.remove('hidden');
+        } else {
+            btn.classList.add('hidden');
+        }
+    });
+};

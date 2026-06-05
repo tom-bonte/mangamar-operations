@@ -14,41 +14,21 @@ let _renderGroupsSavePending = false;
 // The Auto-Save Engine: Debounced to 1000ms for lightning-fast UI response times and reduced network congestion
 window.triggerAutoSave = function() {
     window.lastLocalEditTime = Date.now();
+    window.isManifestDirty = true; // Mark manifest as modified
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
         window.triggerInstantSave();
     }, 1000);
 };
 
-window.triggerInstantSave = async function() {
+window.triggerInstantSave = function(item = activeBoatItem) {
+    if (!item) return Promise.resolve(false);
     window.lastLocalEditTime = Date.now();
+    window.isManifestDirty = true; // Mark manifest as modified
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = null;
     
-    if (isSaving) {
-        hasPendingSave = true;
-        window.hasPendingSave = true;
-        return;
-    }
-    
-    isSaving = true;
-    window.isSaving = true;
-    try {
-        while (activeBoatItem && typeof saveBoatData === 'function') {
-            hasPendingSave = false;
-            window.hasPendingSave = false;
-            await saveBoatData();
-            // If another save request was queued up during the await, loop and save the fresh RAM state
-            if (!hasPendingSave) {
-                break;
-            }
-        }
-    } catch (e) {
-        console.error("Queue save failed:", e);
-    } finally {
-        isSaving = false;
-        window.isSaving = false;
-    }
+    return window.queueSaveForTrip(item);
 };
 
 window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
@@ -184,6 +164,8 @@ window.adjustAllHeaderSelectWidths = function() {
 // 5. MODAL & DYNAMIC TABLES 
 // ==========================================
 function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward = false) {
+    window.isManifestDirty = false; // Reset dirty tracking when opening a modal
+    if (typeof window.initManifestHoverPopups === 'function') window.initManifestHoverPopups();
     if (window.isStaffLoggedIn) {
         showToast("🔒 Acceso denegado: El Personal no tiene permiso para abrir manifiestos.", "error");
         return;
@@ -505,6 +487,14 @@ function copyStaffDni(type, name, groupIndex) {
     if(person) copyData(person.dni, 'DNI de Staff');
 }
 function closeManageBoatModal() {
+    // ── Synchronize DOM values to activeBoatItem before clearing it ─────────
+    if (activeBoatItem) {
+        syncDOMToActiveBoatItem();
+    }
+
+    if (typeof window.hideManifestHoverPopup === 'function') {
+        window.hideManifestHoverPopup();
+    }
     // ── Step 1: Cancel any pending deferred renders ──────────────────────────
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = null;
@@ -538,21 +528,11 @@ function closeManageBoatModal() {
     if (typeof mergeAndRender === 'function') mergeAndRender();
 
     // ── Step 6: Background save (user already sees modal closed) ─────────────
-    // Temporarily restore the captured item so saveBoatData can read it,
-    // then clear again when the save resolves.
-    if (itemSnapshot && typeof saveBoatData === 'function') {
-        if (isSaving) {
-            // A save is already in-flight — mark pending so the queue loop re-saves
-            hasPendingSave = true;
-            window.hasPendingSave = true;
-        } else {
-            // Run a background save without blocking the UI at all
-            activeBoatItem = itemSnapshot;
-            window.triggerInstantSave().finally(() => {
-                // Only null activeBoatItem when no other modal opened in the meantime
-                if (activeBoatItem === itemSnapshot) activeBoatItem = null;
-            });
-        }
+    // Only run save in the background if the manifest is actually dirty (has changes).
+    if (itemSnapshot && typeof saveBoatData === 'function' && window.isManifestDirty) {
+        window.triggerInstantSave(itemSnapshot);
+    } else {
+        window.isManifestDirty = false; // reset dirty state just in case
     }
 }
 
@@ -753,7 +733,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                         : 'Marcar como llegado';
                 const arrivedDot = `<button id="btn-arrived-${groupIndex}-${guestIndex}" onclick="window.toggleArrived(${groupIndex}, ${guestIndex})" title="${arrivedTitle}" class="w-5 h-5 rounded-full border-2 transition-all duration-200 shrink-0 mr-2 ${arrivedClass}"></button>`;
                 
-                nameHtml = `<div class="flex items-center">${manualDot}${arrivedDot}<span class="truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="copyData('${guest.nombre}', 'Nombre')" title="Click para copiar">${guest.nombre}</span></div>`;
+                nameHtml = `<div class="flex items-center">${manualDot}${arrivedDot}<span class="manifest-guest-name truncate cursor-pointer hover:text-blue-600 transition-colors" data-dni="${guest.dni || ''}" data-nombre="${guest.nombre || ''}" onclick="copyData('${guest.nombre}', 'Nombre')" title="Click para copiar">${guest.nombre}</span></div>`;
             }
 
             let divesCountText = '';
@@ -783,7 +763,7 @@ function _renderGroupsCore(skipAutoSave = false) {
             }
 
             let dniHtml = '';
-            if (guest.dni) dniHtml = `<button onclick="copyData('${guest.dni}', 'DNI Cliente')" title="${guest.dni}" class="text-slate-400 hover:text-indigo-600 transition-colors"><svg class="w-5 h-5 inline mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>`;
+            if (guest.dni) dniHtml = `<button onclick="copyData('${guest.dni}', 'DNI Cliente')" data-hover-dni="${guest.dni}" class="manifest-guest-dni text-slate-400 hover:text-indigo-600 transition-colors"><svg class="w-5 h-5 inline mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>`;
             else if (guest.isManual) dniHtml = `<button onclick="openEditGuestModal(${groupIndex}, ${guestIndex})" title="Falta DNI" class="text-amber-500 hover:text-amber-600 bg-amber-50 rounded-full w-5 h-5 flex items-center justify-center font-black text-[10px] mx-auto border border-amber-200">?</button>`;
             else dniHtml = `<span class="text-xs font-bold text-slate-300">-</span>`;
             
@@ -2581,11 +2561,126 @@ function checkEnter(event, groupIndex) {
 
 
 // --- SAVING & DELETING DATA ---
-async function saveBoatData() {
-    if (!activeBoatItem) return false;
+window.saveQueues = window.saveQueues || {};
+
+window.queueSaveForTrip = function(item) {
+    if (!item || !item.id) return Promise.resolve(false);
+    const tripId = item.id;
+    
+    if (!window.saveQueues[tripId]) {
+        window.saveQueues[tripId] = {
+            item: item,
+            isSaving: false,
+            hasPending: false,
+            resolvers: []
+        };
+    }
+    
+    const queue = window.saveQueues[tripId];
+    queue.item = item; // always update to the latest state
+    
+    const promise = new Promise((resolve) => {
+        queue.resolvers.push(resolve);
+    });
+    
+    if (queue.isSaving) {
+        queue.hasPending = true;
+        hasPendingSave = true;
+        window.hasPendingSave = true;
+        return promise;
+    }
+    
+    queue.isSaving = true;
+    isSaving = Object.values(window.saveQueues).some(q => q.isSaving);
+    window.isSaving = isSaving;
+    
+    (async () => {
+        let lastSuccess = false;
+        try {
+            while (true) {
+                queue.hasPending = false;
+                hasPendingSave = Object.values(window.saveQueues).some(q => q.hasPending);
+                window.hasPendingSave = hasPendingSave;
+                
+                lastSuccess = await saveBoatData(queue.item);
+                if (!queue.hasPending) {
+                    break;
+                }
+            }
+        } catch (e) {
+            console.error(`Queue save failed for trip ${tripId}:`, e);
+            lastSuccess = false;
+        } finally {
+            queue.isSaving = false;
+            
+            isSaving = Object.values(window.saveQueues).some(q => q.isSaving);
+            window.isSaving = isSaving;
+            
+            hasPendingSave = Object.values(window.saveQueues).some(q => q.hasPending);
+            window.hasPendingSave = hasPendingSave;
+            
+            const currentResolvers = queue.resolvers;
+            queue.resolvers = [];
+            currentResolvers.forEach(res => res(lastSuccess));
+            
+            if (window.activeBoatItem && window.activeBoatItem.id === tripId && lastSuccess) {
+                window.isManifestDirty = false;
+            }
+        }
+    })();
+    
+    return promise;
+};
+
+function syncDOMToActiveBoatItem() {
+    if (!activeBoatItem) return;
+    
+    const boatEl = document.getElementById('input-boat');
+    if (boatEl) activeBoatItem.assignedBoat = boatEl.value;
+    
+    const timeEl = document.getElementById('input-time');
+    if (timeEl) activeBoatItem.time = timeEl.value;
+    
+    if (!activeBoatItem.isVisor) {
+        const maxDivesEl = document.getElementById('input-maxdives');
+        if (maxDivesEl) {
+            const maxDivesVal = parseInt(maxDivesEl.value);
+            if (maxDivesVal > 0) activeBoatItem.maxDives = maxDivesVal;
+            else delete activeBoatItem.maxDives;
+        }
+    }
+    
+    const capEl = document.getElementById('input-captain');
+    if (capEl) activeBoatItem.captain = activeBoatItem.assignedBoat === 'shore' ? '' : capEl.value;
+    
+    const siteEl = document.getElementById('input-site');
+    const actEl = document.getElementById('input-activity');
+    if (activeBoatItem.assignedBoat === 'shore') {
+        if (actEl) activeBoatItem.site = actEl.value;
+    } else {
+        if (siteEl) activeBoatItem.site = siteEl.value;
+    }
+    
+    const salEl = document.getElementById('input-time-saliendo');
+    if (salEl) activeBoatItem.timeSaliendo = activeBoatItem.assignedBoat === 'shore' ? '' : (salEl.value || '');
+    
+    const buzAEl = document.getElementById('input-time-buzos-agua');
+    if (buzAEl) activeBoatItem.timeBuzosAgua = activeBoatItem.assignedBoat === 'shore' ? '' : (buzAEl.value || '');
+    
+    const volEl = document.getElementById('input-time-volviendo');
+    if (volEl) activeBoatItem.timeVolviendo = activeBoatItem.assignedBoat === 'shore' ? '' : (volEl.value || '');
+}
+
+async function saveBoatData(itemToSave = activeBoatItem) {
+    if (!itemToSave) return false;
+    
+    // Only sync from DOM if this is the active boat item currently displayed in the open modal
+    if (itemToSave === activeBoatItem) {
+        syncDOMToActiveBoatItem();
+    }
     
     // Proactive formatting guardrail: enforce Title Case for all guests in this trip before saving
-    activeBoatItem.groups.forEach(g => {
+    itemToSave.groups.forEach(g => {
         if (g.guests) {
             g.guests.forEach(gst => {
                 if (gst.nombre) gst.nombre = window.formatNameStr(gst.nombre);
@@ -2605,89 +2700,71 @@ async function saveBoatData() {
         return false;
     }
 
-    // Guardar los cambios de Barco y Hora antes de evaluar el resto
-    activeBoatItem.assignedBoat = document.getElementById('input-boat').value;
-    activeBoatItem.time = document.getElementById('input-time').value;
-
-    // Save max dives capacity for internal trips
-    if (!activeBoatItem.isVisor) {
-        const maxDivesVal = parseInt(document.getElementById('input-maxdives').value);
-        if (maxDivesVal > 0) activeBoatItem.maxDives = maxDivesVal;
-        else delete activeBoatItem.maxDives;
-    }
-
-    activeBoatItem.captain = activeBoatItem.assignedBoat === 'shore' ? '' : document.getElementById('input-captain').value;
-    activeBoatItem.site = activeBoatItem.assignedBoat === 'shore' ? document.getElementById('input-activity').value : document.getElementById('input-site').value;
-
-    activeBoatItem.timeSaliendo = activeBoatItem.assignedBoat === 'shore' ? '' : (document.getElementById('input-time-saliendo')?.value || '');
-    activeBoatItem.timeBuzosAgua = activeBoatItem.assignedBoat === 'shore' ? '' : (document.getElementById('input-time-buzos-agua')?.value || '');
-    activeBoatItem.timeVolviendo = activeBoatItem.assignedBoat === 'shore' ? '' : (document.getElementById('input-time-volviendo')?.value || '');
-
     // --- 🚨 STRICT CONFLICT FIREWALL ---
     // 1. Check Captain
-    if (activeBoatItem.captain) {
-        const cap = (staffDatabase.capitanes || []).find(c => c.nombre === activeBoatItem.captain);
+    if (itemToSave.captain) {
+        const cap = (staffDatabase.capitanes || []).find(c => c.nombre === itemToSave.captain);
         if (cap) {
-            const loc = getPersonLocation(cap.dni, cap.nombre, 'captain');
-            if (loc) { showAppAlert(`⚠️ Imposible guardar: El capitán ${cap.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return false; }
+            const loc = getPersonLocation(cap.dni, cap.nombre, 'captain', -1, -1, itemToSave.date, itemToSave.time, itemToSave.id);
+            if (loc) { showAppAlert(`⚠️ Imposible guardar: El capitán ${cap.nombre} ya está en ${loc} a las ${itemToSave.time}.`); return false; }
         }
     }
 
     // 2. Check Guides and Guests
-    for (let grpIdx = 0; grpIdx < activeBoatItem.groups.length; grpIdx++) {
-        const g = activeBoatItem.groups[grpIdx];
+    for (let grpIdx = 0; grpIdx < itemToSave.groups.length; grpIdx++) {
+        const g = itemToSave.groups[grpIdx];
         
         if (g.guide) {
             const gui = (staffDatabase.guias || []).find(x => x.nombre === g.guide);
             if (gui) {
-                const loc = getPersonLocation(gui.dni, gui.nombre, 'guide', grpIdx);
-                if (loc) { showAppAlert(`⚠️ Imposible guardar: El guía ${gui.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return false; }
+                const loc = getPersonLocation(gui.dni, gui.nombre, 'guide', grpIdx, -1, itemToSave.date, itemToSave.time, itemToSave.id);
+                if (loc) { showAppAlert(`⚠️ Imposible guardar: El guía ${gui.nombre} ya está en ${loc} a las ${itemToSave.time}.`); return false; }
             }
         }
 
         if (g.apoyo) {
             const apo = (staffDatabase.guias || []).find(x => x.nombre === g.apoyo);
             if (apo) {
-                const loc = getPersonLocation(apo.dni, apo.nombre, 'apoyo', grpIdx);
-                if (loc) { showAppAlert(`⚠️ Imposible guardar: El apoyo ${apo.nombre} ya está en ${loc} a las ${activeBoatItem.time}.`); return false; }
+                const loc = getPersonLocation(apo.dni, apo.nombre, 'apoyo', grpIdx, -1, itemToSave.date, itemToSave.time, itemToSave.id);
+                if (loc) { showAppAlert(`⚠️ Imposible guardar: El apoyo ${apo.nombre} ya está en ${loc} a las ${itemToSave.time}.`); return false; }
             }
         }
         
         for (let gstIdx = 0; gstIdx < g.guests.length; gstIdx++) {
             const gst = g.guests[gstIdx];
-            const loc = getPersonLocation(gst.dni, gst.nombre, 'guest', grpIdx, gstIdx);
-            if (loc) { showAppAlert(`⚠️ Imposible guardar: El cliente ${gst.nombre} ya está asignado en ${loc} a las ${activeBoatItem.time}.`); return false; }
+            const loc = getPersonLocation(gst.dni, gst.nombre, 'guest', grpIdx, gstIdx, itemToSave.date, itemToSave.time, itemToSave.id);
+            if (loc) { showAppAlert(`⚠️ Imposible guardar: El cliente ${gst.nombre} ya está asignado en ${loc} a las ${itemToSave.time}.`); return false; }
         }
     }
     // ------------------------------------
 
-    const flatGuests = []; activeBoatItem.groups.forEach(g => flatGuests.push(...g.guests));
+    const flatGuests = []; itemToSave.groups.forEach(g => flatGuests.push(...g.guests));
     
     // 🚨 CRITICAL TIMING FIX: Use synchronous in-memory snapshot to prevent network race conditions!
     // Never rely on mergedAllocations here, as onSnapshot delays can cause it to be stale during rapid additions/removals.
-    const originalDnis = activeBoatItem.lastSavedDnis || [];
+    const originalDnis = itemToSave.lastSavedDnis || [];
     const currentDnis = flatGuests.filter(g => !g.cancelled).map(g => g.dni).filter(Boolean);
     const removedDnis = originalDnis.filter(dni => !currentDnis.includes(dni));
 
     // 🚨 CRITICAL ASYNC ISOLATION: Snapshot the active trip properties synchronously.
     // If the user clicks another boat while `await saveInternalBoatData` is yielding, activeBoatItem will mutate!
     // This snapshot prevents history records from bleeding into the "next" clicked boat.
-    const targetTripId = activeBoatItem.id;
-    const targetDate = activeBoatItem.date;
-    const targetTime = activeBoatItem.time;
-    const targetSite = activeBoatItem.site;
-    const targetAssignedBoat = activeBoatItem.assignedBoat;
+    const targetTripId = itemToSave.id;
+    const targetDate = itemToSave.date;
+    const targetTime = itemToSave.time;
+    const targetSite = itemToSave.site;
+    const targetAssignedBoat = itemToSave.assignedBoat;
 
     const payload = {
         date: targetDate, time: targetTime, assignedBoat: targetAssignedBoat,
-        site: targetSite, captain: activeBoatItem.captain, groups: activeBoatItem.groups, guests: flatGuests,
-        waitlist: activeBoatItem.waitlist || [],
-        timeSaliendo: activeBoatItem.timeSaliendo || '',
-        timeBuzosAgua: activeBoatItem.timeBuzosAgua || '',
-        timeVolviendo: activeBoatItem.timeVolviendo || '',
-        rmLocked: activeBoatItem.rmLocked || false
+        site: targetSite, captain: itemToSave.captain, groups: itemToSave.groups, guests: flatGuests,
+        waitlist: itemToSave.waitlist || [],
+        timeSaliendo: itemToSave.timeSaliendo || '',
+        timeBuzosAgua: itemToSave.timeBuzosAgua || '',
+        timeVolviendo: itemToSave.timeVolviendo || '',
+        rmLocked: itemToSave.rmLocked || false
     };
-    if (activeBoatItem.maxDives) payload.maxDives = activeBoatItem.maxDives;
+    if (itemToSave.maxDives) payload.maxDives = itemToSave.maxDives;
     
     try {
         await saveInternalBoatData(targetTripId, targetDate, payload);
@@ -2700,7 +2777,7 @@ async function saveBoatData() {
             const day = String(currentDate.getDate()).padStart(2, '0');
             viewedDateStr = `${year}-${month}-${day}`;
         }
-        const targetDateStr = targetDate || activeBoatItem.date;
+        const targetDateStr = targetDate || itemToSave.date;
         const earliestDateStr = targetDateStr < viewedDateStr ? targetDateStr : viewedDateStr;
         const allOtherTrips = mergedAllocations.filter(t => t.date >= earliestDateStr && t.id !== targetTripId);
         
@@ -2923,7 +3000,7 @@ async function saveBoatData() {
         })();
         
         // Update the synchronous snapshot for subsequent saves without closing the modal
-        activeBoatItem.lastSavedDnis = currentDnis;
+        itemToSave.lastSavedDnis = currentDnis;
         
         // --- GARBAGE COLLECTOR TRIGGER ---
         // Clean up insurance profiles for anyone who was removed from this boat
@@ -2937,6 +3014,7 @@ async function saveBoatData() {
             indicator.classList.remove('hidden', 'opacity-0');
             setTimeout(() => indicator.classList.add('opacity-0'), 2000);
         }
+        window.isManifestDirty = false; // Reset dirty tracking since it successfully saved
         return true;
     } catch (e) {
         // Error alert is handled safely in saveInternalBoatData
@@ -2953,15 +3031,19 @@ window.manualSaveBoatData = async function(andClose = false) {
     btn.disabled = true;
     showToast("⏳ Guardando salida internamente...");
 
+    // Sync DOM to RAM synchronously before yielding to prevent race conditions
+    syncDOMToActiveBoatItem();
+
     if (andClose) {
         // Instantly hide the modal visually to make the UI feel blazing fast!
         document.getElementById('manage-boat-modal').classList.add('hidden');
     }
 
     try {
-        const success = await saveBoatData();
+        const success = await window.queueSaveForTrip(activeBoatItem);
         if (success) {
             showToast("✅ Salida guardada con éxito");
+            window.isManifestDirty = false; // Reset dirty state
             if (andClose) {
                 // Clean up state completely after background save completes successfully
                 activeBoatItem = null;
@@ -3346,7 +3428,10 @@ window.toggleContasimple = async function(groupIndex, guestIndex) {
         if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
         renderGroups();
     } else {
-        const custIndex = customerDatabase.findIndex(c => c.dni === guest.dni);
+        const normGuestDni = (guest.dni || '').trim().toLowerCase();
+        const dbArray = (typeof customerDatabase !== 'undefined' && Array.isArray(customerDatabase)) ? customerDatabase : [];
+        const custIndex = dbArray.findIndex(c => (c.dni || '').trim().toLowerCase() === normGuestDni);
+        
         if (custIndex !== -1) {
             const newVal = !customerDatabase[custIndex].depositContasimple;
             customerDatabase[custIndex].depositContasimple = newVal;
@@ -3360,6 +3445,9 @@ window.toggleContasimple = async function(groupIndex, guestIndex) {
                 window.renderFichaFromCache(guest.dni);
             }
             
+            // Auto save the manifest change to Firestore
+            if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+            
             // Save to Master List in background
             try {
                 await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
@@ -3367,6 +3455,11 @@ window.toggleContasimple = async function(groupIndex, guestIndex) {
                 console.error(e);
                 showAppAlert("Error al guardar el estado de Contasimple");
             }
+        } else {
+            // Fallback: If not found in customerDatabase, toggle locally on the guest
+            guest.localDepositC = !guest.localDepositC;
+            if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+            renderGroups();
         }
     }
 };
@@ -3736,4 +3829,208 @@ window.navigateBoatManifest = function(direction) {
 document.getElementById('guest-note-input') && document.getElementById('guest-note-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveGuestNote(); }
 });
+
+// --- MANIFEST GUEST HOVER POPUPS ---
+(function() {
+    let popupRegistered = false;
+    let hoverTimeout = null;
+
+    window.initManifestHoverPopups = function() {
+        if (popupRegistered) return;
+        popupRegistered = true;
+
+        // Ensure the popup element exists
+        let popup = document.getElementById('manifest-hover-popup');
+        if (!popup) {
+            popup = document.createElement('div');
+            popup.id = 'manifest-hover-popup';
+            popup.className = 'hidden fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl p-3 text-xs text-slate-700 min-w-[220px] pointer-events-none transition-opacity duration-150 opacity-0';
+            document.body.appendChild(popup);
+        }
+
+        // Add document-level event delegation for mouseover/mouseout
+        document.body.addEventListener('mouseover', (e) => {
+            // 1. Guest Name Hover
+            const nameEl = e.target.closest('.manifest-guest-name');
+            if (nameEl) {
+                const dni = nameEl.dataset.dni || '';
+                const nombre = nameEl.dataset.nombre || '';
+                if (!activeBoatItem) return;
+                
+                if (hoverTimeout) clearTimeout(hoverTimeout);
+                
+                hoverTimeout = setTimeout(() => {
+                    showNameHoverPopup(nameEl, dni, nombre);
+                }, 150);
+                return;
+            }
+
+            // 2. DNI Hover
+            const dniEl = e.target.closest('.manifest-guest-dni');
+            if (dniEl) {
+                const dniVal = dniEl.dataset.hoverDni || '';
+                if (!dniVal) return;
+
+                if (hoverTimeout) clearTimeout(hoverTimeout);
+
+                hoverTimeout = setTimeout(() => {
+                    showDniHoverPopup(dniEl, dniVal);
+                }, 150);
+                return;
+            }
+        });
+
+        document.body.addEventListener('mouseout', (e) => {
+            const nameEl = e.target.closest('.manifest-guest-name');
+            const dniEl = e.target.closest('.manifest-guest-dni');
+            if (nameEl || dniEl) {
+                if (hoverTimeout) clearTimeout(hoverTimeout);
+                window.hideManifestHoverPopup();
+            }
+        });
+
+        // Also hide popup when scrolling or clicking
+        window.addEventListener('scroll', window.hideManifestHoverPopup, true);
+        window.addEventListener('click', window.hideManifestHoverPopup, true);
+    };
+
+    window.hideManifestHoverPopup = function() {
+        if (hoverTimeout) clearTimeout(hoverTimeout);
+        const popup = document.getElementById('manifest-hover-popup');
+        if (popup) {
+            popup.classList.add('hidden');
+            popup.style.opacity = '0';
+        }
+    };
+
+    function showNameHoverPopup(targetEl, dni, nombre) {
+        const popup = document.getElementById('manifest-hover-popup');
+        if (!popup || !activeBoatItem) return;
+
+        // Find same-day trips for the guest
+        const sameDayTrips = getSameDayTripsForGuest(dni, nombre, activeBoatItem.date);
+        if (sameDayTrips.length === 0) return;
+
+        const formatBoatName = (boat) => {
+            if (!boat) return '-';
+            const b = boat.toLowerCase();
+            if (b === 'ares') return 'Ares';
+            if (b === 'kaiser') return 'Kaiser';
+            if (b === 'shore') return 'Shore';
+            return boat;
+        };
+
+        const tripsHtml = sameDayTrips.map(t => {
+            const isCurrent = t.id === activeBoatItem.id;
+            const boatName = formatBoatName(t.assignedBoat);
+            const bgClass = isCurrent ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-100';
+            const textWeight = isCurrent ? 'font-black text-orange-700' : 'font-bold text-slate-700';
+            const dotColor = isCurrent ? 'bg-orange-500' : 'bg-slate-400';
+            
+            return `
+                <div class="flex items-center justify-between p-2 rounded-lg border ${bgClass} gap-3">
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
+                        <span class="text-xs font-black text-slate-800">${t.time}</span>
+                    </div>
+                    <div class="text-right flex flex-col min-w-0">
+                        <span class="text-[9px] font-black text-slate-500 uppercase">${boatName}</span>
+                        <span class="${textWeight} text-[11px] truncate max-w-[130px]" title="${t.site || 'Sin sitio'}">${t.site || 'Sin sitio'}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        popup.innerHTML = `
+            <div class="flex flex-col gap-2">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">
+                    Salidas de hoy
+                </div>
+                <div class="text-xs font-black text-slate-900 truncate max-w-[200px]" title="${nombre}">${nombre}</div>
+                <div class="space-y-1.5">
+                    ${tripsHtml}
+                </div>
+            </div>
+        `;
+
+        positionPopup(targetEl, popup);
+    }
+
+    function showDniHoverPopup(targetEl, dniVal) {
+        const popup = document.getElementById('manifest-hover-popup');
+        if (!popup) return;
+
+        popup.innerHTML = `
+            <div class="flex flex-col gap-1">
+                <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">
+                    DNI / Pasaporte
+                </div>
+                <div class="text-xs font-black text-slate-900 flex items-center justify-between gap-3">
+                    <span class="font-mono text-slate-950 text-sm font-bold selection:bg-orange-100">${dniVal}</span>
+                    <span class="text-[9px] text-slate-400 font-normal shrink-0">(Click para copiar)</span>
+                </div>
+            </div>
+        `;
+
+        positionPopup(targetEl, popup);
+    }
+
+    function getSameDayTripsForGuest(guestDni, guestName, targetDate) {
+        if (!window.mergedAllocations) return [];
+        
+        const normDni = guestDni ? String(guestDni).trim().toLowerCase() : '';
+        const normName = guestName ? String(guestName).trim().toLowerCase() : '';
+        
+        if (!normDni && !normName) return [];
+
+        const matched = window.mergedAllocations.filter(trip => {
+            if (trip.date !== targetDate) return false;
+            
+            const inGroups = (trip.groups || []).some(grp => 
+                (grp.guests || []).some(g => {
+                    if (normDni && g.dni && String(g.dni).trim().toLowerCase() === normDni) return true;
+                    if (!normDni && normName && g.nombre && String(g.nombre).trim().toLowerCase() === normName) return true;
+                    return false;
+                })
+            );
+            
+            const inFlat = (trip.guests || []).some(g => {
+                if (normDni && g.dni && String(g.dni).trim().toLowerCase() === normDni) return true;
+                if (!normDni && normName && g.nombre && String(g.nombre).trim().toLowerCase() === normName) return true;
+                return false;
+            });
+
+            return inGroups || inFlat;
+        });
+
+        return matched.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    }
+
+    function positionPopup(targetEl, popup) {
+        popup.classList.remove('hidden');
+        popup.style.opacity = '0';
+        
+        const targetRect = targetEl.getBoundingClientRect();
+        const popupWidth = popup.offsetWidth;
+        const popupHeight = popup.offsetHeight;
+        
+        let top = targetRect.top - popupHeight - 8;
+        let left = targetRect.left + (targetRect.width - popupWidth) / 2;
+
+        if (top < 10) {
+            top = targetRect.bottom + 8;
+        }
+
+        if (left < 10) {
+            left = 10;
+        }
+        if (left + popupWidth > window.innerWidth - 10) {
+            left = window.innerWidth - popupWidth - 10;
+        }
+
+        popup.style.top = `${top}px`;
+        popup.style.left = `${left}px`;
+        popup.style.opacity = '1';
+    }
+})();
 

@@ -206,7 +206,7 @@ window.getMergedTrips = function(tripsArray) {
 };
 
 // Checks if a person (by DNI or Name) is busy in ANY boat or ANY role at this time
-window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGroupIdx = -1, excludeGuestIdx = -1) {
+window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGroupIdx = -1, excludeGuestIdx = -1, targetDate = null, targetTime = null, targetId = null) {
     let dniLower = (dni || '').trim().toLowerCase();
     let nameLower = (fullName || '').trim().toLowerCase();
     if (!dniLower && !nameLower) return null;
@@ -219,7 +219,13 @@ window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGr
         return false;
     };
 
-    const rawOtherTrips = mergedAllocations.filter(t => t.date === activeBoatItem.date && t.time === activeBoatItem.time && t.id !== activeBoatItem.id);
+    const refItem = activeBoatItem || {};
+    const dStr = targetDate || refItem.date;
+    const tStr = targetTime || refItem.time;
+    const idStr = targetId || refItem.id;
+    if (!dStr || !tStr) return null;
+
+    const rawOtherTrips = mergedAllocations.filter(t => t.date === dStr && t.time === tStr && t.id !== idStr);
     const deduplicatedOtherTrips = getMergedTrips(rawOtherTrips);
 
     for (const t of deduplicatedOtherTrips) {
@@ -239,22 +245,24 @@ window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGr
         }
     }
 
-    if (excludeType !== 'captain' && activeBoatItem.captain && matches(null, activeBoatItem.captain)) return "Este barco (Capitán)";
-    
-    if (activeBoatItem.groups) {
-        for (let grpIdx = 0; grpIdx < activeBoatItem.groups.length; grpIdx++) {
-            const group = activeBoatItem.groups[grpIdx];
-            if (!(excludeType === 'guide' && excludeGroupIdx === grpIdx)) {
-                if (group.guide && matches(null, group.guide)) return "Este barco (Guía)";
-            }
-            if (!(excludeType === 'apoyo' && excludeGroupIdx === grpIdx)) {
-                if (group.apoyo && matches(null, group.apoyo)) return "Este barco (Apoyo)";
-            }
-            if (group.guests) {
-                for (let gstIdx = 0; gstIdx < group.guests.length; gstIdx++) {
-                    if (excludeType === 'guest' && excludeGroupIdx === grpIdx && excludeGuestIdx === gstIdx) continue;
-                    const guest = group.guests[gstIdx];
-                    if (matches(guest.dni, guest.nombre)) return "Este barco (Cliente)";
+    if (refItem && refItem.id === idStr) {
+        if (excludeType !== 'captain' && refItem.captain && matches(null, refItem.captain)) return "Este barco (Capitán)";
+        
+        if (refItem.groups) {
+            for (let grpIdx = 0; grpIdx < refItem.groups.length; grpIdx++) {
+                const group = refItem.groups[grpIdx];
+                if (!(excludeType === 'guide' && excludeGroupIdx === grpIdx)) {
+                    if (group.guide && matches(null, group.guide)) return "Este barco (Guía)";
+                }
+                if (!(excludeType === 'apoyo' && excludeGroupIdx === grpIdx)) {
+                    if (group.apoyo && matches(null, group.apoyo)) return "Este barco (Apoyo)";
+                }
+                if (group.guests) {
+                    for (let gstIdx = 0; gstIdx < group.guests.length; gstIdx++) {
+                        if (excludeType === 'guest' && excludeGroupIdx === grpIdx && excludeGuestIdx === gstIdx) continue;
+                        const guest = group.guests[gstIdx];
+                        if (matches(guest.dni, guest.nombre)) return "Este barco (Cliente)";
+                    }
                 }
             }
         }
