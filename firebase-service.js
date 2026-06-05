@@ -607,7 +607,7 @@ window.mergeAndRender = function mergeAndRender() {
         // RACE CONDITION PREVENTION: If we are actively saving local edits, block incoming snapshots 
         // from overwriting the RAM state to prevent "1 change behind" and lost updates!
         const timeSinceEdit = Date.now() - (window.lastLocalEditTime || 0);
-        if (window.isSaving || window.hasPendingSave || window.hasPendingWrites || timeSinceEdit < 2500) {
+        if (window.isSaving || window.hasPendingSave || window.hasPendingWrites || window.isManifestDirty || timeSinceEdit < 2500) {
             console.log("⏳ Skipping remote sync overwrite: local save or recent edit is in progress.");
         } else {
             const freshTrip = mergedAllocations.find(t => t.id === window.activeBoatItem.id);
@@ -649,6 +649,10 @@ window.mergeAndRender = function mergeAndRender() {
                         window.activeBoatItem.guide = freshTrip.guide || '';
                         window.activeBoatItem.apoyo = freshTrip.apoyo || '';
                         window.activeBoatItem.site = freshTrip.site || '';
+                        
+                        // Capture the fresh snapshot as the base version for subsequent 3-way merges
+                        window.activeBoatItem.lastSyncedTripState = JSON.parse(JSON.stringify(freshTrip));
+                    }
                     
                     // Re-render captains dropdown to sync conflicts
                     if (typeof renderCaptainDropdown === 'function') renderCaptainDropdown();

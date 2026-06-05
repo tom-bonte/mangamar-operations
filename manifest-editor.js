@@ -165,6 +165,9 @@ window.adjustAllHeaderSelectWidths = function() {
 // ==========================================
 function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward = false) {
     window.isManifestDirty = false; // Reset dirty tracking when opening a modal
+    window.hasPendingSave = false;
+    if (typeof hasPendingSave !== 'undefined') hasPendingSave = false;
+    
     if (typeof window.initManifestHoverPopups === 'function') window.initManifestHoverPopups();
     if (window.isStaffLoggedIn) {
         showToast("🔒 Acceso denegado: El Personal no tiene permiso para abrir manifiestos.", "error");
@@ -192,6 +195,11 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
             date: dateStr, time: time, assignedBoat: boatId, 
             site: boatId === 'shore' ? 'Shore' : SITES_INTERNAL[0], captain: '', isVisor: false, groups: [] 
         };
+    }
+
+    // Capture the initial base state for 3-way merge conflict resolution
+    if (activeBoatItem) {
+        activeBoatItem.lastSyncedTripState = JSON.parse(JSON.stringify(activeBoatItem));
     }
 
     recordModalHistory({ type: 'boat', args: [activeBoatItem.id, boatId, time, dateStr], isNavBackForward });
@@ -2632,6 +2640,208 @@ window.queueSaveForTrip = function(item) {
     return promise;
 };
 
+window.mergeManifests = function(base, local, remote) {
+    base = base || {};
+    local = local || {};
+    remote = remote || {};
+
+    const merged = { ...remote }; // Start with remote baseline
+
+    // Helper to merge simple fields
+    const mergeField = (key, defaultVal = '') => {
+        const baseVal = base[key] !== undefined ? base[key] : defaultVal;
+        const localVal = local[key] !== undefined ? local[key] : defaultVal;
+        const remoteVal = remote[key] !== undefined ? remote[key] : defaultVal;
+        
+        if (localVal !== baseVal) {
+            merged[key] = localVal;
+        } else {
+            merged[key] = remoteVal;
+        }
+    };
+
+    mergeField('captain', '');
+    mergeField('site', '');
+    mergeField('timeSaliendo', '');
+    mergeField('timeBuzosAgua', '');
+    mergeField('timeVolviendo', '');
+    mergeField('rmLocked', false);
+    
+    if (local.maxDives !== base.maxDives) {
+        if (local.maxDives) merged.maxDives = local.maxDives;
+        else delete merged.maxDives;
+    } else {
+        if (remote.maxDives) merged.maxDives = remote.maxDives;
+        else delete merged.maxDives;
+    }
+
+    // Index all guests in a manifest
+    const getGuestKey = (g) => {
+        if (!g) return '';
+        const dni = (g.dni || '').trim().toLowerCase();
+        if (dni) return `dni:${dni}`;
+        const name = (g.nombre || '').trim().toLowerCase();
+        return `name:${name}`;
+    };
+
+    const indexGuests = (trip) => {
+        const guestMap = new Map();
+        (trip.groups || []).forEach((group, grpIdx) => {
+            (group.guests || []).forEach((guest, gstIdx) => {
+                const key = getGuestKey(guest);
+                if (key) {
+                    guestMap.set(key, { guest, grpIdx, gstIdx });
+                }
+            });
+        });
+        return guestMap;
+    };
+
+    const baseGuests = indexGuests(base);
+    const localGuests = indexGuests(local);
+    const remoteGuests = indexGuests(remote);
+
+    const allKeys = new Set([
+        ...baseGuests.keys(),
+        ...localGuests.keys(),
+        ...remoteGuests.keys()
+    ]);
+
+    const mergedGuests = [];
+
+    for (const key of allKeys) {
+        const inBase = baseGuests.get(key);
+        const inLocal = localGuests.get(key);
+        const inRemote = remoteGuests.get(key);
+
+        if (inLocal && !inBase) {
+            // Added by us
+            mergedGuests.push({
+                guest: { ...inLocal.guest },
+                targetGrpIdx: inLocal.grpIdx
+            });
+        } else if (inBase && !inLocal) {
+            // Deleted by us
+        } else if (inRemote && !inLocal) {
+            // Deleted by them
+        } else if (inRemote && inLocal) {
+            // Existed in both. Merge properties
+            const baseG = inBase ? inBase.guest : {};
+            const localG = inLocal.guest;
+            const remoteG = inRemote.guest;
+
+            const mergedG = { ...remoteG };
+            for (const prop in localG) {
+                if (localG[prop] !== baseG[prop]) {
+                    mergedG[prop] = localG[prop];
+                }
+            }
+            
+            let targetGrpIdx = inRemote.grpIdx;
+            if (inBase && inLocal.grpIdx !== inBase.grpIdx) {
+                targetGrpIdx = inLocal.grpIdx; // We moved the guest to another group
+            }
+            mergedGuests.push({
+                guest: mergedG,
+                targetGrpIdx: targetGrpIdx
+            });
+        } else if (inRemote && !inBase) {
+            // Added by them
+            mergedGuests.push({
+                guest: { ...inRemote.guest },
+                targetGrpIdx: inRemote.grpIdx
+            });
+        }
+    }
+
+    // Merge waitlist
+    merged.waitlist = mergeGuestArrays(base.waitlist, local.waitlist, remote.waitlist);
+
+    // Reconstruct groups
+    const maxGrpIdx = Math.max(
+        (remote.groups || []).length - 1,
+        (local.groups || []).length - 1,
+        ...mergedGuests.map(mg => mg.targetGrpIdx),
+        0
+    );
+
+    const mergedGroups = [];
+    for (let i = 0; i <= maxGrpIdx; i++) {
+        const baseGrp = (base.groups || [])[i] || {};
+        const localGrp = (local.groups || [])[i] || {};
+        const remoteGrp = (remote.groups || [])[i] || {};
+
+        const mergedGrp = {
+            guide: remoteGrp.guide || '',
+            apoyo: remoteGrp.apoyo || '',
+            guests: []
+        };
+
+        if (localGrp.guide !== baseGrp.guide) mergedGrp.guide = localGrp.guide || '';
+        else mergedGrp.guide = remoteGrp.guide || '';
+
+        if (localGrp.apoyo !== baseGrp.apoyo) mergedGrp.apoyo = localGrp.apoyo || '';
+        else mergedGrp.apoyo = remoteGrp.apoyo || '';
+
+        mergedGroups.push(mergedGrp);
+    }
+
+    mergedGuests.forEach(mg => {
+        mergedGroups[mg.targetGrpIdx].guests.push(mg.guest);
+    });
+
+    merged.groups = mergedGroups;
+    return merged;
+};
+
+function mergeGuestArrays(baseList, localList, remoteList) {
+    baseList = baseList || [];
+    localList = localList || [];
+    remoteList = remoteList || [];
+
+    const getGuestKey = (g) => {
+        if (!g) return '';
+        const dni = (g.dni || '').trim().toLowerCase();
+        if (dni) return `dni:${dni}`;
+        const name = (g.nombre || '').trim().toLowerCase();
+        return `name:${name}`;
+    };
+
+    const baseMap = new Map(baseList.map(g => [getGuestKey(g), g]));
+    const localMap = new Map(localList.map(g => [getGuestKey(g), g]));
+    const remoteMap = new Map(remoteList.map(g => [getGuestKey(g), g]));
+
+    const allKeys = new Set([...baseMap.keys(), ...localMap.keys(), ...remoteMap.keys()]);
+    const mergedList = [];
+
+    for (const key of allKeys) {
+        if (!key) continue;
+        const inBase = baseMap.get(key);
+        const inLocal = localMap.get(key);
+        const inRemote = remoteMap.get(key);
+
+        if (inLocal && !inBase) {
+            mergedList.push({ ...inLocal });
+        } else if (inBase && !inLocal) {
+            // Deleted by us
+        } else if (inRemote && !inLocal) {
+            // Deleted by them
+        } else if (inRemote && inLocal) {
+            const mergedG = { ...inRemote };
+            for (const prop in inLocal) {
+                if (inLocal[prop] !== (inBase ? inBase[prop] : undefined)) {
+                    mergedG[prop] = inLocal[prop];
+                }
+            }
+            mergedList.push(mergedG);
+        } else if (inRemote && !inBase) {
+            mergedList.push({ ...inRemote });
+        }
+    }
+
+    return mergedList;
+}
+
 function syncDOMToActiveBoatItem() {
     if (!activeBoatItem) return;
     
@@ -2678,6 +2888,24 @@ async function saveBoatData(itemToSave = activeBoatItem) {
     if (itemToSave === activeBoatItem) {
         syncDOMToActiveBoatItem();
     }
+
+    // Fetch the latest remote state from mergedAllocations
+    const remoteState = (window.mergedAllocations || []).find(t => t.id === itemToSave.id) || {};
+    
+    // Perform 3-way merge to prevent overwriting other users' concurrent edits
+    const mergedTrip = window.mergeManifests(itemToSave.lastSyncedTripState, itemToSave, remoteState);
+    
+    // Apply merged state back to the item snapshot
+    itemToSave.groups = mergedTrip.groups;
+    itemToSave.waitlist = mergedTrip.waitlist;
+    itemToSave.captain = mergedTrip.captain;
+    itemToSave.site = mergedTrip.site;
+    itemToSave.timeSaliendo = mergedTrip.timeSaliendo;
+    itemToSave.timeBuzosAgua = mergedTrip.timeBuzosAgua;
+    itemToSave.timeVolviendo = mergedTrip.timeVolviendo;
+    itemToSave.rmLocked = mergedTrip.rmLocked;
+    if (mergedTrip.maxDives) itemToSave.maxDives = mergedTrip.maxDives;
+    else delete itemToSave.maxDives;
     
     // Proactive formatting guardrail: enforce Title Case for all guests in this trip before saving
     itemToSave.groups.forEach(g => {
@@ -3001,6 +3229,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
         
         // Update the synchronous snapshot for subsequent saves without closing the modal
         itemToSave.lastSavedDnis = currentDnis;
+        itemToSave.lastSyncedTripState = JSON.parse(JSON.stringify(itemToSave));
         
         // --- GARBAGE COLLECTOR TRIGGER ---
         // Clean up insurance profiles for anyone who was removed from this boat
