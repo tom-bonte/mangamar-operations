@@ -652,7 +652,6 @@ window.mergeAndRender = function mergeAndRender() {
                         
                         // Capture the fresh snapshot as the base version for subsequent 3-way merges
                         window.activeBoatItem.lastSyncedTripState = JSON.parse(JSON.stringify(freshTrip));
-                    }
                     
                     // Re-render captains dropdown to sync conflicts
                     if (typeof renderCaptainDropdown === 'function') renderCaptainDropdown();
