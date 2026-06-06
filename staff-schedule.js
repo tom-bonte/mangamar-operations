@@ -333,23 +333,23 @@ window.setStaffScheduleRoleFilter = function(filter) {
     
     if (btnAll) {
         btnAll.className = filter === 'all' 
-            ? "px-3.5 py-1.5 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer"
-            : "px-3.5 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer";
+            ? "px-3 py-1 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            : "px-3 py-1 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer whitespace-nowrap";
     }
     if (btnCaps) {
         btnCaps.className = filter === 'capitanes'
-            ? "px-3.5 py-1.5 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer"
-            : "px-3.5 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer";
+            ? "px-3 py-1 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            : "px-3 py-1 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer whitespace-nowrap";
     }
     if (btnGuides) {
         btnGuides.className = filter === 'guias'
-            ? "px-3.5 py-1.5 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer"
-            : "px-3.5 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer";
+            ? "px-3 py-1 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            : "px-3 py-1 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer whitespace-nowrap";
     }
     if (btnRecep) {
         btnRecep.className = filter === 'recepcion'
-            ? "px-3.5 py-1.5 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer"
-            : "px-3.5 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer";
+            ? "px-3 py-1 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            : "px-3 py-1 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer whitespace-nowrap";
     }
     
     window.renderStaffScheduleGrid();

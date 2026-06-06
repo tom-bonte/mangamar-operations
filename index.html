@@ -280,9 +280,13 @@
                     <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
                         <!-- Top Row on Mobile: Title and Calendar Trigger -->
                         <div class="flex items-center justify-between w-full md:w-auto gap-4">
-                            <div class="min-w-0 flex-1">
-                                <h2 id="daily-date-header" class="text-[12px] min-[375px]:text-sm sm:text-base md:text-3xl font-black text-slate-800 uppercase tracking-tight truncate max-w-[70vw] sm:max-w-none">Cargando...</h2>
-                                <p class="text-slate-500 font-bold mt-1 text-xs md:text-sm hidden sm:block">Organización de Barcos y Clientes</p>
+                            <div class="min-w-0 flex-1 flex flex-col gap-1">
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <h2 id="daily-date-header" class="text-[12px] min-[375px]:text-sm sm:text-base md:text-3xl font-black text-slate-800 uppercase tracking-tight truncate max-w-[70vw] sm:max-w-none">Cargando...</h2>
+                                    <!-- Daily Alerts (e.g. Captain Days Off) next to the date -->
+                                    <div id="daily-alerts-container" class="hidden flex flex-wrap gap-2"></div>
+                                </div>
+                                <p class="text-slate-500 font-bold text-xs md:text-sm hidden sm:block">Organización de Barcos y Clientes</p>
                             </div>
                             <div class="flex md:hidden items-center shrink-0">
                                 <input type="text" id="mobile-date-picker-input" style="position: absolute !important; opacity: 0 !important; pointer-events: none !important; width: 1px !important; height: 1px !important; overflow: hidden !important; border: none !important; padding: 0 !important; margin: 0 !important; clip: rect(0, 0, 0, 0) !important;">
@@ -322,8 +326,7 @@
                         </div>
                     </header>
 
-                    <!-- Daily Alerts (e.g. Captain Days Off) -->
-                    <div id="daily-alerts-container" class="hidden flex flex-wrap gap-2.5 mb-6"></div>
+
 
                     <!-- Mobile Boat Column Selector Tabs -->
                     <div id="mobile-boat-selector" class="flex md:hidden bg-slate-100 p-1 rounded-xl border border-slate-200/60 mb-6 justify-between gap-1">
@@ -2546,52 +2549,44 @@
                         </button>
                         <button onclick="processGroupCheckout('PADI')" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-transparent bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 hover:border-red-200 transition-all font-black text-xs gap-1">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                            PADI
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- Staff Schedule Modal -->
-    <div id="staff-schedule-modal" onclick="if(event.target===this) closeStaffScheduleModal()" class="fixed inset-0 z-[60] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer">
-        <div class="bg-white rounded-2xl w-[98vw] max-w-[1600px] h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto">
-            <!-- Header -->
-            <div class="px-8 py-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center bg-white shrink-0 gap-4">
-                <div class="flex items-center gap-6 w-full sm:w-auto">
-                    <h2 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2 shrink-0">
-                        <svg class="w-6 h-6 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Horario y Días Libres
+                          <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-200 bg-white shrink-0">
+                <!-- Row 1: Title & Close Button -->
+                <div class="flex justify-between items-center w-full gap-4">
+                    <h2 class="text-lg sm:text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                        <svg class="w-5 h-5 sm:w-6 h-6 text-violet-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="truncate">Horario y Días Libres</span>
                     </h2>
                     
-                    <!-- Month Selector -->
-                    <select id="staff-schedule-month-select" onchange="window.handleStaffScheduleMonthChange(this.value)" class="px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-shadow shadow-sm cursor-pointer hover:bg-white">
-                        <!-- Populated by JS -->
-                    </select>
-
-                    <!-- Role Filter -->
-                    <div class="hidden sm:flex bg-slate-100 p-1 rounded-xl items-center border border-slate-200 h-10 select-none ml-2">
-                        <button onclick="window.setStaffScheduleRoleFilter('all')" id="btn-sch-all" class="px-3.5 py-1.5 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95">Todos</button>
-                        <button onclick="window.setStaffScheduleRoleFilter('capitanes')" id="btn-sch-caps" class="px-3.5 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95">Capitanes</button>
-                        <button onclick="window.setStaffScheduleRoleFilter('guias')" id="btn-sch-guides" class="px-3.5 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95">Guías</button>
-                        <button onclick="window.setStaffScheduleRoleFilter('recepcion')" id="btn-sch-recep" class="px-3.5 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95">Recepción</button>
-                    </div>
-                </div>
-                
-                <div class="flex items-center gap-4 w-full sm:w-auto shrink-0 justify-between sm:justify-end">
-                    <!-- Add Staff Dropdown -->
-                    <select id="staff-schedule-add-select" onchange="window.handleAddStaffColumn(this.value)" class="flex-1 sm:w-64 px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-shadow shadow-sm cursor-pointer hover:bg-white">
-                        <option value="">+ Añadir Staff al Horario...</option>
-                        <!-- Populated by JS -->
-                    </select>
-                    
-                    <button onclick="closeStaffScheduleModal()" class="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                    <button onclick="closeStaffScheduleModal()" class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
-            </div>
+                
+                <!-- Row 2: Month Selector, Filters & Add Staff -->
+                <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mt-4">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Month Selector -->
+                        <select id="staff-schedule-month-select" onchange="window.handleStaffScheduleMonthChange(this.value)" class="w-full sm:w-auto px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-shadow shadow-sm cursor-pointer hover:bg-white">
+                            <!-- Populated by JS -->
+                        </select>
+                        
+                        <!-- Role Filter -->
+                        <div class="flex bg-slate-100 p-0.5 rounded-xl items-center border border-slate-200 h-9 select-none overflow-x-auto max-w-full">
+                            <button onclick="window.setStaffScheduleRoleFilter('all')" id="btn-sch-all" class="px-3 py-1 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer whitespace-nowrap">Todos</button>
+                            <button onclick="window.setStaffScheduleRoleFilter('capitanes')" id="btn-sch-caps" class="px-3 py-1 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer whitespace-nowrap">Capitanes</button>
+                            <button onclick="window.setStaffScheduleRoleFilter('guias')" id="btn-sch-guides" class="px-3 py-1 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer whitespace-nowrap">Guías</button>
+                            <button onclick="window.setStaffScheduleRoleFilter('recepcion')" id="btn-sch-recep" class="px-3 py-1 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-all active:scale-95 cursor-pointer whitespace-nowrap">Recepción</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Staff Dropdown -->
+                    <select id="staff-schedule-add-select" onchange="window.handleAddStaffColumn(this.value)" class="w-full md:w-64 px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-shadow shadow-sm cursor-pointer hover:bg-white">
+                        <option value="">+ Añadir Staff al Horario...</option>
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
             
             <!-- Table Container -->
             <div id="staff-schedule-grid-container" class="flex-1 overflow-auto p-6 bg-slate-50 custom-scrollbar">
