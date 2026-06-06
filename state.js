@@ -20,7 +20,8 @@ var activeBoatItem = null;
 
 var customerDatabase = []; // Holds the list of all past customers
 var monthlySiteFilters = []; // Remembers which dive sites are selected in Monthly View
-var staffDatabase = { capitanes: [], guias: [] }; // Holds Mangamar Staff
+var staffDatabase = { capitanes: [], guias: [], recepcion: [] }; // Holds Mangamar Staff
+var staffSchedulesData = new Map(); // monthKey -> schedule object (columns, daysOff)
 
 // ==========================================
 // SESSION AUTHENTICATION

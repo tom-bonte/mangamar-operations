@@ -520,18 +520,24 @@ body.is-dragging .tooltip-content {
     }
     
     /* Hide lists by default */
-    #view-staff .grid.md\:grid-cols-2 > div:nth-child(1),
-    #view-staff .grid.md\:grid-cols-2 > div:nth-child(2) {
+    #view-staff .grid.lg\:grid-cols-3 > div:nth-child(1),
+    #view-staff .grid.lg\:grid-cols-3 > div:nth-child(2),
+    #view-staff .grid.lg\:grid-cols-3 > div:nth-child(3) {
         display: none !important;
     }
     
     /* Display list based on selector state */
-    #view-staff.show-capitanes .grid.md\:grid-cols-2 > div:nth-child(1) {
+    #view-staff.show-capitanes .grid.lg\:grid-cols-3 > div:nth-child(1) {
         display: flex !important;
         height: calc(100vh - 200px) !important;
         min-height: 0 !important;
     }
-    #view-staff.show-guias .grid.md\:grid-cols-2 > div:nth-child(2) {
+    #view-staff.show-guias .grid.lg\:grid-cols-3 > div:nth-child(2) {
+        display: flex !important;
+        height: calc(100vh - 200px) !important;
+        min-height: 0 !important;
+    }
+    #view-staff.show-recepcion .grid.lg\:grid-cols-3 > div:nth-child(3) {
         display: flex !important;
         height: calc(100vh - 200px) !important;
         min-height: 0 !important;
@@ -542,4 +548,223 @@ body.is-dragging .tooltip-content {
         transform: translateY(0) !important;
         opacity: 1 !important;
     }
+}
+
+/* ==========================================
+   HORARIO STAFF STICKY LAYOUT & STYLING
+   ========================================== */
+.staff-schedule-table-wrapper {
+    overflow: auto;
+    max-height: calc(85vh - 120px);
+    position: relative;
+    border-radius: 12px;
+}
+
+.staff-schedule-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    width: max-content;
+}
+
+/* Sticky Headers */
+.staff-schedule-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8fafc;
+    z-index: 20;
+    border-bottom: 2px solid #cbd5e1;
+    border-right: 1px solid #e2e8f0;
+}
+
+/* Sticky First Column (Days) */
+.staff-schedule-table tbody td:first-child,
+.staff-schedule-table thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 15;
+    background-color: #f8fafc;
+    border-right: 2px solid #cbd5e1;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.02);
+}
+
+/* Sticky Top-Left Corner cell (sticky on both top and left) */
+.staff-schedule-table thead th:first-child {
+    z-index: 30;
+}
+
+.staff-schedule-table td {
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+}
+
+/* Fixed column widths */
+.staff-schedule-col-day {
+    width: 80px !important;
+}
+
+.staff-schedule-col-staff {
+    width: 130px !important;
+}
+
+/* Custom dropdown action menu styled cleanly */
+.staff-action-menu {
+    position: absolute;
+    top: 100%;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    min-width: 130px;
+    overflow: hidden;
+}
+
+.staff-action-menu button {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    text-align: left;
+    transition: background-color 0.1s;
+    background: none;
+    border: none;
+    width: 100%;
+    cursor: pointer;
+}
+
+.staff-action-menu button:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+}
+
+.staff-action-menu button.text-red-500:hover {
+    background-color: #fef2f2;
+    color: #ef4444;
+}
+
+.staff-action-menu.active {
+    display: flex;
+}
+
+/* Week separator row border to visually divide weeks after Sundays */
+.staff-schedule-table tr.week-separator-row td {
+    border-bottom: 2.5px solid #94a3b8 !important;
+}
+
+/* Day off note container and hover edit icon */
+.day-off-container {
+    position: relative;
+    width: 100%;
+    min-height: 30px;
+    background-color: #ecfdf5; /* emerald-50 */
+    border: 2px dashed rgba(16, 185, 129, 0.4); /* emerald-500/40 */
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+}
+.day-off-actions {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    gap: 3px;
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out;
+    z-index: 10;
+}
+.day-off-action-btn {
+    background-color: #ffffff;
+    border: 1px solid #a7f3d0; /* emerald-200 */
+    color: #047857; /* emerald-700 */
+    border-radius: 4px;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.day-off-delete-btn {
+    color: #dc2626; /* red-600 */
+    border-color: #fee2e2; /* red-200 */
+}
+.day-off-container:hover {
+    background-color: #d1fae5; /* emerald-100 */
+    border-color: #10b981; /* emerald-500 */
+}
+.day-off-container:hover .day-off-actions {
+    opacity: 1;
+}
+.day-off-action-btn:hover {
+    background-color: #ecfdf5; /* emerald-50 */
+}
+.day-off-delete-btn:hover {
+    background-color: #fef2f2; /* red-50 */
+    color: #b91c1c; /* red-700 */
+    border-color: #fecaca; /* red-300 */
+}
+
+/* Color-coded categories for days off */
+.day-off-container {
+    color: #065f46; /* default emerald-800 text */
+}
+
+/* Vacaciones (Amber/Yellow) */
+.day-off-container.cat-vacaciones {
+    background-color: #fffbeb; /* amber-50 */
+    border-color: rgba(245, 158, 11, 0.4); /* amber-500/40 */
+    color: #78350f; /* amber-900 */
+}
+.day-off-container.cat-vacaciones:hover {
+    background-color: #fef3c7; /* amber-100 */
+    border-color: #f59e0b; /* amber-500 */
+}
+.day-off-container.cat-vacaciones .day-off-action-btn:not(.day-off-delete-btn) {
+    border-color: #fde68a; /* amber-200 */
+    color: #b45309; /* amber-700 */
+}
+.day-off-container.cat-vacaciones .day-off-action-btn:not(.day-off-delete-btn):hover {
+    background-color: #fffbeb;
+}
+
+/* Baja Médica (Rose/Red) */
+.day-off-container.cat-baja {
+    background-color: #fff1f2; /* rose-50 */
+    border-color: rgba(244, 63, 94, 0.4); /* rose-500/40 */
+    color: #881337; /* rose-900 */
+}
+.day-off-container.cat-baja:hover {
+    background-color: #ffe4e6; /* rose-100 */
+    border-color: #f43f5e; /* rose-500 */
+}
+.day-off-container.cat-baja .day-off-action-btn:not(.day-off-delete-btn) {
+    border-color: #fecdd3; /* rose-200 */
+    color: #be123c; /* rose-700 */
+}
+.day-off-container.cat-baja .day-off-action-btn:not(.day-off-delete-btn):hover {
+    background-color: #fff1f2;
+}
+
+/* Asuntos Propios (Blue) */
+.day-off-container.cat-asuntos {
+    background-color: #eff6ff; /* blue-50 */
+    border-color: rgba(59, 130, 246, 0.4); /* blue-500/40 */
+    color: #1e3a8a; /* blue-900 */
+}
+.day-off-container.cat-asuntos:hover {
+    background-color: #dbeafe; /* blue-100 */
+    border-color: #3b82f6; /* blue-500 */
+}
+.day-off-container.cat-asuntos .day-off-action-btn:not(.day-off-delete-btn) {
+    border-color: #bfdbfe; /* blue-200 */
+    color: #1d4ed8; /* blue-700 */
+}
+.day-off-container.cat-asuntos .day-off-action-btn:not(.day-off-delete-btn):hover {
+    background-color: #eff6ff;
 }

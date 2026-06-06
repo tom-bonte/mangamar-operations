@@ -25,7 +25,8 @@ window.sortStaff = function(type, criteria) {
 function renderStaffView() {
     const capList = document.getElementById('staff-captains-list');
     const guideList = document.getElementById('staff-guides-list');
-    if(!capList || !guideList) return;
+    const recepList = document.getElementById('staff-reception-list');
+    if(!capList || !guideList || !recepList) return;
 
     // Helper to extract nice initials from their name
     const getInitials = (name) => {
@@ -35,16 +36,29 @@ function renderStaffView() {
 
     const buildRow = (person, type, index) => {
         const isCap = type === 'capitanes';
-        const avatarColor = isCap ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600';
-        const hoverBorder = isCap ? 'hover:border-blue-300' : 'hover:border-amber-300';
+        const isRecep = type === 'recepcion';
+        
+        let avatarColor = 'bg-amber-100 text-amber-600';
+        let hoverBorder = 'hover:border-amber-300';
+        let leftBarColor = 'bg-amber-500';
+        
+        if (isCap) {
+            avatarColor = 'bg-blue-100 text-blue-600';
+            hoverBorder = 'hover:border-blue-300';
+            leftBarColor = 'bg-blue-500';
+        } else if (isRecep) {
+            avatarColor = 'bg-violet-100 text-violet-600';
+            hoverBorder = 'hover:border-violet-300';
+            leftBarColor = 'bg-violet-500';
+        }
         
         return `
         <div class="group flex justify-between items-center p-3 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md ${hoverBorder} transition-all cursor-default relative overflow-hidden">
-            <div class="absolute left-0 top-0 bottom-0 w-1 ${isCap ? 'bg-blue-500' : 'bg-amber-500'} opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div class="absolute left-0 top-0 bottom-0 w-1 ${leftBarColor} opacity-0 group-hover:opacity-100 transition-opacity"></div>
             
             ${(() => {
                 let roleBadge = '';
-                if (!isCap && person.role) {
+                if (type === 'guias' && person.role) {
                     let badgeColor = 'bg-amber-100 text-amber-600 border border-amber-200';
                     if (person.role === 'Instructor') badgeColor = 'bg-emerald-100 text-emerald-600 border border-emerald-200';
                     if (person.role === 'Externo') badgeColor = 'bg-purple-100 text-purple-600 border border-purple-200';
@@ -97,6 +111,9 @@ function renderStaffView() {
         return a.nombre.localeCompare(b.nombre);
     });
 
+    // Sort Recepcion automatically by name
+    const reception = [...(staffDatabase.recepcion || [])].sort((a, b) => a.nombre.localeCompare(b.nombre));
+
     // IMPORTANT: We use indexOf() to ensure the Edit/Delete functions still point to the exact 
     // real object in the database, even though we shuffled the display array!
     capList.innerHTML = caps.map((p) => {
@@ -109,15 +126,22 @@ function renderStaffView() {
         return buildRow(p, 'guias', originalIdx);
     }).join('');
 
-    // Update the counters in the new UI headers
+    recepList.innerHTML = reception.map((p) => {
+        const originalIdx = staffDatabase.recepcion.indexOf(p);
+        return buildRow(p, 'recepcion', originalIdx);
+    }).join('');
+
+    // Update the counters in the UI headers
     const capCountEl = document.getElementById('count-capitanes');
     const guideCountEl = document.getElementById('count-guias');
+    const recepCountEl = document.getElementById('count-recepcion');
     if(capCountEl) capCountEl.innerText = caps.length;
     if(guideCountEl) guideCountEl.innerText = guides.length;
+    if(recepCountEl) recepCountEl.innerText = reception.length;
 }
 async function addStaff(type) {
-    const nameInput = document.getElementById(type === 'capitanes' ? 'new-cap-name' : 'new-guide-name');
-    const dniInput = document.getElementById(type === 'capitanes' ? 'new-cap-dni' : 'new-guide-dni');
+    const nameInput = document.getElementById(type === 'capitanes' ? 'new-cap-name' : (type === 'recepcion' ? 'new-recep-name' : 'new-guide-name'));
+    const dniInput = document.getElementById(type === 'capitanes' ? 'new-cap-dni' : (type === 'recepcion' ? 'new-recep-dni' : 'new-guide-dni'));
     if(!nameInput.value || !dniInput.value) { showAppAlert("Rellena nombre y DNI"); return; }
     if(!staffDatabase[type]) staffDatabase[type] = [];
     

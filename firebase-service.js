@@ -157,17 +157,19 @@ function syncActiveMonthListeners() {
         if (!targetMonths.includes(monthKey)) {
             if (listeners.unsubscribeVisor) listeners.unsubscribeVisor();
             if (listeners.unsubscribeInternal) listeners.unsubscribeInternal();
+            if (listeners.unsubscribeStaffSchedule) listeners.unsubscribeStaffSchedule();
             activeMonthListeners.delete(monthKey);
             visorMonthData.delete(monthKey);
             internalMonthData.delete(monthKey);
             internalMonthTombstones.delete(monthKey);
+            window.staffSchedulesData.delete(monthKey);
         }
     }
 
     // 2. Subscribe to newly introduced target months
     targetMonths.forEach(monthKey => {
         if (!activeMonthListeners.has(monthKey)) {
-            const listeners = { unsubscribeVisor: null, unsubscribeInternal: null };
+            const listeners = { unsubscribeVisor: null, unsubscribeInternal: null, unsubscribeStaffSchedule: null };
 
             // Listen strictly to this Visor monthly document
             listeners.unsubscribeVisor = db.collection(VISOR_DB).doc(monthKey).onSnapshot((doc) => {
@@ -212,6 +214,35 @@ function syncActiveMonthListeners() {
                 internalMonthTombstones.set(monthKey, tombstones);
                 compileAndMerge();
             }, (err) => console.warn(`Error listening to internal month ${monthKey}:`, err));
+
+            // Listen strictly to this Staff Schedule monthly document
+            listeners.unsubscribeStaffSchedule = db.collection('mangamar_staff_schedule').doc(monthKey).onSnapshot((doc) => {
+                if (doc.exists) {
+                    window.staffSchedulesData.set(monthKey, doc.data());
+                } else {
+                    window.staffSchedulesData.set(monthKey, {
+                        monthKey: monthKey,
+                        columns: [],
+                        daysOff: {}
+                    });
+                }
+                
+                // Re-render things if manifest is open
+                if (typeof renderGroups === 'function' && window.activeBoatItem && window.activeBoatItem.date && window.activeBoatItem.date.substring(0, 7) === monthKey) {
+                    renderGroups(true);
+                }
+                if (typeof renderCaptainDropdown === 'function' && window.activeBoatItem && window.activeBoatItem.date && window.activeBoatItem.date.substring(0, 7) === monthKey) {
+                    renderCaptainDropdown();
+                }
+                
+                // Auto-refresh the staff schedule grid in real-time if it's currently open for this month
+                if (window.activeStaffSchedule && window.activeStaffSchedule.monthKey === monthKey) {
+                    window.activeStaffSchedule = window.staffSchedulesData.get(monthKey);
+                    if (typeof window.renderStaffScheduleGrid === 'function') {
+                        window.renderStaffScheduleGrid();
+                    }
+                }
+            }, (err) => console.warn(`Error listening to staff schedule for month ${monthKey}:`, err));
 
             activeMonthListeners.set(monthKey, listeners);
         }

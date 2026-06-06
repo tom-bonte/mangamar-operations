@@ -7,6 +7,16 @@ window.hasPendingWrites = false;
 window.lastLocalEditTime = 0;
 
 // RAF-debounce state for renderGroups.
+window.isStaffOnDayOff = function(name, dateStr) {
+    if (!name || !dateStr) return false;
+    const monthKey = dateStr.substring(0, 7); // YYYY-MM
+    const schedule = window.staffSchedulesData ? window.staffSchedulesData.get(monthKey) : null;
+    if (schedule && schedule.daysOff && Array.isArray(schedule.daysOff[name])) {
+        return schedule.daysOff[name].includes(dateStr);
+    }
+    return false;
+};
+
 // Coalesces rapid consecutive calls into a single DOM update per animation frame.
 let _renderGroupsRAF = null;
 let _renderGroupsSavePending = false;
@@ -404,9 +414,12 @@ function renderCaptainDropdown() {
         
         // Use universal tracker for Captains
         let loc = getPersonLocation(c.dni, c.nombre, 'captain');
+        let onDayOff = window.isStaffOnDayOff(c.nombre, activeBoatItem.date);
         
         if (!isSelected && loc) {
             conflictText = ` (En ${loc})`; disabledAttr = "disabled"; disabledClass = "text-slate-400 bg-slate-100 font-bold";
+        } else if (!isSelected && onDayOff) {
+            conflictText = ` (Día Libre)`; disabledAttr = "disabled"; disabledClass = "text-slate-400 bg-slate-100 font-bold";
         }
         return `<option value="${c.nombre}" class="${disabledClass}" ${isSelected ? 'selected' : ''} ${disabledAttr}>${c.nombre}${conflictText}</option>`;
     }).join('');
@@ -633,9 +646,12 @@ function _renderGroupsCore(skipAutoSave = false) {
             
             // Use universal tracker for Guides
             let loc = getPersonLocation(g.dni, g.nombre, 'guide', groupIndex);
+            let onDayOff = window.isStaffOnDayOff(g.nombre, activeBoatItem.date);
 
             if (!isSelected && loc) {
                 conflictText = ` (En ${loc})`; disabledAttr = "disabled"; disabledClass = "text-slate-400 bg-slate-100 font-bold";
+            } else if (!isSelected && onDayOff) {
+                conflictText = ` (Día Libre)`; disabledAttr = "disabled"; disabledClass = "text-slate-400 bg-slate-100 font-bold";
             }
             
             const roleStr = g.role && g.role !== 'Guía' ? ` (${g.role.substring(0,3).toUpperCase()})` : '';
@@ -655,9 +671,12 @@ function _renderGroupsCore(skipAutoSave = false) {
             
             // Use universal tracker for Apoyo
             let loc = getPersonLocation(g.dni, g.nombre, 'apoyo', groupIndex);
+            let onDayOff = window.isStaffOnDayOff(g.nombre, activeBoatItem.date);
 
             if (!isSelected && loc) {
                 conflictText = ` (En ${loc})`; disabledAttr = "disabled"; disabledClass = "text-slate-400 bg-slate-100 font-bold";
+            } else if (!isSelected && onDayOff) {
+                conflictText = ` (Día Libre)`; disabledAttr = "disabled"; disabledClass = "text-slate-400 bg-slate-100 font-bold";
             }
             
             const roleStr = g.role && g.role !== 'Guía' ? ` (${g.role.substring(0,3).toUpperCase()})` : '';

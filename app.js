@@ -1533,12 +1533,12 @@ window.selectMobileStaff = function(tab) {
     window.activeMobileStaff = tab;
     const view = document.getElementById('view-staff');
     if (view) {
-        view.classList.remove('show-capitanes', 'show-guias');
+        view.classList.remove('show-capitanes', 'show-guias', 'show-recepcion');
         view.classList.add(`show-${tab}`);
     }
     
     // Style active tab
-    ['capitanes', 'guias'].forEach(t => {
+    ['capitanes', 'guias', 'recepcion'].forEach(t => {
         const btn = document.getElementById(`m-staff-btn-${t}`);
         if (!btn) return;
         if (t === tab) {
