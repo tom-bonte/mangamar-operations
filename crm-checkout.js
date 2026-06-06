@@ -472,7 +472,7 @@ window.executePaymentGateway = async function() {
                 if (custIndex !== -1) {
                     customerDatabase[custIndex].deposit = 0;
                     const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
-                    await db.collection("mangamar_directory").doc("master_list").update({ clients: cleanDatabase });
+                    await window.safeMasterListWrite(cleanDatabase, 'clear-deposit-after-checkout');
                 }
             }
 
@@ -910,7 +910,7 @@ window.updateCustomerDiscount = function (val) {
     (async () => {
         try {
             const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
-            await db.collection("mangamar_directory").doc("master_list").update({ clients: cleanDatabase });
+            await window.safeMasterListWrite(cleanDatabase, 'save-discount');
             await db.collection('mangamar_customers').doc(window.activeFichaDni).set({ 
                 discount: disc, 
                 discountType: discType 
@@ -1127,7 +1127,7 @@ window.processGroupCheckout = async function(method) {
                     let cxIdx = customerDatabase.findIndex(cust => cust.dni === c.dni);
                     if (cxIdx !== -1 && customerDatabase[cxIdx].deposit > 0) { 
                         customerDatabase[cxIdx].deposit = 0; 
-                        await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                        await window.safeMasterListWrite(customerDatabase, 'group-checkout-clear-deposit');
                     }
                 }
             }
@@ -1376,7 +1376,7 @@ window.liquidarFacturaActual = async function () {
                         if (cxIdx !== -1) { customerDatabase[cxIdx].deposit = 0; masterChanged = true; }
                     });
                     if (masterChanged) {
-                        await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                        await window.safeMasterListWrite(customerDatabase, 'padi-checkout-clear-deposit');
                     }
                 } else if (currentType === 'individual' && currentFicha && activeDocs.length > 0) {
                     const batch = db.batch();
@@ -1392,7 +1392,7 @@ window.liquidarFacturaActual = async function () {
                     let cxIdx = customerDatabase.findIndex(cust => cust.dni === currentFicha);
                     if (cxIdx !== -1) {
                         customerDatabase[cxIdx].deposit = 0;
-                        await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                        await window.safeMasterListWrite(customerDatabase, 'individual-checkout-clear-deposit');
                     }
                 }
 

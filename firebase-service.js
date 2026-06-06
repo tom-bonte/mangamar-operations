@@ -14,6 +14,53 @@ window.normalizeDni = function(dni) {
     return dni.toString().replace(/[^A-Za-z0-9]/g, '').trim().toUpperCase();
 };
 
+// --- CRM Load State & Safety Guard ---
+// Set to true ONLY after the full master_list has been fetched and loaded.
+// Any code that writes to master_list should check this flag first.
+window.crmLoaded = false;
+window.crmLoadedClientCount = 0; // Track how many clients were in the last successful full load
+
+/**
+ * Safe wrapper for ALL master_list writes.
+ * Refuses to write if:
+ *   1. The CRM hasn't loaded yet (crmLoaded = false) AND the caller isn't the initial load itself
+ *   2. The new client count is dramatically smaller than the known-good count (data loss protection)
+ * @param {Array} clientsArray - The clients array to write
+ * @param {string} [caller='unknown'] - Name of calling function for logging
+ * @param {boolean} [isInitialLoad=false] - Skip crmLoaded check for the initial load itself
+ */
+window.safeMasterListWrite = function(clientsArray, caller, isInitialLoad) {
+    caller = caller || 'unknown';
+    const count = (clientsArray || []).length;
+    const knownGood = window.crmLoadedClientCount;
+
+    // Safety 1: CRM hasn't loaded yet — refuse all writes except the initial load
+    if (!isInitialLoad && !window.crmLoaded) {
+        console.warn(`🛡️ [SafeWrite] BLOCKED write from '${caller}': CRM not yet loaded. (${count} clients vs ${knownGood} known-good)`);
+        return Promise.resolve();
+    }
+
+    // Safety 2: Writing significantly fewer clients than we know exist → catastrophic data loss prevention
+    // Allow up to 20% shrinkage (duplicates merged). More than that is a bug.
+    const minSafe = knownGood > 10 ? Math.floor(knownGood * 0.80) : 0;
+    if (knownGood > 10 && count < minSafe) {
+        console.error(`🚨 [SafeWrite] BLOCKED write from '${caller}': Only ${count} clients vs ${knownGood} known-good. Catastrophic data loss prevented!`);
+        return Promise.resolve();
+    }
+
+    console.log(`✅ [SafeWrite] '${caller}' writing ${count} clients to master_list.`);
+    return db.collection('mangamar_directory').doc('master_list')
+        .update({ clients: clientsArray })
+        .catch(e => {
+            // Fallback to set if document doesn't exist yet
+            if (e.code === 'not-found') {
+                return db.collection('mangamar_directory').doc('master_list')
+                    .set({ clients: clientsArray }, { merge: true });
+            }
+            console.error(`❌ [SafeWrite] Write from '${caller}' failed:`, e);
+        });
+};
+
 window.isSameDni = function(dni1, dni2) {
     if (!dni1 || !dni2) return false;
     return window.normalizeDni(dni1) === window.normalizeDni(dni2);
@@ -388,6 +435,11 @@ function startFirestoreListeners() {
     
                     const cleanClients = [...dedupMap.values(), ...nonDniClients];
                     customerDatabase = cleanClients;
+
+                    // ✅ Mark CRM as fully loaded — now safe for all downstream writes
+                    window.crmLoaded = true;
+                    window.crmLoadedClientCount = cleanClients.length;
+                    console.log(`✅ [CRM] Loaded ${cleanClients.length} clients. SafeWrite guards are now active.`);
     
                     // Re-merge and render manifests now that the CRM database has loaded!
                     if (typeof compileAndMerge === 'function') {
@@ -396,8 +448,8 @@ function startFirestoreListeners() {
     
                     if (cleanClients.length < rawClients.length || crmNamesModified) {
                         console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicates or corrected ALL CAPS formatting.`);
-                        db.collection("mangamar_directory").doc("master_list").update({ clients: cleanClients })
-                            .catch(e => console.error("Error auto-healing CRM:", e));
+                        // Use isInitialLoad=true because this IS the initial load writing back
+                        window.safeMasterListWrite(cleanClients, 'auto-heal-on-load', true);
                     }
     
                     // Trigger non-blocking database-wide auto-heal sweep to correct name formats in all historic/current boat sheets

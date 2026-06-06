@@ -2266,7 +2266,7 @@ window.saveLocalGuestEdit = async function() {
         
         // 2. Sync to Firestore (mangamar_customers + master_list)
         db.collection('mangamar_customers').doc(normDni).set(existingProfile, { merge: true }).catch(e => console.error("Error saving customer to Firestore:", e));
-        db.collection('mangamar_directory').doc('master_list').set({ clients: customerDatabase }, { merge: true }).catch(e => console.error("Error bg master sync:", e));
+        window.safeMasterListWrite(customerDatabase, 'add-guest-to-manifest').catch(e => console.error("Error bg master sync:", e));
         
         // 3. Propagate this rich database info to all matching trip bookings month-wide in mergedAllocations
         let boatSyncPromises = [];
@@ -3740,7 +3740,7 @@ window.toggleContasimple = async function(groupIndex, guestIndex) {
             
             // Save to Master List in background
             try {
-                await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+                await window.safeMasterListWrite(customerDatabase, 'toggle-contasimple');
             } catch (e) {
                 console.error(e);
                 showAppAlert("Error al guardar el estado de Contasimple");

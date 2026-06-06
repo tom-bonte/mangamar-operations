@@ -782,7 +782,7 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
         if (customerInfo.outstandingDebt !== totalAPagar) {
             customerInfo.outstandingDebt = totalAPagar;
             const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
-            db.collection('mangamar_directory').doc('master_list').set({ clients: cleanDatabase }, { merge: true })
+            window.safeMasterListWrite(cleanDatabase, 'outstandingDebt-sync')
                 .catch(e => console.error("Error background master_list outstandingDebt sync:", e));
             db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true })
                 .catch(e => console.error("Error background customer doc outstandingDebt sync:", e));
@@ -899,7 +899,7 @@ window.saveCustomerEdits = async function () {
         }
 
         // 2. Auto-sync Master List and Individual Customer Profile (ASYNC NON-BLOCKING)
-        db.collection('mangamar_directory').doc('master_list').set({ clients: customerDatabase }, { merge: true }).catch(e => console.error("Error bg master sync:", e));
+        window.safeMasterListWrite(customerDatabase, 'save-customer-profile').catch(e => console.error("Error bg master sync:", e));
         if (index > -1 && typeof db !== 'undefined') {
             db.collection('mangamar_customers').doc(dni).set(customerDatabase[index], { merge: true }).catch(e => console.error("Error bg customer sync:", e));
         }
@@ -1037,7 +1037,7 @@ window.executeDeleteCustomer = function () {
             if (docSnap.exists) {
                 let data = docSnap.data().clients || [];
                 let updated = data.filter(c => c.dni !== dni);
-                await db.collection('mangamar_directory').doc('master_list').set({ clients: updated }, { merge: true });
+                await window.safeMasterListWrite(updated, 'delete-customer');
             }
 
             // 4. Remove customer from every trip booking (manifest groups, guests, and waitlists) month-wide
@@ -1217,7 +1217,7 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
             // and does a single batch write at the end (22 writes → 1).
             if (!skipMasterListWrite) {
                 const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
-                await db.collection('mangamar_directory').doc('master_list').update({ clients: cleanDatabase });
+                await window.safeMasterListWrite(cleanDatabase, 'update-outstanding-debt-single');
             }
             await db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true });
         }
@@ -1242,7 +1242,7 @@ window.updateMultipleCustomersOutstandingDebt = async function(dnis) {
     if (uniqueDnis.length > 0) {
         try {
             const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
-            await db.collection('mangamar_directory').doc('master_list').update({ clients: cleanDatabase });
+            await window.safeMasterListWrite(cleanDatabase, 'update-outstanding-debt-batch');
         } catch (e) {
             console.error('[updateMultipleCustomersOutstandingDebt] master_list write failed:', e);
         }

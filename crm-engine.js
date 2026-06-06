@@ -722,7 +722,7 @@ window.updateGuestDeposit = async function (dni, amount, groupIndex, guestIndex)
             (async () => {
                 try {
                     const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
-                    await db.collection("mangamar_directory").doc("master_list").update({ clients: cleanDatabase });
+                    await window.safeMasterListWrite(cleanDatabase, 'save-deposit');
                     if (typeof window.updateCustomerOutstandingDebt === 'function') {
                         await window.updateCustomerOutstandingDebt(dni);
                     }
@@ -1423,7 +1423,7 @@ window.syncJotformCustomers = async function() {
         });
 
         if (newCount > 0 || mergedCount > 0) {
-            await db.collection("mangamar_directory").doc("master_list").update({ clients: customerDatabase });
+            await window.safeMasterListWrite(customerDatabase, 'jotform-import');
             
             // Sync all updated/created customer profiles to their individual Firestore documents as well
             if (typeof db !== 'undefined') {
