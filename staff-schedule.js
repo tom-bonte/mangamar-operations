@@ -215,6 +215,10 @@ window.toggleStaffDayOff = async function(staffName, dateStr) {
     
     if (idx === -1) {
         list.push(dateStr);
+        // Clean up workedHours for this day when setting Day Off
+        if (window.activeStaffSchedule.workedHours?.[staffName]?.[dateStr]) {
+            delete window.activeStaffSchedule.workedHours[staffName][dateStr];
+        }
     } else {
         list.splice(idx, 1);
         // Clean up note if day off is removed
@@ -229,6 +233,228 @@ window.toggleStaffDayOff = async function(staffName, dateStr) {
     
     await window.saveStaffSchedule();
 };
+
+// ==========================================
+// WORK HOURS TRACKING LOGIC & MODALS
+// ==========================================
+
+// Time parsing helper mimicking radio times formatting
+function parseRadioTime(input) {
+    if (!input) return null;
+    let clean = input.trim().replace(/[,.]/g, ':');
+    if (clean.includes(':')) {
+        let parts = clean.split(':');
+        let h = parts[0].replace(/\D/g, '');
+        let m = parts[1].replace(/\D/g, '');
+        if (!h) h = '0';
+        if (!m) m = '0';
+        h = h.padStart(2, '0');
+        if (m.length === 1) {
+            m = '0' + m;
+        } else {
+            m = m.substring(0, 2).padEnd(2, '0');
+        }
+        return `${h}:${m}`;
+    } else {
+        let digits = clean.replace(/\D/g, '');
+        if (digits.length === 0) return null;
+        if (digits.length === 1 || digits.length === 2) {
+            return `${digits.padStart(2, '0')}:00`;
+        } else if (digits.length === 3) {
+            let h = digits.substring(0, 1).padStart(2, '0');
+            let m = digits.substring(1, 3);
+            return `${h}:${m}`;
+        } else {
+            let h = digits.substring(0, 2).padStart(2, '0');
+            let m = digits.substring(2, 4);
+            return `${h}:${m}`;
+        }
+    }
+}
+
+window.formatRadioTimeInput = function(element) {
+    const parsed = parseRadioTime(element.value);
+    if (parsed) {
+        element.value = parsed;
+    }
+};
+
+let activeHoursStaffName = null;
+let activeHoursDateStr = null;
+
+window.openStaffHoursEditModal = function(staffName, dateStr) {
+    if (window.isStaffLoggedIn) return;
+    if (!staffName || !dateStr || !window.activeStaffSchedule) return;
+    
+    activeHoursStaffName = staffName;
+    activeHoursDateStr = dateStr;
+    
+    // Set title
+    const titleEl = document.getElementById('staff-hours-edit-title');
+    if (titleEl) {
+        titleEl.textContent = `Editar Horas - ${staffName} (${dateStr})`;
+    }
+    
+    // Clear container
+    const container = document.getElementById('staff-hours-frames-container');
+    if (container) container.innerHTML = '';
+    
+    // Get existing worked hours data
+    const existing = window.activeStaffSchedule.workedHours?.[staffName]?.[dateStr] || {};
+    const frames = existing.frames || [];
+    
+    if (frames.length === 0) {
+        // Add one empty frame row by default
+        window.addHoursFrameRow('', '');
+    } else {
+        frames.forEach(f => {
+            window.addHoursFrameRow(f.start, f.end);
+        });
+    }
+    
+    // Salidas (Capitanes only)
+    const isCaptain = (window.staffDatabase.capitanes || []).some(c => c.nombre === staffName);
+    const capSection = document.getElementById('staff-hours-captain-section');
+    const salidasInput = document.getElementById('staff-hours-salidas-input');
+    
+    if (capSection) {
+        if (isCaptain) {
+            capSection.classList.remove('hidden');
+            if (salidasInput) {
+                // If it is 0 or undefined, keep it empty rather than showing 0
+                salidasInput.value = existing.salidas || '';
+                
+                // If they focus the input, empty it if it is '0'
+                salidasInput.onfocus = function() {
+                    if (this.value === '0') {
+                        this.value = '';
+                    }
+                };
+            }
+        } else {
+            capSection.classList.add('hidden');
+            if (salidasInput) {
+                salidasInput.value = '';
+            }
+        }
+    }
+    
+    const modal = document.getElementById('staff-hours-edit-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        
+        // Auto-focus the first Entrada (start time) input
+        setTimeout(() => {
+            const inputs = container.querySelectorAll('input');
+            if (inputs && inputs.length > 0) {
+                inputs[0].focus();
+            }
+        }, 100);
+    }
+};
+
+window.closeStaffHoursEditModal = function() {
+    const modal = document.getElementById('staff-hours-edit-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    activeHoursStaffName = null;
+    activeHoursDateStr = null;
+};
+
+window.addHoursFrameRow = function(startVal = '', endVal = '') {
+    const container = document.getElementById('staff-hours-frames-container');
+    if (!container) return;
+    
+    const rowId = 'frame-row-' + Date.now() + Math.random().toString(36).substring(2, 7);
+    
+    const rowHtml = `
+        <div id="${rowId}" class="flex items-center gap-2 hours-frame-row">
+            <input type="text" placeholder="Entrada" value="${startVal}" onblur="window.formatRadioTimeInput(this)" onkeydown="if(event.key === 'Enter') { window.formatRadioTimeInput(this); window.saveStaffHoursEditModal(); }" class="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 font-mono text-center">
+            <span class="text-slate-400 font-bold text-xs">a</span>
+            <input type="text" placeholder="Salida" value="${endVal}" onblur="window.formatRadioTimeInput(this)" onkeydown="if(event.key === 'Enter') { window.formatRadioTimeInput(this); window.saveStaffHoursEditModal(); }" class="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 font-mono text-center font-bold">
+            <button onclick="document.getElementById('${rowId}').remove()" class="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0 cursor-pointer" title="Eliminar Franja">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', rowHtml);
+};
+
+window.saveStaffHoursEditModal = function() {
+    if (window.isStaffLoggedIn) return;
+    if (!activeHoursStaffName || !activeHoursDateStr || !window.activeStaffSchedule) return;
+    
+    const container = document.getElementById('staff-hours-frames-container');
+    if (!container) return;
+    
+    const rows = container.querySelectorAll('.hours-frame-row');
+    const frames = [];
+    
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const start = inputs[0].value.trim();
+        const end = inputs[1].value.trim();
+        if (start) {
+            frames.push({ start, end });
+        }
+    });
+    
+    const isCaptain = (window.staffDatabase.capitanes || []).some(c => c.nombre === activeHoursStaffName);
+    const salidasInput = document.getElementById('staff-hours-salidas-input');
+    const salidas = (isCaptain && salidasInput) ? parseInt(salidasInput.value) || 0 : 0;
+    
+    // Ensure workedHours structure exists
+    if (!window.activeStaffSchedule.workedHours) {
+        window.activeStaffSchedule.workedHours = {};
+    }
+    if (!window.activeStaffSchedule.workedHours[activeHoursStaffName]) {
+        window.activeStaffSchedule.workedHours[activeHoursStaffName] = {};
+    }
+    
+    if (frames.length === 0 && salidas === 0) {
+        // If empty, delete from map
+        delete window.activeStaffSchedule.workedHours[activeHoursStaffName][activeHoursDateStr];
+    } else {
+        window.activeStaffSchedule.workedHours[activeHoursStaffName][activeHoursDateStr] = {
+            frames: frames,
+            salidas: salidas
+        };
+        
+        // Remove day off status if hours are added
+        if (window.activeStaffSchedule.daysOff?.[activeHoursStaffName]) {
+            const list = window.activeStaffSchedule.daysOff[activeHoursStaffName];
+            const idx = list.indexOf(activeHoursDateStr);
+            if (idx !== -1) {
+                list.splice(idx, 1);
+            }
+        }
+        if (window.activeStaffSchedule.dayOffNotes?.[activeHoursStaffName]?.[activeHoursDateStr]) {
+            delete window.activeStaffSchedule.dayOffNotes[activeHoursStaffName][activeHoursDateStr];
+        }
+        if (window.activeStaffSchedule.dayOffCategories?.[activeHoursStaffName]?.[activeHoursDateStr]) {
+            delete window.activeStaffSchedule.dayOffCategories[activeHoursStaffName][activeHoursDateStr];
+        }
+    }
+    
+    // Optimistic Update: Close modal instantly to feel snappy, save in background
+    window.saveStaffSchedule().catch(err => {
+        console.error("Error saving staff schedule:", err);
+    });
+    window.closeStaffHoursEditModal();
+};
+
+window.clearStaffHours = async function(staffName, dateStr) {
+    if (window.isStaffLoggedIn) return;
+    if (!staffName || !dateStr || !window.activeStaffSchedule) return;
+    
+    if (window.activeStaffSchedule.workedHours?.[staffName]?.[dateStr]) {
+        delete window.activeStaffSchedule.workedHours[staffName][dateStr];
+        await window.saveStaffSchedule();
+    }
+};
+
 
 let activeEditStaffName = null;
 let activeEditDateStr = null;
@@ -498,10 +724,35 @@ window.renderStaffScheduleGrid = function() {
     const [yearStr, monthStr] = monthKey.split('-');
     const year = parseInt(yearStr);
     const month = parseInt(monthStr);
-    
     // Total days in the selected month
     const totalDays = new Date(year, month, 0).getDate();
     
+    // Helper to calculate daily hours from frames
+    const calculateDailyHours = (frames) => {
+        if (!frames || frames.length === 0) return 0;
+        let totalMin = 0;
+        frames.forEach(f => {
+            if (!f.start || !f.end) return;
+            const [sh, sm] = f.start.split(':').map(Number);
+            const [eh, em] = f.end.split(':').map(Number);
+            let startMin = sh * 60 + (sm || 0);
+            let endMin = eh * 60 + (em || 0);
+            if (endMin < startMin) endMin += 1440; // midnight rollover
+            totalMin += (endMin - startMin);
+        });
+        const hours = totalMin / 60;
+        return Math.round(hours * 4) / 4; // Round to nearest 0.25
+    };
+
+    // Initialize accumulators for weekly summaries
+    const weeklyHours = {};
+    const weeklySalidas = {};
+    columns.forEach(staff => {
+        weeklyHours[staff] = 0;
+        weeklySalidas[staff] = 0;
+    });
+    let daysInWeekAccumulated = 0;
+
     // Helper to get initials
     const getInitials = (name) => {
         const p = name.trim().split(' ');
@@ -545,7 +796,7 @@ window.renderStaffScheduleGrid = function() {
                         ${columns.map((col, index) => {
                             const daysOffList = window.activeStaffSchedule.daysOff?.[col] || [];
                             const daysOffCount = daysOffList.length;
-                                                        const menuSanitizedId = `staff-menu-${col.replace(/[^a-zA-Z0-9-]/g, '_')}`;
+                            const menuSanitizedId = `staff-menu-${col.replace(/[^a-zA-Z0-9-]/g, '_')}`;
                             return `
                             <th class="p-2 text-xs font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-200 last:border-r-0 relative"
                                 draggable="${!window.isStaffLoggedIn}"
@@ -583,6 +834,7 @@ window.renderStaffScheduleGrid = function() {
     `;
 
     for (let day = 1; day <= totalDays; day++) {
+        daysInWeekAccumulated++;
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const weekday = getWeekdayLabel(day);
         const weekend = isWeekend(day);
@@ -624,6 +876,9 @@ window.renderStaffScheduleGrid = function() {
                     const isDayOff = daysOffList.includes(dateStr);
                     const note = window.activeStaffSchedule.dayOffNotes?.[staff]?.[dateStr] || '';
                     
+                    const hoursData = window.activeStaffSchedule.workedHours?.[staff]?.[dateStr] || null;
+                    const hasHours = hoursData && ((hoursData.frames && hoursData.frames.length > 0) || (hoursData.salidas && hoursData.salidas > 0));
+                    
                     let cellContent = '';
                     if (isDayOff) {
                         const category = window.activeStaffSchedule.dayOffCategories?.[staff]?.[dateStr] || 'libre';
@@ -653,18 +908,59 @@ window.renderStaffScheduleGrid = function() {
                                 ` : ''}
                             </div>
                         `;
+                    } else if (hasHours) {
+                        const hrs = calculateDailyHours(hoursData.frames);
+                        weeklyHours[staff] += hrs;
+                        const isCap = (window.staffDatabase.capitanes || []).some(c => c.nombre === staff);
+                        const sals = isCap ? (hoursData.salidas || 0) : 0;
+                        if (isCap) {
+                            weeklySalidas[staff] += sals;
+                        }
+                        
+                        const dailyHrsStr = hrs > 0 ? `<span class="hours-badge-item badge-time">${hrs.toFixed(2).replace(/\.00$/, '').replace(/\.50$/, '.5')}h</span>` : '';
+                        const salidasStr = sals > 0 ? `<span class="hours-badge-item badge-salidas">${sals} sal</span>` : '';
+                        
+                        const framesListHtml = (hoursData.frames || []).map(f => `<div>${f.start}-${f.end || '...'}</div>`).join('');
+                        
+                        cellContent = `
+                            <div class="hours-cell-container">
+                                <div class="hours-frames-list">
+                                    ${framesListHtml || '<div>Trabajo</div>'}
+                                </div>
+                                <div class="hours-totals-col">
+                                    ${dailyHrsStr}
+                                    ${salidasStr}
+                                </div>
+                                ${!window.isStaffLoggedIn ? `
+                                <div class="hours-actions-overlay">
+                                    <button onclick="event.stopPropagation(); window.openStaffHoursEditModal('${staff.replace(/'/g, "\\'")}', '${dateStr}')" 
+                                            class="hours-action-btn btn-edit" 
+                                            title="Editar Horas">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                    </button>
+                                    <button onclick="event.stopPropagation(); window.clearStaffHours('${staff.replace(/'/g, "\\'")}', '${dateStr}')" 
+                                            class="hours-action-btn btn-delete" 
+                                            title="Borrar Horas">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </div>
+                                ` : ''}
+                            </div>
+                        `;
                     } else {
                         cellContent = !window.isStaffLoggedIn ? `
-                            <div class="w-full h-full bg-slate-50/50 hover:bg-violet-50/50 border border-slate-200/50 hover:border-violet-300 text-slate-400 hover:text-violet-700 font-bold rounded-lg py-1 px-1.5 text-center transition-all flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 border-dashed select-none text-[9px]">
-                                + Libre
+                            <div class="hover-split-container opacity-0 group-hover:opacity-100 transition-all select-none">
+                                <button onclick="event.stopPropagation(); window.toggleStaffDayOff('${staff.replace(/'/g, "\\'")}', '${dateStr}')" class="hover-split-btn hover-split-btn-libre shadow-sm" title="Marcar como Libre">Libre</button>
+                                <button onclick="event.stopPropagation(); window.openStaffHoursEditModal('${staff.replace(/'/g, "\\'")}', '${dateStr}')" class="hover-split-btn hover-split-btn-horas shadow-sm" title="Rellenar Horas">Horas</button>
                             </div>
                         ` : '';
                     }
 
-                    const tdOnclick = (!isDayOff && !window.isStaffLoggedIn) ? `onclick="window.toggleStaffDayOff('${staff.replace(/'/g, "\\'")}', '${dateStr}')"` : '';
+                    const tdOnclick = (!isDayOff && !hasHours && !window.isStaffLoggedIn) ? `onclick="window.openStaffHoursEditModal('${staff.replace(/'/g, "\\'")}', '${dateStr}')"` : '';
+                    const tdClass = (!isDayOff && !hasHours && !window.isStaffLoggedIn) ? 'cursor-pointer' : 'cursor-default';
 
                     return `
-                        <td ${tdOnclick} class="p-1.5 border-r border-slate-200 last:border-r-0 hover:bg-slate-50/80 transition-colors ${(!isDayOff && !window.isStaffLoggedIn) ? 'cursor-pointer' : 'cursor-default'} group">
+                        <td ${tdOnclick} class="p-1.5 border-r border-slate-200 last:border-r-0 hover:bg-slate-50/80 transition-colors ${tdClass} group">
                             <div class="w-full min-h-[30px] flex items-center justify-center">
                                 ${cellContent}
                             </div>
@@ -673,6 +969,47 @@ window.renderStaffScheduleGrid = function() {
                 }).join('')}
             </tr>
         `;
+
+        const isLastDay = (day === totalDays);
+        if ((isSunday || isLastDay) && daysInWeekAccumulated > 0) {
+            tableHtml += `
+                <tr class="week-summary-row transition-colors select-none">
+                    <td class="p-2 text-center border-r border-slate-200 sticky left-0 z-15" style="background-color: #f8fafc; border-right: 2px solid #cbd5e1;">
+                        <div class="flex items-center justify-center">
+                            <span class="text-[9px] font-black uppercase tracking-wider text-slate-500">Total Sem.</span>
+                        </div>
+                    </td>
+                    ${columns.map(staff => {
+                        const hrs = weeklyHours[staff] || 0;
+                        const syp = (window.staffDatabase.capitanes || []).some(c => c.nombre === staff);
+                        const sals = syp ? weeklySalidas[staff] || 0 : 0;
+                        
+                        let content = '';
+                        if (hrs > 0 || sals > 0) {
+                            const hrsStr = hrs > 0 ? `<span class="week-summary-text-hrs">${hrs.toFixed(2).replace(/\.00$/, '').replace(/\.50$/, '.5')}h</span>` : '';
+                            const salsStr = sals > 0 ? `<span class="week-summary-text-sal">${sals} sal</span>` : '';
+                            content = `
+                                <div class="flex flex-col items-center justify-center gap-0.5 text-[10px] font-black font-mono">
+                                    ${hrsStr}
+                                    ${salsStr}
+                                </div>
+                            `;
+                        }
+                        return `
+                            <td class="p-1.5 border-r border-slate-200 last:border-r-0 text-center bg-slate-50/50">
+                                ${content}
+                            </td>
+                        `;
+                    }).join('')}
+                </tr>
+            `;
+            // Reset weekly totals
+            columns.forEach(staff => {
+                weeklyHours[staff] = 0;
+                weeklySalidas[staff] = 0;
+            });
+            daysInWeekAccumulated = 0;
+        }
     }
 
     tableHtml += `
