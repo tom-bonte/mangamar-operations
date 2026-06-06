@@ -235,6 +235,14 @@ function syncActiveMonthListeners() {
                     renderCaptainDropdown();
                 }
                 
+                // Auto-refresh the daily grid to update captain days off warnings in real-time
+                if (typeof currentDate !== 'undefined' && currentDate) {
+                    const currentMonthKey = currentDate.getFullYear() + '-' + String(currentDate.getMonth() + 1).padStart(2, '0');
+                    if (currentMonthKey === monthKey && typeof renderDailyGrid === 'function') {
+                        renderDailyGrid();
+                    }
+                }
+                
                 // Auto-refresh the staff schedule grid in real-time if it's currently open for this month
                 if (window.activeStaffSchedule && window.activeStaffSchedule.monthKey === monthKey) {
                     window.activeStaffSchedule = window.staffSchedulesData.get(monthKey);

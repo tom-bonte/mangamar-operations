@@ -322,6 +322,9 @@
                         </div>
                     </header>
 
+                    <!-- Daily Alerts (e.g. Captain Days Off) -->
+                    <div id="daily-alerts-container" class="hidden flex flex-wrap gap-2.5 mb-6"></div>
+
                     <!-- Mobile Boat Column Selector Tabs -->
                     <div id="mobile-boat-selector" class="flex md:hidden bg-slate-100 p-1 rounded-xl border border-slate-200/60 mb-6 justify-between gap-1">
                         <button onclick="selectMobileBoat('ares')" id="m-btn-ares" class="flex-1 py-2 text-xs font-black rounded-lg transition-all text-center bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm">Ares</button>
@@ -2833,6 +2836,11 @@
                 <button onclick="openTodayDiversModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-emerald-50 hover:border-emerald-200 transition-all text-center gap-2 group auth-hide">
                     <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
                     <span class="text-xs font-black text-slate-700">Hoy</span>
+                </button>
+                <!-- Horario Staff -->
+                <button onclick="window.openStaffScheduleModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-violet-50 hover:border-violet-200 transition-all text-center gap-2 group auth-hide staff-allow">
+                    <div class="w-10 h-10 bg-violet-50 text-violet-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                    <span class="text-xs font-black text-slate-700">Horario Staff</span>
                 </button>
             </div>
         </div>

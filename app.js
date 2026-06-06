@@ -410,6 +410,47 @@ function renderMonthlyCalendar() {
 // ==========================================
 // 2. GRID RENDERING & PREVIEWS
 // ==========================================
+// Render warning alerts at the top of daily view (e.g. Captains on Day Off)
+function renderDailyAlerts(targetDateStr) {
+    const alertsContainer = document.getElementById('daily-alerts-container');
+    if (!alertsContainer) return;
+    
+    alertsContainer.innerHTML = '';
+    
+    const monthKey = targetDateStr.substring(0, 7);
+    const schedule = window.staffSchedulesData ? window.staffSchedulesData.get(monthKey) : null;
+    
+    const captainsOff = [];
+    const captains = window.staffDatabase ? (window.staffDatabase.capitanes || []) : [];
+    
+    if (schedule && schedule.daysOff) {
+        captains.forEach(captain => {
+            const list = schedule.daysOff[captain.nombre] || [];
+            if (list.includes(targetDateStr)) {
+                // Get display name: Abel, Tom, etc.
+                const firstName = window.getFirstName ? window.getFirstName(captain.nombre) : captain.nombre;
+                const capitalized = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+                captainsOff.push(capitalized);
+            }
+        });
+    }
+    
+    if (captainsOff.length > 0) {
+        alertsContainer.classList.remove('hidden');
+        captainsOff.forEach(name => {
+            const badge = document.createElement('div');
+            badge.className = 'flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse';
+            badge.innerHTML = `
+                <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <span>${name} libre</span>
+            `;
+            alertsContainer.appendChild(badge);
+        });
+    } else {
+        alertsContainer.classList.add('hidden');
+    }
+}
+
 function renderDailyGrid() {
     const container = document.getElementById('daily-grid-container');
     if(!container) return;
@@ -419,6 +460,9 @@ function renderDailyGrid() {
     const month = String(currentDate.getMonth() + 1).padStart(2, '0');
     const day = String(currentDate.getDate()).padStart(2, '0');
     const targetDateStr = `${year}-${month}-${day}`;
+
+    // Render Captain on Day Off alerts at the top
+    renderDailyAlerts(targetDateStr);
 
     const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
     
