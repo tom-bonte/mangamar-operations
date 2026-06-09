@@ -38,7 +38,7 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
     if (window.closeFacturaView) window.closeFacturaView(); // Ensure details view is always closed
     if (!isNavBackForward) window.fichaDisplayLimit = 15; // Reset pagination for fresh loads
 
-    const customerInfo = customerDatabase.find(c => c.dni === dni) || { telefono: '', email: '', discount: 0 };
+    const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
     const contactStr = [customerInfo.telefono, customerInfo.email].filter(Boolean).join(' • ');
 
     document.getElementById('profile-modal-name').innerText = nombre;
@@ -168,7 +168,7 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
 window.recalculateFichaHistory = function(dni) {
     if (!window.activeFichaRawDocs) return;
     
-    const customerInfo = customerDatabase.find(c => c.dni === dni) || { telefono: '', email: '', discount: 0 };
+    const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
     
     let activeCustomerListener = null;
 
@@ -429,7 +429,7 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
     let pendingTotal = 0;
     let pagosTotalSum = 0;
 
-    const customerInfo = customerDatabase.find(c => c.dni === dni) || { telefono: '', email: '', discount: 0 };
+    const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
     
     let fixedDiscountAmount = 0;
     if (customerInfo.discount > 0 && customerInfo.discountType === 'fixed') {
@@ -830,7 +830,7 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
 
 window.promptEditCustomer = function () {
     if (!window.activeFichaDni) return;
-    const customerInfo = customerDatabase.find(c => c.dni === window.activeFichaDni) || {};
+    const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, window.activeFichaDni)) || {};
 
     const dniInput = document.getElementById('edit-f-dni');
     dniInput.value = window.activeFichaDni;
@@ -1102,7 +1102,7 @@ window.executeDeleteCustomer = function () {
     btn.disabled = true;
 
     // Instant local memory and UI update
-    customerDatabase = customerDatabase.filter(c => c.dni !== dni);
+    customerDatabase = customerDatabase.filter(c => !window.isSameDni(c.dni, dni));
     if (typeof window.renderCrmTable === 'function') window.renderCrmTable();
 
     // Close modals instantly
@@ -1196,7 +1196,7 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
     if (!dni) return 0;
     try {
         const snapshot = await db.collection('mangamar_customers').doc(dni).collection('history').get();
-        const customerInfo = customerDatabase.find(c => c.dni === dni) || { telefono: '', email: '', discount: 0 };
+        const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
         
         let pendingTotal = 0;
         let billedCourses = new Set();
@@ -1301,7 +1301,7 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
         let totalAPagar = Math.max(0, pendingTotal - deposit - fixedDiscountAmount);
         totalAPagar = Math.round(totalAPagar * 100) / 100;
 
-        const index = customerDatabase.findIndex(c => c.dni === dni);
+        const index = customerDatabase.findIndex(c => window.isSameDni(c.dni, dni));
         if (index !== -1) {
             customerDatabase[index].outstandingDebt = totalAPagar;
             // Only write master_list here when called individually.

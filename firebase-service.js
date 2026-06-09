@@ -14,11 +14,21 @@ window.normalizeDni = function(dni) {
     return dni.toString().replace(/[^A-Za-z0-9]/g, '').trim().toUpperCase();
 };
 
+window.getClientKey = function(c) {
+    if (!c) return '';
+    const dni = c.dni ? window.normalizeDni(c.dni) : '';
+    if (dni) return 'dni_' + dni;
+    const name = c.nombre ? c.nombre.trim().toLowerCase() : '';
+    if (name) return 'name_' + name;
+    return '';
+};
+
 // --- CRM Load State & Safety Guard ---
 // Set to true ONLY after the full master_list has been fetched and loaded.
 // Any code that writes to master_list should check this flag first.
 window.crmLoaded = false;
 window.crmLoadedClientCount = 0; // Track how many clients were in the last successful full load
+window.loadedDnis = new Set(); // Tracks client keys present when this tab loaded/synced to prevent overwriting new additions
 
 /**
  * Safe wrapper for ALL master_list writes.
@@ -29,10 +39,10 @@ window.crmLoadedClientCount = 0; // Track how many clients were in the last succ
  * @param {string} [caller='unknown'] - Name of calling function for logging
  * @param {boolean} [isInitialLoad=false] - Skip crmLoaded check for the initial load itself
  */
-window.safeMasterListWrite = function(clientsArray, caller, isInitialLoad) {
+window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad) {
     caller = caller || 'unknown';
     const count = (clientsArray || []).length;
-    const knownGood = window.crmLoadedClientCount;
+    let knownGood = window.crmLoadedClientCount;
 
     // Safety 1: CRM hasn't loaded yet — refuse all writes except the initial load
     if (!isInitialLoad && !window.crmLoaded) {
@@ -48,17 +58,73 @@ window.safeMasterListWrite = function(clientsArray, caller, isInitialLoad) {
         return Promise.resolve();
     }
 
-    console.log(`✅ [SafeWrite] '${caller}' writing ${count} clients to master_list.`);
-    return db.collection('mangamar_directory').doc('master_list')
-        .update({ clients: clientsArray })
-        .catch(e => {
-            // Fallback to set if document doesn't exist yet
-            if (e.code === 'not-found') {
-                return db.collection('mangamar_directory').doc('master_list')
-                    .set({ clients: clientsArray }, { merge: true });
+    try {
+        let finalClientsToWrite = clientsArray;
+
+        // If it's a regular runtime write, perform a smart merge with the latest Firestore DB
+        // to prevent overwriting customers added by other concurrent tabs since load time.
+        if (!isInitialLoad) {
+            console.log(`🔄 [SafeWrite] '${caller}' fetching latest master_list for smart merge...`);
+            const doc = await db.collection('mangamar_directory').doc('master_list').get();
+            if (doc.exists) {
+                const latestDbClients = doc.data().clients || [];
+                const localKeys = new Set((clientsArray || []).map(c => window.getClientKey(c)).filter(Boolean));
+                const loadedKeys = window.loadedDnis || new Set();
+
+                let mergedClients = [...clientsArray];
+                let keptCount = 0;
+
+                latestDbClients.forEach(dbClient => {
+                    const key = window.getClientKey(dbClient);
+                    if (!key) return;
+
+                    // If it's not in our local array:
+                    if (!localKeys.has(key)) {
+                        // Check if it was in the database when we loaded.
+                        // If it WASN'T in the database when we loaded, it means it was added by another tab
+                        // while we were open. We MUST preserve it!
+                        if (!loadedKeys.has(key)) {
+                            mergedClients.push(dbClient);
+                            keptCount++;
+                        }
+                        // If it WAS in the database when we loaded, it means we must have deleted it.
+                        // So we let it be deleted.
+                    }
+                });
+
+                if (keptCount > 0) {
+                    console.log(`📥 [SafeWrite] Smart Merge preserved ${keptCount} clients added by other tabs.`);
+                    finalClientsToWrite = mergedClients;
+                }
             }
-            console.error(`❌ [SafeWrite] Write from '${caller}' failed:`, e);
-        });
+        }
+
+        const finalCount = finalClientsToWrite.length;
+        console.log(`✅ [SafeWrite] '${caller}' writing ${finalCount} clients to master_list.`);
+        
+        await db.collection('mangamar_directory').doc('master_list')
+            .update({ clients: finalClientsToWrite })
+            .catch(e => {
+                if (e.code === 'not-found') {
+                    return db.collection('mangamar_directory').doc('master_list')
+                        .set({ clients: finalClientsToWrite }, { merge: true });
+                }
+                throw e;
+            });
+
+        // Update local state to match what was written
+        customerDatabase = finalClientsToWrite;
+        window.crmLoadedClientCount = finalCount;
+        window.loadedDnis = new Set(finalClientsToWrite.map(c => window.getClientKey(c)).filter(Boolean));
+
+        // Refresh CRM Table if visible
+        const crmModal = document.getElementById('crm-modal');
+        if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
+            renderCrmTable();
+        }
+    } catch (e) {
+        console.error(`❌ [SafeWrite] Write from '${caller}' failed:`, e);
+    }
 };
 
 window.isSameDni = function(dni1, dni2) {
@@ -366,6 +432,20 @@ function startFirestoreListeners() {
                     let nonDniClients = [];
                     let crmNamesModified = false;
     
+                    // Merge any locally added clients while loading
+                    if (!window.crmLoaded && customerDatabase && customerDatabase.length > 0) {
+                        customerDatabase.forEach(localClient => {
+                            if (localClient.dni) {
+                                const exists = rawClients.some(rc => rc.dni && window.isSameDni(rc.dni, localClient.dni));
+                                if (!exists) {
+                                    console.log("📥 [CRM Loading] Merging locally added client during load window:", localClient.nombre, localClient.dni);
+                                    rawClients.push(localClient);
+                                    crmNamesModified = true;
+                                }
+                            }
+                        });
+                    }
+    
                     rawClients.forEach(c => {
                         // Standardize capitalization to Title-Case (Never allow ALL CAPS)
                         if (c.nombre) {
@@ -442,6 +522,8 @@ function startFirestoreListeners() {
     
                     const cleanClients = [...dedupMap.values(), ...nonDniClients];
                     customerDatabase = cleanClients;
+                    
+                    window.loadedDnis = new Set(cleanClients.map(c => window.getClientKey(c)).filter(Boolean));
     
                     // ✅ Mark CRM as fully loaded — now safe for all downstream writes
                     window.crmLoaded = true;
@@ -470,6 +552,12 @@ function startFirestoreListeners() {
                     const crmModal = document.getElementById('crm-modal');
                     if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
                         renderCrmTable();
+                    }
+
+                    // If Group Link modal is open, refresh it so DNI members display their correct names from CRM
+                    const groupModal = document.getElementById('group-link-modal');
+                    if (groupModal && !groupModal.classList.contains('hidden') && typeof window.openGroupLinkModal === 'function') {
+                        window.openGroupLinkModal(window._editingGroupName, true);
                     }
                 }
             }).catch(e => {
@@ -667,7 +755,6 @@ window.mergeAndRender = function mergeAndRender() {
     mergedAllocations = [...visibleVisorTrips, ...alignedInternalTrips];
 
     // Build a Map for O(1) DNI → profile lookup instead of O(n) Array.find per guest.
-    // For a trip with 22 guests and a 500-entry customer DB that's 11,000 comparisons → 22.
     let customerMap = null;
     if (window.customerDatabase && window.customerDatabase.length > 0) {
         customerMap = new Map();
@@ -676,15 +763,22 @@ window.mergeAndRender = function mergeAndRender() {
         });
     }
 
+    let missingDnis = [];
+
     mergedAllocations.forEach(trip => {
         const resolveGuestName = (g) => {
             if (g.nombre) g.nombre = fixNameCaps(g.nombre);
-            if (g.dni && customerMap) {
-                const profile = customerMap.get(window.normalizeDni(g.dni));
-                if (profile) {
-                    const dbFullName = window.getFullName(profile);
-                    if (dbFullName) {
-                        g.nombre = window.getFirstAndLastName(dbFullName);
+            if (g.dni) {
+                const normDni = window.normalizeDni(g.dni);
+                if (customerMap) {
+                    const profile = customerMap.get(normDni);
+                    if (profile) {
+                        const dbFullName = window.getFullName(profile);
+                        if (dbFullName) {
+                            g.nombre = window.getFirstAndLastName(dbFullName);
+                        }
+                    } else if (!g.cancelled) {
+                        missingDnis.push({ dni: normDni, nombre: g.nombre, trip: trip });
                     }
                 }
             }
@@ -701,6 +795,50 @@ window.mergeAndRender = function mergeAndRender() {
             });
         }
     });
+
+    // --- BACKGROUND CRM AUTO-HEALING SCAN ---
+    // If we find guests scheduled on the manifests that are missing from the CRM database,
+    // proactively fetch their profiles from Firestore and restore them.
+    if (missingDnis.length > 0 && typeof db !== 'undefined' && window.crmLoaded) {
+        window._healingDnis = window._healingDnis || new Set();
+
+        missingDnis.forEach(item => {
+            if (window._healingDnis.has(item.dni)) return;
+            window._healingDnis.add(item.dni);
+
+            console.log(`🔍 [CRM Auto-Heal] Scheduled guest '${item.nombre}' (${item.dni}) is missing from CRM database. Fetching...`);
+            db.collection('mangamar_customers').doc(item.dni).get().then(snap => {
+                if (snap.exists) {
+                    const profileData = snap.data();
+                    const stillExists = customerDatabase.some(c => window.isSameDni(c.dni, item.dni));
+                    if (!stillExists) {
+                        console.log(`📥 [CRM Auto-Heal] Restoring missing client ${profileData.nombre || item.nombre} to CRM database.`);
+                        customerDatabase.push(profileData);
+                        window.safeMasterListWrite(customerDatabase, 'auto-heal-restore-guest');
+                    }
+                } else {
+                    // Profile does not exist in mangamar_customers either. Create a skeleton.
+                    const stillExists = customerDatabase.some(c => window.isSameDni(c.dni, item.dni));
+                    if (!stillExists) {
+                        console.log(`📥 [CRM Auto-Heal] Creating skeleton profile for manual diver ${item.nombre} (${item.dni}) in CRM.`);
+                        const newProfile = {
+                            dni: item.dni,
+                            nombre: item.nombre || 'Sin Nombre',
+                            titulacion: item.trip.plazas === '-' ? 'Shore/Aula' : '',
+                            telefono: '',
+                            email: ''
+                        };
+                        customerDatabase.push(newProfile);
+                        db.collection('mangamar_customers').doc(item.dni).set(newProfile, { merge: true }).catch(() => {});
+                        window.safeMasterListWrite(customerDatabase, 'auto-heal-create-guest');
+                    }
+                }
+            }).catch(err => {
+                console.error("Error auto-healing missing guest:", err);
+                window._healingDnis.delete(item.dni);
+            });
+        });
+    }
 
     // --- DYNAMIC MULTIPLAYER REAL-TIME SYNC ---
     // If the manage boat modal is open, find the fresh allocation and update it in-place in activeBoatItem

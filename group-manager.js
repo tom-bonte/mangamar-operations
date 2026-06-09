@@ -83,8 +83,8 @@ function findActiveTagForGuest(guestDni, guestName) {
         const currentDate = activeBoatItem.date;
         const activeGlobalGroup = window.globalGroups.find(g => {
             if (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate) {
-                if (guestDni && g.members && g.members.includes(guestDni)) return true;
-                if (guestName && g.members && g.members.includes(guestName.toLowerCase())) return true;
+                if (guestDni && g.members && g.members.some(m => window.isSameDni(m, guestDni))) return true;
+                if (guestName && g.members && g.members.some(m => m.toLowerCase() === guestName.toLowerCase())) return true;
             }
             return false;
         });
@@ -96,7 +96,7 @@ function findActiveTagForGuest(guestDni, guestName) {
     todaysTrips.forEach(t => {
         if(t.guests) t.guests.forEach(g => {
             if (g.bookingTag) {
-                if (guestDni && g.dni && g.dni === guestDni) foundTag = g.bookingTag;
+                if (guestDni && g.dni && window.isSameDni(g.dni, guestDni)) foundTag = g.bookingTag;
                 else if (guestName && g.nombre && g.nombre.toLowerCase() === guestName.toLowerCase()) foundTag = g.bookingTag;
             }
         });
@@ -206,7 +206,7 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
         if (groupObj) {
             (groupObj.members || []).forEach(mDni => {
                 memberDnis.push(mDni);
-                const cx = (customerDatabase || []).find(c => c.dni === mDni);
+                const cx = (customerDatabase || []).find(c => window.isSameDni(c.dni, mDni));
                 if (cx) {
                     const fullName = getFullName(cx);
                     if (fullName) memberNames.push(fullName);
@@ -261,7 +261,7 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
             addAllBtn.onclick = () => window.addAllGroupToBoat(existingGlobal.id);
 
             memberListEl.innerHTML = (existingGlobal.members || []).map(mDni => {
-                const cx = (customerDatabase || []).find(c => c.dni === mDni);
+                const cx = (customerDatabase || []).find(c => window.isSameDni(c.dni, mDni));
                 const isTemp = String(mDni).toLowerCase().startsWith('temp_');
                 let fullName = cx ? getFullName(cx) : null;
                 if (!fullName && isTemp && existingGlobal.manualNames) {
@@ -271,7 +271,7 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
                 if (!fullName) fullName = mDni;
                 const subtitle = isTemp ? 'Buceador Manual' : mDni;
                 
-                const isOnBoat = activeBoatItem.groups.some(grp => grp.guests.some(gst => (gst.dni && gst.dni === mDni) || (!gst.dni && gst.tempId && gst.tempId.toLowerCase() === String(mDni).toLowerCase()) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(mDni).toLowerCase())));
+                const isOnBoat = activeBoatItem.groups.some(grp => grp.guests.some(gst => (gst.dni && window.isSameDni(gst.dni, mDni)) || (!gst.dni && gst.tempId && gst.tempId.toLowerCase() === String(mDni).toLowerCase()) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(mDni).toLowerCase())));
 
                 return `
                 <div class="flex items-center justify-between bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-100 transition-all group/item shadow-sm">
@@ -346,7 +346,7 @@ function findExistingDiverData(dniOrName) {
         if (!group.guests) continue;
         const match = group.guests.find(g => {
             if (String(dniOrName).toLowerCase().startsWith('temp_')) return g.tempId && g.tempId.toLowerCase() === String(dniOrName).toLowerCase();
-            return (g.dni && g.dni === dniOrName) || (!g.dni && g.nombre && g.nombre.toLowerCase() === searchVal);
+            return (g.dni && window.isSameDni(g.dni, dniOrName)) || (!g.dni && g.nombre && g.nombre.toLowerCase() === searchVal);
         });
         if (match) {
             const cleanCourse = match.baseCourse || (match.course ? match.course.split(' | ')[0].trim() : null);
@@ -383,7 +383,7 @@ function findExistingDiverData(dniOrName) {
             if (!group.guests) continue;
             const match = group.guests.find(g => {
                 if (String(dniOrName).toLowerCase().startsWith('temp_')) return g.tempId && g.tempId.toLowerCase() === String(dniOrName).toLowerCase();
-                return (g.dni && g.dni === dniOrName) || (!g.dni && g.nombre && g.nombre.toLowerCase() === searchVal);
+                return (g.dni && window.isSameDni(g.dni, dniOrName)) || (!g.dni && g.nombre && g.nombre.toLowerCase() === searchVal);
             });
             if (match) {
                 const cleanCourse = match.baseCourse || (match.course ? match.course.split(' | ')[0].trim() : null);
@@ -457,10 +457,10 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
     const strIdentifier = String(identifier);
     const searchVal = strIdentifier.toLowerCase();
 
-    const alreadyOn = activeBoatItem.groups.some(grp => grp.guests.some(gst => (gst.dni && gst.dni === strIdentifier) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === searchVal)));
+    const alreadyOn = activeBoatItem.groups.some(grp => grp.guests.some(gst => (gst.dni && window.isSameDni(gst.dni, strIdentifier)) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === searchVal)));
     if (alreadyOn) return;
 
-    let cx = (customerDatabase || []).find(c => c.dni && c.dni.toUpperCase() === strIdentifier.toUpperCase());
+    let cx = (customerDatabase || []).find(c => c.dni && window.isSameDni(c.dni, strIdentifier));
     if (!cx) cx = (customerDatabase || []).find(c => c.nombre && getFullName(c).toLowerCase() === searchVal);
 
     const existingData = findExistingDiverData(strIdentifier);
@@ -576,7 +576,7 @@ window.removeDiverFromBoatByDni = function(identifier) {
     for (let i = 0; i < activeBoatItem.groups.length; i++) {
         for (let j = 0; j < activeBoatItem.groups[i].guests.length; j++) {
             const gst = activeBoatItem.groups[i].guests[j];
-            if ((gst.dni && gst.dni.toLowerCase() === strIdentifier) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === strIdentifier)) {
+            if ((gst.dni && window.isSameDni(gst.dni, identifier)) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === strIdentifier)) {
                 activeBoatItem.groups[i].guests.splice(j, 1);
                 triggerAutoSave();
                 if (typeof updateModalSubtitle === 'function') updateModalSubtitle();
@@ -600,10 +600,10 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
     grp.members.forEach(memberId => {
         const strMemberId = String(memberId);
         const searchVal = strMemberId.toLowerCase();
-        const alreadyOn = activeBoatItem.groups.some(g => g.guests.some(gst => (gst.dni && gst.dni === strMemberId) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === searchVal)));
+        const alreadyOn = activeBoatItem.groups.some(g => g.guests.some(gst => (gst.dni && window.isSameDni(gst.dni, strMemberId)) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === searchVal)));
         
         if (!alreadyOn) {
-            let cx = customerDatabase.find(c => c.dni && c.dni.toUpperCase() === strMemberId.toUpperCase());
+            let cx = customerDatabase.find(c => c.dni && window.isSameDni(c.dni, strMemberId));
             if (!cx) cx = customerDatabase.find(c => c.nombre && getFullName(c).toLowerCase() === searchVal);
 
             const existingData = findExistingDiverData(strMemberId);
@@ -721,7 +721,7 @@ window.removeGlobalGroupMember = async function(groupId, memberId) {
         activeBoatItem.groups.forEach(g => {
             g.guests.forEach(gst => {
                 if (gst.bookingTag && gst.bookingTag.toLowerCase() === grp.name.toLowerCase()) {
-                    if ((gst.dni && gst.dni === memberId) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(memberId).toLowerCase())) {
+                    if ((gst.dni && window.isSameDni(gst.dni, memberId)) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(memberId).toLowerCase())) {
                         delete gst.bookingTag;
                     }
                 }
@@ -730,7 +730,7 @@ window.removeGlobalGroupMember = async function(groupId, memberId) {
         triggerAutoSave();
     }
     
-    grp.members = grp.members.filter(m => m !== memberId);
+    grp.members = grp.members.filter(m => !window.isSameDni(m, memberId));
     
     if (grp.members.length === 0) {
         window.globalGroups = window.globalGroups.filter(g => g.id !== groupId);
@@ -833,8 +833,12 @@ async function confirmGroupLink(groupName) {
         
         window.selectedGuestsForGroup.forEach(s => {
             const guest = activeBoatItem.groups[s.groupIndex].guests[s.guestIndex];
-            if (guest.dni && !groupObj.members.includes(guest.dni)) {
-                groupObj.members.push(guest.dni);
+            if (guest.dni) {
+                const normDni = window.normalizeDni(guest.dni);
+                const hasDni = groupObj.members.some(m => window.isSameDni(m, normDni));
+                if (!hasDni) {
+                    groupObj.members.push(normDni);
+                }
             } else if (!guest.dni) {
                 const manualId = (guest.tempId ? guest.tempId.toLowerCase() : null) || (guest.nombre ? guest.nombre.toLowerCase() : null);
                 if (manualId && !groupObj.members.includes(manualId)) {
@@ -870,7 +874,7 @@ window.unlinkSelected = async function() {
             tagsToCheck.add(guest.bookingTag);
             const globalGroup = (window.globalGroups || []).find(g => g.name.toLowerCase() === guest.bookingTag.toLowerCase());
             if (globalGroup && guest.dni) {
-                globalGroup.members = globalGroup.members.filter(m => m !== guest.dni);
+                globalGroup.members = globalGroup.members.filter(m => !window.isSameDni(m, guest.dni));
             }
         }
         delete guest.bookingTag;
@@ -936,10 +940,15 @@ window.selectGroupCustomer = async function(encodedData) {
     const grp = (window.globalGroups || []).find(g => g.name.toLowerCase() === window._editingGroupName.toLowerCase());
     if (!grp) return;
     
-    // Fallback to name if dni is missing
-    const matchedId = data.dni || data.nombre;
+    // Normalize DNI if present, otherwise fallback to name
+    const matchedId = data.dni ? window.normalizeDni(data.dni) : data.nombre;
     
-    if (!grp.members.includes(matchedId)) {
+    const hasMember = grp.members.some(m => {
+        if (data.dni) return window.isSameDni(m, data.dni);
+        return m.toLowerCase() === matchedId.toLowerCase();
+    });
+    
+    if (!hasMember) {
         grp.members.push(matchedId);
         if (window.saveGlobalGroup) await window.saveGlobalGroup(grp);
         
@@ -948,7 +957,7 @@ window.selectGroupCustomer = async function(encodedData) {
             let updated = false;
             activeBoatItem.groups.forEach(g => {
                 g.guests.forEach(gst => {
-                    if ((gst.dni && gst.dni === matchedId) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(matchedId).toLowerCase())) {
+                    if ((gst.dni && window.isSameDni(gst.dni, matchedId)) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(matchedId).toLowerCase())) {
                         gst.bookingTag = grp.name;
                         updated = true;
                     }
@@ -980,17 +989,25 @@ window.addMemberToGlobalGroup = async function() {
     let matchedId = val;
     const lowerVal = val.toLowerCase();
     
-    const cxByDni = (window.customerDatabase || []).find(c => c.dni.toLowerCase() === lowerVal);
+    const cxByDni = (window.customerDatabase || []).find(c => c.dni && window.isSameDni(c.dni, val));
     if (cxByDni) {
-        matchedId = cxByDni.dni;
+        matchedId = window.normalizeDni(cxByDni.dni);
     } else {
         const cxByName = (window.customerDatabase || []).find(c => c.nombre && c.nombre.toLowerCase() === lowerVal);
         if (cxByName) {
-            matchedId = cxByName.dni;
+            matchedId = cxByName.dni ? window.normalizeDni(cxByName.dni) : cxByName.nombre;
         }
     }
+
+    if (matchedId && !matchedId.toLowerCase().startsWith('temp_') && matchedId.match(/^[0-9xyzXYZ]/)) {
+        matchedId = window.normalizeDni(matchedId);
+    }
     
-    if (!grp.members.includes(matchedId)) {
+    const hasMember = grp.members.some(m => {
+        return window.isSameDni(m, matchedId) || m.toLowerCase() === matchedId.toLowerCase();
+    });
+    
+    if (!hasMember) {
         grp.members.push(matchedId);
         if (window.saveGlobalGroup) await window.saveGlobalGroup(grp);
         
@@ -999,7 +1016,7 @@ window.addMemberToGlobalGroup = async function() {
             let updated = false;
             activeBoatItem.groups.forEach(g => {
                 g.guests.forEach(gst => {
-                    if ((gst.dni && gst.dni === matchedId) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(matchedId).toLowerCase())) {
+                    if ((gst.dni && window.isSameDni(gst.dni, matchedId)) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(matchedId).toLowerCase())) {
                         gst.bookingTag = grp.name;
                         updated = true;
                     }

@@ -2044,7 +2044,10 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                         const normM = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(m) : m.trim().toLowerCase();
                         return normM !== matchTarget;
                     });
-                    if (!grp.members.includes(data.dni)) grp.members.push(data.dni);
+                    const normalizedNewDni = window.normalizeDni(data.dni);
+                    if (!grp.members.some(m => window.isSameDni(m, normalizedNewDni))) {
+                        grp.members.push(normalizedNewDni);
+                    }
                     if (window.saveGlobalGroup) window.saveGlobalGroup(grp);
                 }
             }
@@ -3888,8 +3891,10 @@ window.openBulkAddModal = function() {
                         activeGroupsMap.set(nameKey, { name: guest.bookingTag, members: [] });
                     }
                     const grp = activeGroupsMap.get(nameKey);
-                    if (guest.dni && !grp.members.includes(guest.dni)) grp.members.push(guest.dni);
-                    else if (!guest.dni && guest.nombre && !grp.members.includes(guest.nombre.toLowerCase())) {
+                    if (guest.dni) {
+                        const normDni = window.normalizeDni(guest.dni);
+                        if (!grp.members.some(m => window.isSameDni(m, normDni))) grp.members.push(normDni);
+                    } else if (guest.nombre && !grp.members.includes(guest.nombre.toLowerCase())) {
                         grp.members.push(guest.nombre.toLowerCase());
                     }
                 }

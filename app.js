@@ -631,7 +631,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                     const r = parseInt(hexColor.slice(1, 3), 16) || 0;
                     const gHex = parseInt(hexColor.slice(3, 5), 16) || 0;
                     const b = parseInt(hexColor.slice(5, 7), 16) || 0;
-                    wrapStart = `<div class="px-2 py-1 mb-1.5 rounded-lg" style="background-color: rgba(${r},${gHex},${b},0.15); box-shadow: inset 0 0 0 1px rgba(${r},${gHex},${b},0.25);">`;
+                    wrapStart = `<div class="px-1.5 py-0.5 mb-1 rounded-md" style="background-color: rgba(${r},${gHex},${b},0.15); box-shadow: inset 0 0 0 1px rgba(${r},${gHex},${b},0.25);">`;
                 }
             }
 
@@ -750,7 +750,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                     ? `<span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full ml-1 shadow-sm shrink-0 select-none" style="vertical-align: middle; background: linear-gradient(135deg, #ffe066, #d4af37);" title="Liquidado (Pagado)"><svg class="w-2.5 h-2.5 shrink-0" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 2.5C8 2.1 7.3 1.8 6.5 1.8C4.3 1.8 2.5 3.2 2.5 5C2.5 6.8 4.3 8.2 6.5 8.2C7.3 8.2 8.0 7.9 8.5 7.5M1.5 4.2H6M1.5 5.8H6" stroke="black" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` 
                     : '';
 
-                return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
+                return `<div class="flex justify-between items-center text-[10px] mb-0.5 last:mb-0 group/item">
                             <div class="flex items-center min-w-0 flex-1">
                                 ${arrivedDot}
                                 <button onclick="if(!window.isLoggedIn || window.isStaffLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
@@ -766,8 +766,8 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             return wrapStart + guestsHtml + wrapEnd;
         }).join('');
 
-        return `<div class="mb-3 last:mb-0 border-b border-white/10 pb-2 last:border-0 last:pb-0">
-                    <div class="text-[8px] font-black text-orange-400 mb-1 tracking-widest">${titleText}</div>
+        return `<div class="mb-1.5 last:mb-0 border-b border-white/10 pb-1 last:border-0 last:pb-0">
+                    <div class="text-[8px] font-black text-orange-400 mb-0.5 tracking-widest">${titleText}</div>
                     ${clustersHtml || '<div class="text-[9px] italic text-slate-500">Vacío</div>'}
                 </div>`;
     }).join('');
