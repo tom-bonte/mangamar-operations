@@ -609,76 +609,121 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         const apoyoName = group.apoyo ? `(APOYO: ${window.getFirstName(group.apoyo)})`.toUpperCase() : '';
         const titleText = apoyoName ? `${guideName} ${apoyoName}` : guideName;
 
-        const guestsHtml = (group.guests || []).map(g => {
-            const isNitrox = (g.gas || '').includes('EAN');
-            const gasColorClass = g.cancelled ? 'text-slate-500 line-through' : isNitrox ? 'text-green-400' : 'text-blue-300';
-            const gasColorHex = g.cancelled ? '#64748b' : isNitrox ? '#4ade80' : '#93c5fd'; // Slate for Cancelled, Green for Nitrox, Blue for Aire
-            const gasShort = (g.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
-            const arrivedDot = g.cancelled 
-                ? `<span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 mr-1.5" title="Cancelado"></span>` 
-                : g.arrived 
-                    ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mr-1.5" title="Llegado"></span>` 
-                    : '';
-            
-            let displayName = g.nombre;
-            if (window.activeDailySearchQuery) {
-                const normQuery = window.normalizeSearchString(window.activeDailySearchQuery);
-                if (normQuery) {
-                    const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
-                    const nameNorm = window.normalizeSearchString(g.nombre);
-                    
-                    if (nameNorm.includes(normQuery)) {
-                        const searchWords = window.activeDailySearchQuery.split(/\s+/).filter(w => w.length >= 2);
-                        if (searchWords.length > 0) {
-                            searchWords.forEach(word => {
-                                const wordNorm = window.normalizeSearchString(word);
-                                if (wordNorm) {
-                                    displayName = displayName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-400 text-slate-950 font-black rounded-sm px-1 shadow-sm">${match}</mark>`);
-                                }
-                            });
-                        } else {
-                            displayName = displayName.replace(new RegExp(window.activeDailySearchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-400 text-slate-950 font-black rounded-sm px-1 shadow-sm">${match}</mark>`);
-                        }
-                    } else if (dniMatch) {
-                        displayName = `<mark class="bg-emerald-400/40 text-white font-black rounded-sm px-1 shadow-xs">${g.nombre}</mark>`;
-                    }
+        // Cluster guests by bookingTag so we can wrap them in subtle colored background boxes
+        const clusters = [];
+        let currentCluster = null;
+        (group.guests || []).forEach(g => {
+            const tag = g.bookingTag || 'NONE';
+            if (!currentCluster || currentCluster.tag !== tag) {
+                currentCluster = { tag: tag, guests: [] };
+                clusters.push(currentCluster);
+            }
+            currentCluster.guests.push(g);
+        });
+
+        const clustersHtml = clusters.map(cluster => {
+            let wrapStart = '<div class="px-1 py-0.5">';
+            let wrapEnd = '</div>';
+
+            if (cluster.tag !== 'NONE' && typeof getGroupColorClass === 'function') {
+                const hexColor = getGroupColorClass(cluster.tag);
+                if (hexColor && hexColor !== '#ffffff') {
+                    const r = parseInt(hexColor.slice(1, 3), 16) || 0;
+                    const gHex = parseInt(hexColor.slice(3, 5), 16) || 0;
+                    const b = parseInt(hexColor.slice(5, 7), 16) || 0;
+                    wrapStart = `<div class="px-2 py-1 mb-1.5 rounded-lg" style="background-color: rgba(${r},${gHex},${b},0.15); box-shadow: inset 0 0 0 1px rgba(${r},${gHex},${b},0.25);">`;
                 }
             }
 
-            // Same logic as TV board to construct a mobile-only orange course badge
-            const isSnorkel = (g.baseCourse === "Snorkeling" || g.courseBadge === "Snorkel" || (g.baseCourse && g.baseCourse.toLowerCase().includes("snorkel")) || (g.course && g.course.toLowerCase().includes("snorkel")));
-            const courseText = g.courseBadge || g.course || '';
-            let mobileCourseHtml = '';
-            if (courseText && !isSnorkel) {
-                mobileCourseHtml = `<span class="inline-block md:hidden text-[8.5px] font-black text-white rounded px-1.5 py-0.5 ml-1.5 uppercase tracking-wide shrink-0 leading-none shadow-sm" style="background-color: #f97316 !important; border-color: #ea580c !important; color: #ffffff !important;">${courseText}</span>`;
-            }
-
-            const cancelledClass = g.cancelled ? 'line-through text-slate-400/80 opacity-60' : 'text-white group-hover:text-blue-300 hover:text-blue-400';
-
-            // Paid indicator (gold euro coin badge)
-            let outstandingDebt = undefined;
-            const customerInfo = (window.customerDatabase || []).find(c => c.dni === g.dni);
-            if (customerInfo) {
-                outstandingDebt = customerInfo.outstandingDebt;
+            const guestsHtml = cluster.guests.map(g => {
+                const isNitrox = (g.gas || '').includes('EAN');
+                const gasColorClass = g.cancelled ? 'text-slate-500 line-through' : isNitrox ? 'text-green-400' : 'text-blue-300';
+                const gasColorHex = g.cancelled ? '#64748b' : isNitrox ? '#4ade80' : '#93c5fd'; // Slate for Cancelled, Green for Nitrox, Blue for Aire
+                const gasShort = (g.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
+                const arrivedDot = g.cancelled 
+                    ? `<span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 mr-1.5" title="Cancelado"></span>` 
+                    : g.arrived 
+                        ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mr-1.5" title="Llegado"></span>` 
+                        : '';
                 
-                const now = Date.now();
-                const shouldFetch = (outstandingDebt === undefined) || 
-                                    (g.paymentStatus === 'paid' && outstandingDebt > 0 && (!customerInfo.lastDebtFetchTime || now - customerInfo.lastDebtFetchTime > 8000));
-                
-                if (shouldFetch && !g.cancelled) {
-                    if (!window._fetchingDnis) window._fetchingDnis = new Set();
-                    if (!window._fetchingDnis.has(g.dni)) {
-                        window._fetchingDnis.add(g.dni);
-                        customerInfo.lastDebtFetchTime = now;
-                        db.collection('mangamar_customers').doc(g.dni).get().then(snap => {
-                            if (snap.exists) {
-                                const debtVal = snap.data().outstandingDebt;
-                                if (debtVal !== undefined) {
-                                    // If this guest's trip is paid but Firestore shows debt > 0,
-                                    // the stored value is stale (e.g. from before a payment was fixed).
-                                    // Queue for batched recalculation — avoids 22 simultaneous
-                                    // history-collection reads + Firestore writes when a large trip loads.
-                                    if (debtVal > 0 && g.paymentStatus === 'paid') {
+                let displayName = g.nombre;
+                if (window.activeDailySearchQuery) {
+                    const normQuery = window.normalizeSearchString(window.activeDailySearchQuery);
+                    if (normQuery) {
+                        const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
+                        const nameNorm = window.normalizeSearchString(g.nombre);
+                        
+                        if (nameNorm.includes(normQuery)) {
+                            const searchWords = window.activeDailySearchQuery.split(/\s+/).filter(w => w.length >= 2);
+                            if (searchWords.length > 0) {
+                                searchWords.forEach(word => {
+                                    const wordNorm = window.normalizeSearchString(word);
+                                    if (wordNorm) {
+                                        displayName = displayName.replace(new RegExp(word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-400 text-slate-950 font-black rounded-sm px-1 shadow-sm">${match}</mark>`);
+                                    }
+                                });
+                            } else {
+                                displayName = displayName.replace(new RegExp(window.activeDailySearchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), match => `<mark class="bg-emerald-400 text-slate-950 font-black rounded-sm px-1 shadow-sm">${match}</mark>`);
+                            }
+                        } else if (dniMatch) {
+                            displayName = `<mark class="bg-emerald-400/40 text-white font-black rounded-sm px-1 shadow-xs">${g.nombre}</mark>`;
+                        }
+                    }
+                }
+
+                // Same logic as TV board to construct an orange course badge (visible on desktop and mobile)
+                const isSnorkel = (g.baseCourse === "Snorkeling" || g.courseBadge === "Snorkel" || (g.baseCourse && g.baseCourse.toLowerCase().includes("snorkel")) || (g.course && g.course.toLowerCase().includes("snorkel")));
+                const courseText = g.courseBadge || g.course || '';
+                let mobileCourseHtml = '';
+                if (courseText && !isSnorkel) {
+                    mobileCourseHtml = `<span class="inline-block text-[8.5px] font-black text-white rounded px-1.5 py-0.5 ml-1.5 uppercase tracking-wide shrink-0 leading-none shadow-sm" style="background-color: #f97316 !important; border-color: #ea580c !important; color: #ffffff !important;">${courseText}</span>`;
+                }
+
+                const cancelledClass = g.cancelled ? 'line-through text-slate-400/80 opacity-60' : 'text-white group-hover:text-blue-300 hover:text-blue-400';
+
+                // Paid indicator (gold euro coin badge)
+                let outstandingDebt = undefined;
+                const customerInfo = (window.customerDatabase || []).find(c => c.dni === g.dni);
+                if (customerInfo) {
+                    outstandingDebt = customerInfo.outstandingDebt;
+                    
+                    const now = Date.now();
+                    const shouldFetch = (outstandingDebt === undefined) || 
+                                        (g.paymentStatus === 'paid' && outstandingDebt > 0 && (!customerInfo.lastDebtFetchTime || now - customerInfo.lastDebtFetchTime > 8000));
+                    
+                    if (shouldFetch && !g.cancelled) {
+                        if (!window._fetchingDnis) window._fetchingDnis = new Set();
+                        if (!window._fetchingDnis.has(g.dni)) {
+                            window._fetchingDnis.add(g.dni);
+                            customerInfo.lastDebtFetchTime = now;
+                            db.collection('mangamar_customers').doc(g.dni).get().then(snap => {
+                                if (snap.exists) {
+                                    const debtVal = snap.data().outstandingDebt;
+                                    if (debtVal !== undefined) {
+                                        // If this guest's trip is paid but Firestore shows debt > 0,
+                                        // the stored value is stale (e.g. from before a payment was fixed).
+                                        // Queue for batched recalculation — avoids 22 simultaneous
+                                        // history-collection reads + Firestore writes when a large trip loads.
+                                        if (debtVal > 0 && g.paymentStatus === 'paid') {
+                                            if (!window._pendingDebtRecalcDnis) window._pendingDebtRecalcDnis = new Set();
+                                            window._pendingDebtRecalcDnis.add(g.dni);
+                                            clearTimeout(window._debtRecalcTimer);
+                                            window._debtRecalcTimer = setTimeout(() => {
+                                                const dnis = Array.from(window._pendingDebtRecalcDnis);
+                                                window._pendingDebtRecalcDnis.clear();
+                                                window._debtRecalcTimer = null;
+                                                // updateMultipleCustomersOutstandingDebt runs them sequentially
+                                                // (one history fetch at a time) and does a single master_list write.
+                                                if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
+                                                    window.updateMultipleCustomersOutstandingDebt(dnis);
+                                                }
+                                            }, 500);
+                                        } else {
+                                            customerInfo.outstandingDebt = debtVal;
+                                            if (window.mergeAndRender) window.mergeAndRender();
+                                        }
+                                    } else {
+                                        // Legacy client without computed debt — also batch.
                                         if (!window._pendingDebtRecalcDnis) window._pendingDebtRecalcDnis = new Set();
                                         window._pendingDebtRecalcDnis.add(g.dni);
                                         clearTimeout(window._debtRecalcTimer);
@@ -686,61 +731,44 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                                             const dnis = Array.from(window._pendingDebtRecalcDnis);
                                             window._pendingDebtRecalcDnis.clear();
                                             window._debtRecalcTimer = null;
-                                            // updateMultipleCustomersOutstandingDebt runs them sequentially
-                                            // (one history fetch at a time) and does a single master_list write.
                                             if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
                                                 window.updateMultipleCustomersOutstandingDebt(dnis);
                                             }
                                         }, 500);
-                                    } else {
-                                        customerInfo.outstandingDebt = debtVal;
-                                        if (window.mergeAndRender) window.mergeAndRender();
                                     }
                                 } else {
-                                    // Legacy client without computed debt — also batch.
-                                    if (!window._pendingDebtRecalcDnis) window._pendingDebtRecalcDnis = new Set();
-                                    window._pendingDebtRecalcDnis.add(g.dni);
-                                    clearTimeout(window._debtRecalcTimer);
-                                    window._debtRecalcTimer = setTimeout(() => {
-                                        const dnis = Array.from(window._pendingDebtRecalcDnis);
-                                        window._pendingDebtRecalcDnis.clear();
-                                        window._debtRecalcTimer = null;
-                                        if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
-                                            window.updateMultipleCustomersOutstandingDebt(dnis);
-                                        }
-                                    }, 500);
+                                    customerInfo.outstandingDebt = 999;
                                 }
-                            } else {
-                                customerInfo.outstandingDebt = 999;
-                            }
-                            window._fetchingDnis.delete(g.dni);
-                        }).catch(() => window._fetchingDnis.delete(g.dni));
+                                window._fetchingDnis.delete(g.dni);
+                            }).catch(() => window._fetchingDnis.delete(g.dni));
+                        }
                     }
                 }
-            }
 
-            const isPaid = (g.paymentStatus === 'paid') && (outstandingDebt === 0 || outstandingDebt === undefined);
-            const euroBadge = (isPaid && !g.cancelled) 
-                ? `<span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full ml-1 shadow-sm shrink-0 select-none" style="vertical-align: middle; background: linear-gradient(135deg, #ffe066, #d4af37);" title="Liquidado (Pagado)"><svg class="w-2.5 h-2.5 shrink-0" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 2.5C8 2.1 7.3 1.8 6.5 1.8C4.3 1.8 2.5 3.2 2.5 5C2.5 6.8 4.3 8.2 6.5 8.2C7.3 8.2 8.0 7.9 8.5 7.5M1.5 4.2H6M1.5 5.8H6" stroke="black" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` 
-                : '';
+                const isPaid = (g.paymentStatus === 'paid') && (outstandingDebt === 0 || outstandingDebt === undefined);
+                const euroBadge = (isPaid && !g.cancelled) 
+                    ? `<span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full ml-1 shadow-sm shrink-0 select-none" style="vertical-align: middle; background: linear-gradient(135deg, #ffe066, #d4af37);" title="Liquidado (Pagado)"><svg class="w-2.5 h-2.5 shrink-0" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 2.5C8 2.1 7.3 1.8 6.5 1.8C4.3 1.8 2.5 3.2 2.5 5C2.5 6.8 4.3 8.2 6.5 8.2C7.3 8.2 8.0 7.9 8.5 7.5M1.5 4.2H6M1.5 5.8H6" stroke="black" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` 
+                    : '';
 
-            return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
-                        <div class="flex items-center min-w-0 flex-1">
-                            ${arrivedDot}
-                            <button onclick="if(!window.isLoggedIn || window.isStaffLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
-                                    class="block truncate flex-1 min-w-0 pr-2 font-bold focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock ${cancelledClass}">
-                                ${displayName}${euroBadge}
-                            </button>
-                            ${mobileCourseHtml}
-                        </div>
-                        <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2" style="color: ${gasColorHex} !important;">${gasShort}</span>
-                    </div>`;
+                return `<div class="flex justify-between items-center text-[10px] mb-1 last:mb-0 group/item">
+                            <div class="flex items-center min-w-0 flex-1">
+                                ${arrivedDot}
+                                <button onclick="if(!window.isLoggedIn || window.isStaffLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
+                                        class="block truncate flex-1 min-w-0 pr-2 font-bold focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock ${cancelledClass}">
+                                    ${displayName}${euroBadge}
+                                </button>
+                                ${mobileCourseHtml}
+                            </div>
+                            <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2" style="color: ${gasColorHex} !important;">${gasShort}</span>
+                        </div>`;
+            }).join('');
+
+            return wrapStart + guestsHtml + wrapEnd;
         }).join('');
 
-        
         return `<div class="mb-3 last:mb-0 border-b border-white/10 pb-2 last:border-0 last:pb-0">
                     <div class="text-[8px] font-black text-orange-400 mb-1 tracking-widest">${titleText}</div>
-                    ${guestsHtml || '<div class="text-[9px] italic text-slate-500">Vacío</div>'}
+                    ${clustersHtml || '<div class="text-[9px] italic text-slate-500">Vacío</div>'}
                 </div>`;
     }).join('');
 
