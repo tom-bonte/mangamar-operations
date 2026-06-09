@@ -248,18 +248,18 @@ body.is-dragging .tooltip-content {
 .tooltip-content div,
 .tooltip-content span,
 .tooltip-content button {
-    font-size: 0.65rem !important; /* Scaled down from 0.72rem to fit more information */
+    font-size: 0.68rem !important; /* Scaled down slightly to fit more information */
 }
 
 /* Guide names */
 .tooltip-content div.text-\[8px\].font-black {
-    font-size: 0.60rem !important; /* Scaled down from 0.68rem */
+    font-size: 0.64rem !important; /* Scaled down from 0.68rem */
     letter-spacing: 0.05em !important;
 }
 
 /* Course tags in the tooltip/hover window */
 .tooltip-content span.text-\[8\.5px\] {
-    font-size: 0.58rem !important;
+    font-size: 0.62rem !important;
     padding: 1px 3.5px !important; /* Tighter padding for course tags */
     margin-left: 0.25rem !important;
 }
@@ -277,17 +277,17 @@ body.is-dragging .tooltip-content {
 }
 
 .tooltip-content .grid-cols-3 span.text-\[7px\] {
-    font-size: 0.55rem !important; /* SAL/AGUA/VOL labels, scaled down from 0.62rem */
-    margin-bottom: 0.1rem !important;
+    font-size: 0.58rem !important; /* SAL/AGUA/VOL labels, scaled down from 0.62rem */
+    margin-bottom: 0.15rem !important;
 }
 
 .tooltip-content .grid-cols-3 div.text-\[8\.5px\] {
-    font-size: 0.68rem !important; /* 🕒 time strings, scaled down from 0.75rem */
+    font-size: 0.72rem !important; /* 🕒 time strings, scaled down from 0.75rem */
 }
 
 /* Gas indicator badge in tooltip */
 .tooltip-content span.text-\[8px\] {
-    font-size: 0.60rem !important; /* Scaled down from 0.68rem */
+    font-size: 0.64rem !important; /* Scaled down from 0.68rem */
 }
 
 /* Elevate slot container on hover so tooltips are never covered by adjacent cells or columns */
