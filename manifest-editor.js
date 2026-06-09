@@ -2864,9 +2864,22 @@ window.mergeManifests = function(base, local, remote) {
             const remoteG = inRemote.guest;
 
             const mergedG = { ...remoteG };
+            
+            // 1. Handle properties deleted in localG (existed in baseG but no longer in localG or is undefined)
+            for (const prop in baseG) {
+                if (localG[prop] === undefined) {
+                    delete mergedG[prop];
+                }
+            }
+
+            // 2. Handle properties modified/added in localG
             for (const prop in localG) {
                 if (localG[prop] !== baseG[prop]) {
-                    mergedG[prop] = localG[prop];
+                    if (localG[prop] === undefined) {
+                        delete mergedG[prop];
+                    } else {
+                        mergedG[prop] = localG[prop];
+                    }
                 }
             }
             
@@ -2978,9 +2991,24 @@ function mergeGuestArrays(baseList, localList, remoteList) {
             // Deleted by them
         } else if (inRemote && inLocal) {
             const mergedG = { ...inRemote };
+            
+            // 1. Handle properties deleted in inLocal (existed in inBase but no longer in inLocal or is undefined)
+            if (inBase) {
+                for (const prop in inBase) {
+                    if (inLocal[prop] === undefined) {
+                        delete mergedG[prop];
+                    }
+                }
+            }
+
+            // 2. Handle properties modified/added in inLocal
             for (const prop in inLocal) {
                 if (inLocal[prop] !== (inBase ? inBase[prop] : undefined)) {
-                    mergedG[prop] = inLocal[prop];
+                    if (inLocal[prop] === undefined) {
+                        delete mergedG[prop];
+                    } else {
+                        mergedG[prop] = inLocal[prop];
+                    }
                 }
             }
             mergedList.push(mergedG);
