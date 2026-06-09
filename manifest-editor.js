@@ -62,7 +62,7 @@ window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
                 trip.groups.forEach(group => {
                     if (group.guests) {
                         group.guests.forEach(guest => {
-                            if (guest.dni === dni) {
+                            if (guest.dni && window.normalizeDni(guest.dni) === window.normalizeDni(dni)) {
                                 for (const key in equipmentPayload) {
                                     if (guest[key] !== equipmentPayload[key]) {
                                         guest[key] = equipmentPayload[key];
@@ -90,7 +90,7 @@ window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
                 trip.groups.forEach(group => {
                     if (group.guests) {
                         group.guests.forEach(guest => {
-                            if (guest.dni === dni) {
+                            if (guest.dni && window.normalizeDni(guest.dni) === window.normalizeDni(dni)) {
                                 for (const key in equipmentPayload) {
                                     if (guest[key] !== equipmentPayload[key]) {
                                         guest[key] = equipmentPayload[key];
@@ -115,7 +115,7 @@ window.propagateEquipmentInRAM = function(dni, equipmentPayload) {
         window.activeBoatItem.groups.forEach(group => {
             if (group.guests) {
                 group.guests.forEach(guest => {
-                    if (guest.dni === dni) {
+                    if (guest.dni && window.normalizeDni(guest.dni) === window.normalizeDni(dni)) {
                         for (const key in equipmentPayload) {
                             guest[key] = equipmentPayload[key];
                         }
@@ -187,6 +187,10 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     
     if (typeof isNavBackForward !== 'boolean') isNavBackForward = false;
     window.selectedGuestsForGroup = []; // Reset selection when opening a new modal
+    if (typeof window.loadCrmDatabase === 'function') {
+        window.loadCrmDatabase();
+    }
+
     window._activeSearchGroupIdx = 0; // Reset target group index to prevent leakage from previous modals
     
     let trip = tripOrId;
@@ -200,7 +204,7 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     
     // Preserve activeBoatItem if we are just returning to the exact same trip via modal history
     if (!isNavBackForward || !activeBoatItem || activeBoatItem.id !== (trip ? trip.id : tripOrId)) {
-        activeBoatItem = trip ? { ...trip } : {
+        activeBoatItem = trip ? JSON.parse(JSON.stringify(trip)) : {
             id: typeof tripOrId === 'string' ? tripOrId : `internal_${Date.now()}`, 
             date: dateStr, time: time, assignedBoat: boatId, 
             site: boatId === 'shore' ? 'Shore' : SITES_INTERNAL[0], captain: '', isVisor: false, groups: [] 
@@ -264,7 +268,7 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
                     outstandingDebt = customerDocData.outstandingDebt;
                     // Update in-memory customerDatabase to keep it perfectly updated
                     if (typeof customerDatabase !== 'undefined' && Array.isArray(customerDatabase)) {
-                        const index = customerDatabase.findIndex(c => c.dni === dni);
+                        const index = customerDatabase.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(dni));
                         if (index !== -1) {
                             if (outstandingDebt !== undefined) {
                                 customerDatabase[index].outstandingDebt = outstandingDebt;
@@ -296,7 +300,7 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
                     // Sync into in-memory activeBoatItem
                     activeBoatItem.groups.forEach(g => {
                         (g.guests || []).forEach(gst => {
-                            if (gst.dni === dni) {
+                            if (gst.dni && window.normalizeDni(gst.dni) === window.normalizeDni(dni)) {
                                 if (data.paymentStatus === 'paid' && gst.paymentStatus !== 'paid') {
                                     gst.paymentStatus = 'paid';
                                     gst.paymentMethod = data.paymentMethod || '';
@@ -739,6 +743,18 @@ function _renderGroupsCore(skipAutoSave = false) {
         `;
 
         group.guests.forEach((guest, guestIndex) => {
+            // Live-heal isManual based on the CRM database profile status
+            if (guest.dni && typeof customerDatabase !== 'undefined') {
+                const crmMatch = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === window.normalizeSearchString(guest.dni));
+                if (crmMatch) {
+                    guest.isManual = !window.isProfileComplete(crmMatch);
+                } else {
+                    guest.isManual = true;
+                }
+            } else if (!guest.dni) {
+                guest.isManual = true;
+            }
+
             let nameHtml = '';
             if (guest.isRelinking) {
                 nameHtml = `<div class="relative">
@@ -764,10 +780,11 @@ function _renderGroupsCore(skipAutoSave = false) {
             }
 
             let divesCountText = '';
+            let crmMatchForDives = null;
             if (guest.dni && typeof customerDatabase !== 'undefined') {
-                const crmMatch = customerDatabase.find(c => c.dni === guest.dni);
-                if (crmMatch && crmMatch.dives !== undefined && crmMatch.dives !== null && crmMatch.dives !== '') {
-                    divesCountText = ` (${crmMatch.dives})`;
+                crmMatchForDives = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
+                if (crmMatchForDives && crmMatchForDives.dives !== undefined && crmMatchForDives.dives !== null && crmMatchForDives.dives !== '') {
+                    divesCountText = ` (${crmMatchForDives.dives})`;
                 }
             }
 
@@ -781,12 +798,18 @@ function _renderGroupsCore(skipAutoSave = false) {
                     badgeText = "DSD (doble)";
                 }
                 titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Curso: ${guest.course}" class="text-[10px] font-black text-pink-700 bg-pink-100 border border-pink-300 rounded px-1.5 py-0.5 truncate max-w-[150px] mx-auto block hover:bg-pink-200 transition-colors shadow-sm cursor-pointer">${badgeText}${divesCountText}</button>`;
-            } else if (guest.titulacion) {
-                titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Titulación: ${guest.titulacion}" class="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 truncate max-w-[150px] mx-auto block hover:bg-slate-200 transition-colors cursor-pointer">${guest.titulacion}${divesCountText}</button>`;
-            } else if (guest.isManual) {
-                titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Falta Titulación" class="text-amber-500 hover:text-amber-600 bg-amber-50 rounded-full w-5 h-5 flex items-center justify-center font-black text-[10px] mx-auto border border-amber-200 cursor-pointer">?</button>`;
             } else {
-                titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" class="text-xs font-bold text-slate-300 hover:text-slate-500 cursor-pointer w-full text-center">-</button>`;
+                let titToUse = guest.titulacion;
+                if (!titToUse && crmMatchForDives && crmMatchForDives.titulacion) {
+                    titToUse = crmMatchForDives.titulacion;
+                }
+                if (titToUse) {
+                    titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Titulación: ${titToUse}" class="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 truncate max-w-[150px] mx-auto block hover:bg-slate-200 transition-colors cursor-pointer">${titToUse}${divesCountText}</button>`;
+                } else if (guest.isManual) {
+                    titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" title="Falta Titulación" class="text-amber-500 hover:text-amber-600 bg-amber-50 rounded-full w-5 h-5 flex items-center justify-center font-black text-[10px] mx-auto border border-amber-200 cursor-pointer">?</button>`;
+                } else {
+                    titHtml = `<button onclick="openTitPopup(event, ${groupIndex}, ${guestIndex})" class="text-xs font-bold text-slate-300 hover:text-slate-500 cursor-pointer w-full text-center">-</button>`;
+                }
             }
 
             let dniHtml = '';
@@ -818,7 +841,7 @@ function _renderGroupsCore(skipAutoSave = false) {
             const gasCurrent = guest.gas || '15L Aire';
             const isNitrox = gasCurrent.includes('EAN');
             const gasColor = isNitrox ? 'bg-green-500 text-white border-green-600 font-black' : 'bg-blue-50 text-blue-600 border-blue-200';
-            const gasShortText = gasCurrent.replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
+            const gasShortText = gasCurrent.replace(' Aire', '').replace(/EAN\s*(\d+)/i, '$1%');
 
             const rentalCurrent = guest.rental || 0;
             let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
@@ -837,7 +860,7 @@ function _renderGroupsCore(skipAutoSave = false) {
             let globalIns = null;
             let isInsExpired = false;
             if (guest.dni && !guest.course) {
-                const profile = customerDatabase.find(c => c.dni === guest.dni);
+                const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                 if (profile && profile.insurance) {
                     globalIns = profile.insurance;
                     const expiryStr = window.normalizeDateStr(globalIns.expiry);
@@ -917,7 +940,7 @@ function _renderGroupsCore(skipAutoSave = false) {
             let customerDeposit = guest.localDeposit || 0;
             let depositContasimple = guest.localDepositC || false;
             if (guest.dni) {
-                const profile = customerDatabase.find(c => c.dni === guest.dni);
+                const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                 if (profile) {
                     // Only overwrite with profile.deposit if the trip is not paid.
                     // If the trip is paid, the profile's deposit has been cleared to 0, 
@@ -960,7 +983,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                             ${(guest.baseCourse === "Snorkeling" || guest.courseBadge === "Snorkel" || (guest.baseCourse && guest.baseCourse.toLowerCase().includes("snorkel"))) ? 
                             `<span class="text-[10px] font-black text-slate-300 italic px-2">- N/A -</span>` : 
                             `
-                                <button id="btn-gas-${groupIndex}-${guestIndex}" onclick="cycleGas(${groupIndex}, ${guestIndex})" class="w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}">
+                                <button id="btn-gas-${groupIndex}-${guestIndex}" onclick="window.showGasDropdown(${groupIndex}, ${guestIndex}, this, event)" class="w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}">
                                     ${gasShortText}
                                 </button>
                                 <button id="btn-rental-${groupIndex}-${guestIndex}" onclick="cycleRental(${groupIndex}, ${guestIndex})" class="w-8 h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black shrink-0 ${rentalClass}">
@@ -985,7 +1008,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                             
                             let outstandingDebt = payInfo.outstandingDebt;
                             if (outstandingDebt === undefined) {
-                                const customerInfo = (window.customerDatabase || []).find(c => c.dni === guest.dni);
+                                const customerInfo = (window.customerDatabase || []).find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                                 if (customerInfo) outstandingDebt = customerInfo.outstandingDebt;
                             }
                             
@@ -1190,23 +1213,98 @@ function removeGuest(groupIndex, guestIndex) {
     triggerAutoSave();
 }
 
-function cycleGas(groupIndex, guestIndex) {
-    if(!window.isLoggedIn) return;
-    const states = ['15L Aire', '12L Aire', '15L EAN28', '12L EAN28', '15L EAN32', '12L EAN32'];
-    const current = activeBoatItem.groups[groupIndex].guests[guestIndex].gas || '15L Aire';
-    const nextGas = states[(states.indexOf(current) + 1) % states.length];
-    activeBoatItem.groups[groupIndex].guests[guestIndex].gas = nextGas;
+window.changeGas = function(groupIndex, guestIndex, value, buttonEl) {
+    if (!window.isLoggedIn) return;
+    activeBoatItem.groups[groupIndex].guests[guestIndex].gas = value;
     
     // Targeted DOM Update (Instant!)
-    const btn = document.getElementById(`btn-gas-${groupIndex}-${guestIndex}`);
-    if (btn) {
-        const isNitrox = nextGas.includes('EAN');
+    if (buttonEl) {
+        const isNitrox = value.includes('EAN');
         const gasColor = isNitrox ? 'bg-green-500 text-white border-green-600 font-black' : 'bg-blue-50 text-blue-600 border-blue-200';
-        btn.className = `w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}`;
-        btn.innerText = nextGas.replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
+        buttonEl.className = `w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}`;
+        buttonEl.innerText = value.replace(' Aire', '').replace(/EAN\s*(\d+)/i, '$1%');
     }
+    
     triggerAutoSave();
-}
+};
+
+window.showGasDropdown = function(groupIndex, guestIndex, buttonEl, event) {
+    event.stopPropagation();
+    if (!window.isLoggedIn) return;
+
+    // Remove any existing gas dropdown first
+    const existing = document.getElementById('gas-custom-dropdown');
+    if (existing) existing.remove();
+
+    // Create the dropdown container
+    const dropdown = document.createElement('div');
+    dropdown.id = 'gas-custom-dropdown';
+    dropdown.className = 'absolute bg-white border border-slate-200 rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 min-w-[95px] z-[999999]';
+
+    const gasOptions = [
+        { value: '15L Aire', label: '15L', type: 'air' },
+        { value: '12L Aire', label: '12L', type: 'air' },
+        { value: '15L EAN32', label: '15L 32%', type: 'ean32' },
+        { value: '12L EAN32', label: '12L 32%', type: 'ean32' },
+        { value: '15L EAN28', label: '15L 28%', type: 'ean28' },
+        { value: '12L EAN28', label: '12L 28%', type: 'ean28' }
+    ];
+
+    const currentGas = activeBoatItem.groups[groupIndex].guests[guestIndex].gas || '15L Aire';
+
+    gasOptions.forEach(opt => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        const isCurrent = opt.value === currentGas;
+        
+        let itemClass = '';
+        if (isCurrent) {
+            if (opt.type === 'air') itemClass = 'bg-blue-600 text-white shadow-sm';
+            else if (opt.type === 'ean32') itemClass = 'bg-green-600 text-white shadow-sm';
+            else if (opt.type === 'ean28') itemClass = 'bg-teal-600 text-white shadow-sm';
+        } else {
+            if (opt.type === 'air') itemClass = 'bg-blue-50/70 text-blue-700 hover:bg-blue-100/80';
+            else if (opt.type === 'ean32') itemClass = 'bg-green-50 text-green-800 hover:bg-green-100';
+            else if (opt.type === 'ean28') itemClass = 'bg-teal-50/70 text-teal-800 hover:bg-teal-100/80';
+        }
+
+        item.className = `w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between gap-2 ${itemClass}`;
+        
+        item.innerHTML = `<span>${opt.label}</span>` + 
+            (isCurrent ? `<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>` : '');
+
+        item.onclick = function() {
+            window.changeGas(groupIndex, guestIndex, opt.value, buttonEl);
+            dropdown.remove();
+        };
+
+        dropdown.appendChild(item);
+    });
+
+    document.body.appendChild(dropdown);
+    const rect = buttonEl.getBoundingClientRect();
+    const scrollY = window.scrollY || window.pageYOffset;
+    const scrollX = window.scrollX || window.pageXOffset;
+    
+    let top = rect.bottom + scrollY + 4;
+    let left = rect.left + scrollX;
+    
+    if (top + dropdown.offsetHeight > window.innerHeight + scrollY) {
+        top = rect.top + scrollY - dropdown.offsetHeight - 4;
+    }
+    
+    dropdown.style.top = `${top}px`;
+    dropdown.style.left = `${left}px`;
+
+    const closeListener = function() {
+        dropdown.remove();
+        document.removeEventListener('click', closeListener);
+    };
+    // Defer adding the event listener to avoid immediate closing on the current click event
+    setTimeout(() => {
+        document.addEventListener('click', closeListener);
+    }, 10);
+};
 
 function cycleRental(groupIndex, guestIndex) {
     if(!window.isLoggedIn) return;
@@ -1336,7 +1434,7 @@ let activeInsGuest = null;
 
 window.cleanOrphanedInsurance = async function(dni) {
     try {
-        const profile = customerDatabase.find(c => c.dni === dni);
+        const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(dni));
         if (!profile || !profile.insurance) return;
 
         // ONLY clean up short-term daily (1D) or weekly (1W) insurances if orphaned
@@ -1374,7 +1472,7 @@ window.cleanOrphanedInsurance = async function(dni) {
             const masterDoc = await masterRef.get();
             if (masterDoc.exists) {
                 let clients = masterDoc.data().clients || [];
-                let idx = clients.findIndex(c => c.dni === dni);
+                let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(dni));
                 if (idx > -1) {
                     delete clients[idx].insurance;
                     await masterRef.set({ clients }, { merge: true });
@@ -1447,21 +1545,21 @@ window.setIns = async function(type) {
             masterDocRef.get().then(doc => {
                 if (doc.exists) {
                     let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         delete clients[idx].insurance;
                         masterDocRef.set({ clients }, { merge: true });
                     }
                 }
             });
-            const profile = customerDatabase.find(c => c.dni === guest.dni);
+            const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) delete profile.insurance;
         }
     } else if (type === 'Propio') {
         guest.insurance = 'Propio ✔'; 
         if (guest.dni) {
             const newIns = { type: 'Propio ✔', expiry: '2099-12-31', purchaseDate: activeBoatItem.date };
-            const profile = customerDatabase.find(c => c.dni === guest.dni);
+            const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) profile.insurance = newIns;
             
             db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns }, { merge: true });
@@ -1470,7 +1568,7 @@ window.setIns = async function(type) {
             masterDocRef.get().then(doc => {
                 if (doc.exists) {
                     let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         clients[idx].insurance = newIns;
                         masterDocRef.set({ clients }, { merge: true });
@@ -1493,7 +1591,7 @@ window.setIns = async function(type) {
             // Added purchaseDate to make the window strict!
             const newIns = { type, expiry, purchaseDate: activeBoatItem.date };
             
-            const profile = customerDatabase.find(c => c.dni === guest.dni);
+            const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) profile.insurance = newIns;
             
             db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns }, { merge: true });
@@ -1502,7 +1600,7 @@ window.setIns = async function(type) {
             masterDocRef.get().then(doc => {
                 if (doc.exists) {
                     let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         clients[idx].insurance = newIns;
                         masterDocRef.set({ clients }, { merge: true });
@@ -1531,7 +1629,7 @@ window.updateGuestInsuranceButton = function(groupIndex, guestIndex) {
     let globalIns = null;
     let isInsExpired = false;
     if (guest.dni && !guest.course) {
-        const profile = customerDatabase.find(c => c.dni === guest.dni);
+        const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
         if (profile && profile.insurance) {
             globalIns = profile.insurance;
             const expiryStr = window.normalizeDateStr(globalIns.expiry);
@@ -1625,7 +1723,7 @@ window.openSeguroPropioModal = function() {
     let expVal = "";
     
     if (guest.dni) {
-        const profile = customerDatabase.find(c => c.dni === guest.dni);
+        const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
         if (profile && profile.insurance) {
             typeVal = profile.insurance.type || "";
             if (profile.insurance.expiry) {
@@ -1689,14 +1787,14 @@ window.saveSeguroPropioChanges = async function() {
             masterDocRef.get().then(doc => {
                 if (doc.exists) {
                     let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         delete clients[idx].insurance;
                         masterDocRef.set({ clients }, { merge: true }).catch(e => console.error("Error saving master list:", e));
                     }
                 }
             });
-            const profile = customerDatabase.find(c => c.dni === guest.dni);
+            const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) delete profile.insurance;
         }
     } else {
@@ -1705,7 +1803,7 @@ window.saveSeguroPropioChanges = async function() {
             const newIns = { type, expiry, purchaseDate: activeBoatItem.date };
             
             // Update local memory database
-            const profile = customerDatabase.find(c => c.dni === guest.dni);
+            const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) profile.insurance = newIns;
             
             // Save to Firestore for this customer
@@ -1716,7 +1814,7 @@ window.saveSeguroPropioChanges = async function() {
             masterDocRef.get().then(doc => {
                 if (doc.exists) {
                     let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         clients[idx].insurance = newIns;
                         masterDocRef.set({ clients }, { merge: true }).catch(e => console.error("Error saving master list:", e));
@@ -1732,7 +1830,7 @@ window.saveSeguroPropioChanges = async function() {
     }
     
     // Refresh customer profile (diver's ficha) UI if it's currently open!
-    if (guest.dni && window.activeFichaDni === guest.dni && typeof window.openCustomerProfile === 'function') {
+    if (guest.dni && window.normalizeDni(window.activeFichaDni) === window.normalizeDni(guest.dni) && typeof window.openCustomerProfile === 'function') {
         const currentTab = (document.getElementById('tab-content-caja') && !document.getElementById('tab-content-caja').classList.contains('hidden')) ? 'caja' : 'historial';
         window.openCustomerProfile(guest.dni, guest.nombre, false, currentTab);
     }
@@ -1770,7 +1868,7 @@ window.toggleTramitado = function() {
 
     // Sync state back to CRM customer profile in Firestore & local customerDatabase if DNI exists
     if (guest.dni) {
-        const profile = customerDatabase.find(c => c.dni === guest.dni);
+        const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
         if (profile) {
             let [y, m, d] = activeBoatItem.date.split('-').map(Number);
             let dateObj = new Date(y, m - 1, d);
@@ -1801,7 +1899,7 @@ window.toggleTramitado = function() {
             masterDocRef.get().then(doc => {
                 if (doc.exists) {
                     let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => c.dni === guest.dni);
+                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         clients[idx].insurance = profile.insurance;
                         masterDocRef.set({ clients }, { merge: true });
@@ -2051,7 +2149,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                 
                 Object.keys(updates).forEach(allocationKey => {
                     const clonedTrip = updates[allocationKey];
-                    const linkedGuests = clonedTrip.guests.filter(g => g.dni === data.dni && !g.cancelled);
+                    const linkedGuests = clonedTrip.guests.filter(g => g.dni && window.normalizeDni(g.dni) === window.normalizeDni(data.dni) && !g.cancelled);
                     linkedGuests.forEach(g => {
                         const historyRef = db.collection('mangamar_customers').doc(data.dni).collection('history').doc(clonedTrip.id);
                         historyBatch.set(historyRef, {
@@ -2977,6 +3075,10 @@ async function saveBoatData(itemToSave = activeBoatItem) {
         }
     });
 
+    // CRITICAL FIX: Deep copy the snapshot of what we are writing in this transaction.
+    // This isolates active RAM edits that happen during the async save.
+    const savedSnapshot = JSON.parse(JSON.stringify(itemToSave));
+
     if (window.isDeletingTrip) {
         console.warn("⚠️ Save aborted globally because a deletion is in progress!");
         return false;
@@ -2991,69 +3093,69 @@ async function saveBoatData(itemToSave = activeBoatItem) {
 
     // --- 🚨 STRICT CONFLICT FIREWALL ---
     // 1. Check Captain
-    if (itemToSave.captain) {
-        const cap = (staffDatabase.capitanes || []).find(c => c.nombre === itemToSave.captain);
+    if (savedSnapshot.captain) {
+        const cap = (staffDatabase.capitanes || []).find(c => c.nombre === savedSnapshot.captain);
         if (cap) {
-            const loc = getPersonLocation(cap.dni, cap.nombre, 'captain', -1, -1, itemToSave.date, itemToSave.time, itemToSave.id);
-            if (loc) { showAppAlert(`⚠️ Imposible guardar: El capitán ${cap.nombre} ya está en ${loc} a las ${itemToSave.time}.`); return false; }
+            const loc = getPersonLocation(cap.dni, cap.nombre, 'captain', -1, -1, savedSnapshot.date, savedSnapshot.time, savedSnapshot.id);
+            if (loc) { showAppAlert(`⚠️ Imposible guardar: El capitán ${cap.nombre} ya está en ${loc} a las ${savedSnapshot.time}.`); return false; }
         }
     }
 
     // 2. Check Guides and Guests
-    for (let grpIdx = 0; grpIdx < itemToSave.groups.length; grpIdx++) {
-        const g = itemToSave.groups[grpIdx];
+    for (let grpIdx = 0; grpIdx < savedSnapshot.groups.length; grpIdx++) {
+        const g = savedSnapshot.groups[grpIdx];
         
         if (g.guide) {
             const gui = (staffDatabase.guias || []).find(x => x.nombre === g.guide);
             if (gui) {
-                const loc = getPersonLocation(gui.dni, gui.nombre, 'guide', grpIdx, -1, itemToSave.date, itemToSave.time, itemToSave.id);
-                if (loc) { showAppAlert(`⚠️ Imposible guardar: El guía ${gui.nombre} ya está en ${loc} a las ${itemToSave.time}.`); return false; }
+                const loc = getPersonLocation(gui.dni, gui.nombre, 'guide', grpIdx, -1, savedSnapshot.date, savedSnapshot.time, savedSnapshot.id);
+                if (loc) { showAppAlert(`⚠️ Imposible guardar: El guía ${gui.nombre} ya está en ${loc} a las ${savedSnapshot.time}.`); return false; }
             }
         }
 
         if (g.apoyo) {
             const apo = (staffDatabase.guias || []).find(x => x.nombre === g.apoyo);
             if (apo) {
-                const loc = getPersonLocation(apo.dni, apo.nombre, 'apoyo', grpIdx, -1, itemToSave.date, itemToSave.time, itemToSave.id);
-                if (loc) { showAppAlert(`⚠️ Imposible guardar: El apoyo ${apo.nombre} ya está en ${loc} a las ${itemToSave.time}.`); return false; }
+                const loc = getPersonLocation(apo.dni, apo.nombre, 'apoyo', grpIdx, -1, savedSnapshot.date, savedSnapshot.time, savedSnapshot.id);
+                if (loc) { showAppAlert(`⚠️ Imposible guardar: El apoyo ${apo.nombre} ya está en ${loc} a las ${savedSnapshot.time}.`); return false; }
             }
         }
         
         for (let gstIdx = 0; gstIdx < g.guests.length; gstIdx++) {
             const gst = g.guests[gstIdx];
-            const loc = getPersonLocation(gst.dni, gst.nombre, 'guest', grpIdx, gstIdx, itemToSave.date, itemToSave.time, itemToSave.id);
-            if (loc) { showAppAlert(`⚠️ Imposible guardar: El cliente ${gst.nombre} ya está asignado en ${loc} a las ${itemToSave.time}.`); return false; }
+            const loc = getPersonLocation(gst.dni, gst.nombre, 'guest', grpIdx, gstIdx, savedSnapshot.date, savedSnapshot.time, savedSnapshot.id);
+            if (loc) { showAppAlert(`⚠️ Imposible guardar: El cliente ${gst.nombre} ya está asignado en ${loc} a las ${savedSnapshot.time}.`); return false; }
         }
     }
     // ------------------------------------
 
-    const flatGuests = []; itemToSave.groups.forEach(g => flatGuests.push(...g.guests));
+    const flatGuests = []; savedSnapshot.groups.forEach(g => flatGuests.push(...g.guests));
     
     // 🚨 CRITICAL TIMING FIX: Use synchronous in-memory snapshot to prevent network race conditions!
     // Never rely on mergedAllocations here, as onSnapshot delays can cause it to be stale during rapid additions/removals.
-    const originalDnis = itemToSave.lastSavedDnis || [];
+    const originalDnis = savedSnapshot.lastSavedDnis || [];
     const currentDnis = flatGuests.filter(g => !g.cancelled).map(g => g.dni).filter(Boolean);
     const removedDnis = originalDnis.filter(dni => !currentDnis.includes(dni));
 
     // 🚨 CRITICAL ASYNC ISOLATION: Snapshot the active trip properties synchronously.
     // If the user clicks another boat while `await saveInternalBoatData` is yielding, activeBoatItem will mutate!
     // This snapshot prevents history records from bleeding into the "next" clicked boat.
-    const targetTripId = itemToSave.id;
-    const targetDate = itemToSave.date;
-    const targetTime = itemToSave.time;
-    const targetSite = itemToSave.site;
-    const targetAssignedBoat = itemToSave.assignedBoat;
+    const targetTripId = savedSnapshot.id;
+    const targetDate = savedSnapshot.date;
+    const targetTime = savedSnapshot.time;
+    const targetSite = savedSnapshot.site;
+    const targetAssignedBoat = savedSnapshot.assignedBoat;
 
     const payload = {
         date: targetDate, time: targetTime, assignedBoat: targetAssignedBoat,
-        site: targetSite, captain: itemToSave.captain, groups: itemToSave.groups, guests: flatGuests,
-        waitlist: itemToSave.waitlist || [],
-        timeSaliendo: itemToSave.timeSaliendo || '',
-        timeBuzosAgua: itemToSave.timeBuzosAgua || '',
-        timeVolviendo: itemToSave.timeVolviendo || '',
-        rmLocked: itemToSave.rmLocked || false
+        site: targetSite, captain: savedSnapshot.captain, groups: savedSnapshot.groups, guests: flatGuests,
+        waitlist: savedSnapshot.waitlist || [],
+        timeSaliendo: savedSnapshot.timeSaliendo || '',
+        timeBuzosAgua: savedSnapshot.timeBuzosAgua || '',
+        timeVolviendo: savedSnapshot.timeVolviendo || '',
+        rmLocked: savedSnapshot.rmLocked || false
     };
-    if (itemToSave.maxDives) payload.maxDives = itemToSave.maxDives;
+    if (savedSnapshot.maxDives) payload.maxDives = savedSnapshot.maxDives;
     
     try {
         await saveInternalBoatData(targetTripId, targetDate, payload);
@@ -3066,7 +3168,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
             const day = String(currentDate.getDate()).padStart(2, '0');
             viewedDateStr = `${year}-${month}-${day}`;
         }
-        const targetDateStr = targetDate || itemToSave.date;
+        const targetDateStr = targetDate || savedSnapshot.date;
         const earliestDateStr = targetDateStr < viewedDateStr ? targetDateStr : viewedDateStr;
         const allOtherTrips = mergedAllocations.filter(t => t.date >= earliestDateStr && t.id !== targetTripId);
         
@@ -3079,7 +3181,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
             clonedTrip.groups?.forEach(g => {
                 g.guests?.forEach(otherGuest => {
                     if (otherGuest.dni) {
-                        const meInCurrentBoat = flatGuests.find(tg => tg.dni && tg.dni === otherGuest.dni);
+                        const meInCurrentBoat = flatGuests.find(tg => tg.dni && window.normalizeDni(tg.dni) === window.normalizeDni(otherGuest.dni));
                         if (meInCurrentBoat) {
                             const oldRental = otherGuest.rental;
                             const oldComp = otherGuest.computer;
@@ -3192,7 +3294,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                 g.guests?.forEach(otherGuest => {
                     // Find if this person on the other boat is currently sitting in the boat we are saving right now
                     const meInCurrentBoat = flatGuests.find(tg => 
-                        (tg.dni && otherGuest.dni && tg.dni === otherGuest.dni) || 
+                        (tg.dni && otherGuest.dni && window.normalizeDni(tg.dni) === window.normalizeDni(otherGuest.dni)) || 
                         (tg.nombre && otherGuest.nombre && tg.nombre.toLowerCase() === otherGuest.nombre.toLowerCase())
                     );
                     
@@ -3290,7 +3392,11 @@ async function saveBoatData(itemToSave = activeBoatItem) {
         
         // Update the synchronous snapshot for subsequent saves without closing the modal
         itemToSave.lastSavedDnis = currentDnis;
-        itemToSave.lastSyncedTripState = JSON.parse(JSON.stringify(itemToSave));
+        itemToSave.lastSyncedTripState = JSON.parse(JSON.stringify(savedSnapshot));
+        
+        if (typeof window.updateLocalTripCache === 'function') {
+            window.updateLocalTripCache(itemToSave.id, itemToSave.date, savedSnapshot);
+        }
         
         // --- GARBAGE COLLECTOR TRIGGER ---
         // Clean up insurance profiles for anyone who was removed from this boat
@@ -3731,7 +3837,7 @@ window.toggleContasimple = async function(groupIndex, guestIndex) {
             
             // Update UI instantly
             renderGroups();
-            if (window.activeFichaDni === guest.dni && typeof window.renderFichaFromCache === 'function') {
+            if (window.normalizeDni(window.activeFichaDni) === window.normalizeDni(guest.dni) && typeof window.renderFichaFromCache === 'function') {
                 window.renderFichaFromCache(guest.dni);
             }
             
@@ -3803,7 +3909,7 @@ window.openBulkAddModal = function() {
                 let displayName = memberKey;
                 let displayDni = '';
                 
-                const masterMatch = customerDatabase.find(c => c.dni === memberKey || (c.dni && c.dni.toLowerCase() === memberKey.toLowerCase()));
+                const masterMatch = customerDatabase.find(c => c.dni && window.normalizeDni(c.dni) === window.normalizeDni(memberKey));
                 if (masterMatch) {
                     displayName = getFullName(masterMatch);
                     displayDni = masterMatch.dni || '';
@@ -3814,7 +3920,7 @@ window.openBulkAddModal = function() {
 
                 // Make sure they are not ALREADY in the boat
                 const alreadyInBoat = activeBoatItem.groups.some(bgrp => 
-                    bgrp.guests && bgrp.guests.some(g => (g.dni && g.dni === displayDni) || (g.nombre && g.nombre.toLowerCase() === displayName.toLowerCase()))
+                    bgrp.guests && bgrp.guests.some(g => (g.dni && displayDni && window.normalizeDni(g.dni) === window.normalizeDni(displayDni)) || (g.nombre && g.nombre.toLowerCase() === displayName.toLowerCase()))
                 );
 
                 if (alreadyInBoat) return ''; // Skip rendering if already in boat
@@ -3875,16 +3981,22 @@ window.confirmBulkAdd = function() {
     checkboxes.forEach(chk => {
         const data = JSON.parse(decodeURIComponent(chk.value));
         const groupTag = chk.getAttribute('data-group');
-        const tit = data.dni ? customerDatabase.find(c => c.dni === data.dni)?.titulacion || '' : '';
+        
+        // Inherit from CRM master list profile if it exists
+        const existingProfile = data.dni ? customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(data.dni)) : null;
+        const tit = existingProfile ? existingProfile.titulacion || '' : '';
+        const phone = existingProfile ? existingProfile.telefono || '' : '';
+        const email = existingProfile ? existingProfile.email || '' : '';
+        const isManual = existingProfile ? !window.isProfileComplete(existingProfile) : true;
         
         activeBoatItem.groups[targetGroupIdx].guests.push({
             nombre: data.nombre,
             dni: data.dni || '',
             titulacion: tit,
-            telefono: '',
-            email: '',
+            telefono: phone,
+            email: email,
             gas: '15L Aire',
-            isManual: false,
+            isManual: isManual,
             bookingTag: groupTag
         });
     });

@@ -349,9 +349,16 @@ function startFirestoreListeners() {
                 if (typeof renderGroups === 'function' && activeBoatItem) renderGroups(true);
             }
         });
-
         // CRM Master List (Heavy 1MB Download - Deferred to prioritize critical schedule bandwidth on load)
-        setTimeout(() => {
+        let crmFetchStarted = false;
+        window.loadCrmDatabase = function() {
+            if (crmFetchStarted || window.crmLoaded) return;
+            crmFetchStarted = true;
+            if (window.crmLoadTimeout) {
+                clearTimeout(window.crmLoadTimeout);
+                window.crmLoadTimeout = null;
+            }
+            console.log("🚀 [CRM] Loading database immediately...");
             db.collection("mangamar_directory").doc("master_list").get().then((doc) => {
                 if (doc.exists) {
                     let rawClients = doc.data().clients || [];
@@ -435,7 +442,7 @@ function startFirestoreListeners() {
     
                     const cleanClients = [...dedupMap.values(), ...nonDniClients];
                     customerDatabase = cleanClients;
-
+    
                     // ✅ Mark CRM as fully loaded — now safe for all downstream writes
                     window.crmLoaded = true;
                     window.crmLoadedClientCount = cleanClients.length;
@@ -465,8 +472,12 @@ function startFirestoreListeners() {
                         renderCrmTable();
                     }
                 }
+            }).catch(e => {
+                console.error("Error loading CRM database:", e);
+                crmFetchStarted = false;
             });
-        }, 4500);
+        };
+        window.crmLoadTimeout = setTimeout(window.loadCrmDatabase, 4500);
 
         // Global Settings Listener
         db.collection("mangamar_directory").doc("settings").onSnapshot((doc) => {
@@ -794,6 +805,35 @@ window.mergeAndRender = function mergeAndRender() {
         }
     });
 }
+
+window.updateLocalTripCache = function(tripId, date, updatedTrip) {
+    if (!date) return;
+    const monthKey = date.substring(0, 7);
+    let list = internalMonthData.get(monthKey);
+    const tripCopy = JSON.parse(JSON.stringify(updatedTrip));
+    const flatGuests = [];
+    if (tripCopy.groups) {
+        tripCopy.groups.forEach(g => {
+            if (g.guests) flatGuests.push(...g.guests);
+        });
+    }
+    const preparedTrip = {
+        ...tripCopy,
+        guests: flatGuests
+    };
+    
+    if (list) {
+        const idx = list.findIndex(t => t.id === tripId);
+        if (idx > -1) {
+            list[idx] = preparedTrip;
+        } else {
+            list.push(preparedTrip);
+        }
+    } else {
+        internalMonthData.set(monthKey, [preparedTrip]);
+    }
+    compileAndMerge();
+};
 
 /**
  * Saves boat manifest data (Captain, Guide, Guests) to the INTERNAL database.
