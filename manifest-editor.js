@@ -2442,12 +2442,26 @@ window.saveLocalGuestEdit = async function() {
                             });
                         }
                     });
+                    
+                    // Align the active boat's lastSyncedTripState to match what we write to Firestore
+                    if (activeBoatItem.lastSyncedTripState) {
+                        activeBoatItem.lastSyncedTripState.groups = JSON.parse(JSON.stringify(activeBoatItem.groups));
+                        const flatGuests = [];
+                        activeBoatItem.groups.forEach(g => { if (g.guests) flatGuests.push(...g.guests); });
+                        activeBoatItem.lastSyncedTripState.guests = flatGuests;
+                    }
+                }
+                
+                const flatGuests = [];
+                if (trip.groups) {
+                    trip.groups.forEach(g => { if (g.guests) flatGuests.push(...g.guests); });
                 }
                 
                 const payload = {
                     captain: trip.captain || '',
                     guide: trip.guide || '',
                     groups: trip.groups || [],
+                    guests: flatGuests,
                     isInternalTrip: true
                 };
                 if (trip.isVisorTrip) payload.visorTripFallback = true;
@@ -3191,182 +3205,183 @@ async function saveBoatData(itemToSave = activeBoatItem) {
     try {
         await saveInternalBoatData(targetTripId, targetDate, payload);
         
-        // --- AUTO-PROPAGATE EQUIPMENT TO ALL PENDING DIVES ---
-        let viewedDateStr = new Date().toISOString().split('T')[0];
-        if (typeof currentDate !== 'undefined' && currentDate) {
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const day = String(currentDate.getDate()).padStart(2, '0');
-            viewedDateStr = `${year}-${month}-${day}`;
-        }
-        const targetDateStr = targetDate || savedSnapshot.date;
-        const earliestDateStr = targetDateStr < viewedDateStr ? targetDateStr : viewedDateStr;
-        const allOtherTrips = mergedAllocations.filter(t => t.date >= earliestDateStr && t.id !== targetTripId);
-        
-        const monthlyUpdates = {}; 
-
-        allOtherTrips.forEach(trip => {
-            let tripChanged = false;
-            const clonedTrip = JSON.parse(JSON.stringify(trip));
-
-            clonedTrip.groups?.forEach(g => {
-                g.guests?.forEach(otherGuest => {
-                    if (otherGuest.dni) {
-                        const meInCurrentBoat = flatGuests.find(tg => tg.dni && window.normalizeDni(tg.dni) === window.normalizeDni(otherGuest.dni));
-                        if (meInCurrentBoat) {
-                            const oldRental = otherGuest.rental;
-                            const oldComp = otherGuest.computer;
-                            const oldCompPrice = otherGuest.computerPrice;
-                            const oldIns = otherGuest.insurance;
-
-                            otherGuest.rental = meInCurrentBoat.rental || 0;
-                            otherGuest.computer = meInCurrentBoat.computer || 0;
-                            otherGuest.computerPrice = meInCurrentBoat.computerPrice || 0;
-                            otherGuest.insurance = meInCurrentBoat.insurance || 0;
-
-                            if (oldRental !== otherGuest.rental || 
-                                oldComp !== otherGuest.computer || 
-                                oldCompPrice !== otherGuest.computerPrice || 
-                                oldIns !== otherGuest.insurance) {
-                                tripChanged = true;
-                            }
-                        }
-                    }
-                });
-            });
-
-            if (tripChanged) {
-                const newFlatGuests = [];
-                clonedTrip.groups.forEach(g => newFlatGuests.push(...g.guests));
-                clonedTrip.guests = newFlatGuests;
-
-                const localTripIdx = (window.internalTrips || internalTrips || []).findIndex(t => t.id === trip.id);
-                if (localTripIdx > -1) {
-                    if (window.internalTrips) window.internalTrips[localTripIdx] = clonedTrip;
-                    if (typeof internalTrips !== 'undefined') internalTrips[localTripIdx] = clonedTrip;
-                } else {
-                    if (window.internalTrips) window.internalTrips.push(clonedTrip);
-                    if (typeof internalTrips !== 'undefined' && Array.isArray(internalTrips)) internalTrips.push(clonedTrip);
-                }
-
-                const mergedTripIdx = mergedAllocations.findIndex(t => t.id === trip.id);
-                if (mergedTripIdx > -1) {
-                    mergedAllocations[mergedTripIdx].groups = clonedTrip.groups;
-                    mergedAllocations[mergedTripIdx].guests = clonedTrip.guests;
-                }
-
-                const mKey = trip.date.substring(0, 7);
-                if (!monthlyUpdates[mKey]) {
-                    monthlyUpdates[mKey] = {};
-                }
-                const otherPayload = {
-                    date: clonedTrip.date, 
-                    time: clonedTrip.time, 
-                    assignedBoat: clonedTrip.assignedBoat || 'ares',
-                    site: clonedTrip.site || '',
-                    captain: clonedTrip.captain || '',
-                    groups: clonedTrip.groups, 
-                    guests: clonedTrip.guests,
-                    waitlist: clonedTrip.waitlist || [],
-                    timeSaliendo: clonedTrip.timeSaliendo || '',
-                    timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
-                    timeVolviendo: clonedTrip.timeVolviendo || '',
-                    rmLocked: clonedTrip.rmLocked || false
-                };
-                if (clonedTrip.maxDives) otherPayload.maxDives = clonedTrip.maxDives;
-                if (clonedTrip.isVisor) otherPayload.visorTripFallback = true;
-
-                monthlyUpdates[mKey][`allocations.${trip.id}`] = otherPayload;
-
-                // --- HISTORY SYNC: also update those guests' history docs to match the propagated equipment ---
-                clonedTrip.groups?.forEach(g => {
-                    g.guests?.forEach(gst => {
-                        if (gst.dni && !gst.cancelled) {
-                            const histRef = db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(trip.id);
-                            histRef.update({
-                                gas: gst.gas || '15L Aire',
-                                rental: gst.rental || 0,
-                                computer: gst.computer || 0,
-                                computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
-                                insurance: gst.insurance || 0,
-                            }).catch(() => {
-                                // History doc may not exist yet — safe to ignore
-                            });
-                        }
-                    });
-                });
-            }
-        });
-
-        for (const [mKey, updates] of Object.entries(monthlyUpdates)) {
-            await db.collection('mangamar_monthly').doc(mKey).update(updates).catch(async err => {
-                console.warn(`Doc missing for ${mKey}, fallback to set`, err);
-                const fields = {};
-                for (const k in updates) {
-                    const cleanField = k.replace('allocations.', '');
-                    fields[cleanField] = updates[k];
-                }
-                await db.collection('mangamar_monthly').doc(mKey).set({ allocations: fields }, { merge: true });
-            });
-        }
-        
-        // --- AUTO-SYNC EXACT TAG STATE TO OTHER BOATS RETROACTIVELY ---
-        // This ensures if you disband/remove a tag, it removes it from their other dives that day too!
-        const otherTrips = internalTrips.filter(t => t.date === targetDate && t.id !== targetTripId);
-        let needsUpdate = false;
-        const monthKey = targetDate.substring(0, 7);
-        const updates = {};
-
-        otherTrips.forEach(trip => {
-            let tripChanged = false;
-            const clonedTrip = JSON.parse(JSON.stringify(trip));
-
-            clonedTrip.groups?.forEach(g => {
-                g.guests?.forEach(otherGuest => {
-                    // Find if this person on the other boat is currently sitting in the boat we are saving right now
-                    const meInCurrentBoat = flatGuests.find(tg => 
-                        (tg.dni && otherGuest.dni && window.normalizeDni(tg.dni) === window.normalizeDni(otherGuest.dni)) || 
-                        (tg.nombre && otherGuest.nombre && tg.nombre.toLowerCase() === otherGuest.nombre.toLowerCase())
-                    );
-                    
-                    if (meInCurrentBoat) {
-                        // Force sync the tag state! If it exists, copy it. If it doesn't, delete it.
-                        if (otherGuest.bookingTag !== meInCurrentBoat.bookingTag) {
-                            if (meInCurrentBoat.bookingTag) {
-                                otherGuest.bookingTag = meInCurrentBoat.bookingTag;
-                            } else {
-                                delete otherGuest.bookingTag;
-                            }
-                            tripChanged = true;
-                        }
-                    }
-                });
-            });
-
-            if (tripChanged) {
-                const newFlatGuests = []; clonedTrip.groups.forEach(g => newFlatGuests.push(...g.guests));
-                clonedTrip.guests = newFlatGuests;
-                updates[`allocations.${clonedTrip.id}`] = {
-                    date: clonedTrip.date, time: clonedTrip.time, assignedBoat: clonedTrip.assignedBoat,
-                    site: clonedTrip.site, captain: clonedTrip.captain, groups: clonedTrip.groups, guests: clonedTrip.guests,
-                    waitlist: clonedTrip.waitlist || [],
-                    timeSaliendo: clonedTrip.timeSaliendo || '',
-                    timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
-                    timeVolviendo: clonedTrip.timeVolviendo || '',
-                    rmLocked: clonedTrip.rmLocked || false
-                };
-                needsUpdate = true;
-            }
-        });
-
-        if (needsUpdate) {
-            await db.collection('mangamar_monthly').doc(monthKey).update(updates);
-        }
-        
-        // --- 3. TRACKER: SAVE DIVE HISTORY TO CUSTOMER PROFILE (PHASE 1) ---
-        // Run this in the background asynchronously so it doesn't block the main save queue!
+        // --- ASYNC BACKGROUND FLOW FOR HEAVY SECONDARY WRITES ---
+        // We trigger this immediately and run it in the background so that the primary save completes in <50ms.
         (async () => {
             try {
+                // --- 1. AUTO-PROPAGATE EQUIPMENT TO ALL PENDING DIVES ---
+                let viewedDateStr = new Date().toISOString().split('T')[0];
+                if (typeof currentDate !== 'undefined' && currentDate) {
+                    const year = currentDate.getFullYear();
+                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(currentDate.getDate()).padStart(2, '0');
+                    viewedDateStr = `${year}-${month}-${day}`;
+                }
+                const targetDateStr = targetDate || savedSnapshot.date;
+                const earliestDateStr = targetDateStr < viewedDateStr ? targetDateStr : viewedDateStr;
+                const allOtherTrips = mergedAllocations.filter(t => t.date >= earliestDateStr && t.id !== targetTripId);
+                
+                const monthlyUpdates = {}; 
+
+                allOtherTrips.forEach(trip => {
+                    let tripChanged = false;
+                    const clonedTrip = JSON.parse(JSON.stringify(trip));
+
+                    clonedTrip.groups?.forEach(g => {
+                        g.guests?.forEach(otherGuest => {
+                            if (otherGuest.dni) {
+                                const meInCurrentBoat = flatGuests.find(tg => tg.dni && window.normalizeDni(tg.dni) === window.normalizeDni(otherGuest.dni));
+                                if (meInCurrentBoat) {
+                                    const oldRental = otherGuest.rental;
+                                    const oldComp = otherGuest.computer;
+                                    const oldCompPrice = otherGuest.computerPrice;
+                                    const oldIns = otherGuest.insurance;
+
+                                    otherGuest.rental = meInCurrentBoat.rental || 0;
+                                    otherGuest.computer = meInCurrentBoat.computer || 0;
+                                    otherGuest.computerPrice = meInCurrentBoat.computerPrice || 0;
+                                    otherGuest.insurance = meInCurrentBoat.insurance || 0;
+
+                                    if (oldRental !== otherGuest.rental || 
+                                        oldComp !== otherGuest.computer || 
+                                        oldCompPrice !== otherGuest.computerPrice || 
+                                        oldIns !== otherGuest.insurance) {
+                                        tripChanged = true;
+                                    }
+                                }
+                            }
+                        });
+                    });
+
+                    if (tripChanged) {
+                        const newFlatGuests = [];
+                        clonedTrip.groups.forEach(g => newFlatGuests.push(...g.guests));
+                        clonedTrip.guests = newFlatGuests;
+
+                        const localTripIdx = (window.internalTrips || internalTrips || []).findIndex(t => t.id === trip.id);
+                        if (localTripIdx > -1) {
+                            if (window.internalTrips) window.internalTrips[localTripIdx] = clonedTrip;
+                            if (typeof internalTrips !== 'undefined') internalTrips[localTripIdx] = clonedTrip;
+                        } else {
+                            if (window.internalTrips) window.internalTrips.push(clonedTrip);
+                            if (typeof internalTrips !== 'undefined' && Array.isArray(internalTrips)) internalTrips.push(clonedTrip);
+                        }
+
+                        const mergedTripIdx = mergedAllocations.findIndex(t => t.id === trip.id);
+                        if (mergedTripIdx > -1) {
+                            mergedAllocations[mergedTripIdx].groups = clonedTrip.groups;
+                            mergedAllocations[mergedTripIdx].guests = clonedTrip.guests;
+                        }
+
+                        const mKey = trip.date.substring(0, 7);
+                        if (!monthlyUpdates[mKey]) {
+                            monthlyUpdates[mKey] = {};
+                        }
+                        const otherPayload = {
+                            date: clonedTrip.date, 
+                            time: clonedTrip.time, 
+                            assignedBoat: clonedTrip.assignedBoat || 'ares',
+                            site: clonedTrip.site || '',
+                            captain: clonedTrip.captain || '',
+                            groups: clonedTrip.groups, 
+                            guests: clonedTrip.guests,
+                            waitlist: clonedTrip.waitlist || [],
+                            timeSaliendo: clonedTrip.timeSaliendo || '',
+                            timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
+                            timeVolviendo: clonedTrip.timeVolviendo || '',
+                            rmLocked: clonedTrip.rmLocked || false
+                        };
+                        if (clonedTrip.maxDives) otherPayload.maxDives = clonedTrip.maxDives;
+                        if (clonedTrip.isVisor) otherPayload.visorTripFallback = true;
+
+                        monthlyUpdates[mKey][`allocations.${trip.id}`] = otherPayload;
+
+                        // --- HISTORY SYNC: also update those guests' history docs to match the propagated equipment ---
+                        clonedTrip.groups?.forEach(g => {
+                            g.guests?.forEach(gst => {
+                                if (gst.dni && !gst.cancelled) {
+                                    const histRef = db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(trip.id);
+                                    histRef.update({
+                                        gas: gst.gas || '15L Aire',
+                                        rental: gst.rental || 0,
+                                        computer: gst.computer || 0,
+                                        computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
+                                        insurance: gst.insurance || 0,
+                                    }).catch(() => {
+                                        // History doc may not exist yet — safe to ignore
+                                    });
+                                }
+                            });
+                        });
+                    }
+                });
+
+                for (const [mKey, updates] of Object.entries(monthlyUpdates)) {
+                    await db.collection('mangamar_monthly').doc(mKey).update(updates).catch(async err => {
+                        console.warn(`Doc missing for ${mKey}, fallback to set`, err);
+                        const fields = {};
+                        for (const k in updates) {
+                            const cleanField = k.replace('allocations.', '');
+                            fields[cleanField] = updates[k];
+                        }
+                        await db.collection('mangamar_monthly').doc(mKey).set({ allocations: fields }, { merge: true });
+                    });
+                }
+                
+                // --- 2. AUTO-SYNC EXACT TAG STATE TO OTHER BOATS RETROACTIVELY ---
+                // This ensures if you disband/remove a tag, it removes it from their other dives that day too!
+                const otherTrips = internalTrips.filter(t => t.date === targetDate && t.id !== targetTripId);
+                let needsUpdate = false;
+                const monthKey = targetDate.substring(0, 7);
+                const updates = {};
+
+                otherTrips.forEach(trip => {
+                    let tripChanged = false;
+                    const clonedTrip = JSON.parse(JSON.stringify(trip));
+
+                    clonedTrip.groups?.forEach(g => {
+                        g.guests?.forEach(otherGuest => {
+                            // Find if this person on the other boat is currently sitting in the boat we are saving right now
+                            const meInCurrentBoat = flatGuests.find(tg => 
+                                (tg.dni && otherGuest.dni && window.normalizeDni(tg.dni) === window.normalizeDni(otherGuest.dni)) || 
+                                (tg.nombre && otherGuest.nombre && tg.nombre.toLowerCase() === otherGuest.nombre.toLowerCase())
+                            );
+                            
+                            if (meInCurrentBoat) {
+                                // Force sync the tag state! If it exists, copy it. If it doesn't, delete it.
+                                if (otherGuest.bookingTag !== meInCurrentBoat.bookingTag) {
+                                    if (meInCurrentBoat.bookingTag) {
+                                        otherGuest.bookingTag = meInCurrentBoat.bookingTag;
+                                    } else {
+                                        delete otherGuest.bookingTag;
+                                    }
+                                    tripChanged = true;
+                                }
+                            }
+                        });
+                    });
+
+                    if (tripChanged) {
+                        const newFlatGuests = []; clonedTrip.groups.forEach(g => newFlatGuests.push(...g.guests));
+                        clonedTrip.guests = newFlatGuests;
+                        updates[`allocations.${clonedTrip.id}`] = {
+                            date: clonedTrip.date, time: clonedTrip.time, assignedBoat: clonedTrip.assignedBoat,
+                            site: clonedTrip.site, captain: clonedTrip.captain, groups: clonedTrip.groups, guests: clonedTrip.guests,
+                            waitlist: clonedTrip.waitlist || [],
+                            timeSaliendo: clonedTrip.timeSaliendo || '',
+                            timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
+                            timeVolviendo: clonedTrip.timeVolviendo || '',
+                            rmLocked: clonedTrip.rmLocked || false
+                        };
+                        needsUpdate = true;
+                    }
+                });
+
+                if (needsUpdate) {
+                    await db.collection('mangamar_monthly').doc(monthKey).update(updates);
+                }
+                
+                // --- 3. TRACKER: SAVE DIVE HISTORY TO CUSTOMER PROFILE ---
                 const historyBatch = db.batch();
                 let historyWrites = 0;
                 
@@ -3416,8 +3431,8 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                         window.updateMultipleCustomersOutstandingDebt(affectedDnis);
                     }
                 }
-            } catch (err) {
-                console.error("Background history sync failed:", err);
+            } catch (backgroundErr) {
+                console.error("Background save updates failed:", backgroundErr);
             }
         })();
         
@@ -3452,10 +3467,14 @@ async function saveBoatData(itemToSave = activeBoatItem) {
 // Full manual save override with UI state management
 window.manualSaveBoatData = async function(andClose = false) {
     if (!activeBoatItem) return;
+    const itemToSave = activeBoatItem; // Capture closure reference to prevent background race condition if user opens another manifest
     const btn = document.getElementById('btn-manual-save');
-    const originalContent = btn.innerHTML;
+    const btnClose = document.getElementById('btn-manual-save-close');
+    const originalContent = btn ? btn.innerHTML : '';
+    const originalCloseContent = btnClose ? btnClose.innerHTML : '';
 
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
+    if (btnClose) btnClose.disabled = true;
     showToast("⏳ Guardando salida internamente...");
 
     // Sync DOM to RAM synchronously before yielding to prevent race conditions
@@ -3467,30 +3486,36 @@ window.manualSaveBoatData = async function(andClose = false) {
     }
 
     try {
-        const success = await window.queueSaveForTrip(activeBoatItem);
+        const success = await window.queueSaveForTrip(itemToSave);
         if (success) {
             showToast("✅ Salida guardada con éxito");
             window.isManifestDirty = false; // Reset dirty state
-            if (andClose) {
+            if (andClose && activeBoatItem === itemToSave) {
                 // Clean up state completely after background save completes successfully
                 activeBoatItem = null;
                 window.clearModalHistory();
             }
         } else {
             // Validation or conflict failed! Bring the modal back so they can fix it
-            if (andClose) {
+            if (andClose && activeBoatItem === itemToSave) {
                 document.getElementById('manage-boat-modal').classList.remove('hidden');
             }
         }
     } catch (err) {
         console.error(err);
         showAppAlert("No se pudo guardar la salida. Comprueba tu conexión.");
-        if (andClose) {
+        if (andClose && activeBoatItem === itemToSave) {
             document.getElementById('manage-boat-modal').classList.remove('hidden');
         }
     } finally {
-        btn.innerHTML = originalContent;
-        btn.disabled = false;
+        if (btn) {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+        if (btnClose) {
+            btnClose.innerHTML = originalCloseContent;
+            btnClose.disabled = false;
+        }
     }
 }
 

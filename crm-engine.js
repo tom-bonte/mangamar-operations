@@ -1444,7 +1444,7 @@ window.syncJotformCustomers = async function() {
                     return s === '' || s === '-' || s === '---' || s.toLowerCase() === 'sin titulación' || s.toLowerCase() === 'sin titulacion';
                 };
                 
-                let boatSyncPromises = [];
+                const modifiedTrips = [];
                 mergedAllocations.forEach(trip => {
                     let modified = false;
                     if (trip.groups) {
@@ -1515,26 +1515,25 @@ window.syncJotformCustomers = async function() {
                         if (window.activeBoatItem && window.activeBoatItem.id === trip.id) {
                             window.activeBoatItem.groups = trip.groups;
                             window.activeBoatItem.waitlist = trip.waitlist;
+                            
+                            // Align the active boat's lastSyncedTripState to match what we write to Firestore
+                            if (window.activeBoatItem.lastSyncedTripState) {
+                                window.activeBoatItem.lastSyncedTripState.groups = JSON.parse(JSON.stringify(window.activeBoatItem.groups));
+                                const flatG = [];
+                                window.activeBoatItem.groups.forEach(g => { if (g.guests) flatG.push(...g.guests); });
+                                window.activeBoatItem.lastSyncedTripState.guests = flatG;
+                                window.activeBoatItem.lastSyncedTripState.waitlist = JSON.parse(JSON.stringify(window.activeBoatItem.waitlist));
+                            }
+                            
                             if (typeof window.renderGroups === 'function') window.renderGroups();
                             if (typeof window.updateModalSubtitle === 'function') window.updateModalSubtitle();
                             if (typeof window.renderWaitlist === 'function') window.renderWaitlist();
                         }
-                        // Save updated boat sheet in Firestore
-                        const payload = {
-                            captain: trip.captain || '',
-                            guide: trip.guide || '',
-                            groups: trip.groups || [],
-                            isInternalTrip: true
-                        };
-                        if (trip.waitlist) payload.waitlist = trip.waitlist;
-                        if (trip.isVisorTrip) payload.visorTripFallback = true;
-                        if (typeof window.saveInternalBoatData === 'function') {
-                            boatSyncPromises.push(window.saveInternalBoatData(trip.id, trip.date, payload));
-                        }
+                        modifiedTrips.push(trip);
                     }
                 });
-                if (boatSyncPromises.length > 0) {
-                    await Promise.all(boatSyncPromises);
+                if (modifiedTrips.length > 0 && typeof window.saveMultipleTripsData === 'function') {
+                    await window.saveMultipleTripsData(modifiedTrips);
                     if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
                 }
             }

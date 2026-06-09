@@ -424,8 +424,7 @@ function startFirestoreListeners() {
                 clearTimeout(window.crmLoadTimeout);
                 window.crmLoadTimeout = null;
             }
-            console.log("🚀 [CRM] Loading database immediately...");
-            db.collection("mangamar_directory").doc("master_list").get().then((doc) => {
+            db.collection("mangamar_directory").doc("master_list").onSnapshot((doc) => {
                 if (doc.exists) {
                     let rawClients = doc.data().clients || [];
                     let dedupMap = new Map();
@@ -542,11 +541,14 @@ function startFirestoreListeners() {
                     }
     
                     // Trigger non-blocking database-wide auto-heal sweep to correct name formats in all historic/current boat sheets
+                    // Disabled automatically on startup to save Firebase reads/writes. Can be run manually from browser console: window.repairAllManifestNames()
+                    /*
                     setTimeout(() => {
                         if (typeof window.repairAllManifestNames === 'function') {
                             window.repairAllManifestNames();
                         }
                     }, 3000);
+                    */
     
                     // If CRM modal table is open, refresh it now that data has loaded
                     const crmModal = document.getElementById('crm-modal');
@@ -560,9 +562,9 @@ function startFirestoreListeners() {
                         window.openGroupLinkModal(window._editingGroupName, true);
                     }
                 }
-            }).catch(e => {
-                console.error("Error loading CRM database:", e);
-                crmFetchStarted = false;
+            }, (e) => {
+                console.error("Error loading CRM database snapshot:", e);
+                if (!window.crmLoaded) crmFetchStarted = false;
             });
         };
         window.crmLoadTimeout = setTimeout(window.loadCrmDatabase, 4500);
@@ -849,6 +851,13 @@ window.mergeAndRender = function mergeAndRender() {
         const timeSinceEdit = Date.now() - (window.lastLocalEditTime || 0);
         if (window.isSaving || window.hasPendingSave || window.hasPendingWrites || window.isManifestDirty || timeSinceEdit < 2500) {
             console.log("⏳ Skipping remote sync overwrite: local save or recent edit is in progress.");
+            // Schedule a deferred sync to catch up once the lockout window expires
+            const delay = Math.max(0, 2500 - timeSinceEdit);
+            clearTimeout(window.deferredSyncTimer);
+            window.deferredSyncTimer = setTimeout(() => {
+                console.log("⏳ Re-evaluating deferred sync...");
+                if (typeof compileAndMerge === 'function') compileAndMerge();
+            }, delay + 100);
         } else {
             const freshTrip = mergedAllocations.find(t => t.id === window.activeBoatItem.id);
             if (freshTrip) {
@@ -981,6 +990,19 @@ window.updateLocalTripCache = function(tripId, date, updatedTrip) {
  */
 async function saveInternalBoatData(id, date, boatInfoPayload) {
     const monthKey = date.substring(0, 7); // Format: YYYY-MM
+    
+    // --- 🚨 AUTO-ALIGN FLAT GUESTS LIST ---
+    // If the payload specifies groups, automatically reconstruct the flat guests array
+    // to keep both lists perfectly in sync and prevent passenger records from disappearing.
+    if (boatInfoPayload && Array.isArray(boatInfoPayload.groups)) {
+        const flatGuests = [];
+        boatInfoPayload.groups.forEach(g => {
+            if (g && Array.isArray(g.guests)) {
+                flatGuests.push(...g.guests);
+            }
+        });
+        boatInfoPayload.guests = flatGuests;
+    }
     try {
         // 'merge: true' ensures we safely insert/update this specific trip ID 
         // without accidentally overwriting the rest of the month's schedule
@@ -1009,6 +1031,93 @@ async function saveInternalBoatData(id, date, boatInfoPayload) {
         throw e; // Stops the modal from closing if the save failed
     }
 }
+
+/**
+ * Batches and serializes updates to multiple trips across one or more monthly documents
+ * to prevent concurrent write contention and reduce Firebase write operations.
+ * @async
+ * @param {Array} trips - Array of trip objects containing modifications
+ */
+window.saveMultipleTripsData = async function(trips) {
+    if (!trips || trips.length === 0) return;
+    
+    // Group modifications by monthly document key
+    const updatesByMonth = {};
+    
+    trips.forEach(trip => {
+        if (!trip.date || !trip.id) return;
+        const monthKey = trip.date.substring(0, 7);
+        if (!updatesByMonth[monthKey]) {
+            updatesByMonth[monthKey] = {};
+        }
+        
+        // Reconstruct flat guests list to keep both structures aligned
+        const flatGuests = [];
+        if (trip.groups) {
+            trip.groups.forEach(g => {
+                if (g && Array.isArray(g.guests)) {
+                    flatGuests.push(...g.guests);
+                }
+            });
+        }
+        
+        const prefix = `allocations.${trip.id}`;
+        updatesByMonth[monthKey][`${prefix}.captain`] = trip.captain || '';
+        updatesByMonth[monthKey][`${prefix}.guide`] = trip.guide || '';
+        updatesByMonth[monthKey][`${prefix}.groups`] = trip.groups || [];
+        updatesByMonth[monthKey][`${prefix}.guests`] = flatGuests;
+        if (trip.waitlist) {
+            updatesByMonth[monthKey][`${prefix}.waitlist`] = trip.waitlist;
+        }
+        if (trip.isVisorTrip || trip.isVisor) {
+            updatesByMonth[monthKey][`${prefix}.visorTripFallback`] = true;
+        }
+    });
+    
+    // Execute batched updates for each month document
+    const promises = Object.entries(updatesByMonth).map(async ([monthKey, payload]) => {
+        try {
+            await db.collection(INTERNAL_DB).doc(monthKey).update(payload)
+            .catch(async err => {
+                console.warn(`Doc missing in batch update for ${monthKey}, fallback to set`, err);
+                const fallbackObj = { allocations: {} };
+                Object.keys(payload).forEach(k => {
+                    const parts = k.split('.');
+                    const tripId = parts[1];
+                    if (!fallbackObj.allocations[tripId]) {
+                        const originalTrip = trips.find(t => t.id === tripId);
+                        if (originalTrip) {
+                            const flatG = [];
+                            if (originalTrip.groups) {
+                                originalTrip.groups.forEach(g => {
+                                    if (g && Array.isArray(g.guests)) flatG.push(...g.guests);
+                                });
+                            }
+                            fallbackObj.allocations[tripId] = {
+                                date: originalTrip.date,
+                                time: originalTrip.time,
+                                assignedBoat: originalTrip.assignedBoat || 'ares',
+                                site: originalTrip.site || '',
+                                captain: originalTrip.captain || '',
+                                groups: originalTrip.groups || [],
+                                guests: flatG,
+                                waitlist: originalTrip.waitlist || []
+                            };
+                            if (originalTrip.isVisorTrip || originalTrip.isVisor) {
+                                fallbackObj.allocations[tripId].visorTripFallback = true;
+                            }
+                        }
+                    }
+                });
+                await db.collection(INTERNAL_DB).doc(monthKey).set(fallbackObj, { merge: true });
+            });
+        } catch (e) {
+            console.error(`Error saving batched monthly allocations for ${monthKey}:`, e);
+        }
+    });
+    
+    await Promise.all(promises);
+};
 
 /**
  * Sweeps the entire database-wide operational manifests collection, resolves guest DNI matches 
