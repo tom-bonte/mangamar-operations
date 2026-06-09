@@ -832,7 +832,19 @@ window.promptEditCustomer = function () {
     if (!window.activeFichaDni) return;
     const customerInfo = customerDatabase.find(c => c.dni === window.activeFichaDni) || {};
 
-    document.getElementById('edit-f-dni').value = window.activeFichaDni;
+    const dniInput = document.getElementById('edit-f-dni');
+    dniInput.value = window.activeFichaDni;
+    
+    // If it's a temporary DNI (or empty), allow editing it to link/create a proper customer!
+    const isTemp = window.activeFichaDni.toLowerCase().startsWith('temp_') || !window.activeFichaDni;
+    if (isTemp) {
+        dniInput.removeAttribute('readonly');
+        dniInput.className = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all";
+    } else {
+        dniInput.setAttribute('readonly', 'true');
+        dniInput.className = "w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-500 cursor-not-allowed";
+    }
+
     document.getElementById('edit-f-nombre').value = window.getFullName(customerInfo, false);
     document.getElementById('edit-f-apodo').value = customerInfo.apodo || '';
     document.getElementById('edit-f-dob').value = window.normalizeDateStr(customerInfo.dob) || '';
@@ -854,8 +866,14 @@ window.promptEditCustomer = function () {
 
 window.saveCustomerEdits = async function () {
     if (!window.activeFichaDni) return;
-    const dni = window.activeFichaDni;
+    const oldDni = window.activeFichaDni;
+    const newDni = document.getElementById('edit-f-dni').value.trim().toUpperCase();
     const nombre = window.formatNameStr(document.getElementById('edit-f-nombre').value.trim());
+    
+    if (!newDni) {
+        showAppAlert("El DNI/Pasaporte es un campo obligatorio.");
+        return;
+    }
     if (!nombre) {
         showAppAlert("El nombre es un campo obligatorio.");
         return;
@@ -875,33 +893,93 @@ window.saveCustomerEdits = async function () {
         const insType = document.getElementById('edit-f-insurance-type').value;
         const insExp = document.getElementById('edit-f-insurance-exp').value;
 
-        // 1. Update local database
-        const index = customerDatabase.findIndex(c => c.dni === dni);
-        if (index > -1) {
-            customerDatabase[index].nombre = nombre;
-            if (apodo) customerDatabase[index].apodo = apodo;
-            else delete customerDatabase[index].apodo;
-            if (customerDatabase[index].apellidos) delete customerDatabase[index].apellidos;
-            if (customerDatabase[index].apellido) delete customerDatabase[index].apellido;
-            customerDatabase[index].dob = window.normalizeDateStr(dob);
-            customerDatabase[index].telefono = telefono;
-            customerDatabase[index].email = email;
-            customerDatabase[index].titulacion = titulacion;
-            if (divesRaw) customerDatabase[index].dives = parseInt(divesRaw);
-            else delete customerDatabase[index].dives;
+        // 1. Update/Link/Create local database profile
+        const oldIndex = customerDatabase.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(oldDni));
+        const newIndex = customerDatabase.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(newDni));
+        
+        let finalIndex = -1;
+        
+        if (newIndex > -1) {
+            // Updating an existing customer record (or linking a temp guest to an existing customer)
+            customerDatabase[newIndex].nombre = nombre;
+            customerDatabase[newIndex].dob = window.normalizeDateStr(dob);
+            customerDatabase[newIndex].telefono = telefono;
+            customerDatabase[newIndex].email = email;
+            customerDatabase[newIndex].titulacion = titulacion;
+            if (apodo) customerDatabase[newIndex].apodo = apodo;
+            else delete customerDatabase[newIndex].apodo;
+            if (divesRaw) customerDatabase[newIndex].dives = parseInt(divesRaw);
+            else delete customerDatabase[newIndex].dives;
             if (insType) {
-                if (!customerDatabase[index].insurance) customerDatabase[index].insurance = {};
-                customerDatabase[index].insurance.type = insType;
-                customerDatabase[index].insurance.expiry = insExp;
+                if (!customerDatabase[newIndex].insurance) customerDatabase[newIndex].insurance = {};
+                customerDatabase[newIndex].insurance.type = insType;
+                customerDatabase[newIndex].insurance.expiry = insExp;
             } else {
-                delete customerDatabase[index].insurance;
+                delete customerDatabase[newIndex].insurance;
+            }
+            finalIndex = newIndex;
+            
+            // Delete old record from DB if it was a temporary DNI that has now been linked/renamed
+            if (oldIndex > -1 && oldIndex !== newIndex) {
+                customerDatabase.splice(oldIndex, 1);
+            }
+        } else {
+            if (oldIndex > -1) {
+                // Renaming the existing customer's DNI
+                customerDatabase[oldIndex].dni = newDni;
+                customerDatabase[oldIndex].nombre = nombre;
+                customerDatabase[oldIndex].dob = window.normalizeDateStr(dob);
+                customerDatabase[oldIndex].telefono = telefono;
+                customerDatabase[oldIndex].email = email;
+                customerDatabase[oldIndex].titulacion = titulacion;
+                if (apodo) customerDatabase[oldIndex].apodo = apodo;
+                else delete customerDatabase[oldIndex].apodo;
+                if (divesRaw) customerDatabase[oldIndex].dives = parseInt(divesRaw);
+                else delete customerDatabase[oldIndex].dives;
+                if (insType) {
+                    if (!customerDatabase[oldIndex].insurance) customerDatabase[oldIndex].insurance = {};
+                    customerDatabase[oldIndex].insurance.type = insType;
+                    customerDatabase[oldIndex].insurance.expiry = insExp;
+                } else {
+                    delete customerDatabase[oldIndex].insurance;
+                }
+                finalIndex = oldIndex;
+            } else {
+                // Creating a brand new customer record
+                const newCustomer = {
+                    dni: newDni,
+                    nombre: nombre,
+                    dob: window.normalizeDateStr(dob),
+                    telefono: telefono,
+                    email: email,
+                    titulacion: titulacion,
+                    discount: 0
+                };
+                if (apodo) newCustomer.apodo = apodo;
+                if (divesRaw) newCustomer.dives = parseInt(divesRaw);
+                if (insType) {
+                    newCustomer.insurance = {
+                        type: insType,
+                        expiry: insExp
+                    };
+                }
+                customerDatabase.push(newCustomer);
+                finalIndex = customerDatabase.length - 1;
             }
         }
 
         // 2. Auto-sync Master List and Individual Customer Profile (ASYNC NON-BLOCKING)
         window.safeMasterListWrite(customerDatabase, 'save-customer-profile').catch(e => console.error("Error bg master sync:", e));
-        if (index > -1 && typeof db !== 'undefined') {
-            db.collection('mangamar_customers').doc(dni).set(customerDatabase[index], { merge: true }).catch(e => console.error("Error bg customer sync:", e));
+        
+        if (typeof db !== 'undefined') {
+            // Save new profile
+            db.collection('mangamar_customers').doc(newDni).set(customerDatabase[finalIndex], { merge: true }).catch(e => console.error("Error bg customer sync:", e));
+            
+            // If DNI changed, delete old one and migrate history
+            if (oldDni !== newDni) {
+                db.collection('mangamar_customers').doc(oldDni).delete().catch(e => console.error("Error deleting old DNI:", e));
+                window.migrateCustomerHistory(oldDni, newDni).catch(e => console.error("Error migrating history:", e));
+            }
         }
 
         // 3. Update active boat manifests via mergedAllocations natively
@@ -912,18 +990,26 @@ window.saveCustomerEdits = async function () {
                 trip.groups.forEach(group => {
                     if (group.guests) {
                         group.guests.forEach(guest => {
-                            if (guest.dni === dni) {
-                                let newFullName = window.getFirstAndLastName(window.getFullName(customerDatabase[index]));
-                                let newTitulacion = customerDatabase[index].titulacion || '';
-                                let newTelefono = customerDatabase[index].telefono || '';
-                                let newEmail = customerDatabase[index].email || '';
+                            const isOldDniMatch = guest.dni && window.normalizeDni(guest.dni) === window.normalizeDni(oldDni);
+                            const isTempIdMatch = !guest.dni && guest.tempId && guest.tempId === oldDni;
+                            
+                            if (isOldDniMatch || isTempIdMatch) {
+                                let newFullName = window.getFirstAndLastName(window.getFullName(customerDatabase[finalIndex]));
+                                let newTitulacion = customerDatabase[finalIndex].titulacion || '';
+                                let newTelefono = customerDatabase[finalIndex].telefono || '';
+                                let newEmail = customerDatabase[finalIndex].email || '';
+                                
+                                guest.dni = newDni;
+                                guest.isManual = !window.isProfileComplete(customerDatabase[finalIndex]);
+                                if (guest.tempId) delete guest.tempId;
+
                                 if (guest.nombre !== newFullName || guest.titulacion !== newTitulacion || guest.telefono !== newTelefono || guest.email !== newEmail) {
                                     guest.nombre = newFullName;
                                     guest.titulacion = newTitulacion;
                                     guest.telefono = newTelefono;
                                     guest.email = newEmail;
-                                    modified = true;
                                 }
+                                modified = true;
                             }
                         });
                     }
@@ -935,11 +1021,16 @@ window.saveCustomerEdits = async function () {
                         window.activeBoatItem.groups.forEach(g => {
                             if (g.guests) {
                                 g.guests.forEach(gst => {
-                                    if (gst.dni === dni) {
-                                        gst.nombre = window.getFirstAndLastName(window.getFullName(customerDatabase[index]));
-                                        gst.titulacion = customerDatabase[index].titulacion || '';
-                                        gst.telefono = customerDatabase[index].telefono || '';
-                                        gst.email = customerDatabase[index].email || '';
+                                    const isOldDniMatch = gst.dni && window.normalizeDni(gst.dni) === window.normalizeDni(oldDni);
+                                    const isTempIdMatch = !gst.dni && gst.tempId && gst.tempId === oldDni;
+                                    if (isOldDniMatch || isTempIdMatch) {
+                                        gst.dni = newDni;
+                                        gst.nombre = window.getFirstAndLastName(window.getFullName(customerDatabase[finalIndex]));
+                                        gst.titulacion = customerDatabase[finalIndex].titulacion || '';
+                                        gst.telefono = customerDatabase[finalIndex].telefono || '';
+                                        gst.email = customerDatabase[finalIndex].email || '';
+                                        gst.isManual = !window.isProfileComplete(customerDatabase[finalIndex]);
+                                        if (gst.tempId) delete gst.tempId;
                                     }
                                 });
                             }
@@ -973,12 +1064,13 @@ window.saveCustomerEdits = async function () {
             window.renderDailyGrid();
         }
 
+        window.activeFichaDni = newDni;
         document.getElementById('edit-customer-modal-full').classList.add('hidden');
         showToast("👍 Perfil actualizado correctamente.");
 
         // Soft refresh local visuals ONLY if Ficha is already open
         if (!document.getElementById('customer-profile-modal').classList.contains('hidden')) {
-            openCustomerProfile(dni, window.getFullName(customerDatabase[index]), false, 'ficha');
+            openCustomerProfile(newDni, window.getFullName(customerDatabase[finalIndex]), false, 'ficha');
         }
 
         if (!document.getElementById('crm-modal').classList.contains('hidden')) renderCrmTable();

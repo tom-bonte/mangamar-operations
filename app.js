@@ -673,9 +673,9 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
                 // Same logic as TV board to construct an orange course badge (visible on desktop and mobile)
                 const isSnorkel = (g.baseCourse === "Snorkeling" || g.courseBadge === "Snorkel" || (g.baseCourse && g.baseCourse.toLowerCase().includes("snorkel")) || (g.course && g.course.toLowerCase().includes("snorkel")));
-                const courseText = g.courseBadge || g.course || '';
+                const courseText = isSnorkel ? 'SNORKEL' : (g.courseBadge || g.course || '');
                 let mobileCourseHtml = '';
-                if (courseText && !isSnorkel) {
+                if (courseText) {
                     mobileCourseHtml = `<span class="inline-block text-[8.5px] font-black text-white rounded px-1.5 py-0.5 ml-1.5 uppercase tracking-wide shrink-0 leading-none shadow-sm" style="background-color: #f97316 !important; border-color: #ea580c !important; color: #ffffff !important;">${courseText}</span>`;
                 }
 
