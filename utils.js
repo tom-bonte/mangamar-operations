@@ -655,14 +655,14 @@ window.renderNitroxForecast = function() {
 
     // 4. Render directly to Text Area with Copy Button
     container.innerHTML = `
-    <div class="max-w-2xl mx-auto space-y-6 pb-12 pt-4">
+    <div class="max-w-2xl mx-auto space-y-4 md:space-y-6 pb-6 md:pb-12 pt-2 md:pt-4">
         <div class="bg-white border text-center border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div class="bg-green-50 px-6 py-4 border-b border-green-100 flex items-center justify-between">
-                <span class="text-sm font-black text-green-800 uppercase tracking-widest flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg> Resumen para Compresor</span>
+            <div class="bg-green-50 px-4 py-3 sm:px-6 sm:py-4 border-b border-green-100 flex items-center justify-between">
+                <span class="text-xs sm:text-sm font-black text-green-800 uppercase tracking-widest flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg> Resumen para Compresor</span>
             </div>
-            <textarea id="nitrox-whatsapp-text" class="w-full h-[400px] p-6 font-mono text-sm text-slate-800 focus:outline-none resize-none hide-scrollbar">${textOutput}</textarea>
-            <div class="p-6 bg-slate-50 border-t border-slate-100">
-                <button onclick="copyData(document.getElementById('nitrox-whatsapp-text').value, '¡Datos copiados!', true)" class="w-full py-4 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-black text-sm uppercase tracking-widest rounded-xl transition-all shadow-md shadow-green-500/20 flex items-center justify-center gap-2 transform active:scale-[0.98]">
+            <textarea id="nitrox-whatsapp-text" class="w-full h-[220px] sm:h-[380px] p-4 sm:p-6 font-mono text-sm text-slate-800 focus:outline-none resize-none overflow-y-auto">${textOutput}</textarea>
+            <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-100">
+                <button onclick="copyData(document.getElementById('nitrox-whatsapp-text').value, '¡Datos copiados!', true)" class="w-full py-3 sm:py-4 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-black text-xs sm:text-sm uppercase tracking-widest rounded-xl transition-all shadow-md shadow-green-500/20 flex items-center justify-center gap-2 transform active:scale-[0.98]">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                     Copiar
                 </button>
