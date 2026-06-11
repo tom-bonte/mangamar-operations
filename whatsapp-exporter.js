@@ -247,9 +247,7 @@ window.generateWhatsAppText = function() {
         if (t.assignedBoat === 'shore' || t.assignedBoat === 'aula') return false;
         
         const guestsCount = t.guests ? t.guests.length : 0;
-        const tripCapacity = (t.assignedBoat && t.assignedBoat !== 'shore')
-            ? (parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12))
-            : 12;
+        const tripCapacity = parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (t.assignedBoat && window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12);
         if (guestsCount >= tripCapacity) return false;
 
         if (t.site && !waSelectedSites.has(t.site)) return false;
@@ -283,9 +281,7 @@ window.generateWhatsAppText = function() {
         
         grouped[d].sort((a,b) => a.time.localeCompare(b.time)).forEach(t => {
             const guestsCount = t.guests ? t.guests.length : 0;
-            const tripCapacity = (t.assignedBoat && t.assignedBoat !== 'shore')
-            ? (parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12))
-            : 12;
+            const tripCapacity = parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (t.assignedBoat && window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12);
             const freeSpots = tripCapacity - guestsCount;
             
             let cxTime = t.time;
