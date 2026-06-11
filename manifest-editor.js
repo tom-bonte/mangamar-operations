@@ -564,7 +564,7 @@ function closeManageBoatModal() {
 
 function updateModalSubtitle() {
     let total = 0; activeBoatItem.groups.forEach(g => total += g.guests.filter(guest => !guest.cancelled).length);
-    let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.plazas) || parseInt(activeBoatItem.pax) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
+    let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.pax) || parseInt(activeBoatItem.plazas) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
     let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : `${capacityNum} Plazas Ocupadas`;
     const totalPeople = typeof window.calculateTotalPeopleOnBoat === 'function' ? window.calculateTotalPeopleOnBoat(activeBoatItem) : total;
     document.getElementById('modal-boat-subtitle').innerText = `${activeBoatItem.time} • ${total}/${capText} (total: ${totalPeople})`;

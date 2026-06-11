@@ -775,7 +775,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     if(!previewHtml || guestCount === 0) previewHtml = `<div class="text-[10px] text-slate-400 italic text-center">Sin grupos</div>`;
 
     const topBarColor = siteColorConfig.split(' ')[0] || 'bg-slate-200';
-    const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.maxDives) || parseInt(trip.plazas) || parseInt(trip.pax) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 12));
+    const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.maxDives) || parseInt(trip.pax) || parseInt(trip.plazas) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 12));
     const capacity = boatId === 'shore' ? '-' : capacityNum;
     
     if (!window.isStaffLoggedIn) {

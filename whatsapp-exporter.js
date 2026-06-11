@@ -17,7 +17,7 @@ window.openWhatsAppModal = function() {
     waRangeEnd = null;
     waCalendarViewDate = new Date(currentDate);
     
-    const orderedSites = ['Fuera', 'Bajo de Dentro', 'Piles I', 'Piles II', 'Morra', 'Testa', 'Palomas', 'Naranjito', 'Cala'];
+    const orderedSites = ['Fuera', 'Bajo de Dentro', 'Piles I', 'Piles II', 'Morra', 'Testa', 'Palomas', 'Naranjito', 'Carbonero', 'Cala'];
     waSelectedSites = new Set(orderedSites);
     waSelectedIndividualDates.clear();
     
@@ -46,7 +46,7 @@ window.openWhatsAppModal = function() {
     window.waUpdateSiteFilters = function() {
     const level = waCurrentLevel;
     const listEl = document.getElementById('wa-site-list');
-    const orderedSites = ['Fuera', 'Bajo de Dentro', 'Piles I', 'Piles II', 'Morra', 'Testa', 'Palomas', 'Naranjito', 'Cala'];
+    const orderedSites = ['Fuera', 'Bajo de Dentro', 'Piles I', 'Piles II', 'Morra', 'Testa', 'Palomas', 'Naranjito', 'Carbonero', 'Cala'];
     
     // Automatically manage Naranjito based on certification level
     if (level === 'ow') {
@@ -78,7 +78,7 @@ window.waToggleSite = function(checkbox) {
 
 window.waToggleAllSites = function(state) {
     const level = waCurrentLevel;
-    const orderedSites = ['Fuera', 'Bajo de Dentro', 'Piles I', 'Piles II', 'Morra', 'Testa', 'Palomas', 'Naranjito', 'Cala'];
+    const orderedSites = ['Fuera', 'Bajo de Dentro', 'Piles I', 'Piles II', 'Morra', 'Testa', 'Palomas', 'Naranjito', 'Carbonero', 'Cala'];
     
     if(state) {
         waSelectedSites = new Set(orderedSites);
@@ -248,7 +248,7 @@ window.generateWhatsAppText = function() {
         
         const guestsCount = t.guests ? t.guests.length : 0;
         const tripCapacity = (t.assignedBoat && t.assignedBoat !== 'shore')
-            ? (parseInt(t.maxDives) || parseInt(t.plazas) || parseInt(t.pax) || (window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12))
+            ? (parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12))
             : 12;
         if (guestsCount >= tripCapacity) return false;
 
@@ -284,7 +284,7 @@ window.generateWhatsAppText = function() {
         grouped[d].sort((a,b) => a.time.localeCompare(b.time)).forEach(t => {
             const guestsCount = t.guests ? t.guests.length : 0;
             const tripCapacity = (t.assignedBoat && t.assignedBoat !== 'shore')
-            ? (parseInt(t.maxDives) || parseInt(t.plazas) || parseInt(t.pax) || (window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12))
+            ? (parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12))
             : 12;
             const freeSpots = tripCapacity - guestsCount;
             
