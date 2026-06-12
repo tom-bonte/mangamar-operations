@@ -443,6 +443,12 @@ function renderCaptainDropdown() {
             </select>
             ${activeBoatItem.captain ? `<button onclick="window.clearCaptain()" title="Quitar Capitán" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-colors shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
             <button onclick="copyStaffDni('capitanes', document.getElementById('input-captain').value)" title="Copiar DNI del Capitán" class="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-orange-600 rounded-lg transition-colors shadow-sm shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+            ${(activeBoatItem.site || '').toLowerCase().includes('fuera') ? `
+            <button onclick="window.openTestFueraFromManifest()" title="Generar Documentación Bajo de Fuera" class="px-2.5 h-7 flex items-center justify-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-200 rounded-lg font-black text-xs transition-colors shadow-sm shrink-0 active:scale-95 gap-1.5 ml-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Generar Docu
+            </button>
+            ` : ''}
             ${activeBoatItem.isVisor ? `
             <div class="flex items-center gap-1.5 ml-4 shrink-0 border-l border-slate-200 pl-4">
                 <span class="text-xs font-black text-black uppercase tracking-wider select-none">RM</span>

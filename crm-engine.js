@@ -2119,6 +2119,55 @@ window.closeTestFueraModal = function() {
     document.getElementById('test-fuera-modal').classList.add('hidden');
 };
 
+window.openTestFueraFromManifest = function() {
+    if (!window.activeBoatItem) return;
+    const dateVal = window.activeBoatItem.date;
+    if (!dateVal) return;
+    
+    // Set date inputs
+    const [y, m, d] = dateVal.split('-');
+    document.getElementById('test-wizard-date').value       = dateVal;
+    document.getElementById('test-global-date').value       = `${d}-${m}-${y.slice(-2)}`;
+    document.getElementById('test-global-certificado').value = 'Mangamar Dive Center';
+
+    // Clear search
+    const srch = document.getElementById('test-diver-search');
+    const sres = document.getElementById('test-search-results');
+    if (srch) srch.value = '';
+    if (sres) { sres.innerHTML = ''; sres.classList.add('hidden'); }
+
+    // Clear table rows
+    document.querySelectorAll('#test-diver-rows .test-inp').forEach(inp => inp.value = '');
+    document.querySelectorAll('#test-diver-rows .test-row-clear').forEach(btn => btn.classList.add('hidden'));
+
+    // Load trips for the date
+    testFueraLoadTrips();
+
+    // Select this specific trip
+    const trips = window._testWizardTrips || [];
+    let tripIdx = trips.findIndex(t => t.id === window.activeBoatItem.id);
+    if (tripIdx === -1) {
+        // Fallback by time and boat
+        tripIdx = trips.findIndex(t => t.time === window.activeBoatItem.time && (t.assignedBoat||'').toLowerCase() === (window.activeBoatItem.assignedBoat||'').toLowerCase());
+    }
+    
+    const select = document.getElementById('test-wizard-trip');
+    if (tripIdx !== -1 && select) {
+        select.value = tripIdx;
+        testFueraLoadDivers();
+    }
+
+    // Check all divers checkboxes
+    const checkboxes = document.querySelectorAll('.test-diver-check');
+    checkboxes.forEach(cb => cb.checked = true);
+
+    // Apply selected divers to the printable form
+    testFueraApplySelected();
+
+    // Show the modal
+    document.getElementById('test-fuera-modal').classList.remove('hidden');
+};
+
 window.testFueraLoadTrips = function() {
     const dateVal = document.getElementById('test-wizard-date').value;
     if (!dateVal) return;
