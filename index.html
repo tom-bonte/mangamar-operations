@@ -2912,18 +2912,18 @@
             <div class="px-8 py-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center bg-white shrink-0 gap-4">
                 <div class="flex items-center gap-6 w-full sm:w-auto">
                     <h2 class="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2 shrink-0">
-                        <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         Vistas de Staff
                     </h2>
                     
                     <div class="hidden md:flex bg-slate-100 p-1 rounded-xl items-center border border-slate-200 h-10 w-full justify-center">
-                        <button onclick="window.setStaffViewMode('diario')" id="btn-staff-diario" class="px-4 py-1.5 rounded-lg text-xs font-black shadow bg-white text-indigo-700 transition-colors">Diario</button>
+                        <button onclick="window.setStaffViewMode('diario')" id="btn-staff-diario" class="px-4 py-1.5 rounded-lg text-xs font-black shadow bg-white text-orange-700 transition-colors">Diario</button>
                         <button onclick="window.setStaffViewMode('semanal')" id="btn-staff-semanal" class="px-4 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-colors">Semanal</button>
                     </div>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full sm:w-auto shrink-0 justify-between sm:justify-end">
-                    <select id="staff-views-dropdown" onchange="runStaffViewsFilter()" class="flex-1 sm:w-56 px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow shadow-sm cursor-pointer hover:bg-white hide-scrollbar">
+                    <select id="staff-views-dropdown" onchange="runStaffViewsFilter()" class="flex-1 sm:w-56 px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-shadow shadow-sm cursor-pointer hover:bg-white hide-scrollbar">
                         <option value="">-- Vista General (Todos) --</option>
                         <optgroup id="optgroup-capitanes" label="Capitanes"></optgroup>
                         <optgroup id="optgroup-guias" label="Guías"></optgroup>
@@ -2934,15 +2934,15 @@
                     </button>
                 </div>
             </div>
-
+ 
             <!-- Date Navigator -->
-            <div id="staff-views-date-nav" class="bg-indigo-50/50 border-b border-indigo-100 py-3 px-8 flex justify-center items-center shadow-inner relative">
-                <div class="flex items-center bg-white border border-indigo-200 rounded-xl shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 transition-shadow shrink-0">
-                    <button onclick="window.incrementStaffViewDate(-1)" class="px-4 py-1.5 text-indigo-700 hover:bg-indigo-50 transition-colors border-r border-indigo-200 shrink-0 outline-none">
+            <div id="staff-views-date-nav" class="bg-orange-50/50 border-b border-orange-100 py-3 px-8 flex justify-center items-center shadow-inner relative">
+                <div class="flex items-center bg-white border border-orange-200 rounded-xl shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-orange-500 transition-shadow shrink-0">
+                    <button onclick="window.incrementStaffViewDate(-1)" class="px-4 py-1.5 text-orange-700 hover:bg-orange-50 transition-colors border-r border-orange-200 shrink-0 outline-none">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
-                    <input type="date" id="staff-views-date" onchange="runStaffViewsFilter()" class="w-40 px-3 py-1.5 text-xs font-black text-center text-indigo-900 focus:outline-none focus:bg-indigo-50 transition-colors cursor-pointer uppercase border-none bg-transparent">
-                    <button onclick="window.incrementStaffViewDate(1)" class="px-4 py-1.5 text-indigo-700 hover:bg-indigo-50 transition-colors border-l border-indigo-200 shrink-0 outline-none">
+                    <input type="date" id="staff-views-date" onchange="runStaffViewsFilter()" class="w-40 px-3 py-1.5 text-xs font-black text-center text-orange-900 focus:outline-none focus:bg-orange-50 transition-colors cursor-pointer uppercase border-none bg-transparent">
+                    <button onclick="window.incrementStaffViewDate(1)" class="px-4 py-1.5 text-orange-700 hover:bg-orange-50 transition-colors border-l border-orange-200 shrink-0 outline-none">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg>
                     </button>
                 </div>

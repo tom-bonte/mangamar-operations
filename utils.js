@@ -357,7 +357,7 @@ window.setStaffViewMode = function(mode) {
     ['diario', 'semanal'].forEach(m => {
         const btn = document.getElementById(`btn-staff-${m}`);
         if(m === mode) {
-            btn.className = "px-4 py-1.5 rounded-lg text-xs font-black shadow bg-white text-indigo-700 transition-colors";
+            btn.className = "px-4 py-1.5 rounded-lg text-xs font-black shadow bg-white text-orange-700 transition-colors";
         } else {
             btn.className = "px-4 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-slate-800 transition-colors";
         }
@@ -518,11 +518,11 @@ window.runStaffViewsFilter = function() {
                 if (t.actingAsGui) roleBadge += `<span class="text-emerald-600 font-black text-[9px] uppercase bg-emerald-50 px-1.5 py-0.5 rounded shadow-sm shrink-0 border border-emerald-100">Guía</span>`;
 
                 h += `
-                <div onclick="openBoatFromStaffView('${t.assignedBoat}', '${t.time}', '${t.date}')" class="bg-white border text-left border-slate-200 hover:border-indigo-300 hover:ring-1 hover:ring-indigo-100 p-2 rounded-lg shadow-sm transition-all cursor-pointer flex items-center justify-between gap-2 overflow-hidden">
+                <div onclick="openBoatFromStaffView('${t.assignedBoat}', '${t.time}', '${t.date}')" class="bg-white border text-left border-slate-200 hover:border-orange-300 hover:ring-1 hover:ring-orange-100 p-2 rounded-lg shadow-sm transition-all cursor-pointer flex items-center justify-between gap-2 overflow-hidden">
                     <div class="flex items-center gap-2 min-w-0">
                         <span class="text-[10px] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">${t.time}</span>
                         <div class="truncate">
-                            <h4 class="text-[11px] font-black text-indigo-900 truncate uppercase tracking-wider">${t.site || 'Sin Destino'}</h4>
+                            <h4 class="text-[11px] font-black text-orange-900 truncate uppercase tracking-wider">${t.site || 'Sin Destino'}</h4>
                             <p class="text-[9px] font-bold text-slate-400 truncate flex items-center gap-1 mt-0.5"><svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg> ${t.assignedBoat}</p>
                         </div>
                     </div>
@@ -810,40 +810,6 @@ function renderDailyGeneralStaffView(dateStr, container) {
     // Extract unique time slots for today
     const timeSlots = [...new Set(dayTrips.map(t => t.time))].filter(Boolean).sort();
 
-    // Calculate quick stats
-    let totalAssigned = 0;
-    let activeCapsCount = 0;
-    let activeGuiCount = 0;
-
-    uniqueActiveStaffNames.forEach(name => {
-        const assigns = getAssignments(name);
-        totalAssigned += assigns.length;
-        
-        // Determine if active as Captain or Guide today
-        const hasCapAssign = assigns.some(a => a.isCap);
-        const hasGuiAssign = assigns.some(a => a.isGui || a.isApo);
-        if (hasCapAssign) activeCapsCount++;
-        if (hasGuiAssign) activeGuiCount++;
-    });
-
-    // Stats bar HTML
-    const statsHtml = `
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-indigo-50/60 rounded-2xl p-4 border border-indigo-100/50">
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex flex-col justify-center">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actividad Total</span>
-                <span class="text-xl font-black text-indigo-900 mt-1">${totalAssigned} Inmersiones</span>
-            </div>
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex flex-col justify-center">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Capitanes Activos</span>
-                <span class="text-xl font-black text-indigo-900 mt-1">${activeCapsCount} Capitanes</span>
-            </div>
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex flex-col justify-center">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Guías Activos</span>
-                <span class="text-xl font-black text-indigo-900 mt-1">${activeGuiCount} Guías</span>
-            </div>
-        </div>
-    `;
-
     let bodyHtml = '';
     if (uniqueActiveStaffNames.length === 0 || timeSlots.length === 0) {
         bodyHtml = `
@@ -864,13 +830,13 @@ function renderDailyGeneralStaffView(dateStr, container) {
             let roleClass = '';
             if (isCapDb && isGuiDb) {
                 roleLabel = 'Capitán / Guía';
-                roleClass = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+                roleClass = 'bg-orange-100 text-orange-800 border-orange-300';
             } else if (isCapDb) {
                 roleLabel = 'Capitán';
-                roleClass = 'bg-blue-50 text-blue-700 border-blue-100';
+                roleClass = 'bg-orange-50 text-orange-700 border-orange-200';
             } else {
                 roleLabel = 'Guía';
-                roleClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                roleClass = 'bg-amber-50 text-amber-700 border-amber-200';
             }
 
             let dayOffWarning = '';
@@ -898,22 +864,24 @@ function renderDailyGeneralStaffView(dateStr, container) {
                     
                     let roleBadge = '';
                     if (t.captain === name) {
-                        roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">Cap <button onclick="event.stopPropagation(); window.showStaffReassignPopover(this, '${t.id}', '${t.date}', 'captain', -1, '${name}')" class="hover:text-blue-900 font-bold shrink-0 opacity-60 hover:opacity-100 transition-opacity">✏️</button></span>`;
+                        roleBadge = `<span onclick="event.stopPropagation(); window.showStaffReassignPopover(this, '${t.id}', '${t.date}', 'captain', -1, '${name}')" class="text-[8px] font-black px-1.5 py-0.5 rounded bg-orange-500 text-white border border-orange-600 hover:bg-orange-600 transition-colors cursor-pointer flex items-center gap-0.5 shrink-0 select-none">Cap ✏️</span>`;
                     } else if (t.groups) {
                         const grpIdx = t.groups.findIndex(g => g.guide === name || g.apoyo === name);
                         if (grpIdx !== -1) {
                             const isGui = t.groups[grpIdx].guide === name;
                             const roleType = isGui ? 'guide' : 'apoyo';
-                            const badgeClass = isGui ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-purple-50 text-purple-700 border-purple-100';
+                            const badgeClass = isGui 
+                                ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100 hover:text-orange-800' 
+                                : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 hover:text-amber-800';
                             const roleLabel = isGui ? 'Guía' : 'Apoyo';
-                            roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded ${badgeClass} flex items-center gap-1">${roleLabel} <button onclick="event.stopPropagation(); window.showStaffReassignPopover(this, '${t.id}', '${t.date}', '${roleType}', ${grpIdx}, '${name}')" class="hover:text-indigo-900 font-bold shrink-0 opacity-60 hover:opacity-100 transition-opacity">✏️</button></span>`;
+                            roleBadge = `<span onclick="event.stopPropagation(); window.showStaffReassignPopover(this, '${t.id}', '${t.date}', '${roleType}', ${grpIdx}, '${name}')" class="text-[8px] font-black px-1.5 py-0.5 rounded border ${badgeClass} transition-colors cursor-pointer flex items-center gap-0.5 shrink-0 select-none">${roleLabel} ✏️</span>`;
                         }
                     }
                     
                     return `
-                        <div onclick="openBoatFromStaffView('${t.assignedBoat}', '${t.time}', '${t.date}')" class="bg-white border border-slate-100 rounded-xl p-2 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer text-left flex flex-col gap-1 w-full max-w-[150px] mx-auto">
+                        <div onclick="openBoatFromStaffView('${t.assignedBoat}', '${t.time}', '${t.date}')" class="bg-white border border-slate-100 rounded-xl p-2 shadow-sm hover:shadow-md hover:border-orange-300 transition-all cursor-pointer text-left flex flex-col gap-1 w-full max-w-[150px] mx-auto">
                             <div class="flex items-center justify-between gap-1">
-                                <span class="text-[10px] font-black text-indigo-900 truncate uppercase tracking-wider">${site}</span>
+                                <span class="text-[10px] font-black text-orange-900 truncate uppercase tracking-wider">${site}</span>
                                 ${roleBadge}
                             </div>
                             <span class="text-[8px] font-bold text-slate-400 capitalize">${boat}</span>
@@ -921,7 +889,7 @@ function renderDailyGeneralStaffView(dateStr, container) {
                     `;
                 }).join('');
                 
-                return `<td class="px-2 py-2 border border-slate-100 text-center bg-indigo-50/10 align-middle"><div class="flex flex-col gap-1.5 items-center justify-center">${cards}</div></td>`;
+                return `<td class="px-2 py-2 border border-slate-100 text-center bg-orange-50/5 align-middle"><div class="flex flex-col gap-1.5 items-center justify-center">${cards}</div></td>`;
             }).join('');
 
             return `
@@ -959,7 +927,6 @@ function renderDailyGeneralStaffView(dateStr, container) {
 
     let html = `
     <div class="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in">
-        ${statsHtml}
         ${bodyHtml}
     </div>
     `;
@@ -1029,13 +996,13 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
         let roleClass = '';
         if (isCapDb && isGuiDb) {
             roleLabel = 'Capitán / Guía';
-            roleClass = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+            roleClass = 'bg-orange-100 text-orange-800 border-orange-300';
         } else if (isCapDb) {
             roleLabel = 'Capitán';
-            roleClass = 'bg-blue-50 text-blue-700 border-blue-100';
+            roleClass = 'bg-orange-50 text-orange-700 border-orange-200';
         } else {
             roleLabel = 'Guía';
-            roleClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+            roleClass = 'bg-amber-50 text-amber-700 border-amber-200';
         }
 
         let cellsHtml = weekDates.map(dStr => {
@@ -1074,8 +1041,8 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
 
     let html = `
     <div class="max-w-7xl mx-auto pb-12 animate-fade-in space-y-4">
-        <div class="bg-indigo-50/30 rounded-2xl p-4 border border-indigo-100/50 text-center max-w-lg mx-auto shadow-sm">
-            <p class="text-xs text-indigo-700 font-bold leading-normal">💡 <strong>Consejo del Planificador:</strong> Haz clic en cualquier celda de la cuadrícula para saltar directamente a la <strong>Vista Diario General</strong> de ese día específico.</p>
+        <div class="bg-orange-50/30 rounded-2xl p-4 border border-orange-100/50 text-center max-w-lg mx-auto shadow-sm">
+            <p class="text-xs text-orange-700 font-bold leading-normal">💡 <strong>Consejo del Planificador:</strong> Haz clic en cualquier celda de la cuadrícula para saltar directamente a la <strong>Vista Diario General</strong> de ese día específico.</p>
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -1142,7 +1109,10 @@ window.showStaffReassignPopover = function(triggerEl, tripId, dateStr, roleType,
             statusClass = 'bg-amber-50 text-amber-700 border-amber-100';
         }
 
-        candidates.push({ name, status, statusLabel, statusClass });
+        // Only show available candidates, or the currently assigned guide so they can see/change them.
+        if (status === 'dispo' || name === currentName) {
+            candidates.push({ name, status, statusLabel, statusClass });
+        }
     });
 
     const statusWeight = { dispo: 1, busy: 2, libre: 3 };
@@ -1170,7 +1140,7 @@ window.showStaffReassignPopover = function(triggerEl, tripId, dateStr, roleType,
 
     let listHtml = candidates.map(c => {
         const isCurrent = c.name === currentName;
-        const currentClass = isCurrent ? 'font-black text-indigo-700 bg-indigo-50/50' : 'text-slate-700 hover:bg-slate-50';
+        const currentClass = isCurrent ? 'font-black text-orange-700 bg-orange-50' : 'text-slate-700 hover:bg-slate-50';
         return `
             <div onclick="window.confirmReassignStaff('${tripId}', '${dateStr}', '${roleType}', ${grpIdx}, '${c.name}')" class="flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${currentClass}">
                 <span class="truncate pr-2">${c.name}</span>
@@ -1243,12 +1213,12 @@ window.confirmReassignStaff = async function(tripId, dateStr, roleType, grpIdx, 
     }
 
     const payload = {
-        date: tripCopy.date,
-        time: tripCopy.time,
-        assignedBoat: tripCopy.assignedBoat,
-        site: tripCopy.site,
-        captain: tripCopy.captain,
-        groups: tripCopy.groups,
+        date: tripCopy.date || dateStr || '',
+        time: tripCopy.time || '',
+        assignedBoat: tripCopy.assignedBoat || '',
+        site: tripCopy.site || '',
+        captain: tripCopy.captain || '',
+        groups: tripCopy.groups || [],
         guests: tripCopy.guests || [],
         waitlist: tripCopy.waitlist || [],
         timeSaliendo: tripCopy.timeSaliendo || '',
@@ -1257,6 +1227,13 @@ window.confirmReassignStaff = async function(tripId, dateStr, roleType, grpIdx, 
         rmLocked: tripCopy.rmLocked || false
     };
     if (tripCopy.maxDives) payload.maxDives = tripCopy.maxDives;
+
+    // Sanitize to avoid any undefined field that rejects Firestore updates
+    Object.keys(payload).forEach(k => {
+        if (payload[k] === undefined) {
+            delete payload[k];
+        }
+    });
 
     try {
         if (typeof saveInternalBoatData === 'function') {
