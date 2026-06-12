@@ -2110,6 +2110,7 @@ window.openTestFueraModal = function() {
     // Clear table rows
     document.querySelectorAll('#test-diver-rows .test-inp').forEach(inp => inp.value = '');
     document.querySelectorAll('#test-diver-rows .test-row-clear').forEach(btn => btn.classList.add('hidden'));
+    window.testFueraActiveTableDivers = [];
 
     testFueraLoadTrips();
     document.getElementById('test-fuera-modal').classList.remove('hidden');
@@ -2139,6 +2140,7 @@ window.openTestFueraFromManifest = function() {
     // Clear table rows
     document.querySelectorAll('#test-diver-rows .test-inp').forEach(inp => inp.value = '');
     document.querySelectorAll('#test-diver-rows .test-row-clear').forEach(btn => btn.classList.add('hidden'));
+    window.testFueraActiveTableDivers = [];
 
     // Load trips for the date
     testFueraLoadTrips();
@@ -2289,6 +2291,77 @@ window.testFueraLoadDivers = function() {
     window.testFueraSyncCheckboxesFromTable();
 };
 
+window.testFueraActiveTableDivers = [];
+
+window.testFueraUpdateStateFromDOM = function() {
+    const nombreInputs = document.querySelectorAll('#test-diver-rows .test-diver-nombre');
+    const dniInputs    = document.querySelectorAll('#test-diver-rows .test-diver-dni');
+    const fechaInputs  = document.querySelectorAll('#test-diver-rows .test-diver-fecha');
+    const certInputs   = document.querySelectorAll('#test-diver-rows .test-diver-certificado');
+
+    window.testFueraActiveTableDivers = [];
+    for (let i = 0; i < nombreInputs.length; i++) {
+        const nombre = nombreInputs[i].value.trim();
+        const dni    = dniInputs[i].value.trim();
+        if (nombre || dni) {
+            window.testFueraActiveTableDivers.push({
+                nombre: nombre,
+                dni: dni,
+                fechaCert: fechaInputs[i].value.trim(),
+                certificadoPor: certInputs[i].value.trim()
+            });
+        }
+    }
+};
+
+window.testFueraRenderTableFromState = function() {
+    const diverData = window._testWizardDiverData || [];
+    
+    const getDiverOrderIndex = (item) => {
+        const nameLower = (item.nombre || '').trim().toLowerCase();
+        const dniLower = (item.dni || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        const idx = diverData.findIndex(d => {
+            const checklistName = (d.nombre || '').trim().toLowerCase();
+            const checklistDni  = (d.dni || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (checklistDni && checklistDni !== '' && checklistDni !== '—' && checklistDni === dniLower) {
+                return true;
+            }
+            return checklistName && checklistName === nameLower;
+        });
+        return idx !== -1 ? idx : 9999;
+    };
+
+    window.testFueraActiveTableDivers.sort((a, b) => {
+        return getDiverOrderIndex(a) - getDiverOrderIndex(b);
+    });
+
+    const nombreInputs = document.querySelectorAll('#test-diver-rows .test-diver-nombre');
+    const dniInputs    = document.querySelectorAll('#test-diver-rows .test-diver-dni');
+    const fechaInputs  = document.querySelectorAll('#test-diver-rows .test-diver-fecha');
+    const certInputs   = document.querySelectorAll('#test-diver-rows .test-diver-certificado');
+    const clearBtns    = document.querySelectorAll('#test-diver-rows .test-row-clear');
+
+    for (let i = 0; i < nombreInputs.length; i++) {
+        const item = window.testFueraActiveTableDivers[i];
+        if (item && i < 10) {
+            nombreInputs[i].value = item.nombre || '';
+            dniInputs[i].value   = item.dni || '';
+            fechaInputs[i].value = item.fechaCert || '';
+            certInputs[i].value  = item.certificadoPor || '';
+            if (clearBtns[i]) clearBtns[i].classList.remove('hidden');
+        } else {
+            nombreInputs[i].value = '';
+            dniInputs[i].value   = '';
+            fechaInputs[i].value = '';
+            certInputs[i].value  = '';
+            if (clearBtns[i]) clearBtns[i].classList.add('hidden');
+        }
+    }
+
+    window.testFueraSyncCheckboxesFromTable();
+};
+
 window.testFueraSyncCheckboxesFromTable = function() {
     const nombreInputs = [...document.querySelectorAll('#test-diver-rows .test-diver-nombre')].map(inp => inp.value.trim().toLowerCase());
     const dniInputs    = [...document.querySelectorAll('#test-diver-rows .test-diver-dni')].map(inp => inp.value.trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
@@ -2321,65 +2394,44 @@ window.testFueraToggleDiverCheckbox = function(cb) {
     const divName = (diver.nombre || '').trim().toLowerCase();
     const divDni  = (diver.dni || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    const nombreInputs = document.querySelectorAll('#test-diver-rows .test-diver-nombre');
-    const dniInputs    = document.querySelectorAll('#test-diver-rows .test-diver-dni');
-    const fechaInputs  = document.querySelectorAll('#test-diver-rows .test-diver-fecha');
-    const certInputs   = document.querySelectorAll('#test-diver-rows .test-diver-certificado');
-    const clearBtns    = document.querySelectorAll('#test-diver-rows .test-row-clear');
+    window.testFueraUpdateStateFromDOM();
 
     if (cb.checked) {
         const globalDate   = document.getElementById('test-global-date').value || '';
         const globalCert   = document.getElementById('test-global-certificado').value || '';
 
-        // Check if already in the table
-        let alreadyExists = false;
-        for (let i = 0; i < nombreInputs.length; i++) {
-            const rowDni = dniInputs[i].value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-            const rowName = nombreInputs[i].value.trim().toLowerCase();
-            if ((divDni && divDni !== '' && divDni !== '—' && rowDni === divDni) || (divName && rowName === divName)) {
-                alreadyExists = true;
-                break;
-            }
-        }
+        const exists = window.testFueraActiveTableDivers.some(item => {
+            const rowDni = (item.dni || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const rowName = (item.nombre || '').trim().toLowerCase();
+            return (divDni && divDni !== '' && divDni !== '—' && rowDni === divDni) || (divName && rowName === divName);
+        });
 
-        if (!alreadyExists) {
-            let added = false;
-            for (let i = 0; i < nombreInputs.length; i++) {
-                if (!nombreInputs[i].value) {
-                    nombreInputs[i].value = diver.nombre || '';
-                    dniInputs[i].value   = diver.dni !== '—' ? diver.dni : '';
-                    fechaInputs[i].value = globalDate;
-                    certInputs[i].value  = globalCert;
-                    if (clearBtns[i]) clearBtns[i].classList.remove('hidden');
-                    added = true;
-                    showToast('✅ ' + diver.nombre + ' añadido al formulario.');
-                    break;
-                }
-            }
-            if (!added) {
+        if (!exists) {
+            if (window.testFueraActiveTableDivers.length < 10) {
+                window.testFueraActiveTableDivers.push({
+                    nombre: diver.nombre || '',
+                    dni: diver.dni !== '—' ? diver.dni : '',
+                    fechaCert: globalDate,
+                    certificadoPor: globalCert
+                });
+                showToast('✅ ' + diver.nombre + ' añadido.');
+            } else {
                 cb.checked = false; // Revert
                 showToast('⚠️ No hay filas vacías disponibles.');
+                return;
             }
         }
     } else {
-        // Remove from form: find row and clear it
-        let cleared = false;
-        for (let i = 0; i < nombreInputs.length; i++) {
-            const rowDni = dniInputs[i].value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-            const rowName = nombreInputs[i].value.trim().toLowerCase();
-            if ((divDni && divDni !== '' && divDni !== '—' && rowDni === divDni) || (divName && rowName === divName)) {
-                nombreInputs[i].value = '';
-                dniInputs[i].value   = '';
-                fechaInputs[i].value = '';
-                certInputs[i].value  = '';
-                if (clearBtns[i]) clearBtns[i].classList.add('hidden');
-                cleared = true;
-            }
-        }
-        if (cleared) {
-            showToast('❌ ' + diver.nombre + ' quitado del formulario.');
-        }
+        window.testFueraActiveTableDivers = window.testFueraActiveTableDivers.filter(item => {
+            const rowDni = (item.dni || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const rowName = (item.nombre || '').trim().toLowerCase();
+            const match = (divDni && divDni !== '' && divDni !== '—' && rowDni === divDni) || (divName && rowName === divName);
+            return !match;
+        });
+        showToast('❌ ' + diver.nombre + ' quitado.');
     }
+
+    window.testFueraRenderTableFromState();
 };
 
 window.testFueraSearchDiver = function(query) {
@@ -2424,7 +2476,9 @@ window.testFueraClearRow = function(btn) {
     if (fecha)  fecha.value = '';
     if (cert)   cert.value = '';
     btn.classList.add('hidden');
-    window.testFueraSyncCheckboxesFromTable();
+    
+    window.testFueraUpdateStateFromDOM();
+    window.testFueraRenderTableFromState();
 };
 
 window.testFueraAddSearchResult = function(idx) {
@@ -2471,35 +2525,41 @@ window.testFueraApplySelected = function() {
     const globalDate   = document.getElementById('test-global-date').value || '';
     const globalCert   = document.getElementById('test-global-certificado').value || '';
 
-    const nombreInputs = document.querySelectorAll('#test-diver-rows .test-diver-nombre');
-    const dniInputs    = document.querySelectorAll('#test-diver-rows .test-diver-dni');
-    const fechaInputs  = document.querySelectorAll('#test-diver-rows .test-diver-fecha');
-    const certInputs   = document.querySelectorAll('#test-diver-rows .test-diver-certificado');
-    const clearBtns    = document.querySelectorAll('#test-diver-rows .test-row-clear');
+    window.testFueraUpdateStateFromDOM();
 
-    let filled = 0;
+    let addedCount = 0;
     for (const cb of checked) {
         const diver = diverData[parseInt(cb.dataset.index)];
         if (!diver) continue;
-        let placed = false;
-        for (let i = 0; i < nombreInputs.length; i++) {
-            if (!nombreInputs[i].value) {
-                nombreInputs[i].value = diver.nombre || '';
-                dniInputs[i].value   = diver.dni !== '—' ? diver.dni : '';
-                fechaInputs[i].value = globalDate;
-                certInputs[i].value  = globalCert;
-                if (clearBtns[i]) clearBtns[i].classList.remove('hidden');
+        
+        const divName = (diver.nombre || '').trim().toLowerCase();
+        const divDni  = (diver.dni || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const exists = window.testFueraActiveTableDivers.some(item => {
+            const rowDni = (item.dni || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const rowName = (item.nombre || '').trim().toLowerCase();
+            return (divDni && divDni !== '' && divDni !== '—' && rowDni === divDni) || (divName && rowName === divName);
+        });
 
-                filled++;
-                placed = true;
-                break;
+        if (!exists) {
+            if (window.testFueraActiveTableDivers.length < 10) {
+                window.testFueraActiveTableDivers.push({
+                    nombre: diver.nombre || '',
+                    dni: diver.dni !== '—' ? diver.dni : '',
+                    fechaCert: globalDate,
+                    certificadoPor: globalCert
+                });
+                addedCount++;
             }
         }
-        if (!placed) break;
     }
-    if (filled > 0) showToast('✅ ' + filled + ' buceadores añadidos al formulario.');
-    else showToast('⚠️ No hay filas vacías disponibles.');
-    window.testFueraSyncCheckboxesFromTable();
+
+    window.testFueraRenderTableFromState();
+
+    if (addedCount > 0) {
+        showToast(`✅ ${addedCount} buceadores añadidos.`);
+    } else {
+        showToast('⚠️ Los buceadores ya estaban en el formulario.');
+    }
 };
 
 window.printTestFuera = function() {
@@ -2547,8 +2607,24 @@ document.addEventListener('input', (e) => {
                 const hasVal = tr.querySelector('.test-diver-nombre').value || tr.querySelector('.test-diver-dni').value;
                 btn.classList.toggle('hidden', !hasVal);
             }
+            if (typeof window.testFueraUpdateStateFromDOM === 'function') {
+                window.testFueraUpdateStateFromDOM();
+            }
             if (typeof window.testFueraSyncCheckboxesFromTable === 'function') {
                 window.testFueraSyncCheckboxesFromTable();
+            }
+        }
+    }
+});
+
+// Global listener for blur to collapse empty lines and re-sort when typing finishes
+document.addEventListener('focusout', (e) => {
+    if (e.target.classList.contains('test-diver-nombre') || e.target.classList.contains('test-diver-dni')) {
+        const tr = e.target.closest('tr');
+        if (tr && tr.parentElement && tr.parentElement.id === 'test-diver-rows') {
+            if (typeof window.testFueraUpdateStateFromDOM === 'function' && typeof window.testFueraRenderTableFromState === 'function') {
+                window.testFueraUpdateStateFromDOM();
+                window.testFueraRenderTableFromState();
             }
         }
     }
