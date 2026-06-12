@@ -2474,6 +2474,18 @@ window.saveLocalGuestEdit = async function() {
             Promise.all(boatSyncPromises).catch(e => console.error("Error bg boat sync in guest edit:", e));
         }
     } else {
+        const originalTempId = guest.tempId;
+        const originalName = guest.nombre;
+        
+        // Generate tempId if not present
+        if (!guest.tempId) {
+            guest.tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        }
+        
+        // Save the old details for matching before we overwrite them
+        const targetTempId = (originalTempId || guest.tempId).toLowerCase();
+        const targetNameLower = (originalName || '').trim().toLowerCase();
+
         guest.nombre = modalName;
         guest.titulacion = modalTit;
         guest.telefono = modalPhone;
@@ -2481,6 +2493,133 @@ window.saveLocalGuestEdit = async function() {
         guest.isManual = true;
         if (guest.hasOwnProperty('dni')) {
             delete guest.dni;
+        }
+
+        // 1. Update matching manual names in globalGroups (RAM + Firestore)
+        if (window.globalGroups && Array.isArray(window.globalGroups)) {
+            for (let grp of window.globalGroups) {
+                let memberMatched = false;
+                let matchedIndex = -1;
+                
+                if (targetTempId) {
+                    matchedIndex = (grp.members || []).findIndex(m => m.toLowerCase() === targetTempId);
+                }
+                if (matchedIndex === -1 && targetNameLower) {
+                    matchedIndex = (grp.members || []).findIndex(m => m.toLowerCase() === targetNameLower);
+                }
+                
+                if (matchedIndex !== -1) {
+                    memberMatched = true;
+                    const newMemberId = guest.tempId.toLowerCase();
+                    const oldMemberId = grp.members[matchedIndex];
+                    grp.members[matchedIndex] = newMemberId;
+                    
+                    if (grp.manualNames) {
+                        delete grp.manualNames[oldMemberId.toLowerCase()];
+                    }
+                }
+                
+                let nameKeyToUpdate = null;
+                if (grp.manualNames) {
+                    if (targetTempId && grp.manualNames[targetTempId]) {
+                        nameKeyToUpdate = targetTempId;
+                    } else if (targetNameLower) {
+                        nameKeyToUpdate = Object.keys(grp.manualNames).find(k => k.toLowerCase() === targetNameLower || k.toLowerCase() === targetTempId);
+                    }
+                }
+                
+                if (nameKeyToUpdate || memberMatched) {
+                    grp.manualNames = grp.manualNames || {};
+                    const finalKey = guest.tempId.toLowerCase();
+                    grp.manualNames[finalKey] = guest.nombre;
+                    
+                    if (window.saveGlobalGroup) {
+                        await window.saveGlobalGroup(grp).catch(e => console.error("Error saving global group in guest edit:", e));
+                    }
+                }
+            }
+        }
+
+        // 2. Propagate name/details to all other trips in mergedAllocations (RAM + Firestore)
+        let boatSyncPromises = [];
+        if (window.mergedAllocations && Array.isArray(window.mergedAllocations)) {
+            window.mergedAllocations.forEach(trip => {
+                let modified = false;
+                if (trip.groups) {
+                    trip.groups.forEach(group => {
+                        if (group.guests) {
+                            group.guests.forEach(gst => {
+                                const isMatch = (!gst.dni) && (
+                                    (targetTempId && gst.tempId && gst.tempId.toLowerCase() === targetTempId) ||
+                                    (!targetTempId && gst.nombre && gst.nombre.toLowerCase() === targetNameLower)
+                                );
+                                if (isMatch) {
+                                    if (gst.nombre !== guest.nombre || gst.titulacion !== guest.titulacion || gst.telefono !== guest.telefono || gst.email !== guest.email || gst.tempId !== guest.tempId) {
+                                        gst.nombre = guest.nombre;
+                                        gst.titulacion = guest.titulacion;
+                                        gst.telefono = guest.telefono;
+                                        gst.email = guest.email;
+                                        gst.tempId = guest.tempId;
+                                        gst.isManual = true;
+                                        modified = true;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+                if (modified) {
+                    // If active in editor UI, keep it synced in activeBoatItem
+                    if (activeBoatItem && activeBoatItem.id === trip.id) {
+                        activeBoatItem.groups.forEach(g => {
+                            if (g.guests) {
+                                g.guests.forEach(gst => {
+                                    const isMatch = (!gst.dni) && (
+                                        (targetTempId && gst.tempId && gst.tempId.toLowerCase() === targetTempId) ||
+                                        (!targetTempId && gst.nombre && gst.nombre.toLowerCase() === targetNameLower)
+                                    );
+                                    if (isMatch) {
+                                        gst.nombre = guest.nombre;
+                                        gst.titulacion = guest.titulacion;
+                                        gst.telefono = guest.telefono;
+                                        gst.email = guest.email;
+                                        gst.tempId = guest.tempId;
+                                        gst.isManual = true;
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // Align the active boat's lastSyncedTripState to match what we write to Firestore
+                        if (activeBoatItem.lastSyncedTripState) {
+                            activeBoatItem.lastSyncedTripState.groups = JSON.parse(JSON.stringify(activeBoatItem.groups));
+                            const flatGuests = [];
+                            activeBoatItem.groups.forEach(g => { if (g.guests) flatGuests.push(...g.guests); });
+                            activeBoatItem.lastSyncedTripState.guests = flatGuests;
+                        }
+                    }
+                    
+                    const flatGuests = [];
+                    if (trip.groups) {
+                        trip.groups.forEach(g => { if (g.guests) flatGuests.push(...g.guests); });
+                    }
+                    
+                    const payload = {
+                        captain: trip.captain || '',
+                        guide: trip.guide || '',
+                        groups: trip.groups || [],
+                        guests: flatGuests,
+                        isInternalTrip: true
+                    };
+                    if (trip.isVisorTrip) payload.visorTripFallback = true;
+                    if (typeof window.saveInternalBoatData === 'function') {
+                        boatSyncPromises.push(window.saveInternalBoatData(trip.id, trip.date, payload));
+                    }
+                }
+            });
+        }
+        if (boatSyncPromises.length > 0) {
+            Promise.all(boatSyncPromises).catch(e => console.error("Error bg boat sync in manual guest edit:", e));
         }
     }
     

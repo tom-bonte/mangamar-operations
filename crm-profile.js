@@ -242,7 +242,6 @@ setTimeout(() => {
         if (item.id && !item.id.startsWith('temp_') && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio') {
             // CRITICAL: We must find the INTERNAL trip (which has guests), not the base Visor template
             let realTrip = (window.mergedAllocations || []).find(t => t.id === item.id && t.isInternalTrip);
-            if (!realTrip) realTrip = (window.mergedAllocations || []).find(t => t.id === item.id);
             
             if (realTrip) {
                 // Trip is currently in RAM. Verify the guest is actually on the manifest.
