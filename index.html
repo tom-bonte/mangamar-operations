@@ -2137,11 +2137,11 @@
                     <table class="test-table">
                         <thead>
                             <tr>
-                                <th style="width: 50px;">QTY</th>
+                                <th style="width: 40px;">QTY</th>
                                 <th>Nombre Completo</th>
-                                <th style="width: 150px;">DNI</th>
-                                <th style="width: 120px;">Fecha Cert</th>
-                                <th style="width: 220px;">Certificado por</th>
+                                <th style="width: 90px;">DNI</th>
+                                <th style="width: 80px;">Fecha Cert</th>
+                                <th style="width: 140px;">Certificado por</th>
                             </tr>
                         </thead>
                         <tbody id="test-diver-rows">
@@ -3164,7 +3164,7 @@
     <!-- TEST FUERA EMAIL MODAL                       -->
     <!-- ============================================ -->
     <div id="test-email-modal" class="fixed inset-0 z-[600] hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-scale-up" onclick="if(event.target === this) document.getElementById('test-email-modal').classList.add('hidden')">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 overflow-hidden flex flex-col">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl border border-slate-200 overflow-hidden flex flex-col" style="height: 80vh;">
             <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <h3 class="text-md font-black text-slate-800 flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
@@ -3175,8 +3175,8 @@
                 </button>
             </div>
             
-            <div class="p-5 space-y-4">
-                <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="p-5 flex-1 flex flex-col gap-4 overflow-hidden">
+                <div class="flex flex-wrap gap-4 items-center justify-between shrink-0">
                     <div class="flex items-center gap-2">
                         <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Selecciona Barco:</label>
                         <select id="email-boat-select" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer" onchange="window.updateTestFueraEmailText()">
@@ -3186,18 +3186,18 @@
                         </select>
                     </div>
                     
-                    <button onclick="copyData('servicio.rmcp@tragsa.es', 'Email Destinatario')" class="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors" title="Haz clic para copiar">
-                        <span>Enviar a: servicio.rmcp@tragsa.es</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                    <button onclick="copyData('servicio.rmcp@tragsa.es', 'Email Destinatario')" class="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors cursor-pointer" title="Haz clic para copiar el destinatario">
+                        <span class="font-mono text-slate-800 font-bold">servicio.rmcp@tragsa.es</span>
+                        <svg class="w-4 h-4 text-slate-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                     </button>
                 </div>
                 
-                <div>
-                    <textarea id="email-text-area" class="w-full h-80 p-4 border border-slate-300 rounded-xl font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" readonly></textarea>
+                <div class="flex-1 min-h-0 flex flex-col">
+                    <textarea id="email-text-area" class="flex-1 w-full p-4 border border-slate-300 rounded-xl font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" readonly></textarea>
                 </div>
             </div>
             
-            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
                 <button onclick="copyData(document.getElementById('email-text-area').value, '¡Contenido Copiado!', true)" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                     Copiar Contenido
