@@ -763,7 +763,6 @@ window.matchCourseNames = function(a, b) {
         }
         return names;
     };
-    
     const listA = getNormalizedNames(cleanA);
     const listB = getNormalizedNames(cleanB);
     
@@ -772,18 +771,6 @@ window.matchCourseNames = function(a, b) {
 
 function renderDailyGeneralStaffView(dateStr, container) {
     if (!container) return;
-    
-    // Ensure setDailyStaffSubView exists
-    if (typeof window.setDailyStaffSubView !== 'function') {
-        window.setDailyStaffSubView = function(subView) {
-            window.dailyStaffSubView = subView;
-            window.runStaffViewsFilter();
-        };
-    }
-    
-    // Set default subview if not present
-    window.dailyStaffSubView = window.dailyStaffSubView || 'tarjetas';
-    const isTarjetas = window.dailyStaffSubView === 'tarjetas';
 
     const captains = [...(staffDatabase.capitanes || [])].sort((a,b) => a.nombre.localeCompare(b.nombre));
     const guides   = [...(staffDatabase.guias || [])].sort((a,b) => a.nombre.localeCompare(b.nombre));
@@ -809,119 +796,35 @@ function renderDailyGeneralStaffView(dateStr, container) {
         return list.sort((a,b) => a.trip.time.localeCompare(b.trip.time));
     };
 
+    // Deduplicate staff by name
+    const allStaffNames = [
+        ...captains.map(c => c.nombre),
+        ...guides.map(g => g.nombre)
+    ];
+    // Filter to only include staff members with assignments today
+    const uniqueActiveStaffNames = [...new Set(allStaffNames)].filter(name => {
+        const assigns = getAssignments(name);
+        return assigns.length > 0;
+    }).sort((a, b) => a.localeCompare(b));
+
+    // Extract unique time slots for today
+    const timeSlots = [...new Set(dayTrips.map(t => t.time))].filter(Boolean).sort();
+
     // Calculate quick stats
     let totalAssigned = 0;
     let activeCapsCount = 0;
     let activeGuiCount = 0;
 
-    const buildStaffListHtml = (list, roleType) => {
-        return list.map(person => {
-            const name = person.nombre;
-            const onDayOff = window.isStaffOnDayOff(name, dateStr);
-            const assigns = getAssignments(name);
-            const workload = assigns.length;
-
-            if (workload > 0) {
-                totalAssigned += workload;
-                if (roleType === 'capitanes') activeCapsCount++;
-                if (roleType === 'guias') activeGuiCount++;
-            }
-
-            // Determine status badge classes
-            let badgeText = '';
-            let badgeClass = '';
-            if (onDayOff) {
-                badgeText = 'Día Libre';
-                badgeClass = 'bg-red-50 text-red-600 border border-red-200';
-            } else if (workload === 0) {
-                badgeText = 'Disponible';
-                badgeClass = 'bg-slate-50 text-slate-500 border border-slate-200';
-            } else if (workload >= 3) {
-                badgeText = `${workload} Dives — Cargado`;
-                badgeClass = 'bg-amber-50 text-amber-700 border border-amber-200 font-black animate-pulse';
-            } else {
-                badgeText = `${workload} ${workload === 1 ? 'Dive' : 'Dives'}`;
-                badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-            }
-
-            // Build assignments HTML
-            let assignsHtml = '';
-            if (onDayOff) {
-                assignsHtml = `
-                    <div class="flex items-center gap-2 p-3 bg-red-50/40 border border-dashed border-red-200 rounded-xl text-red-500 justify-center">
-                        <span class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Día de Descanso</span>
-                    </div>
-                `;
-            } else if (workload === 0) {
-                assignsHtml = `
-                    <div class="flex items-center gap-2 p-3 bg-slate-50/50 border border-dashed border-slate-200 rounded-xl text-slate-400 justify-center">
-                        <span class="text-xs font-bold">Disponible para asignación</span>
-                    </div>
-                `;
-            } else {
-                assignsHtml = `<div class="space-y-2">` + assigns.map(a => {
-                    const t = a.trip;
-                    const boat = t.assignedBoat === 'ares' ? 'Ares' : (t.assignedBoat === 'kaiser' ? 'Kaiser' : (t.assignedBoat === 'astec' ? 'Astec' : 'Shore / Aula'));
-                    const site = t.site || 'Sin Destino';
-                    
-                    let roleStr = '';
-                    let roleClass = '';
-                    if (a.isCap) { roleStr = 'Capitán'; roleClass = 'bg-blue-50 text-blue-700 border-blue-100'; }
-                    else if (a.isGui) { roleStr = 'Guía'; roleClass = 'bg-emerald-50 text-emerald-700 border-emerald-100'; }
-                    else if (a.isApo) { roleStr = 'Apoyo'; roleClass = 'bg-purple-50 text-purple-700 border-purple-100'; }
-
-                    return `
-                        <div onclick="openBoatFromStaffView('${t.assignedBoat}', '${t.time}', '${t.date}')" class="flex items-center justify-between p-2.5 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer gap-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-[10px] font-black bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded shrink-0">${t.time}</span>
-                                <div class="truncate">
-                                    <h4 class="text-[11px] font-black text-indigo-900 truncate uppercase tracking-wider">${site}</h4>
-                                    <p class="text-[9px] font-bold text-slate-400 truncate mt-0.5 flex items-center gap-1">
-                                        <svg class="w-2.5 h-2.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                                        ${boat}
-                                    </p>
-                                </div>
-                            </div>
-                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded-md border shrink-0 ${roleClass}">${roleStr}</span>
-                        </div>
-                    `;
-                }).join('') + `</div>`;
-            }
-
-            return `
-                <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between min-h-[140px]">
-                    <div class="flex items-start justify-between gap-2 mb-3">
-                        <div>
-                            <h3 class="text-sm font-black text-slate-800 tracking-tight">${name}</h3>
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">${roleType === 'capitanes' ? 'Capitán' : 'Guía'}</span>
-                        </div>
-                        <span class="text-[9px] font-black px-2 py-0.5 rounded-lg shrink-0 uppercase tracking-wider ${badgeClass}">${badgeText}</span>
-                    </div>
-                    <div class="flex-1">
-                        ${assignsHtml}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    };
-
-    // Render list sections (Note: totalAssigned, activeCapsCount, activeGuiCount are accumulated here)
-    const capsHtml = buildStaffListHtml(captains, 'capitanes');
-    const guisHtml = buildStaffListHtml(guides, 'guias');
-
-    // Subview Toggle HTML
-    const toggleHtml = `
-        <div class="flex justify-center mb-6">
-            <div class="inline-flex bg-slate-100 p-1 rounded-xl items-center border border-slate-200 h-10 shadow-sm">
-                <button onclick="window.setDailyStaffSubView('tarjetas')" id="btn-daily-subview-tarjetas" class="px-5 py-1.5 rounded-lg text-xs font-black transition-all duration-150 ${isTarjetas ? 'shadow bg-white text-indigo-700' : 'text-slate-500 hover:text-slate-800'}">
-                    Vista Tarjetas (Opción 1)
-                </button>
-                <button onclick="window.setDailyStaffSubView('horarios')" id="btn-daily-subview-horarios" class="px-5 py-1.5 rounded-lg text-xs font-black transition-all duration-150 ${!isTarjetas ? 'shadow bg-white text-indigo-700' : 'text-slate-500 hover:text-slate-800'}">
-                    Vista Horarios (Opción 2)
-                </button>
-            </div>
-        </div>
-    `;
+    uniqueActiveStaffNames.forEach(name => {
+        const assigns = getAssignments(name);
+        totalAssigned += assigns.length;
+        
+        // Determine if active as Captain or Guide today
+        const hasCapAssign = assigns.some(a => a.isCap);
+        const hasGuiAssign = assigns.some(a => a.isGui || a.isApo);
+        if (hasCapAssign) activeCapsCount++;
+        if (hasGuiAssign) activeGuiCount++;
+    });
 
     // Stats bar HTML
     const statsHtml = `
@@ -941,160 +844,117 @@ function renderDailyGeneralStaffView(dateStr, container) {
         </div>
     `;
 
-    // Build the dynamic body content depending on subview
     let bodyHtml = '';
-    if (isTarjetas) {
+    if (uniqueActiveStaffNames.length === 0 || timeSlots.length === 0) {
         bodyHtml = `
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                <!-- Capitanes Column -->
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                        <h3 class="font-black text-xs text-slate-500 uppercase tracking-widest">Capitanes</h3>
-                        <span class="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full">${captains.length}</span>
-                    </div>
-                    <div class="space-y-3">
-                        ${capsHtml || '<p class="text-xs text-slate-400 italic text-center py-4">No hay capitanes registrados.</p>'}
-                    </div>
-                </div>
-
-                <!-- Guías Column -->
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                        <h3 class="font-black text-xs text-slate-500 uppercase tracking-widest">Instructores / Guías</h3>
-                        <span class="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full">${guides.length}</span>
-                    </div>
-                    <div class="space-y-3">
-                        ${guisHtml || '<p class="text-xs text-slate-400 italic text-center py-4">No hay guías registrados.</p>'}
-                    </div>
-                </div>
+            <div class="flex flex-col items-center justify-center py-16 text-slate-400 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <svg class="w-16 h-16 mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <p class="font-bold text-lg">No hay operaciones ni salidas programadas para hoy.</p>
             </div>
         `;
     } else {
-        // Option 2: Time-slot table view
-        const timeSlots = [...new Set(dayTrips.map(t => t.time))].filter(Boolean).sort();
-
-        if (timeSlots.length === 0) {
-            bodyHtml = `
-                <div class="flex flex-col items-center justify-center py-16 text-slate-400 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                    <svg class="w-16 h-16 mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    <p class="font-bold text-lg">No hay operaciones ni salidas programadas para hoy.</p>
-                </div>
-            `;
-        } else {
-            let ths = timeSlots.map(slot => `<th class="px-3 py-3.5 text-center text-xs font-black text-slate-500 uppercase tracking-wider border-b border-slate-200">${slot}</th>`).join('');
+        let ths = timeSlots.map(slot => `<th class="px-3 py-3.5 text-center text-xs font-black text-slate-500 uppercase tracking-wider border-b border-slate-200">${slot}</th>`).join('');
+        
+        let rowsHtml = uniqueActiveStaffNames.map(name => {
+            const onDayOff = window.isStaffOnDayOff(name, dateStr);
+            const isCapDb = captains.some(c => c.nombre === name);
+            const isGuiDb = guides.some(g => g.nombre === name);
             
-            const buildRowsForGroup = (staffList, roleType) => {
-                if (staffList.length === 0) {
-                    return `
-                        <tr>
-                            <td colspan="${timeSlots.length + 1}" class="px-4 py-4 text-center text-xs text-slate-400 italic bg-white">
-                                No hay personal registrado en esta categoría.
-                            </td>
-                        </tr>
-                    `;
+            let roleLabel = '';
+            let roleClass = '';
+            if (isCapDb && isGuiDb) {
+                roleLabel = 'Capitán / Guía';
+                roleClass = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+            } else if (isCapDb) {
+                roleLabel = 'Capitán';
+                roleClass = 'bg-blue-50 text-blue-700 border-blue-100';
+            } else {
+                roleLabel = 'Guía';
+                roleClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+            }
+
+            let dayOffWarning = '';
+            if (onDayOff) {
+                dayOffWarning = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 mt-1 inline-block">⚠️ DÍA LIBRE</span>`;
+            }
+
+            let cellsHtml = timeSlots.map(slot => {
+                const assigns = dayTrips.filter(t => {
+                    if (t.time !== slot) return false;
+                    let matches = t.captain === name;
+                    if (!matches && t.groups) {
+                        matches = t.groups.some(g => g.guide === name || g.apoyo === name);
+                    }
+                    return matches;
+                });
+                
+                if (assigns.length === 0) {
+                    return `<td class="px-2 py-3 border border-slate-100 text-center text-[10px] font-bold text-slate-300 uppercase bg-slate-50/30">Dispo</td>`;
                 }
                 
-                return staffList.map(person => {
-                    const name = person.nombre;
-                    const onDayOff = window.isStaffOnDayOff(name, dateStr);
-                    const roleClass = roleType === 'capitanes' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                    const roleLabel = roleType === 'capitanes' ? 'Capitán' : 'Guía';
+                let cards = assigns.map(t => {
+                    const boat = t.assignedBoat === 'ares' ? 'Ares' : (t.assignedBoat === 'kaiser' ? 'Kaiser' : (t.assignedBoat === 'astec' ? 'Astec' : 'Shore / Aula'));
+                    const site = t.site || 'Sin Destino';
                     
-                    let cellsHtml = '';
-                    if (onDayOff) {
-                        cellsHtml = `<td colspan="${timeSlots.length}" class="px-4 py-3 bg-red-50/40 border border-slate-100 text-center text-red-500 font-bold text-xs uppercase tracking-wider">Día de Descanso</td>`;
-                    } else {
-                        cellsHtml = timeSlots.map(slot => {
-                            const assigns = dayTrips.filter(t => {
-                                if (t.time !== slot) return false;
-                                let matches = t.captain === name;
-                                if (!matches && t.groups) {
-                                    matches = t.groups.some(g => g.guide === name || g.apoyo === name);
-                                }
-                                return matches;
-                            });
-                            
-                            if (assigns.length === 0) {
-                                return `<td class="px-2 py-3 border border-slate-100 text-center text-[10px] font-bold text-slate-300 uppercase bg-slate-50/30">Dispo</td>`;
-                            }
-                            
-                            let cards = assigns.map(t => {
-                                const boat = t.assignedBoat === 'ares' ? 'Ares' : (t.assignedBoat === 'kaiser' ? 'Kaiser' : (t.assignedBoat === 'astec' ? 'Astec' : 'Shore / Aula'));
-                                const site = t.site || 'Sin Destino';
-                                
-                                let roleBadge = '';
-                                if (t.captain === name) {
-                                    roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">Cap</span>`;
-                                } else if (t.groups) {
-                                    const isGui = t.groups.some(g => g.guide === name);
-                                    const isApo = t.groups.some(g => g.apoyo === name);
-                                    if (isGui) roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100">Guía</span>`;
-                                    else if (isApo) roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100">Apoyo</span>`;
-                                }
-                                
-                                return `
-                                    <div onclick="openBoatFromStaffView('${t.assignedBoat}', '${t.time}', '${t.date}')" class="bg-white border border-slate-100 rounded-xl p-2 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer text-left flex flex-col gap-1 w-full max-w-[150px] mx-auto">
-                                        <div class="flex items-center justify-between gap-1">
-                                            <span class="text-[10px] font-black text-indigo-900 truncate uppercase tracking-wider">${site}</span>
-                                            ${roleBadge}
-                                        </div>
-                                        <span class="text-[8px] font-bold text-slate-400 capitalize">${boat}</span>
-                                    </div>
-                                `;
-                            }).join('');
-                            
-                            return `<td class="px-2 py-2 border border-slate-100 text-center bg-indigo-50/10 align-middle"><div class="flex flex-col gap-1.5 items-center justify-center">${cards}</div></td>`;
-                        }).join('');
+                    let roleBadge = '';
+                    if (t.captain === name) {
+                        roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">Cap</span>`;
+                    } else if (t.groups) {
+                        const isGui = t.groups.some(g => g.guide === name);
+                        const isApo = t.groups.some(g => g.apoyo === name);
+                        if (isGui) roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border-emerald-100">Guía</span>`;
+                        else if (isApo) roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border-purple-100">Apoyo</span>`;
                     }
                     
                     return `
-                        <tr class="hover:bg-slate-50/50 transition-colors">
-                            <td class="px-4 py-3 border border-slate-100 min-w-[160px] bg-white">
-                                <div class="font-black text-slate-800 text-sm">${name}</div>
-                                <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider border mt-1 inline-block ${roleClass}">${roleLabel}</span>
-                            </td>
-                            ${cellsHtml}
-                        </tr>
+                        <div onclick="openBoatFromStaffView('${t.assignedBoat}', '${t.time}', '${t.date}')" class="bg-white border border-slate-100 rounded-xl p-2 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer text-left flex flex-col gap-1 w-full max-w-[150px] mx-auto">
+                            <div class="flex items-center justify-between gap-1">
+                                <span class="text-[10px] font-black text-indigo-900 truncate uppercase tracking-wider">${site}</span>
+                                ${roleBadge}
+                            </div>
+                            <span class="text-[8px] font-bold text-slate-400 capitalize">${boat}</span>
+                        </div>
                     `;
                 }).join('');
-            };
+                
+                return `<td class="px-2 py-2 border border-slate-100 text-center bg-indigo-50/10 align-middle"><div class="flex flex-col gap-1.5 items-center justify-center">${cards}</div></td>`;
+            }).join('');
 
-            const capsRows = buildRowsForGroup(captains, 'capitanes');
-            const guisRows = buildRowsForGroup(guides, 'guias');
-
-            bodyHtml = `
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50 border-b border-slate-200">
-                                    <th class="px-4 py-3.5 text-left text-xs font-black text-slate-500 uppercase tracking-wider w-[18%] min-w-[160px]">Personal</th>
-                                    ${ths}
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <!-- Capitanes Header -->
-                                <tr class="bg-slate-100/80">
-                                    <td colspan="${timeSlots.length + 1}" class="px-4 py-2 text-xs font-black text-slate-600 uppercase tracking-widest">Capitanes</td>
-                                </tr>
-                                ${capsRows}
-                                
-                                <!-- Guías Header -->
-                                <tr class="bg-slate-100/80">
-                                    <td colspan="${timeSlots.length + 1}" class="px-4 py-2 text-xs font-black text-slate-600 uppercase tracking-widest">Instructores / Guías</td>
-                                </tr>
-                                ${guisRows}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            return `
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                    <td class="px-4 py-3 border border-slate-100 min-w-[160px] bg-white">
+                        <div class="font-black text-slate-800 text-sm">${name}</div>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                            <span class="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider border ${roleClass}">${roleLabel}</span>
+                            ${dayOffWarning}
+                        </div>
+                    </td>
+                    ${cellsHtml}
+                </tr>
             `;
-        }
+        }).join('');
+
+        bodyHtml = `
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200">
+                                <th class="px-4 py-3.5 text-left text-xs font-black text-slate-500 uppercase tracking-wider w-[18%] min-w-[160px]">Personal</th>
+                                ${ths}
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
     }
 
     let html = `
     <div class="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in">
-        ${toggleHtml}
         ${statsHtml}
         ${bodyHtml}
     </div>
@@ -1121,10 +981,12 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
     const captains = [...(staffDatabase.capitanes || [])].sort((a,b) => a.nombre.localeCompare(b.nombre));
     const guides   = [...(staffDatabase.guias || [])].sort((a,b) => a.nombre.localeCompare(b.nombre));
 
-    const allStaff = [
-        ...captains.map(c => ({ ...c, type: 'capitanes', label: 'Capitán' })),
-        ...guides.map(g => ({ ...g, type: 'guias', label: 'Guía' }))
+    // Deduplicate weekly staff names
+    const allStaffNames = [
+        ...captains.map(c => c.nombre),
+        ...guides.map(g => g.nombre)
     ];
+    const uniqueStaffNames = [...new Set(allStaffNames)].sort((a, b) => a.localeCompare(b));
 
     // Helper to get number of assignments for a person on a specific date
     const getWorkload = (name, dateStr) => {
@@ -1155,10 +1017,22 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
         window.setStaffViewMode('diario');
     };
 
-    let rowsHtml = allStaff.map(person => {
-        const name = person.nombre;
-        const roleLabel = person.label;
-        const roleClass = person.type === 'capitanes' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    let rowsHtml = uniqueStaffNames.map(name => {
+        const isCapDb = captains.some(c => c.nombre === name);
+        const isGuiDb = guides.some(g => g.nombre === name);
+        
+        let roleLabel = '';
+        let roleClass = '';
+        if (isCapDb && isGuiDb) {
+            roleLabel = 'Capitán / Guía';
+            roleClass = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+        } else if (isCapDb) {
+            roleLabel = 'Capitán';
+            roleClass = 'bg-blue-50 text-blue-700 border-blue-100';
+        } else {
+            roleLabel = 'Guía';
+            roleClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+        }
 
         let cellsHtml = weekDates.map(dStr => {
             const onDayOff = window.isStaffOnDayOff(name, dStr);
