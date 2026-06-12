@@ -78,13 +78,20 @@ function findActiveTagForGuest(guestDni, guestName) {
     if(!guestDni && !guestName) return null;
     let foundTag = null;
     
+    // A valid full name should contain at least two space-separated words
+    const isFullName = (name) => {
+        if (!name) return false;
+        const parts = name.trim().split(/\s+/);
+        return parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0;
+    };
+    
     // 1. Check Global Groups over active date range
     if (window.globalGroups && window.globalGroups.length > 0) {
         const currentDate = activeBoatItem.date;
         const activeGlobalGroup = window.globalGroups.find(g => {
             if (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate) {
                 if (guestDni && g.members && g.members.some(m => window.isSameDni(m, guestDni))) return true;
-                if (guestName && g.members && g.members.some(m => m.toLowerCase() === guestName.toLowerCase())) return true;
+                if (guestName && isFullName(guestName) && g.members && g.members.some(m => m.toLowerCase() === guestName.toLowerCase())) return true;
             }
             return false;
         });
@@ -97,7 +104,7 @@ function findActiveTagForGuest(guestDni, guestName) {
         if(t.guests) t.guests.forEach(g => {
             if (g.bookingTag) {
                 if (guestDni && g.dni && window.isSameDni(g.dni, guestDni)) foundTag = g.bookingTag;
-                else if (guestName && g.nombre && g.nombre.toLowerCase() === guestName.toLowerCase()) foundTag = g.bookingTag;
+                else if (guestName && isFullName(guestName) && g.nombre && g.nombre.toLowerCase() === guestName.toLowerCase()) foundTag = g.bookingTag;
             }
         });
     });

@@ -2495,6 +2495,9 @@ window.saveLocalGuestEdit = async function() {
             delete guest.dni;
         }
 
+        // Recalculate group bookingTag in case the name or DNI changed
+        guest.bookingTag = findActiveTagForGuest(null, guest.nombre) || '';
+
         // 1. Update matching manual names in globalGroups (RAM + Firestore)
         if (window.globalGroups && Array.isArray(window.globalGroups)) {
             for (let grp of window.globalGroups) {
@@ -2554,12 +2557,13 @@ window.saveLocalGuestEdit = async function() {
                                     (!targetTempId && gst.nombre && gst.nombre.toLowerCase() === targetNameLower)
                                 );
                                 if (isMatch) {
-                                    if (gst.nombre !== guest.nombre || gst.titulacion !== guest.titulacion || gst.telefono !== guest.telefono || gst.email !== guest.email || gst.tempId !== guest.tempId) {
+                                    if (gst.nombre !== guest.nombre || gst.titulacion !== guest.titulacion || gst.telefono !== guest.telefono || gst.email !== guest.email || gst.tempId !== guest.tempId || gst.bookingTag !== guest.bookingTag) {
                                         gst.nombre = guest.nombre;
                                         gst.titulacion = guest.titulacion;
                                         gst.telefono = guest.telefono;
                                         gst.email = guest.email;
                                         gst.tempId = guest.tempId;
+                                        gst.bookingTag = guest.bookingTag;
                                         gst.isManual = true;
                                         modified = true;
                                     }
@@ -2584,6 +2588,7 @@ window.saveLocalGuestEdit = async function() {
                                         gst.telefono = guest.telefono;
                                         gst.email = guest.email;
                                         gst.tempId = guest.tempId;
+                                        gst.bookingTag = guest.bookingTag;
                                         gst.isManual = true;
                                     }
                                 });
