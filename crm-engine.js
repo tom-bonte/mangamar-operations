@@ -2077,11 +2077,323 @@ window.saveDirectSale = async function() {
         // Refresh accounting view
         if (typeof fetchContabilidadMonth === 'function') fetchContabilidadMonth();
         
-    } catch (e) {
-        console.error("Error saving direct sale:", e);
-        showToast("Error al guardar la venta.", "error");
-    } finally {
-        btn.disabled = false;
-        btn.innerText = originalText;
-    }
+     } catch (e) {
+         console.error("Error saving direct sale:", e);
+         showToast("Error al guardar la venta.", "error");
+     } finally {
+         btn.disabled = false;
+         btn.innerText = originalText;
+     }
 };
+
+
+// ==========================================
+// 19. TEST DE BUCEADOR (FUERA)
+// ==========================================
+
+window.openTestFueraModal = function() {
+    const today = new Date();
+    const yyyy  = today.getFullYear();
+    const mm    = String(today.getMonth() + 1).padStart(2, '0');
+    const dd    = String(today.getDate()).padStart(2, '0');
+    
+    document.getElementById('test-wizard-date').value       = `${yyyy}-${mm}-${dd}`;
+    document.getElementById('test-global-date').value       = `${dd}-${mm}-${yyyy.toString().slice(-2)}`;
+    document.getElementById('test-global-certificado').value = 'Mangamar Dive Center';
+
+    // Clear search
+    const srch = document.getElementById('test-diver-search');
+    const sres = document.getElementById('test-search-results');
+    if (srch) srch.value = '';
+    if (sres) { sres.innerHTML = ''; sres.classList.add('hidden'); }
+
+    // Clear table rows
+    document.querySelectorAll('#test-diver-rows .test-inp').forEach(inp => inp.value = '');
+    document.querySelectorAll('#test-diver-rows .test-row-clear').forEach(btn => btn.classList.add('hidden'));
+
+    testFueraLoadTrips();
+    document.getElementById('test-fuera-modal').classList.remove('hidden');
+};
+
+window.closeTestFueraModal = function() {
+    document.getElementById('test-fuera-modal').classList.add('hidden');
+};
+
+window.testFueraLoadTrips = function() {
+    const dateVal = document.getElementById('test-wizard-date').value;
+    if (!dateVal) return;
+    const [y, m, d] = dateVal.split('-');
+    document.getElementById('test-global-date').value = `${d}-${m}-${y.slice(-2)}`;
+
+    const allTripsOnDate = mergedAllocations.filter(t =>
+        t.date === dateVal && 
+        t.assignedBoat !== 'shore' && 
+        t.site && 
+        t.site.toLowerCase().includes('fuera')
+    );
+
+    // Dedup by ID: prefer internal trip over Visor-only
+    const tripMap = new Map();
+    allTripsOnDate.forEach(t => {
+        if (!tripMap.has(t.id)) {
+            tripMap.set(t.id, t);
+        } else {
+            const existing   = tripMap.get(t.id);
+            const existCount = (existing.groups||[]).reduce((a,g)=>a+(g.guests||[]).length,0) + (existing.guests||[]).length;
+            const newCount   = (t.groups||[]).reduce((a,g)=>a+(g.guests||[]).length,0) + (t.guests||[]).length;
+            if (newCount > existCount || t.isInternalTrip) tripMap.set(t.id, t);
+        }
+    });
+    const tripsOnDate = [...tripMap.values()].sort((a, b) => (a.time||'').localeCompare(b.time||''));
+
+    const select = document.getElementById('test-wizard-trip');
+    if (tripsOnDate.length === 0) {
+        select.innerHTML = '<option value="">— No hay salidas a Fuera —</option>';
+        document.getElementById('test-wizard-divers').innerHTML = '<p class="text-xs text-slate-400 italic text-center pt-4">No hay salidas a Fuera para esta fecha.</p>';
+        return;
+    }
+
+    // Auto-assign unassigned Visor trips
+    const tripsByTime = {};
+    tripsOnDate.forEach(t => {
+        if (!tripsByTime[t.time]) tripsByTime[t.time] = [];
+        tripsByTime[t.time].push(t);
+    });
+    Object.values(tripsByTime).forEach(timeTrips => {
+        let hasAres   = timeTrips.some(t => (t.assignedBoat||'').toLowerCase() === 'ares');
+        let hasKaiser = timeTrips.some(t => (t.assignedBoat||'').toLowerCase() === 'kaiser');
+        timeTrips.filter(t => !t.assignedBoat || t.assignedBoat === '').forEach(t => {
+            if (!hasAres) { t.assignedBoat = 'ares'; hasAres = true; }
+            else if (!hasKaiser) { t.assignedBoat = 'kaiser'; hasKaiser = true; }
+            else { t.assignedBoat = 'ares'; }
+        });
+    });
+
+    const boatLabel = b => {
+        const k = (b||'').toLowerCase().trim();
+        if (k === 'ares')   return 'Ares';
+        if (k === 'kaiser') return 'Kaiser';
+        return b || 'Barco';
+    };
+    select.innerHTML = tripsOnDate.map((t, i) => {
+        const boat = boatLabel(t.assignedBoat);
+        const site = t.site || 'Sin Destino';
+        return `<option value="${i}">${t.time} — ${boat} (${site})</option>`;
+    }).join('');
+    select.selectedIndex = 0;
+    window._testWizardTrips = tripsOnDate;
+    testFueraLoadDivers();
+};
+
+window.testFueraLoadDivers = function() {
+    const select = document.getElementById('test-wizard-trip');
+    const idx    = parseInt(select.value);
+    const trips  = window._testWizardTrips || [];
+    const trip   = trips[idx];
+    if (!trip) {
+        document.getElementById('test-wizard-divers').innerHTML = '<p class="text-xs text-slate-400 italic text-center pt-4">Sin datos.</p>';
+        return;
+    }
+
+    // Collect guests from all sources
+    const allGuests = [];
+    const addGuest = (g) => {
+        if (!g) return;
+        const name = g.nombre || g.firstName || g.name || '';
+        if (!name) return;
+        const key = g.dni || g.passportId || (name + (g.apellido||g.lastName||''));
+        const dup = allGuests.some(x => {
+            const xkey = x.dni || x.passportId || ((x.nombre||x.firstName||x.name||'') + (x.apellido||x.lastName||''));
+            return key && xkey && key === xkey;
+        });
+        if (!dup) allGuests.push(g);
+    };
+
+    (trip.groups  || []).forEach(g => (g.guests||[]).forEach(addGuest));
+    (trip.guests  || []).forEach(addGuest);
+
+    // Fallback: find internal shadow trip
+    if (allGuests.length === 0) {
+        const shadow = mergedAllocations.find(t =>
+            t.id === trip.id && t !== trip &&
+            ((t.groups||[]).some(g => (g.guests||[]).length > 0) || (t.guests||[]).length > 0)
+        );
+        if (shadow) {
+            (shadow.groups || []).forEach(g => (g.guests||[]).forEach(addGuest));
+            (shadow.guests || []).forEach(addGuest);
+        }
+    }
+
+    if (allGuests.length === 0) {
+        document.getElementById('test-wizard-divers').innerHTML = '<p class="text-xs text-slate-400 italic text-center pt-4">No hay buceadores registrados en esta salida.</p>';
+        window._testWizardDiverData = [];
+        return;
+    }
+
+    window._testWizardDiverData = allGuests.map(g => ({
+        nombre: [g.nombre||g.firstName, g.apellido||g.lastName].filter(Boolean).join(' ') || g.name || '—',
+        dni:    g.dni || g.passportId || '—'
+    }));
+
+    document.getElementById('test-wizard-divers').innerHTML = window._testWizardDiverData.map((d, i) =>
+        `<label class="flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer hover:bg-cyan-50 border border-transparent hover:border-cyan-200 transition-all"><input type="checkbox" class="test-diver-check w-4 h-4 rounded accent-cyan-600" data-index="${i}"><div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 truncate">${d.nombre}</div><div class="text-xs text-slate-400 font-mono">${d.dni}</div></div></label>`
+    ).join('');
+};
+
+window.testFueraSearchDiver = function(query) {
+    const resEl = document.getElementById('test-search-results');
+    if (!resEl) return;
+    const q = (query || '').trim();
+    if (q.length < 2) { resEl.innerHTML = ''; resEl.classList.add('hidden'); return; }
+
+    const normalize = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'');
+    const norm = normalize(q);
+
+    const matches = (customerDatabase || []).filter(c => {
+        const fullName = normalize([c.nombre, c.apellido, c.name].filter(Boolean).join(' '));
+        const dniStr   = normalize(c.dni || '');
+        return fullName.includes(norm) || dniStr.includes(norm);
+    }).slice(0, 8);
+
+    if (matches.length === 0) {
+        resEl.innerHTML = '<p class="text-xs text-slate-400 italic px-1 py-1">Sin resultados.</p>';
+        resEl.classList.remove('hidden');
+        return;
+    }
+
+    window._testSearchResults = matches;
+    resEl.classList.remove('hidden');
+    resEl.innerHTML = matches.map((c, i) => {
+        const disp = [c.nombre, c.apellido].filter(Boolean).join(' ') || c.name || '—';
+        const dni  = c.dni || '';
+        return `<button onclick="testFueraAddSearchResult(${i})" class="w-full text-left px-2 py-1.5 text-xs hover:bg-cyan-50 rounded-lg flex justify-between items-center gap-1"><span class="font-bold text-slate-700 truncate">${disp}</span><span class="text-slate-400 font-mono shrink-0">${dni}</span></button>`;
+    }).join('');
+};
+
+window.testFueraClearRow = function(btn) {
+    const td = btn.parentElement;
+    const tr = td.parentElement;
+    const nombre = tr.querySelector('.test-diver-nombre');
+    const dni    = tr.querySelector('.test-diver-dni');
+    const fecha  = tr.querySelector('.test-diver-fecha');
+    const cert   = tr.querySelector('.test-diver-certificado');
+    if (nombre) nombre.value = '';
+    if (dni)    dni.value = '';
+    if (fecha)  fecha.value = '';
+    if (cert)   cert.value = '';
+    btn.classList.add('hidden');
+};
+
+window.testFueraAddSearchResult = function(idx) {
+    const results = window._testSearchResults || [];
+    const c = results[idx];
+    if (!c) return;
+    const nombre = [c.nombre, c.apellido].filter(Boolean).join(' ') || c.name || '—';
+    const dni    = c.dni || '';
+    
+    const globalDate = document.getElementById('test-global-date').value || '';
+    const globalCert = document.getElementById('test-global-certificado').value || '';
+
+    const nombreInputs = document.querySelectorAll('#test-diver-rows .test-diver-nombre');
+    const dniInputs    = document.querySelectorAll('#test-diver-rows .test-diver-dni');
+    const fechaInputs  = document.querySelectorAll('#test-diver-rows .test-diver-fecha');
+    const certInputs   = document.querySelectorAll('#test-diver-rows .test-diver-certificado');
+    const clearBtns    = document.querySelectorAll('#test-diver-rows .test-row-clear');
+
+    for (let i = 0; i < nombreInputs.length; i++) {
+        if (!nombreInputs[i].value) {
+            nombreInputs[i].value = nombre;
+            dniInputs[i].value   = dni;
+            fechaInputs[i].value = globalDate;
+            certInputs[i].value  = globalCert;
+            if (clearBtns[i]) clearBtns[i].classList.remove('hidden');
+
+            showToast('✅ ' + nombre + ' añadido al formulario.');
+            const srch = document.getElementById('test-diver-search');
+            const sres = document.getElementById('test-search-results');
+            if (srch) srch.value = '';
+            if (sres) { sres.innerHTML = ''; sres.classList.add('hidden'); }
+            return;
+        }
+    }
+    showToast('⚠️ No hay filas vacías disponibles.');
+};
+
+window.testFueraApplySelected = function() {
+    const checked = [...document.querySelectorAll('.test-diver-check:checked')];
+    if (checked.length === 0) { showToast('Selecciona al menos un buceador.'); return; }
+
+    const diverData    = window._testWizardDiverData || [];
+    const globalDate   = document.getElementById('test-global-date').value || '';
+    const globalCert   = document.getElementById('test-global-certificado').value || '';
+
+    const nombreInputs = document.querySelectorAll('#test-diver-rows .test-diver-nombre');
+    const dniInputs    = document.querySelectorAll('#test-diver-rows .test-diver-dni');
+    const fechaInputs  = document.querySelectorAll('#test-diver-rows .test-diver-fecha');
+    const certInputs   = document.querySelectorAll('#test-diver-rows .test-diver-certificado');
+    const clearBtns    = document.querySelectorAll('#test-diver-rows .test-row-clear');
+
+    let filled = 0;
+    for (const cb of checked) {
+        const diver = diverData[parseInt(cb.dataset.index)];
+        if (!diver) continue;
+        let placed = false;
+        for (let i = 0; i < nombreInputs.length; i++) {
+            if (!nombreInputs[i].value) {
+                nombreInputs[i].value = diver.nombre || '';
+                dniInputs[i].value   = diver.dni !== '—' ? diver.dni : '';
+                fechaInputs[i].value = globalDate;
+                certInputs[i].value  = globalCert;
+                if (clearBtns[i]) clearBtns[i].classList.remove('hidden');
+
+                filled++;
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) break;
+    }
+    document.querySelectorAll('.test-diver-check').forEach(cb => cb.checked = false);
+    if (filled > 0) showToast('✅ ' + filled + ' buceadores añadidos al formulario.');
+    else showToast('⚠️ No hay filas vacías disponibles.');
+};
+
+window.printTestFuera = function() {
+    const style = document.createElement('style');
+    style.id = 'test-print-style';
+    style.innerHTML = [
+        '@media print {',
+        '  @page { margin: 0; size: A4 portrait; }',
+        '  body > *:not(#test-fuera-modal) { display: none !important; }',
+        '  body { margin: 0 !important; padding: 0 !important; }',
+        '  #test-fuera-modal { position: static !important; background: none !important; display: block !important; padding: 0 !important; }',
+        '  #test-fuera-modal > div { box-shadow: none !important; border: none !important; height: auto !important; max-width: 100% !important; border-radius: 0 !important; display: block !important; }',
+        '  #test-fuera-modal > div > div:first-child { display: none !important; }',
+        '  .flex.flex-1.overflow-hidden { display: block !important; }',
+        '  .flex.flex-1.overflow-hidden > div.w-80 { display: none !important; }',
+        '  #test-fuera-form-area { overflow: visible !important; padding: 2cm !important; flex: unset !important; display: block !important; box-sizing: border-box !important; }',
+        '  select { -webkit-appearance: none; border: none !important; background: transparent !important; }',
+        '}'
+    ].join('\n');
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(function() {
+        var s = document.getElementById('test-print-style');
+        if (s) s.remove();
+    }, 2000);
+};
+
+// Global listener for manual typing in test diver rows to show/hide the 'X'
+document.addEventListener('input', (e) => {
+    if (e.target.classList.contains('test-diver-nombre') || e.target.classList.contains('test-diver-dni')) {
+        const tr = e.target.closest('tr');
+        if (tr && tr.parentElement && tr.parentElement.id === 'test-diver-rows') {
+            const btn = tr.querySelector('.test-row-clear');
+            if (btn) {
+                const hasVal = tr.querySelector('.test-diver-nombre').value || tr.querySelector('.test-diver-dni').value;
+                btn.classList.toggle('hidden', !hasVal);
+            }
+        }
+    }
+});
+

@@ -123,6 +123,9 @@
                         <button onclick="openIncidenciaModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Incidencia Reserva Marina
                         </button>
+                        <button onclick="openTestFueraModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg> Test de buceador (Fuera)
+                        </button>
                         <button onclick="openSettingsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Ajustes
                         </button>
@@ -1988,6 +1991,266 @@
                     <!-- Apply selected -->
                     <div class="p-3 border-t border-slate-200 bg-white">
                         <button onclick="incidenciaApplySelected()" class="w-full px-4 py-2.5 bg-blue-600 text-white font-black text-sm rounded-xl hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Añadir Seleccionados al Formulario
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ============================================ -->
+    <!-- TEST DE BUCEADOR (FUERA) MODAL              -->
+    <!-- ============================================ -->
+    <div id="test-fuera-modal" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[1400px] border border-slate-200 overflow-hidden flex flex-col" style="height: 95vh;">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    Test de buceador (Fuera) — Bajo de Fuera
+                </h3>
+                <div class="flex gap-2 items-center">
+                    <button onclick="window.printTestFuera()" class="px-4 py-2 bg-cyan-600 text-white font-bold text-sm rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> Imprimir PDF
+                    </button>
+                    <button onclick="closeTestFueraModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body: Form Left + Wizard Right -->
+            <div class="flex flex-1 overflow-hidden">
+
+                <!-- LEFT: The fillable form -->
+                <div id="test-fuera-form-area" class="flex-1 overflow-y-auto p-4 bg-white">
+                    <style>
+                        .test-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-family: Arial, sans-serif; font-size: 11px; }
+                        .test-table th, .test-table td { border: 1px solid #000; padding: 4px 6px; text-align: center; }
+                        .test-table th { background-color: #fff; font-weight: bold; font-size: 11px; color: #000; }
+                        .test-table td { height: 26px; color: #000; }
+                        .test-inp { width: 100%; height: 100%; border: none; background: transparent; font-family: Arial, sans-serif; font-size: 11px; text-align: center; box-sizing: border-box; color: #000; }
+                        .test-inp:focus { outline: none; background-color: #e6f2ff; }
+                        
+                        .test-row-clear {
+                            position: absolute;
+                            right: 2px;
+                            top: 50%;
+                            transform: translateY(-50%);
+                            color: #ef4444;
+                            font-weight: 900;
+                            cursor: pointer;
+                            background: white;
+                            border: 1px solid #fee2e2;
+                            border-radius: 4px;
+                            width: 18px;
+                            height: 18px;
+                            line-height: 16px;
+                            text-align: center;
+                            font-size: 14px;
+                            z-index: 10;
+                            padding: 0;
+                            transition: all 0.2s;
+                        }
+                        .test-row-clear:hover {
+                            background-color: #fee2e2;
+                            color: #b91c1c;
+                        }
+                        @media print {
+                            .test-row-clear { display: none !important; }
+                        }
+                    </style>
+
+                    <!-- Control bar (hidden when printing) -->
+                    <div class="print:hidden mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex gap-4 items-center">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Fecha Cert:</label>
+                            <input type="text" id="test-global-date" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 bg-white" placeholder="DD-MM-YY">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Certificado por:</label>
+                            <input type="text" id="test-global-certificado" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 bg-white" style="width: 240px;">
+                        </div>
+                    </div>
+
+                    <!-- Centered logo & title -->
+                    <div style="text-align:center; margin-bottom:12px;">
+                        <img src="Mangamar.png" style="height:50px; display:inline-block; margin-bottom:6px;" alt="Mangamar Dive Center Logo">
+                        <div style="font-family:Arial,sans-serif; font-size:16px; font-weight:bold; color:#000;">Test Buceador para el Bajo de Fuera</div>
+                    </div>
+
+                    <!-- Practice description & checklist + Signature stamp column -->
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; font-family:Arial,sans-serif; color:#000;">
+                        <div style="width:72%;">
+                            <p style="font-size:11px; font-weight:bold; margin-bottom:10px; line-height:1.3; text-align:justify;">
+                                La presente lista confirma que lo buzos en la misma han realizado satisfactoriamente el test del buceador comprobando:
+                            </p>
+                            <div style="font-size:11px; font-weight:bold; margin-bottom:6px;">PRACTICA :</div>
+                            <div style="display:flex; flex-direction:column; gap:5px; font-size:11px;">
+                                <div style="display:flex; align-items:flex-start; gap:8px; line-height:1.2;">
+                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border:1px solid #000; background-color:#7f7f7f; color:#fff; font-size:9px; font-weight:bold; border-radius:2px; flex-shrink:0; margin-top:1px;">✓</span>
+                                    <span>Comprobacion de presion de la botella en superficie</span>
+                                </div>
+                                <div style="display:flex; align-items:flex-start; gap:8px; line-height:1.2;">
+                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border:1px solid #000; background-color:#7f7f7f; color:#fff; font-size:9px; font-weight:bold; border-radius:2px; flex-shrink:0; margin-top:1px;">✓</span>
+                                    <span>Vaciado parcial de mascara en flotabilidad neutra</span>
+                                </div>
+                                <div style="display:flex; align-items:flex-start; gap:8px; line-height:1.2;">
+                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border:1px solid #000; background-color:#7f7f7f; color:#fff; font-size:9px; font-weight:bold; border-radius:2px; flex-shrink:0; margin-top:1px;">✓</span>
+                                    <span>Quitarse por completo la mascara en flotabilidad neutra</span>
+                                </div>
+                                <div style="display:flex; align-items:flex-start; gap:8px; line-height:1.2;">
+                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border:1px solid #000; background-color:#7f7f7f; color:#fff; font-size:9px; font-weight:bold; border-radius:2px; flex-shrink:0; margin-top:1px;">✓</span>
+                                    <span>Vaciado de regulador en flotabilidad neutra</span>
+                                </div>
+                                <div style="display:flex; align-items:flex-start; gap:8px; line-height:1.2;">
+                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border:1px solid #000; background-color:#7f7f7f; color:#fff; font-size:9px; font-weight:bold; border-radius:2px; flex-shrink:0; margin-top:1px;">✓</span>
+                                    <span>Testeo de segunda etapa de emergencia en flotabilidad neutra</span>
+                                </div>
+                                <div style="display:flex; align-items:flex-start; gap:8px; line-height:1.2;">
+                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border:1px solid #000; background-color:#7f7f7f; color:#fff; font-size:9px; font-weight:bold; border-radius:2px; flex-shrink:0; margin-top:1px;">✓</span>
+                                    <span>Compartir aire en flotabilidad neutra o navegacion manteniendo profundidad de tres metros</span>
+                                </div>
+                                <div style="display:flex; align-items:flex-start; gap:8px; line-height:1.2;">
+                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border:1px solid #000; background-color:#7f7f7f; color:#fff; font-size:9px; font-weight:bold; border-radius:2px; flex-shrink:0; margin-top:1px;">✓</span>
+                                    <span>Lanzamiento de boya</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="width:26%; text-align:right;">
+                            <img src="Signature.png" style="max-width:100%; height:auto; max-height:100px; display:inline-block;" alt="Signature Stamp">
+                        </div>
+                    </div>
+
+                    <!-- Bottom Diver Table -->
+                    <table class="test-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">QTY</th>
+                                <th>Nombre Completo</th>
+                                <th style="width: 150px;">DNI</th>
+                                <th style="width: 120px;">Fecha Cert</th>
+                                <th style="width: 220px;">Certificado por</th>
+                            </tr>
+                        </thead>
+                        <tbody id="test-diver-rows">
+                            <tr>
+                                <td>1</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>6</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>7</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>8</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>9</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                            <tr>
+                                <td>10</td>
+                                <td style="position:relative"><input type="text" class="test-inp test-diver-nombre"><button class="test-row-clear hidden" onclick="testFueraClearRow(this)">×</button></td>
+                                <td><input type="text" class="test-inp test-diver-dni"></td>
+                                <td><input type="text" class="test-inp test-diver-fecha"></td>
+                                <td><input type="text" class="test-inp test-diver-certificado"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- RIGHT: Wizard panel -->
+                <div class="w-80 shrink-0 border-l border-slate-200 bg-slate-50 flex flex-col overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 bg-white">
+                        <h4 class="font-black text-slate-800 text-sm mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Autocompletar desde Salida
+                        </h4>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Fecha</label>
+                                <input type="date" id="test-wizard-date" class="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500" onchange="testFueraLoadTrips()">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Salida</label>
+                                <select id="test-wizard-trip" class="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500" onchange="testFueraLoadDivers()">
+                                    <option value="">— Selecciona fecha primero —</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search field -->
+                    <div class="px-3 pt-3 pb-1">
+                        <div class="relative">
+                            <svg class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="test-diver-search" placeholder="Buscar buceador por nombre o DNI..." class="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400" oninput="testFueraSearchDiver(this.value)">
+                        </div>
+                        <div id="test-search-results" class="mt-1 hidden"></div>
+                    </div>
+
+                    <!-- Diver list -->
+                    <div class="flex-1 overflow-y-auto p-3">
+                        <div id="test-wizard-divers" class="space-y-1">
+                            <p class="text-xs text-slate-400 italic text-center pt-4">Selecciona una fecha y salida para ver los buceadores.</p>
+                        </div>
+                    </div>
+
+                    <!-- Apply selected -->
+                    <div class="p-3 border-t border-slate-200 bg-white">
+                        <button onclick="testFueraApplySelected()" class="w-full px-4 py-2.5 bg-cyan-600 text-white font-black text-sm rounded-xl hover:bg-cyan-700 transition-colors shadow-sm flex items-center justify-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             Añadir Seleccionados al Formulario
                         </button>
