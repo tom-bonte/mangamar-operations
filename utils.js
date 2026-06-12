@@ -898,12 +898,16 @@ function renderDailyGeneralStaffView(dateStr, container) {
                     
                     let roleBadge = '';
                     if (t.captain === name) {
-                        roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">Cap</span>`;
+                        roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">Cap <button onclick="event.stopPropagation(); window.showStaffReassignPopover(this, '${t.id}', '${t.date}', 'captain', -1, '${name}')" class="hover:text-blue-900 font-bold shrink-0 opacity-60 hover:opacity-100 transition-opacity">✏️</button></span>`;
                     } else if (t.groups) {
-                        const isGui = t.groups.some(g => g.guide === name);
-                        const isApo = t.groups.some(g => g.apoyo === name);
-                        if (isGui) roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border-emerald-100">Guía</span>`;
-                        else if (isApo) roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border-purple-100">Apoyo</span>`;
+                        const grpIdx = t.groups.findIndex(g => g.guide === name || g.apoyo === name);
+                        if (grpIdx !== -1) {
+                            const isGui = t.groups[grpIdx].guide === name;
+                            const roleType = isGui ? 'guide' : 'apoyo';
+                            const badgeClass = isGui ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-purple-50 text-purple-700 border-purple-100';
+                            const roleLabel = isGui ? 'Guía' : 'Apoyo';
+                            roleBadge = `<span class="text-[8px] font-black px-1.5 py-0.5 rounded ${badgeClass} flex items-center gap-1">${roleLabel} <button onclick="event.stopPropagation(); window.showStaffReassignPopover(this, '${t.id}', '${t.date}', '${roleType}', ${grpIdx}, '${name}')" class="hover:text-indigo-900 font-bold shrink-0 opacity-60 hover:opacity-100 transition-opacity">✏️</button></span>`;
+                        }
                     }
                     
                     return `
@@ -1094,3 +1098,176 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
 
     container.innerHTML = html;
 }
+
+window.showStaffReassignPopover = function(triggerEl, tripId, dateStr, roleType, grpIdx, currentName) {
+    const existing = document.getElementById('staff-reassign-popover');
+    if (existing) existing.remove();
+
+    const trip = (window.mergedAllocations || []).find(t => t.id === tripId);
+    if (!trip) {
+        window.showToast("No se pudo localizar el viaje en la memoria.", "error");
+        return;
+    }
+
+    const candidates = [];
+    const isCap = roleType === 'captain';
+    const databaseList = isCap ? (staffDatabase.capitanes || []) : (staffDatabase.guias || []);
+
+    databaseList.forEach(p => {
+        const name = p.nombre;
+        const onDayOff = window.isStaffOnDayOff(name, dateStr);
+        
+        const isBusyOnOtherTrips = mergedAllocations.some(t => {
+            if (t.date === dateStr && t.time === trip.time && t.id !== tripId) {
+                let matches = t.captain === name;
+                if (!matches && t.groups) {
+                    matches = t.groups.some(g => g.guide === name || g.apoyo === name);
+                }
+                return matches;
+            }
+            return false;
+        });
+
+        let status = 'dispo';
+        let statusLabel = 'Disponible';
+        let statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+
+        if (onDayOff) {
+            status = 'libre';
+            statusLabel = 'Libre';
+            statusClass = 'bg-red-50 text-red-600 border-red-100';
+        } else if (isBusyOnOtherTrips) {
+            status = 'busy';
+            statusLabel = 'Ocupado';
+            statusClass = 'bg-amber-50 text-amber-700 border-amber-100';
+        }
+
+        candidates.push({ name, status, statusLabel, statusClass });
+    });
+
+    const statusWeight = { dispo: 1, busy: 2, libre: 3 };
+    candidates.sort((a, b) => {
+        if (statusWeight[a.status] !== statusWeight[b.status]) {
+            return statusWeight[a.status] - statusWeight[b.status];
+        }
+        return a.name.localeCompare(b.name);
+    });
+
+    const popover = document.createElement('div');
+    popover.id = 'staff-reassign-popover';
+    popover.className = 'fixed bg-white border border-slate-200 rounded-2xl shadow-xl p-4 flex flex-col gap-2 min-w-[220px] max-h-[300px] overflow-hidden';
+    popover.style.zIndex = '1000';
+
+    const roleTitle = isCap ? 'Capitán' : (roleType === 'guide' ? 'Guía' : 'Apoyo');
+    let headerHtml = `
+        <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 shrink-0">
+            <span class="text-xs font-black text-slate-800 uppercase tracking-wider">Reasignar ${roleTitle}</span>
+            <button onclick="document.getElementById('staff-reassign-popover').remove()" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    `;
+
+    let listHtml = candidates.map(c => {
+        const isCurrent = c.name === currentName;
+        const currentClass = isCurrent ? 'font-black text-indigo-700 bg-indigo-50/50' : 'text-slate-700 hover:bg-slate-50';
+        return `
+            <div onclick="window.confirmReassignStaff('${tripId}', '${dateStr}', '${roleType}', ${grpIdx}, '${c.name}')" class="flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${currentClass}">
+                <span class="truncate pr-2">${c.name}</span>
+                <span class="text-[8px] font-black px-1.5 py-0.5 rounded border shrink-0 uppercase tracking-widest ${c.statusClass}">${c.statusLabel}</span>
+            </div>
+        `;
+    }).join('');
+
+    let clearHtml = `
+        <div onclick="window.confirmReassignStaff('${tripId}', '${dateStr}', '${roleType}', ${grpIdx}, '')" class="flex items-center justify-center p-1.5 rounded-lg text-xs font-black text-red-600 hover:bg-red-50 cursor-pointer border border-dashed border-red-200 mt-1 shrink-0 uppercase tracking-wider">
+            ❌ Quitar Asignación
+        </div>
+    `;
+
+    popover.innerHTML = `
+        ${headerHtml}
+        <div class="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-50 pr-1">
+            ${listHtml || '<p class="text-xs text-slate-400 italic text-center py-4">No hay personal disponible.</p>'}
+        </div>
+        ${clearHtml}
+    `;
+
+    document.body.appendChild(popover);
+
+    const rect = triggerEl.getBoundingClientRect();
+    let top = rect.bottom + 6;
+    let left = rect.left;
+    
+    if (top + 300 > window.innerHeight) {
+        top = rect.top - 6 - Math.min(300, popover.offsetHeight || 250);
+    }
+    if (left + 220 > window.innerWidth) {
+        left = window.innerWidth - 240;
+    }
+
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+
+    const handleOutsideClick = (e) => {
+        const pop = document.getElementById('staff-reassign-popover');
+        if (pop && !pop.contains(e.target) && !triggerEl.contains(e.target)) {
+            pop.remove();
+            document.removeEventListener('mousedown', handleOutsideClick);
+        }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+};
+
+window.confirmReassignStaff = async function(tripId, dateStr, roleType, grpIdx, newName) {
+    const pop = document.getElementById('staff-reassign-popover');
+    if (pop) pop.remove();
+
+    const originalTrip = (window.mergedAllocations || []).find(t => t.id === tripId);
+    if (!originalTrip) {
+        window.showToast("No se pudo localizar el viaje en la memoria.", "error");
+        return;
+    }
+
+    const tripCopy = JSON.parse(JSON.stringify(originalTrip));
+    if (roleType === 'captain') {
+        tripCopy.captain = newName;
+    } else if (roleType === 'guide') {
+        if (tripCopy.groups && tripCopy.groups[grpIdx]) {
+            tripCopy.groups[grpIdx].guide = newName;
+        }
+    } else if (roleType === 'apoyo') {
+        if (tripCopy.groups && tripCopy.groups[grpIdx]) {
+            tripCopy.groups[grpIdx].apoyo = newName;
+        }
+    }
+
+    const payload = {
+        date: tripCopy.date,
+        time: tripCopy.time,
+        assignedBoat: tripCopy.assignedBoat,
+        site: tripCopy.site,
+        captain: tripCopy.captain,
+        groups: tripCopy.groups,
+        guests: tripCopy.guests || [],
+        waitlist: tripCopy.waitlist || [],
+        timeSaliendo: tripCopy.timeSaliendo || '',
+        timeBuzosAgua: tripCopy.timeBuzosAgua || '',
+        timeVolviendo: tripCopy.timeVolviendo || '',
+        rmLocked: tripCopy.rmLocked || false
+    };
+    if (tripCopy.maxDives) payload.maxDives = tripCopy.maxDives;
+
+    try {
+        if (typeof saveInternalBoatData === 'function') {
+            await saveInternalBoatData(tripId, dateStr, payload);
+            window.showToast("Asignación actualizada correctamente");
+        } else {
+            console.error("saveInternalBoatData not found!");
+            window.showToast("Error al guardar: Función saveInternalBoatData no disponible", "error");
+        }
+    } catch (err) {
+        console.error("Error updating assignment:", err);
+        window.showToast("Error al guardar la asignación", "error");
+    }
+};
