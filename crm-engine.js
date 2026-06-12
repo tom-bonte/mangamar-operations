@@ -2177,8 +2177,7 @@ window.testFueraLoadTrips = function() {
     };
     select.innerHTML = tripsOnDate.map((t, i) => {
         const boat = boatLabel(t.assignedBoat);
-        const site = t.site || 'Sin Destino';
-        return `<option value="${i}">${t.time} — ${boat} (${site})</option>`;
+        return `<option value="${i}">${t.time} — ${boat}</option>`;
     }).join('');
     select.selectedIndex = 0;
     window._testWizardTrips = tripsOnDate;
@@ -2359,6 +2358,16 @@ window.testFueraApplySelected = function() {
 };
 
 window.printTestFuera = function() {
+    // Copy input values to print spans
+    document.querySelectorAll('#test-diver-rows tr').forEach(tr => {
+        tr.querySelectorAll('input.test-inp').forEach(inp => {
+            const span = inp.parentNode.querySelector('.test-print-val');
+            if (span) {
+                span.textContent = inp.value || '';
+            }
+        });
+    });
+
     const style = document.createElement('style');
     style.id = 'test-print-style';
     style.innerHTML = [
@@ -2396,4 +2405,120 @@ document.addEventListener('input', (e) => {
         }
     }
 });
+
+window.generateTestFueraEmail = function() {
+    const select = document.getElementById('test-wizard-trip');
+    const idx    = parseInt(select.value);
+    const trips  = window._testWizardTrips || [];
+    const trip   = trips[idx];
+    
+    // Auto-select corresponding boat dropdown in email generator
+    const emailBoatSelect = document.getElementById('email-boat-select');
+    if (emailBoatSelect && trip) {
+        const boatStr = (trip.assignedBoat || '').toLowerCase().trim();
+        if (boatStr === 'ares') {
+            emailBoatSelect.value = 'ARES 6CT4919';
+        } else if (boatStr === 'kaiser') {
+            emailBoatSelect.value = 'KAISER 6CT4417';
+        } else {
+            emailBoatSelect.value = 'ARES 6CT4919';
+        }
+    }
+    
+    window.updateTestFueraEmailText();
+    document.getElementById('test-email-modal').classList.remove('hidden');
+};
+
+window.updateTestFueraEmailText = function() {
+    const select = document.getElementById('test-wizard-trip');
+    const idx    = parseInt(select.value);
+    const trips  = window._testWizardTrips || [];
+    const trip   = trips[idx];
+    
+    const boatVal = document.getElementById('email-boat-select').value;
+    
+    // Date
+    const tripDate = document.getElementById('test-wizard-date').value; // YYYY-MM-DD
+    const todayStr = new Date().toISOString().split('T')[0];
+    let dateText = "de hoy";
+    if (tripDate && tripDate !== todayStr) {
+        const [y, m, d] = tripDate.split('-');
+        dateText = `${d}/${m}/${y}`;
+    }
+    
+    // Time
+    let timeText = "a las --:--h. aprox.";
+    if (trip && trip.time) {
+        timeText = `a las ${trip.time.replace(':', '.')}h .aprox.`;
+    }
+    
+    // Patrón
+    let patronText = "Patrón:\n  - Sin asignar";
+    if (trip && trip.captain) {
+        const dni = findStaffDni(trip.captain, 'capitanes');
+        patronText = `Patrón:\n  - ${trip.captain}${dni ? ' DNI ' + dni : ''}`;
+    }
+    
+    // Guías
+    const guidesList = [];
+    if (trip) {
+        (trip.groups || []).forEach(g => {
+            if (g.guide && !guidesList.includes(g.guide)) guidesList.push(g.guide);
+            if (g.apoyo && !guidesList.includes(g.apoyo)) guidesList.push(g.apoyo);
+        });
+    }
+    let guiasText = "Guías:\n  - Sin asignar";
+    if (guidesList.length > 0) {
+        guiasText = "Guías:\n" + guidesList.map(g => {
+            const dni = findStaffDni(g, 'guias');
+            return `  - ${g}${dni ? ' DNI ' + dni : ''}`;
+        }).join('\n');
+    }
+    
+    // Clientes (Divers)
+    const clientsList = [];
+    document.querySelectorAll('#test-diver-rows tr').forEach(tr => {
+        const name = (tr.querySelector('.test-diver-nombre').value || '').trim();
+        const dni = (tr.querySelector('.test-diver-dni').value || '').trim();
+        if (name) {
+            clientsList.push({ nombre: name, dni: dni });
+        }
+    });
+    
+    // Fallback if form is empty
+    if (clientsList.length === 0 && window._testWizardDiverData) {
+        window._testWizardDiverData.forEach(d => {
+            clientsList.push({ nombre: d.nombre, dni: d.dni !== '—' ? d.dni : '' });
+        });
+    }
+    
+    let clientsText = "Clientes:\n  - Sin registrar";
+    if (clientsList.length > 0) {
+        clientsText = "Clientes:\n" + clientsList.map(c => `  - ${c.nombre}${c.dni ? ' ' + c.dni : ''}`).join('\n');
+    }
+    
+    const emailBody = [
+        "Buenos días",
+        "",
+        `Adjunto información de los guías y buceadores que vamos a hacer la salida al bajo de fuera el día ${dateText} ${timeText} Saldremos con la embarcación ${boatVal}`,
+        "",
+        patronText,
+        "",
+        guiasText,
+        "",
+        clientsText,
+        "",
+        "Muchas gracias!"
+    ].join('\n');
+    
+    document.getElementById('email-text-area').value = emailBody;
+};
+
+function findStaffDni(name, type) {
+    if (!name || !window.staffDatabase) return '';
+    const list = window.staffDatabase[type] || [];
+    const p = list.find(x => x.nombre === name);
+    return p ? (p.dni || '') : '';
+}
+
 
