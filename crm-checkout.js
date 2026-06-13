@@ -98,7 +98,7 @@ function calculateDivePrice(historyItem) {
             dive = 0;
             tasa = 0;
             if (historyItem.rental === 'INC') rental = 0;
-            if (historyItem.insurance === 'INC') insurance = 0;
+            insurance = 0; // Course always includes insurance
             if (historyItem.computer === 'INC') computer = 0;
         }
     }
@@ -1214,7 +1214,7 @@ window.generateJointFactura = async function (repName, repDni, groupDiscount = 0
                 } else { p.course = 0; }
                 p.dive = 0; p.tasa = 0;
                 if (data.rental === 'INC') p.rental = 0;
-                if (data.insurance === 'INC') p.insurance = 0;
+                p.insurance = 0; // Course always includes insurance
             }
 
             let cleanIns = (data.insurance || 0).toString().replace(' ✔', '');

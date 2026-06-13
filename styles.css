@@ -840,6 +840,14 @@ body.is-dragging .tooltip-content {
     background-color: #ede9fe; /* violet-100 */
     border-color: #8b5cf6;
 }
+.hours-cell-container.late-arrival {
+    background-color: #fef2f2 !important; /* red-50 */
+    border-color: #ef4444 !important; /* red-500 */
+}
+.hours-cell-container.late-arrival:hover {
+    background-color: #fee2e2 !important; /* red-100 */
+    border-color: #dc2626 !important; /* red-600 */
+}
 /*.hours-frames-list */
 .hours-frames-list {
     display: flex;
@@ -851,6 +859,9 @@ body.is-dragging .tooltip-content {
     color: #4c1d95; /* violet-900 */
     line-height: 1.1;
     text-align: left;
+}
+.hours-frames-list.late-arrival {
+    color: #b91c1c !important; /* red-700 */
 }
 .hours-frames-list div {
     white-space: nowrap;

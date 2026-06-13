@@ -2413,13 +2413,12 @@
         </div>
     </div>
 
-    <!-- Staff Hours Edit Modal -->
     <div id="staff-hours-edit-modal" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onclick="if(event.target === this) window.closeStaffHoursEditModal()">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md border border-slate-200 overflow-hidden flex flex-col">
-            <div class="p-5 border-b border-slate-100 bg-slate-50">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col">
+            <div class="p-6 border-b border-slate-100 bg-slate-50">
                 <h3 id="staff-hours-edit-title" class="text-sm font-black text-slate-800">Editar Horas de Trabajo</h3>
             </div>
-            <div class="p-5 flex flex-col gap-4 overflow-y-auto max-h-[60vh] custom-scrollbar">
+            <div class="p-6 flex flex-col gap-4 overflow-y-auto max-h-[70vh] custom-scrollbar">
                 <div class="flex flex-col gap-2">
                     <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider flex justify-between items-center">
                         <span>Horas Trabajadas</span>
@@ -2427,23 +2426,31 @@
                     </label>
                     
                     <!-- Dynamic Frames List -->
-                    <div id="staff-hours-frames-container" class="flex flex-col gap-2">
+                    <div id="staff-hours-frames-container" class="flex flex-col gap-2.5">
                         <!-- Loaded dynamically via JavaScript -->
                     </div>
                     
-                    <button onclick="window.addHoursFrameRow()" class="mt-1 py-2 px-3 border-2 border-dashed border-slate-200 hover:border-violet-300 text-slate-500 hover:text-violet-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all cursor-pointer">
+                    <button onclick="window.addHoursFrameRow()" class="mt-2 py-2.5 px-3 border-2 border-dashed border-slate-200 hover:border-violet-300 text-slate-500 hover:text-violet-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         Añadir Franja Horaria
                     </button>
+
+                    <!-- Late Arrival checkbox -->
+                    <div class="flex items-center gap-2.5 mt-3 px-1.5 py-2 bg-red-50/50 border border-red-100 rounded-xl">
+                        <input type="checkbox" id="staff-hours-late-input" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer">
+                        <label for="staff-hours-late-input" class="text-xs font-black text-slate-700 cursor-pointer select-none flex items-center gap-1.5">
+                            <span class="text-red-500 text-sm">⚠️</span> Llegó Tarde / Late Arrival
+                        </label>
+                    </div>
                 </div>
                 
                 <!-- Captains Outings (Salidas) Section -->
-                <div id="staff-hours-captain-section" class="flex flex-col gap-1.5 border-t border-slate-150 pt-3">
+                <div id="staff-hours-captain-section" class="flex flex-col gap-1.5 border-t border-slate-150 pt-4">
                     <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">Número de Salidas (Capitanes)</label>
                     <input type="number" id="staff-hours-salidas-input" min="0" step="1" placeholder="0" onkeydown="if(event.key === 'Enter') window.saveStaffHoursEditModal()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500">
                 </div>
             </div>
-            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div class="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                 <button onclick="window.closeStaffHoursEditModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 text-xs transition-colors cursor-pointer">Cancelar</button>
                 <button onclick="window.saveStaffHoursEditModal()" class="px-4 py-2 bg-gradient-to-br from-violet-500 to-violet-700 text-white font-black rounded-xl hover:scale-105 text-xs shadow-sm transition-all cursor-pointer">Guardar</button>
             </div>

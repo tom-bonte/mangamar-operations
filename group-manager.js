@@ -550,6 +550,7 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
         guest.course = existingData.course;
         guest.courseBadge = existingData.courseBadge;
         guest.coursePrice = existingData.coursePrice;
+        guest.insurance = 'INC';
     }
     if (existingData && existingData.localDeposit) guest.localDeposit = existingData.localDeposit;
     if (existingData && existingData.note) guest.note = existingData.note;
@@ -689,6 +690,7 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
                 guest.course = existingData.course;
                 guest.courseBadge = existingData.courseBadge;
                 guest.coursePrice = existingData.coursePrice;
+                guest.insurance = 'INC';
             }
             if (existingData && existingData.localDeposit) guest.localDeposit = existingData.localDeposit;
             if (existingData && existingData.note) guest.note = existingData.note;

@@ -174,7 +174,7 @@ window.switchTodayTab = async function (tabId) {
                                 } else { p.course = 0; }
                                 p.dive = 0; p.tasa = 0;
                                 if (data.rental === 'INC') p.rental = 0;
-                                if (data.insurance === 'INC') p.insurance = 0;
+                                p.insurance = 0;
                             }
 
                             let cleanIns = (data.insurance || 0).toString().replace(' ✔', '');
@@ -320,7 +320,7 @@ window.switchTodayTab = async function (tabId) {
                             p.dive = 0;
                             p.tasa = 0;
                             if (data.rental === 'INC') p.rental = 0;
-                            if (data.insurance === 'INC') p.insurance = 0;
+                            p.insurance = 0; // Course always includes insurance
                         }
 
                         // Engine 2: Insurance Deduplication
@@ -513,16 +513,39 @@ window.renderTodayCerts = async function (forceFetch = false) {
     let coursesList = [...new Set(window.lastFetchedCerts.map(c => c.course))];
     let courseOptions = coursesList.map(c => `<option value="${c}" ${window.certsCourseFilter === c ? 'selected' : ''}>${c}</option>`).join('');
 
-    let html = `
-        <div class="p-3 bg-slate-50 border-b border-slate-200 flex gap-2 w-full sticky top-0 z-10">
-             <input type="text" placeholder="Buscar por DNI o Nombre..." class="flex-1 px-3 py-2 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-500 shadow-sm" value="${window.certsSearchQuery}" oninput="window.certsSearchQuery=this.value; renderTodayCerts()">
-             <select class="px-3 py-2 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-500 shadow-sm bg-white" onchange="window.certsCourseFilter=this.value; renderTodayCerts()">
-                 <option value="">Cualquier Curso</option>
-                 ${courseOptions}
-             </select>
-        </div>
-        <div class="divide-y divide-slate-100 flex-1">
-    `;
+    let searchBarContainer = document.getElementById('certs-search-bar-container');
+    if (!searchBarContainer) {
+        let wrapperHtml = `
+            <div id="certs-search-bar-container" class="p-3 bg-slate-50 border-b border-slate-200 flex gap-2 w-full sticky top-0 z-10">
+                 <input type="text" id="certs-search-input" placeholder="Buscar por DNI o Nombre..." class="flex-1 px-3 py-2 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-500 shadow-sm" value="${window.certsSearchQuery}" oninput="window.certsSearchQuery=this.value; renderTodayCerts()">
+                 <select id="certs-course-select" class="px-3 py-2 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-500 shadow-sm bg-white" onchange="window.certsCourseFilter=this.value; renderTodayCerts()">
+                     <option value="">Cualquier Curso</option>
+                     ${courseOptions}
+                 </select>
+            </div>
+            <div id="certs-items-list" class="divide-y divide-slate-100 flex-1"></div>
+        `;
+        listEl.innerHTML = wrapperHtml;
+        
+        // Retain focus if input was typed
+        const inputEl = document.getElementById('certs-search-input');
+        if (inputEl && window.certsSearchQuery) {
+            inputEl.focus();
+            inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+        }
+    } else {
+        const selectEl = document.getElementById('certs-course-select');
+        if (selectEl) {
+            const currentVal = selectEl.value;
+            selectEl.innerHTML = `<option value="">Cualquier Curso</option>${courseOptions}`;
+            selectEl.value = currentVal;
+        }
+    }
+
+    const itemsListEl = document.getElementById('certs-items-list');
+    if (!itemsListEl) return;
+
+    let itemsHtml = '';
 
     if (filteredCerts.length === 0) {
         let emptyMsg = 'No se encontraron registros.';
@@ -533,8 +556,7 @@ window.renderTodayCerts = async function (forceFetch = false) {
         } else if (window.certsFilterMode === 'procesado') {
             emptyMsg = 'No hay certificaciones procesadas.';
         }
-        html += `<div class="p-10 text-center text-slate-400 font-bold italic">${emptyMsg}</div></div>`;
-        listEl.innerHTML = html;
+        itemsListEl.innerHTML = `<div class="p-10 text-center text-slate-400 font-bold italic">${emptyMsg}</div>`;
         return;
     }
 
@@ -562,7 +584,7 @@ window.renderTodayCerts = async function (forceFetch = false) {
             </button>`;
         }
 
-        html += `
+        itemsHtml += `
         <div class="flex justify-between items-center p-4 hover:bg-pink-50 transition-colors group">
             <div class="flex-1">
                 <div class="flex items-center gap-2 mb-0.5">
@@ -577,8 +599,7 @@ window.renderTodayCerts = async function (forceFetch = false) {
         </div>`;
     });
 
-    html += '</div>';
-    listEl.innerHTML = html;
+    itemsListEl.innerHTML = itemsHtml;
 };
 
 window.toggleCertStatus = async function (dni, cleanCourseName, studentName, newStatus, btnEl) {

@@ -339,6 +339,12 @@ window.openStaffHoursEditModal = function(staffName, dateStr) {
         }
     }
     
+    // Late Arrival Checkbox
+    const lateInput = document.getElementById('staff-hours-late-input');
+    if (lateInput) {
+        lateInput.checked = !!existing.late;
+    }
+    
     const modal = document.getElementById('staff-hours-edit-modal');
     if (modal) {
         modal.classList.remove('hidden');
@@ -400,10 +406,12 @@ window.saveStaffHoursEditModal = function() {
             frames.push({ start, end });
         }
     });
-    
     const isCaptain = (window.staffDatabase.capitanes || []).some(c => c.nombre === activeHoursStaffName);
     const salidasInput = document.getElementById('staff-hours-salidas-input');
     const salidas = (isCaptain && salidasInput) ? parseInt(salidasInput.value) || 0 : 0;
+    
+    const lateInput = document.getElementById('staff-hours-late-input');
+    const isLate = lateInput ? lateInput.checked : false;
     
     // Ensure workedHours structure exists
     if (!window.activeStaffSchedule.workedHours) {
@@ -413,13 +421,15 @@ window.saveStaffHoursEditModal = function() {
         window.activeStaffSchedule.workedHours[activeHoursStaffName] = {};
     }
     
+
     if (frames.length === 0 && salidas === 0) {
         // If empty, delete from map
         delete window.activeStaffSchedule.workedHours[activeHoursStaffName][activeHoursDateStr];
     } else {
         window.activeStaffSchedule.workedHours[activeHoursStaffName][activeHoursDateStr] = {
             frames: frames,
-            salidas: salidas
+            salidas: salidas,
+            late: isLate
         };
         
         // Remove day off status if hours are added
@@ -437,7 +447,7 @@ window.saveStaffHoursEditModal = function() {
             delete window.activeStaffSchedule.dayOffCategories[activeHoursStaffName][activeHoursDateStr];
         }
     }
-    
+
     // Optimistic Update: Close modal instantly to feel snappy, save in background
     window.saveStaffSchedule().catch(err => {
         console.error("Error saving staff schedule:", err);
@@ -917,14 +927,15 @@ window.renderStaffScheduleGrid = function() {
                             weeklySalidas[staff] += sals;
                         }
                         
-                        const dailyHrsStr = hrs > 0 ? `<span class="hours-badge-item badge-time">${hrs.toFixed(2).replace(/\.00$/, '').replace(/\.50$/, '.5')}h</span>` : '';
+                        const isLate = !!hoursData.late;
+                        const dailyHrsStr = hrs > 0 ? `<span class="hours-badge-item ${isLate ? 'bg-red-500 text-white font-extrabold shadow-sm' : 'badge-time'}">${hrs.toFixed(2).replace(/\.00$/, '').replace(/\.50$/, '.5')}h</span>` : '';
                         const salidasStr = sals > 0 ? `<span class="hours-badge-item badge-salidas">${sals} sal</span>` : '';
                         
                         const framesListHtml = (hoursData.frames || []).map(f => `<div>${f.start}-${f.end || '...'}</div>`).join('');
                         
                         cellContent = `
-                            <div class="hours-cell-container">
-                                <div class="hours-frames-list">
+                            <div class="hours-cell-container ${isLate ? 'late-arrival' : ''}">
+                                <div class="hours-frames-list ${isLate ? 'late-arrival' : ''}">
                                     ${framesListHtml || '<div>Trabajo</div>'}
                                 </div>
                                 <div class="hours-totals-col">

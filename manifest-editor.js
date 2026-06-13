@@ -790,6 +790,10 @@ function _renderGroupsCore(skipAutoSave = false) {
         `;
 
         group.guests.forEach((guest, guestIndex) => {
+            // Courses always include insurance
+            if (guest.course) {
+                guest.insurance = 'INC';
+            }
             // Live-heal isManual based on the CRM database profile status
             if (window.crmLoaded && guest.dni && typeof customerDatabase !== 'undefined') {
                 const crmMatch = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === window.normalizeSearchString(guest.dni));
@@ -1107,6 +1111,7 @@ function removeGroup(groupIndex) {
         renderGroups(); 
         // Force Garbage Collection 1.5s later to ensure Auto-Save finished deleting the dive
         dnis.forEach(dni => { if (window.cleanOrphanedInsurance) setTimeout(() => window.cleanOrphanedInsurance(dni), 1500); });
+        triggerAutoSave();
     }); 
 }
 
@@ -1677,6 +1682,11 @@ window.updateGuestInsuranceButton = function(groupIndex, guestIndex) {
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
     if (!guest) return;
     
+    // Courses always include insurance
+    if (guest.course) {
+        guest.insurance = 'INC';
+    }
+    
     let globalIns = null;
     let isInsExpired = false;
     if (guest.dni && !guest.course) {
@@ -2215,7 +2225,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                             rental: g.rental || 0,
                             computer: g.computer || 0,
                             computerPrice: g.computer ? (g.computerPrice || 7) : 0,
-                            insurance: g.insurance || 0,
+                            insurance: g.course ? 'INC' : (g.insurance || 0),
                             course: g.course || null,
                             baseCourse: g.baseCourse || null,
                             courseBadge: g.courseBadge || null,
@@ -2935,12 +2945,15 @@ window.queueSaveForTrip = function(item) {
         let lastSuccess = false;
         try {
             while (true) {
+                const writeStartTime = Date.now();
                 queue.hasPending = false;
                 hasPendingSave = Object.values(window.saveQueues).some(q => q.hasPending);
                 window.hasPendingSave = hasPendingSave;
                 
                 lastSuccess = await saveBoatData(queue.item);
-                if (!queue.hasPending) {
+                
+                const hasNewEdits = (window.lastLocalEditTime || 0) > writeStartTime;
+                if (!queue.hasPending || !hasNewEdits) {
                     break;
                 }
             }
@@ -3265,7 +3278,18 @@ window.mergeManifests = function(base, local, remote) {
         });
     }
 
-    merged.groups = mergedGroups;
+    // Filter out completely empty groups, unless they are explicitly present in local.groups
+    let filteredGroups = mergedGroups.filter((g, i) => {
+        const hasGuide = g.guide && g.guide.trim() !== '';
+        const hasApoyo = g.apoyo && g.apoyo.trim() !== '';
+        const hasGuests = g.guests && g.guests.length > 0;
+        const existsInLocal = i < (local.groups || []).length;
+        return hasGuide || hasApoyo || hasGuests || existsInLocal;
+    });
+    if (filteredGroups.length === 0) {
+        filteredGroups = [{ guide: '', apoyo: '', guests: [] }];
+    }
+    merged.groups = filteredGroups;
     return merged;
 };
 
@@ -3716,7 +3740,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                         rental: gst.rental || 0,
                         computer: gst.computer || 0,
                         computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
-                        insurance: gst.insurance || 0,
+                        insurance: gst.course ? 'INC' : (gst.insurance || 0),
                         course: gst.course || null,           
                         baseCourse: gst.baseCourse || null,   
                         courseBadge: gst.courseBadge || null, 
@@ -3781,18 +3805,18 @@ window.manualSaveBoatData = async function(andClose = false) {
     if (btnClose) btnClose.disabled = true;
     showToast("⏳ Guardando salida internamente...");
 
-    // Sync DOM to RAM synchronously before yielding to prevent race conditions
-    syncDOMToActiveBoatItem();
-
-    if (andClose) {
-        // Instantly hide the modal visually to make the UI feel blazing fast!
-        document.getElementById('manage-boat-modal').classList.add('hidden');
-        // Clear active state immediately to prevent background race conditions (e.g. reopening same trip)
-        activeBoatItem = null;
-        window.clearModalHistory();
-    }
-
     try {
+        // Sync DOM to RAM synchronously before yielding to prevent race conditions
+        syncDOMToActiveBoatItem();
+
+        if (andClose) {
+            // Instantly hide the modal visually to make the UI feel blazing fast!
+            document.getElementById('manage-boat-modal').classList.add('hidden');
+            // Clear active state immediately to prevent background race conditions (e.g. reopening same trip)
+            activeBoatItem = null;
+            window.clearModalHistory();
+        }
+
         const success = await window.queueSaveForTrip(itemToSave);
         if (success) {
             showToast("✅ Salida guardada con éxito");
@@ -3805,8 +3829,8 @@ window.manualSaveBoatData = async function(andClose = false) {
             }
         }
     } catch (err) {
-        console.error(err);
-        showAppAlert("No se pudo guardar la salida. Comprueba tu conexión.");
+        console.error("Error in manualSaveBoatData:", err);
+        showAppAlert("No se pudo guardar la salida. Comprueba tu conexión o revisa los datos.");
         if (andClose) {
             activeBoatItem = itemToSave; // Restore active state
             document.getElementById('manage-boat-modal').classList.remove('hidden');

@@ -975,7 +975,7 @@ window.handleDrop = async function(event, targetBoat, targetTime) {
                         assignedBoat: updatedTrip.assignedBoat || '',
                         gas: gst.gas || '15L Aire',
                         rental: gst.rental || 0,
-                        insurance: gst.insurance || 0,
+                        insurance: gst.course ? 'INC' : (gst.insurance || 0),
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                     historyWrites++;

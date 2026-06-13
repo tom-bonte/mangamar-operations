@@ -388,13 +388,32 @@ window.incrementStaffViewDate = function(days) {
     window.runStaffViewsFilter();
 };
 
-window.runStaffViewsFilter = function() {
+window.runStaffViewsFilter = async function() {
     const val = document.getElementById('staff-views-dropdown').value;
     const timelineContainer = document.getElementById('staff-views-timeline');
     
     // Calculate Filtering Boundaries
     const activeDateValue = document.getElementById('staff-views-date').value;
     const activeDate = activeDateValue ? new Date(activeDateValue) : new Date();
+
+    // Fetch schedule columns for the viewed month to order staff identical to Horario
+    if (activeDateValue) {
+        const [y, m] = activeDateValue.split('-');
+        const monthKey = `${y}-${m}`;
+        if (!window.staffViewsSchedule || window.staffViewsSchedule.monthKey !== monthKey) {
+            try {
+                const doc = await db.collection('mangamar_staff_schedule').doc(monthKey).get();
+                if (doc.exists) {
+                    window.staffViewsSchedule = doc.data();
+                } else {
+                    window.staffViewsSchedule = { monthKey: monthKey, columns: [] };
+                }
+            } catch (e) {
+                console.error("Error loading schedule for views:", e);
+                window.staffViewsSchedule = { monthKey: monthKey, columns: [] };
+            }
+        }
+    }
 
     if (!val) {
         if (window.staffViewMode === 'diario') {
@@ -802,11 +821,29 @@ function renderDailyGeneralStaffView(dateStr, container) {
         ...captains.map(c => c.nombre),
         ...guides.map(g => g.nombre)
     ];
+    const scheduleCols = window.staffViewsSchedule?.columns || [];
+    const getStaffIndex = (name) => {
+        const idx = scheduleCols.indexOf(name);
+        return idx !== -1 ? idx : 9999;
+    };
+    const isCaptain = (name) => captains.some(c => c.nombre === name);
+
     // Filter to only include staff members with assignments today
     const uniqueActiveStaffNames = [...new Set(allStaffNames)].filter(name => {
         const assigns = getAssignments(name);
         return assigns.length > 0;
-    }).sort((a, b) => a.localeCompare(b));
+    }).sort((a, b) => {
+        const idxA = getStaffIndex(a);
+        const idxB = getStaffIndex(b);
+        if (idxA !== idxB) {
+            return idxA - idxB;
+        }
+        const aIsCap = isCaptain(a);
+        const bIsCap = isCaptain(b);
+        if (aIsCap && !bIsCap) return -1;
+        if (!aIsCap && bIsCap) return 1;
+        return a.localeCompare(b);
+    });
 
     // Extract unique time slots for today
     const timeSlots = [...new Set(dayTrips.map(t => t.time))].filter(Boolean).sort();
@@ -957,7 +994,25 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
         ...captains.map(c => c.nombre),
         ...guides.map(g => g.nombre)
     ];
-    const uniqueStaffNames = [...new Set(allStaffNames)].sort((a, b) => a.localeCompare(b));
+    const scheduleCols = window.staffViewsSchedule?.columns || [];
+    const getStaffIndex = (name) => {
+        const idx = scheduleCols.indexOf(name);
+        return idx !== -1 ? idx : 9999;
+    };
+    const isCaptain = (name) => captains.some(c => c.nombre === name);
+
+    const uniqueStaffNames = [...new Set(allStaffNames)].sort((a, b) => {
+        const idxA = getStaffIndex(a);
+        const idxB = getStaffIndex(b);
+        if (idxA !== idxB) {
+            return idxA - idxB;
+        }
+        const aIsCap = isCaptain(a);
+        const bIsCap = isCaptain(b);
+        if (aIsCap && !bIsCap) return -1;
+        if (!aIsCap && bIsCap) return 1;
+        return a.localeCompare(b);
+    });
 
     // Helper to get number of assignments for a person on a specific date
     const getWorkload = (name, dateStr) => {

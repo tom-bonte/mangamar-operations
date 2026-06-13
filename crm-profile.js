@@ -277,7 +277,7 @@ setTimeout(() => {
             p.dive = 0;
             p.tasa = 0;
             if (data.rental === 'INC') p.rental = 0;
-            if (data.insurance === 'INC') p.insurance = 0;
+            p.insurance = 0; // Course always includes insurance
         }
 
         let isCovered = false;
@@ -1247,7 +1247,7 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
                 p.dive = 0;
                 p.tasa = 0;
                 if (data.rental === 'INC') p.rental = 0;
-                if (data.insurance === 'INC') p.insurance = 0;
+                p.insurance = 0; // Course always includes insurance
             }
 
             let cleanIns = (data.insurance || 0).toString().replace(' ✔', '');
