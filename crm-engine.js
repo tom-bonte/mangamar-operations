@@ -52,6 +52,7 @@ window.toggleTodaySort = function () {
 window.todayFilterMode = 'pending';
 
 window.certsFilterMode = 'pendiente';
+window.certsSortMode = 'date-desc';
 window.certsSearchQuery = '';
 window.certsCourseFilter = '';
 window.lastFetchedCerts = null;
@@ -75,14 +76,29 @@ window.setTodayFilter = function (mode) {
 window.setCertsFilter = function (mode) {
     window.certsFilterMode = mode;
     const btnPending = document.getElementById('sub-filter-certs-pending');
+    const btnFuture = document.getElementById('sub-filter-certs-future');
     const btnProcessed = document.getElementById('sub-filter-certs-processed');
 
-    if (mode === 'pendiente') {
-        if (btnPending) btnPending.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-pink-200 bg-pink-50 text-pink-700 tracking-wider shadow-sm transition-all";
-        if (btnProcessed) btnProcessed.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-emerald-600 transition-all tracking-wider";
-    } else {
-        if (btnProcessed) btnProcessed.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 tracking-wider shadow-sm transition-all";
-        if (btnPending) btnPending.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-pink-600 transition-all tracking-wider";
+    if (btnPending) {
+        if (mode === 'pendiente') {
+            btnPending.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-amber-200 bg-amber-50 text-amber-700 tracking-wider shadow-sm transition-all";
+        } else {
+            btnPending.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-amber-600 transition-all tracking-wider";
+        }
+    }
+    if (btnFuture) {
+        if (mode === 'futuro') {
+            btnFuture.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-blue-200 bg-blue-50 text-blue-700 tracking-wider shadow-sm transition-all";
+        } else {
+            btnFuture.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 transition-all tracking-wider";
+        }
+    }
+    if (btnProcessed) {
+        if (mode === 'procesado') {
+            btnProcessed.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 tracking-wider shadow-sm transition-all";
+        } else {
+            btnProcessed.className = "px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-emerald-600 transition-all tracking-wider";
+        }
     }
 
     window.certsSearchQuery = '';
@@ -401,13 +417,15 @@ window.switchTodayTab = async function (tabId) {
 window.renderTodayCerts = async function (forceFetch = false) {
     const listEl = document.getElementById('today-divers-list');
 
+    const dbMode = (window.certsFilterMode === 'pendiente' || window.certsFilterMode === 'futuro') ? 'db_pending' : 'db_processed';
+
     // 1. Fetching Logic
-    if (forceFetch || window.lastFetchedCertsMode !== window.certsFilterMode || window.lastFetchedCerts === null) {
+    if (forceFetch || window.lastFetchedCertsMode !== dbMode || window.lastFetchedCerts === null) {
         listEl.innerHTML = '<div class="p-10 text-center text-slate-500 font-bold flex flex-col items-center"><svg class="animate-spin h-8 w-8 text-pink-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Escaneando base de datos (' + window.certsFilterMode + ')...</div>';
 
         try {
             let snap;
-            if (window.certsFilterMode === 'pendiente') {
+            if (dbMode === 'db_pending') {
                 snap = await db.collectionGroup('history').where('certStatus', '==', 'pendiente').get();
             } else {
                 snap = await db.collectionGroup('history').where('certStatus', '==', 'procesado').orderBy('processedAt', 'desc').limit(150).get();
@@ -422,6 +440,10 @@ window.renderTodayCerts = async function (forceFetch = false) {
 
                 let rawCourse = data.course || data.baseCourse || 'Curso Desconocido';
                 let cleanCourse = rawCourse.split(' | ')[0].trim();
+                
+                // Skip snorkelers as they don't need to be certified
+                if (cleanCourse.toLowerCase().includes('snorkel')) return;
+
                 let uniqKey = dni + '_' + cleanCourse;
 
                 if (!tempCertsMap.has(uniqKey)) {
@@ -434,11 +456,8 @@ window.renderTodayCerts = async function (forceFetch = false) {
             });
 
             let certs = Array.from(tempCertsMap.values());
-
-            // Fallback sorting: Newest primary date bounds
-            certs.sort((a, b) => b.date.localeCompare(a.date));
             window.lastFetchedCerts = certs;
-            window.lastFetchedCertsMode = window.certsFilterMode;
+            window.lastFetchedCertsMode = dbMode;
         } catch (e) {
             console.error("CERT_QUERY_ERROR", e);
             listEl.innerHTML = `<div class="p-8 text-center text-red-600"><div class="font-black text-lg">Error de Índice Firebase</div><div class="text-xs mt-2 text-slate-500 font-bold break-all">${e.message}</div></div>`;
@@ -447,7 +466,21 @@ window.renderTodayCerts = async function (forceFetch = false) {
     }
 
     // 2. Local Filtering
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
     let filteredCerts = window.lastFetchedCerts.filter(item => {
+        if (dbMode === 'db_pending') {
+            if (window.certsFilterMode === 'pendiente') {
+                if (item.date > todayStr) return false;
+            } else if (window.certsFilterMode === 'futuro') {
+                if (item.date <= todayStr) return false;
+            }
+        }
+
         let matchSearch = true;
         let matchCourse = true;
 
@@ -459,6 +492,21 @@ window.renderTodayCerts = async function (forceFetch = false) {
             matchCourse = item.course.toLowerCase().includes(window.certsCourseFilter.toLowerCase());
         }
         return matchSearch && matchCourse;
+    });
+
+    // 2.5 Local Sorting
+    const sortMode = window.certsSortMode || 'date-desc';
+    filteredCerts.sort((a, b) => {
+        if (sortMode === 'date-desc') {
+            return b.date.localeCompare(a.date) || a.nombre.localeCompare(b.nombre);
+        } else if (sortMode === 'date-asc') {
+            return a.date.localeCompare(b.date) || a.nombre.localeCompare(b.nombre);
+        } else if (sortMode === 'name-asc') {
+            return a.nombre.localeCompare(b.nombre) || b.date.localeCompare(a.date);
+        } else if (sortMode === 'name-desc') {
+            return b.nombre.localeCompare(a.nombre) || b.date.localeCompare(a.date);
+        }
+        return 0;
     });
 
     // 3. Render HTML
@@ -477,22 +525,40 @@ window.renderTodayCerts = async function (forceFetch = false) {
     `;
 
     if (filteredCerts.length === 0) {
-        html += `<div class="p-10 text-center text-slate-400 font-bold italic">${window.certsFilterMode === 'pendiente' ? 'No hay certificaciones pendientes. 🎉' : 'No se encontraron registros.'}</div></div>`;
+        let emptyMsg = 'No se encontraron registros.';
+        if (window.certsFilterMode === 'pendiente') {
+            emptyMsg = 'No hay certificaciones pendientes hasta hoy. 🎉';
+        } else if (window.certsFilterMode === 'futuro') {
+            emptyMsg = 'No hay certificaciones futuras programadas.';
+        } else if (window.certsFilterMode === 'procesado') {
+            emptyMsg = 'No hay certificaciones procesadas.';
+        }
+        html += `<div class="p-10 text-center text-slate-400 font-bold italic">${emptyMsg}</div></div>`;
         listEl.innerHTML = html;
         return;
     }
 
     filteredCerts.forEach(item => {
         let actionBtn = '';
-        if (window.certsFilterMode === 'pendiente') {
+        if (dbMode === 'db_pending') {
             actionBtn = `
-            <button onclick="toggleCertStatus('${item.dni}', '${item.course.replace(/'/g, "\\'")}', '${item.nombre.replace(/'/g, "\\'")}', 'procesado')" class="px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white rounded-xl text-xs font-black transition-all border border-amber-100 shadow-sm flex items-center gap-1.5 focus:scale-95">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Pendiente
+            <button onclick="toggleCertStatus('${item.dni}', '${item.course.replace(/'/g, "\\'")}', '${item.nombre.replace(/'/g, "\\'")}', 'procesado', this)" class="group px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white rounded-xl text-xs font-black transition-all border border-amber-100 shadow-sm flex items-center gap-1.5 focus:scale-95 cursor-pointer min-w-[100px] justify-center">
+                <span class="inline-flex items-center gap-1.5 group-hover:hidden">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Pendiente
+                </span>
+                <span class="hidden group-hover:inline-flex items-center gap-1.5">
+                    ⚡ Procesar
+                </span>
             </button>`;
         } else {
             actionBtn = `
-            <button onclick="toggleCertStatus('${item.dni}', '${item.course.replace(/'/g, "\\'")}', '${item.nombre.replace(/'/g, "\\'")}', 'pendiente')" class="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl text-xs font-black transition-all border border-emerald-100 shadow-sm flex items-center gap-1.5 focus:scale-95">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Procesado
+            <button onclick="toggleCertStatus('${item.dni}', '${item.course.replace(/'/g, "\\'")}', '${item.nombre.replace(/'/g, "\\'")}', 'pendiente', this)" class="group px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl text-xs font-black transition-all border border-emerald-100 shadow-sm flex items-center gap-1.5 focus:scale-95 cursor-pointer min-w-[100px] justify-center">
+                <span class="inline-flex items-center gap-1.5 group-hover:hidden">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Procesado
+                </span>
+                <span class="hidden group-hover:inline-flex items-center gap-1.5">
+                    ↩️ Revertir
+                </span>
             </button>`;
         }
 
@@ -515,7 +581,17 @@ window.renderTodayCerts = async function (forceFetch = false) {
     listEl.innerHTML = html;
 };
 
-window.toggleCertStatus = async function (dni, cleanCourseName, studentName, newStatus) {
+window.toggleCertStatus = async function (dni, cleanCourseName, studentName, newStatus, btnEl) {
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.style.pointerEvents = 'none';
+        btnEl.innerHTML = `
+            <svg class="animate-spin h-3.5 w-3.5 text-current mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        `;
+    }
     try {
         const snap = await db.collection('mangamar_customers').doc(dni).collection('history').get();
         let batch = db.batch();
@@ -543,10 +619,16 @@ window.toggleCertStatus = async function (dni, cleanCourseName, studentName, new
             renderTodayCerts(true);
         } else {
             console.warn("No data matched to update certStatus.");
+            if (btnEl) {
+                renderTodayCerts();
+            }
         }
     } catch (e) {
         console.error(e);
         showAppAlert("Error al actualizar certificación.");
+        if (btnEl) {
+            renderTodayCerts();
+        }
     }
 };
 

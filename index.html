@@ -2353,9 +2353,16 @@
                         <button onclick="setTodayFilter('paid')" id="sub-filter-paid" class="px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-emerald-600 transition-all tracking-wider">PAGADOS</button>
                     </div>
                     <!-- Sub-filter just for Certificaciones -->
-                    <div id="subnav-certs" class="flex gap-2 self-end mt-1 hidden">
-                        <button onclick="setCertsFilter('pendiente')" id="sub-filter-certs-pending" class="px-3 py-1 text-[10px] font-black rounded-lg border border-pink-200 bg-pink-50 text-pink-700 tracking-wider shadow-sm transition-all">PENDIENTES</button>
-                        <button onclick="setCertsFilter('procesado')" id="sub-filter-certs-processed" class="px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-emerald-600 transition-all tracking-wider">PROCESADOS</button>
+                    <div id="subnav-certs" class="flex gap-2 flex-wrap items-center self-end mt-1 hidden">
+                        <button onclick="setCertsFilter('pendiente')" id="sub-filter-certs-pending" class="px-3 py-1 text-[10px] font-black rounded-lg border border-amber-200 bg-amber-50 text-amber-700 tracking-wider shadow-sm transition-all">PENDIENTES</button>
+                        <button onclick="setCertsFilter('futuro')" id="sub-filter-certs-future" class="px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 transition-all tracking-wider">FUTUROS</button>
+                        <button onclick="setCertsFilter('procesado')" id="sub-filter-certs-processed" class="px-3 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-emerald-600 transition-all tracking-wider">PROCESADO</button>
+                        <select id="certs-sort-select" onchange="window.certsSortMode=this.value; renderTodayCerts()" class="px-2 py-1 text-[10px] font-black rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm focus:outline-none focus:ring-1 focus:ring-pink-400 cursor-pointer">
+                            <option value="date-desc">Fecha ↓</option>
+                            <option value="date-asc">Fecha ↑</option>
+                            <option value="name-asc">Nombre A-Z</option>
+                            <option value="name-desc">Nombre Z-A</option>
+                        </select>
                     </div>
                 </div>
                 <div id="today-divers-list" class="divide-y divide-slate-100 flex-1 overflow-y-auto"></div>
