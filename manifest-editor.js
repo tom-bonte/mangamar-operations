@@ -583,6 +583,40 @@ function checkDiverConflict(dni, fullName, skipGroupIdx = -1, skipGuestIdx = -1)
     return { conflict: false, where: "" };
 }
 
+// SETUP CUSTOM LIGHTWEIGHT DRAG IMAGE FOR DIVERS
+window.handleDiverDragStart = function(event, name, groupIdx, guestIdx) {
+    document.body.classList.add('is-dragging');
+    if (typeof window.hideManifestHoverPopup === 'function') {
+        window.hideManifestHoverPopup();
+    }
+    const dragImage = document.createElement('div');
+    dragImage.innerText = name || 'Buzo';
+    dragImage.style.position = 'absolute';
+    dragImage.style.top = '-1000px';
+    dragImage.style.left = '-1000px';
+    dragImage.style.padding = '8px 16px';
+    dragImage.style.background = '#f97316'; // Vibrant orange
+    dragImage.style.color = '#ffffff';
+    dragImage.style.fontWeight = 'bold';
+    dragImage.style.fontSize = '12px';
+    dragImage.style.borderRadius = '20px';
+    dragImage.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+    dragImage.style.pointerEvents = 'none';
+    dragImage.style.zIndex = '9999';
+    
+    document.body.appendChild(dragImage);
+    event.dataTransfer.setDragImage(dragImage, 15, 15);
+    
+    // Clean up drag image element on next tick
+    setTimeout(() => {
+        if (dragImage.parentNode) {
+            dragImage.parentNode.removeChild(dragImage);
+        }
+    }, 0);
+
+    event.dataTransfer.setData('diverInfo', JSON.stringify({ fromGroup: groupIdx, guestIdx: guestIdx }));
+};
+
 // HANDLES MOVING A DIVER FROM ONE GROUP TO ANOTHER
 window.handleDiverMove = function(event, targetGroupIdx, targetGuestIdx = -1) {
     const data = event.dataTransfer.getData('diverInfo');
@@ -594,17 +628,24 @@ window.handleDiverMove = function(event, targetGroupIdx, targetGuestIdx = -1) {
     // Remove from original position
     activeBoatItem.groups[fromGroup].guests.splice(guestIdx, 1);
     
+    // Adjust target index if dropping downwards in the same group
+    let targetIdx = targetGuestIdx;
+    if (fromGroup === targetGroupIdx && targetIdx !== -1 && targetIdx > guestIdx) {
+        targetIdx--;
+    }
+
     // Insert at target position
-    if (targetGuestIdx === -1) {
+    if (targetIdx === -1) {
         // Dropped on header (add to end of group)
         activeBoatItem.groups[targetGroupIdx].guests.push(diver);
     } else {
         // Dropped on a specific row (insert exactly there)
-        activeBoatItem.groups[targetGroupIdx].guests.splice(targetGuestIdx, 0, diver);
+        activeBoatItem.groups[targetGroupIdx].guests.splice(targetIdx, 0, diver);
     }
     
     renderGroups();
 };
+
 
 // RAF-debounced public entry point for group rendering.
 // Any calls fired within the same animation frame are coalesced: only the last one
@@ -750,14 +791,14 @@ function _renderGroupsCore(skipAutoSave = false) {
 
         group.guests.forEach((guest, guestIndex) => {
             // Live-heal isManual based on the CRM database profile status
-            if (guest.dni && typeof customerDatabase !== 'undefined') {
+            if (window.crmLoaded && guest.dni && typeof customerDatabase !== 'undefined') {
                 const crmMatch = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === window.normalizeSearchString(guest.dni));
                 if (crmMatch) {
                     guest.isManual = !window.isProfileComplete(crmMatch);
                 } else {
                     guest.isManual = true;
                 }
-            } else if (!guest.dni) {
+            } else if (window.crmLoaded && !guest.dni) {
                 guest.isManual = true;
             }
 
@@ -976,7 +1017,8 @@ function _renderGroupsCore(skipAutoSave = false) {
                 <tr draggable="${window.isLoggedIn ? 'true' : 'false'}"
                     id="guest-row-${groupIndex}-${guestIndex}"
                     onmousedown="if(window.isLoggedIn) { this.draggable = !event.target.closest('button, input, select, .absolute'); }"
-                    ondragstart="event.dataTransfer.setData('diverInfo', JSON.stringify({fromGroup: ${groupIndex}, guestIdx: ${guestIndex}}))"
+                    ondragstart="window.handleDiverDragStart(event, '${(guest.nombre || '').replace(/'/g, "\\'")}', ${groupIndex}, ${guestIndex})"
+                    ondragend="document.body.classList.remove('is-dragging')"
                     ondragover="event.preventDefault(); this.classList.add('bg-blue-100')"
                     ondragleave="this.classList.remove('bg-blue-100')"
                     ondrop="event.preventDefault(); this.classList.remove('bg-blue-100'); handleDiverMove(event, ${groupIndex}, ${guestIndex})"
@@ -2918,8 +2960,10 @@ window.queueSaveForTrip = function(item) {
             queue.resolvers = [];
             currentResolvers.forEach(res => res(lastSuccess));
             
-            if (window.activeBoatItem && window.activeBoatItem.id === tripId && lastSuccess) {
-                window.isManifestDirty = false;
+            if (lastSuccess) {
+                if (!window.activeBoatItem || window.activeBoatItem.id === tripId) {
+                    window.isManifestDirty = false;
+                }
             }
         }
     })();
@@ -3017,18 +3061,8 @@ window.mergeManifests = function(base, local, remote) {
         const inLocal = localGuests.get(key);
         const inRemote = remoteGuests.get(key);
 
-        if (inLocal && !inBase) {
-            // Added by us
-            mergedGuests.push({
-                guest: { ...inLocal.guest },
-                targetGrpIdx: inLocal.grpIdx
-            });
-        } else if (inBase && !inLocal) {
-            // Deleted by us
-        } else if (inRemote && !inLocal) {
-            // Deleted by them
-        } else if (inRemote && inLocal) {
-            // Existed in both. Merge properties
+        if (inLocal && inRemote) {
+            // Existed in both local and remote. Merge properties.
             const baseG = inBase ? inBase.guest : {};
             const localG = inLocal.guest;
             const remoteG = inRemote.guest;
@@ -3054,34 +3088,56 @@ window.mergeManifests = function(base, local, remote) {
             }
             
             let targetGrpIdx = inRemote.grpIdx;
-            if (inBase && inLocal.grpIdx !== inBase.grpIdx) {
-                targetGrpIdx = inLocal.grpIdx; // We moved the guest to another group
+            if (inBase) {
+                if (inLocal.grpIdx !== inBase.grpIdx) {
+                    targetGrpIdx = inLocal.grpIdx; // We moved the guest to another group
+                }
+            } else {
+                // No base exists. If local group index differs from remote, let local win
+                if (inLocal.grpIdx !== inRemote.grpIdx) {
+                    targetGrpIdx = inLocal.grpIdx;
+                }
             }
+            
             mergedGuests.push({
                 guest: mergedG,
                 targetGrpIdx: targetGrpIdx
             });
-        } else if (inRemote && !inBase) {
-            // Added by them
-            mergedGuests.push({
-                guest: { ...inRemote.guest },
-                targetGrpIdx: inRemote.grpIdx
-            });
-        } else if (inLocal && inBase && !inRemote) {
-            // Deleted remotely. Check if we modified the guest locally.
-            const baseG = inBase.guest;
-            const localG = inLocal.guest;
-            let modified = false;
-            for (const prop in localG) {
-                if (localG[prop] !== baseG[prop]) {
-                    modified = true;
-                    break;
+        } else if (inLocal && !inRemote) {
+            // In local but not in remote.
+            if (inBase) {
+                // Deleted remotely. Check if we modified the guest locally.
+                const baseG = inBase.guest;
+                const localG = inLocal.guest;
+                let modified = false;
+                for (const prop in localG) {
+                    if (localG[prop] !== baseG[prop]) {
+                        modified = true;
+                        break;
+                    }
                 }
-            }
-            if (modified) {
+                if (modified) {
+                    mergedGuests.push({
+                        guest: { ...localG },
+                        targetGrpIdx: inLocal.grpIdx
+                    });
+                }
+            } else {
+                // Added by us (locally added guest)
                 mergedGuests.push({
-                    guest: { ...localG },
+                    guest: { ...inLocal.guest },
                     targetGrpIdx: inLocal.grpIdx
+                });
+            }
+        } else if (inRemote && !inLocal) {
+            // In remote but not in local.
+            if (inBase) {
+                // Deleted by us. Discard.
+            } else {
+                // Added by them (remotely added guest)
+                mergedGuests.push({
+                    guest: { ...inRemote.guest },
+                    targetGrpIdx: inRemote.grpIdx
                 });
             }
         }
@@ -3123,6 +3179,92 @@ window.mergeManifests = function(base, local, remote) {
         mergedGroups[mg.targetGrpIdx].guests.push(mg.guest);
     });
 
+    // Sort guests in each reconstructed group to preserve local drag-and-drop order
+    for (let i = 0; i <= maxGrpIdx; i++) {
+        const baseGrp = (base.groups || [])[i] || {};
+        const localGrp = (local.groups || [])[i] || {};
+        const remoteGrp = (remote.groups || [])[i] || {};
+        
+        const guestsToSort = mergedGroups[i].guests;
+        const weights = new Map();
+        
+        // 1. Assign weights from local group order (base index * 10)
+        (localGrp.guests || []).forEach((g, idx) => {
+            const key = getGuestKey(g);
+            if (key) {
+                weights.set(key, idx * 10);
+            }
+        });
+        
+        // 2. For guests not in localGrp, resolve their positions relative to neighbors in remoteGrp or baseGrp
+        guestsToSort.forEach((g) => {
+            const key = getGuestKey(g);
+            if (!key || weights.has(key)) return;
+            
+            // Find refList
+            let refList = null;
+            let refIdx = -1;
+            
+            if (remoteGrp.guests) {
+                refIdx = remoteGrp.guests.findIndex(rg => getGuestKey(rg) === key);
+                if (refIdx !== -1) refList = remoteGrp.guests;
+            }
+            if (refIdx === -1 && baseGrp.guests) {
+                refIdx = baseGrp.guests.findIndex(bg => getGuestKey(bg) === key);
+                if (refIdx !== -1) refList = baseGrp.guests;
+            }
+            
+            if (refList && refIdx !== -1) {
+                // Find nearest predecessor with a weight
+                let pi = -1;
+                let pw = null;
+                for (let j = refIdx - 1; j >= 0; j--) {
+                    const pk = getGuestKey(refList[j]);
+                    if (weights.has(pk)) {
+                        pi = j;
+                        pw = weights.get(pk);
+                        break;
+                    }
+                }
+                
+                // Find nearest successor with a weight
+                let si = -1;
+                let sw = null;
+                for (let j = refIdx + 1; j < refList.length; j++) {
+                    const sk = getGuestKey(refList[j]);
+                    if (weights.has(sk)) {
+                        si = j;
+                        sw = weights.get(sk);
+                        break;
+                    }
+                }
+                
+                if (pw !== null && sw !== null) {
+                    const val = pw + (sw - pw) * (refIdx - pi) / (si - pi);
+                    weights.set(key, val);
+                } else if (pw !== null) {
+                    const val = pw + 10 * (refIdx - pi);
+                    weights.set(key, val);
+                } else if (sw !== null) {
+                    const val = sw - 10 * (si - refIdx);
+                    weights.set(key, val);
+                } else {
+                    weights.set(key, refIdx * 10);
+                }
+            } else {
+                // Not in remote or base group
+                weights.set(key, 10000 + guestsToSort.indexOf(g));
+            }
+        });
+        
+        // Sort the guests in-place using the calculated weights
+        guestsToSort.sort((a, b) => {
+            const wA = weights.get(getGuestKey(a)) ?? 0;
+            const wB = weights.get(getGuestKey(b)) ?? 0;
+            return wA - wB;
+        });
+    }
+
     merged.groups = mergedGroups;
     return merged;
 };
@@ -3153,16 +3295,9 @@ function mergeGuestArrays(baseList, localList, remoteList) {
         const inLocal = localMap.get(key);
         const inRemote = remoteMap.get(key);
 
-        if (inLocal && !inBase) {
-            mergedList.push({ ...inLocal });
-        } else if (inBase && !inLocal) {
-            // Deleted by us
-        } else if (inRemote && !inLocal) {
-            // Deleted by them
-        } else if (inRemote && inLocal) {
+        if (inLocal && inRemote) {
+            // Merge properties
             const mergedG = { ...inRemote };
-            
-            // 1. Handle properties deleted in inLocal (existed in inBase but no longer in inLocal or is undefined)
             if (inBase) {
                 for (const prop in inBase) {
                     if (inLocal[prop] === undefined) {
@@ -3170,8 +3305,6 @@ function mergeGuestArrays(baseList, localList, remoteList) {
                     }
                 }
             }
-
-            // 2. Handle properties modified/added in inLocal
             for (const prop in inLocal) {
                 if (inLocal[prop] !== (inBase ? inBase[prop] : undefined)) {
                     if (inLocal[prop] === undefined) {
@@ -3182,19 +3315,29 @@ function mergeGuestArrays(baseList, localList, remoteList) {
                 }
             }
             mergedList.push(mergedG);
-        } else if (inRemote && !inBase) {
-            mergedList.push({ ...inRemote });
-        } else if (inLocal && inBase && !inRemote) {
-            // Deleted remotely. Check if modified locally.
-            let modified = false;
-            for (const prop in inLocal) {
-                if (inLocal[prop] !== (inBase ? inBase[prop] : undefined)) {
-                    modified = true;
-                    break;
+        } else if (inLocal && !inRemote) {
+            if (inBase) {
+                // Deleted remotely. Keep if modified locally.
+                let modified = false;
+                for (const prop in inLocal) {
+                    if (inLocal[prop] !== inBase[prop]) {
+                        modified = true;
+                        break;
+                    }
                 }
-            }
-            if (modified) {
+                if (modified) {
+                    mergedList.push({ ...inLocal });
+                }
+            } else {
+                // Added by us
                 mergedList.push({ ...inLocal });
+            }
+        } else if (inRemote && !inLocal) {
+            if (inBase) {
+                // Deleted by us. Discard.
+            } else {
+                // Added by them
+                mergedList.push({ ...inRemote });
             }
         }
     }
@@ -3644,6 +3787,9 @@ window.manualSaveBoatData = async function(andClose = false) {
     if (andClose) {
         // Instantly hide the modal visually to make the UI feel blazing fast!
         document.getElementById('manage-boat-modal').classList.add('hidden');
+        // Clear active state immediately to prevent background race conditions (e.g. reopening same trip)
+        activeBoatItem = null;
+        window.clearModalHistory();
     }
 
     try {
@@ -3651,21 +3797,18 @@ window.manualSaveBoatData = async function(andClose = false) {
         if (success) {
             showToast("✅ Salida guardada con éxito");
             window.isManifestDirty = false; // Reset dirty state
-            if (andClose && activeBoatItem === itemToSave) {
-                // Clean up state completely after background save completes successfully
-                activeBoatItem = null;
-                window.clearModalHistory();
-            }
         } else {
             // Validation or conflict failed! Bring the modal back so they can fix it
-            if (andClose && activeBoatItem === itemToSave) {
+            if (andClose) {
+                activeBoatItem = itemToSave; // Restore active state
                 document.getElementById('manage-boat-modal').classList.remove('hidden');
             }
         }
     } catch (err) {
         console.error(err);
         showAppAlert("No se pudo guardar la salida. Comprueba tu conexión.");
-        if (andClose && activeBoatItem === itemToSave) {
+        if (andClose) {
+            activeBoatItem = itemToSave; // Restore active state
             document.getElementById('manage-boat-modal').classList.remove('hidden');
         }
     } finally {
@@ -4471,6 +4614,10 @@ document.getElementById('guest-note-input') && document.getElementById('guest-no
 
         // Add document-level event delegation for mouseover/mouseout
         document.body.addEventListener('mouseover', (e) => {
+            if (document.body.classList.contains('is-dragging')) {
+                window.hideManifestHoverPopup();
+                return;
+            }
             // 1. Guest Name Hover
             const nameEl = e.target.closest('.manifest-guest-name');
             if (nameEl) {

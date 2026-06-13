@@ -950,3 +950,10 @@ body.is-dragging .tooltip-content {
 .week-summary-text-sal {
     color: #1d4ed8; /* blue-700 */
 }
+
+/* Snappy drag and drop performance overrides */
+body.is-dragging,
+body.is-dragging * {
+    transition: none !important;
+    animation: none !important;
+}
