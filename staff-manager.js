@@ -65,12 +65,12 @@ function renderStaffView() {
                     roleBadge = `<span class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${badgeColor}">${person.role}</span>`;
                 }
                 return `
-                <div class="flex items-center gap-3 pl-1">
+                <div class="flex items-center gap-3 pl-1 flex-1 min-w-0">
                     <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black ${avatarColor} shadow-inner shrink-0">
                         ${getInitials(person.nombre)}
                     </div>
-                    <div class="flex flex-col justify-center min-w-0">
-                        <div class="flex items-center gap-2">
+                    <div class="flex flex-col justify-center min-w-0 flex-1">
+                        <div class="flex items-center gap-2 min-w-0">
                             <div class="font-bold text-slate-800 text-sm leading-tight truncate">${person.nombre}</div>
                             <div class="text-[10px] text-slate-400 font-mono tracking-widest uppercase flex items-center gap-1 shrink-0">
                                 <svg class="w-3 h-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
@@ -83,7 +83,7 @@ function renderStaffView() {
                 `;
             })()}
             
-            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white pl-2">
+            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white pl-2 shrink-0 z-10">
                 <button onclick="openEditStaffModal('${type}', ${index})" class="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Editar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
                 <button onclick="removeStaff('${type}', ${index})" class="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
             </div>
