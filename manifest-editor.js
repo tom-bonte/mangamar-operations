@@ -195,7 +195,7 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     
     let trip = tripOrId;
     if (typeof tripOrId === 'string') {
-        trip = mergedAllocations.find(t => t.id === tripOrId);
+        trip = mergedAllocations.find(t => t.id === tripOrId && t.isInternalTrip) || mergedAllocations.find(t => t.id === tripOrId);
         // If not found in DB yet (e.g. slow network), fallback to RAM if it matches
         if (!trip && activeBoatItem && activeBoatItem.id === tripOrId) {
             trip = activeBoatItem;
@@ -1197,8 +1197,11 @@ window.toggleRmLocked = function(checked) {
     activeBoatItem.rmLocked = checked;
     
     // Propagate state instantly in RAM
-    const trip = mergedAllocations.find(t => t.id === activeBoatItem.id);
-    if (trip) trip.rmLocked = checked;
+    mergedAllocations.forEach(t => {
+        if (t.id === activeBoatItem.id) {
+            t.rmLocked = checked;
+        }
+    });
     
     const intTrip = (window.internalTrips || []).find(t => t.id === activeBoatItem.id);
     if (intTrip) intTrip.rmLocked = checked;
@@ -2929,9 +2932,12 @@ window.mergeManifests = function(base, local, remote) {
     local = local || {};
     remote = remote || {};
 
-    // Safeguard: If remote is empty or uninitialized (e.g. brand new trip or database sync latency),
+    // Safeguard: If remote is truly empty/uninitialized (no fields at all — e.g. brand new trip before any Firestore write),
     // treat remote as matching base to prevent wiping out local changes.
-    if (!remote || Object.keys(remote).length === 0 || ((!remote.groups || remote.groups.length === 0) && (!remote.guests || remote.guests.length === 0))) {
+    // NOTE: Do NOT trigger for Visor trips whose guests live in flat guests[] array rather than groups[] — those trips
+    // ARE populated, just structured differently. We only fallback if the remote object has NO meaningful fields.
+    const remoteMeaningfulKeys = Object.keys(remote).filter(k => k !== 'id' && k !== '_sourceDocId' && k !== 'isVisor' && k !== 'isVisorTrip');
+    if (remoteMeaningfulKeys.length === 0) {
         remote = JSON.parse(JSON.stringify(base));
     }
 
@@ -3243,11 +3249,16 @@ async function saveBoatData(itemToSave = activeBoatItem) {
         syncDOMToActiveBoatItem();
     }
 
-    // Fetch the latest remote state from mergedAllocations
-    const remoteState = (window.mergedAllocations || []).find(t => t.id === itemToSave.id) || {};
+    // Fetch the latest remote state from mergedAllocations (prefer internal shadow trip since it holds metadata/groups)
+    const remoteState = (window.mergedAllocations || []).find(t => t.id === itemToSave.id && t.isInternalTrip)
+        || (window.mergedAllocations || []).find(t => t.id === itemToSave.id)
+        || {};
     
-    // Perform 3-way merge to prevent overwriting other users' concurrent edits
-    const mergedTrip = window.mergeManifests(itemToSave.lastSyncedTripState, itemToSave, remoteState);
+    // Perform 3-way merge to prevent overwriting other users' concurrent edits.
+    // CRITICAL: If this is the first-ever save (lastSyncedTripState is absent), treat base as identical to local
+    // so that ALL local changes (captain, guide, etc.) are treated as "local modifications" and win the merge.
+    const effectiveBase = itemToSave.lastSyncedTripState || JSON.parse(JSON.stringify(itemToSave));
+    const mergedTrip = window.mergeManifests(effectiveBase, itemToSave, remoteState);
     
     // Apply merged state back to the item snapshot
     itemToSave.groups = mergedTrip.groups;

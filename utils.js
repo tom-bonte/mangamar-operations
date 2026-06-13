@@ -546,7 +546,8 @@ window.runStaffViewsFilter = function() {
 window.openBoatFromStaffView = function(boatName, timeStr, dateStr) {
     if (window.activeBoatUnsubscribe) window.activeBoatUnsubscribe();
     
-    const tripObj = mergedAllocations.find(t => t.date === dateStr && t.time === timeStr && t.assignedBoat === boatName && t.isInternalTrip);
+    const tripObj = mergedAllocations.find(t => t.date === dateStr && t.time === timeStr && t.assignedBoat === boatName && t.isInternalTrip)
+        || mergedAllocations.find(t => t.date === dateStr && t.time === timeStr && t.assignedBoat === boatName);
     
     if (tripObj && typeof window.openManageBoatModal === 'function') {
         window.openManageBoatModal(tripObj, boatName, timeStr, dateStr);
