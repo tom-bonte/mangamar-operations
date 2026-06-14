@@ -85,13 +85,14 @@ function findActiveTagForGuest(guestDni, guestName) {
         return parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0;
     };
     
+    const currentDate = (window.activeBoatItem && window.activeBoatItem.date) ? window.activeBoatItem.date : '';
+    
     // 1. Check Global Groups over active date range
-    if (window.globalGroups && window.globalGroups.length > 0) {
-        const currentDate = activeBoatItem.date;
+    if (currentDate && window.globalGroups && window.globalGroups.length > 0) {
         const activeGlobalGroup = window.globalGroups.find(g => {
             if (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate) {
-                if (guestDni && g.members && g.members.some(m => window.isSameDni(m, guestDni))) return true;
-                if (guestName && isFullName(guestName) && g.members && g.members.some(m => m.toLowerCase() === guestName.toLowerCase())) return true;
+                if (guestDni && g.members && g.members.some(m => m && window.isSameDni(m, guestDni))) return true;
+                if (guestName && isFullName(guestName) && g.members && g.members.some(m => m && typeof m === 'string' && m.toLowerCase() === guestName.toLowerCase())) return true;
             }
             return false;
         });
@@ -99,15 +100,17 @@ function findActiveTagForGuest(guestDni, guestName) {
     }
     
     // 2. Fallback: Check local trips for same day
-    const todaysTrips = mergedAllocations.filter(t => t.date === activeBoatItem.date);
-    todaysTrips.forEach(t => {
-        if(t.guests) t.guests.forEach(g => {
-            if (g.bookingTag) {
-                if (guestDni && g.dni && window.isSameDni(g.dni, guestDni)) foundTag = g.bookingTag;
-                else if (guestName && isFullName(guestName) && g.nombre && g.nombre.toLowerCase() === guestName.toLowerCase()) foundTag = g.bookingTag;
-            }
+    if (currentDate) {
+        const todaysTrips = (window.mergedAllocations || []).filter(t => t.date === currentDate);
+        todaysTrips.forEach(t => {
+            if(t.guests) t.guests.forEach(g => {
+                if (g.bookingTag) {
+                    if (guestDni && g.dni && window.isSameDni(g.dni, guestDni)) foundTag = g.bookingTag;
+                    else if (guestName && isFullName(guestName) && g.nombre && g.nombre.toLowerCase() === guestName.toLowerCase()) foundTag = g.bookingTag;
+                }
+            });
         });
-    });
+    }
     return foundTag;
 }
 
@@ -495,7 +498,7 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
             insurance: localIns,
             titulacion: cx.titulacion || '',
             rental: existingData ? (existingData.rental || 0) : 0,
-            gas: existingData ? (existingData.gas || '15L Aire') : '15L Aire',
+            gas: '15L Aire',
             computer: existingData ? (existingData.computer || 0) : 0,
             computerPrice: existingData ? (existingData.computerPrice || 0) : 0,
             isManual: false,
@@ -533,7 +536,7 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
             insurance: localIns,
             titulacion: '',
             rental: existingData ? (existingData.rental || 0) : 0,
-            gas: existingData ? (existingData.gas || '15L Aire') : '15L Aire',
+            gas: '15L Aire',
             computer: existingData ? (existingData.computer || 0) : 0,
             computerPrice: existingData ? (existingData.computerPrice || 0) : 0,
             isManual: true,
@@ -552,7 +555,7 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
         guest.coursePrice = existingData.coursePrice;
         guest.insurance = 'INC';
     }
-    if (existingData && existingData.localDeposit) guest.localDeposit = existingData.localDeposit;
+    // NOTE: localDeposit is intentionally NOT copied — it is per-booking, not a per-day preference.
     if (existingData && existingData.note) guest.note = existingData.note;
 
     if (!activeBoatItem.groups[targetGroupIdx]) {
@@ -638,7 +641,7 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
                     insurance: localIns,
                     titulacion: cx.titulacion || '',
                     rental: existingData ? (existingData.rental || 0) : 0,
-                    gas: existingData ? (existingData.gas || '15L Aire') : '15L Aire',
+                    gas: '15L Aire',
                     computer: existingData ? (existingData.computer || 0) : 0,
                     computerPrice: existingData ? (existingData.computerPrice || 0) : 0,
                     isManual: false,
@@ -673,7 +676,7 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
                     insurance: localIns,
                     titulacion: '',
                     rental: existingData ? (existingData.rental || 0) : 0,
-                    gas: existingData ? (existingData.gas || '15L Aire') : '15L Aire',
+                    gas: '15L Aire',
                     computer: existingData ? (existingData.computer || 0) : 0,
                     computerPrice: existingData ? (existingData.computerPrice || 0) : 0,
                     isManual: true,
@@ -692,7 +695,7 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
                 guest.coursePrice = existingData.coursePrice;
                 guest.insurance = 'INC';
             }
-            if (existingData && existingData.localDeposit) guest.localDeposit = existingData.localDeposit;
+            // NOTE: localDeposit is intentionally NOT copied — it is per-booking, not a per-day preference.
             if (existingData && existingData.note) guest.note = existingData.note;
 
             if (!activeBoatItem.groups[targetGroupIdx]) {

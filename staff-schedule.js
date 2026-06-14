@@ -7,6 +7,50 @@ window.activeStaffSchedule = null;
 window.activeStaffScheduleMonthKey = null;
 window.staffScheduleRoleFilter = 'all';
 
+window.scrollStaffSchedule = function(direction) {
+    const container = document.getElementById('staff-schedule-grid-container');
+    if (!container) return;
+    const wrapper = container.querySelector('.staff-schedule-table-wrapper');
+    if (wrapper) {
+        wrapper.scrollBy({
+            left: direction,
+            behavior: 'smooth'
+        });
+    }
+};
+
+window.updateStaffScheduleScrollButtons = function() {
+    const container = document.getElementById('staff-schedule-grid-container');
+    const btnLeft = document.getElementById('staff-schedule-scroll-left');
+    const btnRight = document.getElementById('staff-schedule-scroll-right');
+    if (!container || !btnLeft || !btnRight) return;
+    
+    const wrapper = container.querySelector('.staff-schedule-table-wrapper');
+    if (!wrapper) {
+        btnLeft.classList.add('hidden');
+        btnRight.classList.add('hidden');
+        return;
+    }
+    
+    const scrollLeft = wrapper.scrollLeft;
+    const scrollWidth = wrapper.scrollWidth;
+    const clientWidth = wrapper.clientWidth;
+    
+    // Show left button if we have scrolled right at all
+    if (scrollLeft > 5) {
+        btnLeft.classList.remove('hidden');
+    } else {
+        btnLeft.classList.add('hidden');
+    }
+    
+    // Show right button if there is more content to scroll to the right
+    if (scrollWidth - clientWidth - scrollLeft > 5) {
+        btnRight.classList.remove('hidden');
+    } else {
+        btnRight.classList.add('hidden');
+    }
+};
+
 // Opens the Horario Staff modal and initializes dropdowns
 window.openStaffScheduleModal = function() {
     const modal = document.getElementById('staff-schedule-modal');
@@ -26,6 +70,8 @@ window.openStaffScheduleModal = function() {
     }
     
     modal.classList.remove('hidden');
+    
+    window.addEventListener('resize', window.updateStaffScheduleScrollButtons);
 };
 
 // Closes the Horario Staff modal
@@ -41,6 +87,8 @@ window.closeStaffScheduleModal = function() {
         window.unsubscribeStaffSchedule = null;
     }
     window.activeStaffSchedule = null;
+    
+    window.removeEventListener('resize', window.updateStaffScheduleScrollButtons);
 };
 
 // Populates the Month Selection dropdown dynamically around the current month
@@ -1036,7 +1084,11 @@ window.renderStaffScheduleGrid = function() {
     if (newWrapper) {
         newWrapper.scrollTop = scrollTop;
         newWrapper.scrollLeft = scrollLeft;
+        newWrapper.addEventListener('scroll', window.updateStaffScheduleScrollButtons);
     }
     container.scrollTop = containerScrollTop;
     container.scrollLeft = containerScrollLeft;
+    
+    // Update the visibility of scroll buttons
+    setTimeout(window.updateStaffScheduleScrollButtons, 50);
 };

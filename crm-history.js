@@ -657,3 +657,112 @@ window.inlineEditPrice = function(event, el, dni, docId, currentPrice) {
         if (e.key === 'Escape') { e.preventDefault(); el.innerHTML = originalHTML; }
     };
 };
+
+window.clearCustomerDeposits = async function (dni) {
+    const alertMsg = "⚠️ ¿Estás seguro de que quieres eliminar TODOS los depósitos de este cliente?\n\nEsto pondrá a 0 tanto el depósito global de la ficha como las señales de todas las inmersiones pendientes.";
+
+    showAppConfirm(alertMsg, async () => {
+        try {
+            closeAppConfirm();
+
+            // 1. Update in-memory customer profile in customerDatabase
+            const custIndex = customerDatabase.findIndex(c => window.isSameDni(c.dni, dni));
+            if (custIndex !== -1) {
+                customerDatabase[custIndex].deposit = 0;
+                delete customerDatabase[custIndex].depositMethod;
+                delete customerDatabase[custIndex].depositContasimple;
+            }
+
+            // 2. Update all pending history items in window.activeFichaDives (and window.activeFichaRawDocs)
+            const pendingTripIds = [];
+            if (window.activeFichaDives) {
+                window.activeFichaDives.forEach(item => {
+                    const { data, doc } = item;
+                    const isPaid = data.paymentStatus === 'paid' || (data.type === 'pago' && !data.isPartialAbono);
+                    if (!isPaid && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio' && data.localDeposit) {
+                        data.localDeposit = 0;
+                        data.localDepositMethod = '';
+                        data.localDepositC = false;
+                        pendingTripIds.push(doc.id);
+                    }
+                });
+            }
+
+            // Also reset in activeFichaRawDocs so re-rendering is aligned
+            if (window.activeFichaRawDocs) {
+                window.activeFichaRawDocs.forEach(doc => {
+                    let data = typeof doc.data === 'function' ? doc.data() : doc.data;
+                    const isPaid = data.paymentStatus === 'paid' || (data.type === 'pago' && !data.isPartialAbono);
+                    if (!isPaid && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio' && data.localDeposit) {
+                        data.localDeposit = 0;
+                        data.localDepositMethod = '';
+                        data.localDepositC = false;
+                    }
+                });
+            }
+
+            // Get current active tab content layer
+            const contextLayer = document.getElementById('tab-content-caja').classList.contains('hidden') ? 
+                (document.getElementById('tab-content-pagos').classList.contains('hidden') ? 'historial' : 'pagos') : 'caja';
+
+            // 3. Re-render instantly
+            window.recalculateFichaHistory(dni);
+            window.renderFichaFromCache(dni, contextLayer);
+            
+            showToast("Depósitos eliminados con éxito.");
+
+            // 4. Background updates to Firestore
+            // A. Update customer document deposit field
+            const customerRef = db.collection('mangamar_customers').doc(dni);
+            await customerRef.set({
+                deposit: 0,
+                depositMethod: firebase.firestore.FieldValue.delete(),
+                depositContasimple: firebase.firestore.FieldValue.delete()
+            }, { merge: true });
+
+            // B. Write customerDatabase update to master_list
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            await window.safeMasterListWrite(cleanDatabase, 'clear-deposits');
+
+            // C. Clean history items and manifest allocations for pending trips
+            for (const tripId of pendingTripIds) {
+                const historyRef = db.collection('mangamar_customers').doc(dni).collection('history').doc(tripId);
+                await historyRef.set({
+                    localDeposit: 0,
+                    localDepositMethod: '',
+                    localDepositC: firebase.firestore.FieldValue.delete()
+                }, { merge: true }).catch(e => console.error("Error clearing history deposit:", e));
+
+                // Sync to manifest allocations in background
+                await window.syncPaymentToManifest(dni, tripId, 'pending', '', '', 0, '');
+
+                // Update RAM activeBoatItem groups if that trip is currently open
+                if (typeof activeBoatItem !== 'undefined' && activeBoatItem && activeBoatItem.id === tripId && activeBoatItem.groups) {
+                    activeBoatItem.groups.forEach(g => {
+                        (g.guests || []).forEach(gst => {
+                            if (window.isSameDni(gst.dni, dni)) {
+                                gst.localDeposit = 0;
+                                gst.localDepositMethod = '';
+                                delete gst.localDepositC;
+                            }
+                        });
+                    });
+                }
+            }
+
+            // Re-render groups if manifest editor is currently open
+            if (typeof renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
+                renderGroups(true);
+            }
+
+            // Recalculate outstanding debt in CRM
+            if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                await window.updateCustomerOutstandingDebt(dni);
+            }
+
+        } catch (e) {
+            console.error("Error clearing deposits:", e);
+            showAppAlert("Error al eliminar los depósitos.");
+        }
+    });
+};

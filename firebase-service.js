@@ -965,8 +965,11 @@ window.updateLocalTripCache = function(tripId, date, updatedTrip) {
         });
     }
     const preparedTrip = {
+        id: tripId,
         ...tripCopy,
-        guests: flatGuests
+        guests: flatGuests,
+        isInternalTrip: true,
+        _sourceDocId: monthKey
     };
     
     if (list) {

@@ -787,54 +787,141 @@ window.openBoatFromHistory = function (e, dateStr, time, assignedBoat) {
 window.updateGuestDeposit = async function (dni, amount, groupIndex, guestIndex) {
     const val = parseFloat(amount) || 0;
 
-    const finalizeDeposit = (method) => {
-        // ALWAYS write localDeposit on the guest object in activeBoatItem manifest!
-        if (typeof activeBoatItem !== 'undefined' && activeBoatItem.groups[groupIndex] && activeBoatItem.groups[groupIndex].guests[guestIndex]) {
-            activeBoatItem.groups[groupIndex].guests[guestIndex].localDeposit = val;
-            activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositMethod = method;
-            if (val > 0) {
-                activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositC = false; // Reset to pending (orange) by default when adding/updating deposit!
-            } else {
-                delete activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositC;
+    const finalizeDeposit = async (method) => {
+        // Case 1: Editing from the Manifest Editor (groupIndex & guestIndex are defined)
+        if (groupIndex !== undefined && guestIndex !== undefined) {
+            if (typeof activeBoatItem !== 'undefined' && activeBoatItem.groups[groupIndex] && activeBoatItem.groups[groupIndex].guests[guestIndex]) {
+                activeBoatItem.groups[groupIndex].guests[guestIndex].localDeposit = val;
+                activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositMethod = method;
+                if (val > 0) {
+                    activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositC = false; // Reset to pending (orange) by default when adding/updating deposit!
+                } else {
+                    delete activeBoatItem.groups[groupIndex].guests[guestIndex].localDepositC;
+                }
+                
+                // Redraw manifest UI instantly
+                if (typeof renderGroups === 'function') renderGroups();
+                
+                // Auto save the manifest change to Firestore
+                if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
             }
-            if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+
+            // If the active Ficha matches the DNI, update the Ficha UI instantly
+            if (dni && window.activeFichaDni === dni && typeof window.renderFichaFromCache === 'function') {
+                if (window.activeFichaDives && window.activeBoatItem) {
+                    const matchedDive = window.activeFichaDives.find(d => d.doc.id === window.activeBoatItem.id);
+                    if (matchedDive) {
+                        matchedDive.data.localDeposit = val;
+                        matchedDive.data.localDepositMethod = method;
+                        if (val > 0) {
+                            matchedDive.data.localDepositC = false;
+                        } else {
+                            delete matchedDive.data.localDepositC;
+                        }
+                    }
+                }
+                window.renderFichaFromCache(dni);
+            }
+            return;
         }
 
+        // Case 2: Editing from the CRM Ficha Caja (groupIndex & guestIndex are undefined)
         if (!dni || String(dni) === 'undefined') {
             return;
         }
 
-        const custIndex = customerDatabase.findIndex(c => c.dni === dni);
-        if (custIndex !== -1) {
-            customerDatabase[custIndex].deposit = val;
+        // Find the oldest pending trip for this customer
+        let pendingTrip = null;
+        if (window.activeFichaDives) {
+            pendingTrip = [...window.activeFichaDives].reverse().find(d => {
+                if (d.data.paymentStatus !== 'pending') return false;
+                if (d.data.type === 'pago' || d.data.type === 'producto' || d.data.type === 'servicio') return false;
+                return true;
+            });
+        }
+
+        if (pendingTrip) {
+            const tripId = pendingTrip.doc.id;
+            
+            // 1. Optimistic RAM update of the activeFichaDives entry
+            pendingTrip.data.localDeposit = val;
+            pendingTrip.data.localDepositMethod = method;
             if (val > 0) {
-                customerDatabase[custIndex].depositMethod = method;
-                customerDatabase[custIndex].depositContasimple = false; // Reset to pending (orange) by default when adding/updating deposit!
+                pendingTrip.data.localDepositC = false;
             } else {
-                delete customerDatabase[custIndex].depositMethod;
-                delete customerDatabase[custIndex].depositContasimple;
+                delete pendingTrip.data.localDepositC;
             }
 
-            // Update UI Instantly
-            if (typeof renderGroups === 'function') renderGroups();
+            // 2. Sync to activeBoatItem (manifest) if currently open/editing that same trip
+            if (typeof activeBoatItem !== 'undefined' && activeBoatItem.id === tripId && activeBoatItem.groups) {
+                activeBoatItem.groups.forEach(g => {
+                    (g.guests || []).forEach(gst => {
+                        if (gst.dni === dni) {
+                            gst.localDeposit = val;
+                            gst.localDepositMethod = method;
+                            if (val > 0) {
+                                gst.localDepositC = false;
+                            } else {
+                                delete gst.localDepositC;
+                            }
+                        }
+                    });
+                });
+                if (typeof renderGroups === 'function') renderGroups();
+                if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+            }
+
+            // 3. Update the Firestore history document directly in the background
+            try {
+                const historyRef = db.collection('mangamar_customers').doc(dni).collection('history').doc(tripId);
+                await historyRef.set({
+                    localDeposit: val,
+                    localDepositMethod: method,
+                    localDepositC: val > 0 ? false : firebase.firestore.FieldValue.delete()
+                }, { merge: true });
+
+                // 4. Sync the new payment/deposit state to the manifest allocations in the background
+                await window.syncPaymentToManifest(dni, tripId, 'pending', '', '', val, method);
+            } catch (e) {
+                console.error("Error saving trip-specific deposit:", e);
+                showAppAlert("Error al guardar el depósito específico del viaje.");
+            }
+
+            // 5. Re-render Ficha from local cache and recalculate outstanding debt
             if (window.activeFichaDni === dni && typeof window.renderFichaFromCache === 'function') {
                 window.renderFichaFromCache(dni);
             }
+            if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                await window.updateCustomerOutstandingDebt(dni);
+            }
+        } else {
+            // Fallback: If no pending trips exist, update the profile-level deposit
+            const custIndex = customerDatabase.findIndex(c => c.dni === dni);
+            if (custIndex !== -1) {
+                customerDatabase[custIndex].deposit = val;
+                if (val > 0) {
+                    customerDatabase[custIndex].depositMethod = method;
+                    customerDatabase[custIndex].depositContasimple = false;
+                } else {
+                    delete customerDatabase[custIndex].depositMethod;
+                    delete customerDatabase[custIndex].depositContasimple;
+                }
 
-            // Background Save
-            (async () => {
+                if (window.activeFichaDni === dni && typeof window.renderFichaFromCache === 'function') {
+                    window.renderFichaFromCache(dni);
+                }
+
                 try {
                     const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
                     await window.safeMasterListWrite(cleanDatabase, 'save-deposit');
                     if (typeof window.updateCustomerOutstandingDebt === 'function') {
                         await window.updateCustomerOutstandingDebt(dni);
                     }
-                    // if (val > 0) showToast(`Depósito de ${val}€ (${method}) guardado.`);
                 } catch (e) {
-                    console.error(e);
-                    showAppAlert("Error al guardar el depósito");
+                    console.error("Error saving fallback profile deposit:", e);
+                    showAppAlert("Error al guardar el depósito en la ficha.");
                 }
-            })();
+            }
         }
     };
 

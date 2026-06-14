@@ -1,4 +1,5 @@
 window.switchFichaTab = function (tabId) {
+    window.activeFichaTab = tabId;
     // 1. Reset all buttons
     ['historial', 'pagos', 'caja', 'resumen', 'ficha'].forEach(id => {
         const btn = document.getElementById(`tab-btn-${id}`);
@@ -37,6 +38,12 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
     window.historialClearSelection(); // Clear multiple selection on newly opened profile
     if (window.closeFacturaView) window.closeFacturaView(); // Ensure details view is always closed
     if (!isNavBackForward) window.fichaDisplayLimit = 15; // Reset pagination for fresh loads
+
+    window.activeFichaTab = targetTab;
+    const fromEl = document.getElementById('historial-filter-from');
+    const toEl = document.getElementById('historial-filter-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
 
     const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
     const contactStr = [customerInfo.telefono, customerInfo.email].filter(Boolean).join(' • ');
@@ -168,6 +175,9 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
 window.recalculateFichaHistory = function(dni) {
     if (!window.activeFichaRawDocs) return;
     
+    const dObj = new Date();
+    const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
+    
     const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
     
     let activeCustomerListener = null;
@@ -233,6 +243,18 @@ setTimeout(() => {
     let billedCourses = new Set();
     let activeInsExpiry = null;
 
+    // Helper: check both flat guests[] AND groups[].guests[] for a DNI match
+    const isGuestOnTrip = (trip, targetDni) => {
+        const normTarget = (targetDni || '').trim().toLowerCase();
+        // Check flat guests array (Visor-style trips)
+        if ((trip.guests || []).some(g => (g.dni || '').trim().toLowerCase() === normTarget && !g.cancelled)) return true;
+        // Check grouped guests array (Internal-style trips)
+        if ((trip.groups || []).some(grp =>
+            (grp.guests || []).some(g => (g.dni || '').trim().toLowerCase() === normTarget && !g.cancelled)
+        )) return true;
+        return false;
+    };
+
     window.activeFichaRawDocs.forEach(item => {
         // Handle mock documents from optimistic rendering or real Firestore documents
         let data = typeof item.data === 'function' ? item.data() : item.data;
@@ -245,7 +267,8 @@ setTimeout(() => {
             
             if (realTrip) {
                 // Trip is currently in RAM. Verify the guest is actually on the manifest.
-                const isActuallyOnBoat = (realTrip.guests || []).some(g => (g.dni || '').toLowerCase() === (dni || '').toLowerCase() && !g.cancelled);
+                // Must check BOTH flat guests[] AND groups[].guests[] (internal trips use the grouped structure)
+                const isActuallyOnBoat = isGuestOnTrip(realTrip, dni);
                 if (!isActuallyOnBoat) {
                     console.warn(`🧹 Auto-Pruning ghost bill: ${dni} is no longer on trip ${item.id}. Deleting...`);
                     db.collection('mangamar_customers').doc(dni).collection('history').doc(item.id).delete().catch(e => console.error(e));
@@ -321,12 +344,16 @@ setTimeout(() => {
             let activeTrip = (window.mergedAllocations || []).find(t => t.id === item.id) || (window.internalTrips || []).find(t => t.id === item.id);
             
             if (activeTrip) {
-                // To be safe against auto-migrations, if we find ANY guest with this DNI on ANY trip at the exact same date and time, we assume it's valid.
-                const validTripsThatDay = (window.internalTrips || []).filter(t => t.date === data.date);
+                // To be safe against auto-migrations, if we find ANY guest with this DNI on ANY trip at the exact same date, we assume it's valid.
+                // Check BOTH mergedAllocations (includes visor) AND internalTrips, searching flat guests[] AND groups[].guests[]
+                const allTripsOnDate = [
+                    ...(window.mergedAllocations || []).filter(t => t.date === data.date),
+                    ...(window.internalTrips || []).filter(t => t.date === data.date)
+                ];
                 let isGuestOnBoat = false;
                 
-                for (let t of validTripsThatDay) {
-                    if ((t.guests || []).some(g => (g.dni || '').trim().toLowerCase() === (dni || '').trim().toLowerCase() && !g.cancelled)) {
+                for (let t of allTripsOnDate) {
+                    if (isGuestOnTrip(t, dni)) {
                         isGuestOnBoat = true;
                         break;
                     }
@@ -375,26 +402,34 @@ setTimeout(() => {
                     const monthKey = data.date ? data.date.substring(0, 7) : null;
                     if (!monthKey) continue;
 
-                    // 1. Check Internal Database
+                    // 1. Check Internal Database first
                     const monthlyDoc = await db.collection('mangamar_monthly').doc(monthKey).get();
                     const allocs = monthlyDoc.data()?.allocations || {};
                     const internalTrip = allocs[item.id];
                     
                     let shouldDelete = false;
                     if (!internalTrip || internalTrip._deleted) {
-                        // 2. Check Visor Database if internal is missing
-                        const visorDoc = await db.collection('mangamar_visor').doc(monthKey).get();
+                        // 2. Check actual Visor DB (reservations_monthly) if internal is missing
+                        const visorDoc = await db.collection('reservations_monthly').doc(monthKey).get();
                         const visorAllocs = visorDoc.data()?.allocations || {};
                         const visorTrip = visorAllocs[item.id];
                         
                         if (!visorTrip || visorTrip._deleted) {
-                            shouldDelete = true; // Exists nowhere
+                            shouldDelete = true; // Exists in neither DB — true ghost bill
                         } else {
-                            shouldDelete = true; // Exists in Visor but has no internal shadow (thus no guests)
+                            // Exists in Visor as a master booking. This is a legitimate history record.
+                            // Do NOT delete it. The internal shadow may just not be created yet.
+                            shouldDelete = false;
                         }
                     } else {
-                        // Exists internally. Verify guest list!
-                        const isActuallyOnBoat = (internalTrip.guests || []).some(g => (g.dni || '').toLowerCase() === (dni || '').toLowerCase() && !g.cancelled);
+                        // Exists internally. Verify guest list — check BOTH flat guests[] AND groups[].guests[]
+                        const normDni = (dni || '').toLowerCase();
+                        let isActuallyOnBoat = (internalTrip.guests || []).some(g => (g.dni || '').toLowerCase() === normDni && !g.cancelled);
+                        if (!isActuallyOnBoat) {
+                            isActuallyOnBoat = (internalTrip.groups || []).some(grp =>
+                                (grp.guests || []).some(g => (g.dni || '').toLowerCase() === normDni && !g.cancelled)
+                            );
+                        }
                         if (!isActuallyOnBoat) shouldDelete = true;
                     }
 
@@ -405,8 +440,7 @@ setTimeout(() => {
                     }
                 } catch(e) { console.error("Deep-Pruner error:", e); }
             }
-
-            if (deletedAny && window.activeFichaDni === dni) {
+if (deletedAny && window.activeFichaDni === dni) {
                 console.log("♻️ Refreshing Ficha to hide deleted ghost bills...");
                 const currentName = document.getElementById('profile-modal-name').innerText;
                 const activeTab = document.getElementById('tab-content-caja') && !document.getElementById('tab-content-caja').classList.contains('hidden') ? 'caja' : 'historial';
@@ -416,9 +450,13 @@ setTimeout(() => {
     }
 };
 
-window.renderFichaFromCache = function(dni, targetTab = 'caja') {
+window.renderFichaFromCache = function(dni, targetTab) {
+    if (!targetTab) targetTab = window.activeFichaTab || 'caja';
     if (!window.activeFichaDives) return;
     
+    const dObj = new Date();
+    const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
+
     let html = '';
     let pagosHtml = '';
     let pendingServiciosHTML = '';
@@ -439,10 +477,16 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
 
     if (typeof window.fichaDisplayLimit === 'undefined') window.fichaDisplayLimit = 15;
 
+    const fromEl = document.getElementById('historial-filter-from');
+    const toEl = document.getElementById('historial-filter-to');
+    const fromVal = fromEl ? fromEl.value : '';
+    const toVal = toEl ? toEl.value : '';
+
+    let historyRenderCount = 0;
+    let paymentsRenderCount = 0;
+
     window.activeFichaDives.forEach((item, index) => {
         const { doc, data, p, cleanIns, isCovered, isCourseCovered } = item;
-
-        if (data.type !== 'pago') grandTotal += p.total;
 
         let isPaid = data.paymentStatus === 'paid';
         if (data.type === 'pago' && data.isPartialAbono) {
@@ -451,7 +495,9 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
             isPaid = false; // Legacy fallback
         }
 
-        if (!isPaid) pendingTotal += p.total;
+        if (!isPaid) {
+            pendingTotal += p.total;
+        }
 
         let breakdownHtml = '';
         if (data.type === 'producto' || data.type === 'servicio') {
@@ -471,137 +517,6 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
             const extrasTotal = p.gas + p.rental + p.insurance;
             if (extrasTotal > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-slate-400">${extrasTotal.toFixed(2)}€ Ext.</span>`;
             if (p.computer > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-cyan-600 font-bold">${p.computer.toFixed(2)}€ <span style="font-variant:small-caps">Comp</span></span>`;
-        }
-
-        const isNitrox = (data.gas || '').includes('EAN');
-        const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
-        const gasShortText = (data.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
-
-        let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
-        let rentalText = 'Eq';
-        if (data.rental === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; }
-        else if (data.rental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
-        else if (data.rental === 'INC') {
-            rentalClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
-            rentalText = 'INC';
-        }
-
-        let compHistClass = 'bg-slate-50 text-slate-200 border-slate-100';
-        let compHistText = 'Comp';
-        if (data.computer === 1) { compHistClass = 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner'; }
-        else if (data.computer === 'INC') { compHistClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner'; compHistText = 'INC'; }
-        let bonoClass = data.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200';
-
-        let insClass = 'px-1.5 min-w-[36px] bg-red-500 text-white border-red-600';
-        let insText = 'Seg 🛑';
-        if (cleanIns === 'INC') {
-            insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
-            insText = 'INC';
-        } else if (cleanIns !== '0' && cleanIns !== 0) {
-            if (isCovered) {
-                insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
-                insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
-            } else {
-                insClass = 'px-1.5 min-w-[36px] bg-blue-500 text-white border-blue-600 font-bold shadow-sm';
-                insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg 💳 (${cleanIns})` : 'Seg 💳';
-            }
-        }
-
-        const payTitle = isPaid ? `Cobrado con ${data.paymentMethod || 'Tarjeta'} por ${data.paidBy || 'N/A'}` : '';
-        const statusBtn = isPaid
-            ? `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors shrink-0 w-full shadow-sm" title="${payTitle}">Pagado</button>`
-            : `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'pending')" class="px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 shrink-0 w-full shadow-sm" title="Pendiente de Pago"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendiente</button>`;
-
-        let isSel = window.activeHistorialSelection && window.activeHistorialSelection.find(x => x.docId === doc.id);
-        let checkIcon = isSel ?
-            `<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
-            `<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
-
-        let centerColsHTML = '';
-        if (data.type === 'producto' || data.type === 'servicio' || data.type === 'pago') {
-            const isProd = data.type === 'producto';
-            const isPago = data.type === 'pago';
-            let tagStr = isPago ? 'PAGO' : (isProd ? 'PROD' : 'SERV');
-            let tagColor = isPago ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : (isProd ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200');
-            
-            centerColsHTML = `
-            <td class="py-2 px-3 align-middle whitespace-nowrap">
-                <span class="text-xs font-black text-slate-800">${data.date}</span>
-            </td>
-            <td class="py-2 px-3 align-middle w-full" colspan="2">
-                <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                    <span class="px-1.5 ${tagColor} rounded text-[9px] uppercase font-black shadow-sm border">${tagStr}</span> 
-                    ${data.description}
-                </div>
-            </td>`;
-        } else {
-            centerColsHTML = `
-            <td class="py-2 px-3 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
-                <div class="flex items-baseline gap-2">
-                    <span class="text-xs font-black text-slate-800 group-hover:text-blue-700 transition-colors">${data.date}</span>
-                    <span class="text-[10px] font-bold text-slate-400">${data.time}</span>
-                </div>
-            </td>
-            <td class="py-2 px-3 text-xs font-bold text-slate-700 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">${data.site}</td>
-            <td class="py-2 px-3 align-middle cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
-                <div class="flex items-center justify-start gap-1">
-                    <div class="w-12 h-6 flex justify-center items-center rounded border text-[9px] font-black whitespace-nowrap ${gasColor}">${gasShortText}</div>
-                    <div class="w-7 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${rentalClass}">${rentalText}</div>
-                    <div class="w-9 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${compHistClass}">${compHistText}</div>
-                    <div class="h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${insClass}">${insText}</div>
-                    <div class="w-6 h-6 flex justify-center items-center rounded border text-[10px] font-bold shrink-0 ${bonoClass}" title="${data.hasBono ? 'Usa Bono' : 'Sin Bono'}">B</div>
-                    ${(customerInfo.deposit > 0) ? `<div class="h-6 px-1.5 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${customerInfo.depositContasimple ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-orange-50 text-orange-600 border-orange-300'}" title="Depósito: ${customerInfo.deposit}€${customerInfo.depositMethod ? ' (' + customerInfo.depositMethod + ')' : ''}">Señal ${customerInfo.deposit}€</div>` : ''}
-                </div>
-            </td>`;
-        }
-
-        if (data.type === 'pago') {
-            pagosTotalSum += Math.abs(parseFloat(data.customPrice) || 0);
-            if (index < window.fichaDisplayLimit) {
-                pagosHtml += `
-                <tr class="group border-b border-slate-100 hover:bg-emerald-50 transition-colors h-12" data-doc-id="${doc.id}">
-                    <td class="py-2 px-3 align-middle text-center"></td>
-                    <td class="py-2 px-3 align-middle whitespace-nowrap">
-                        <span class="text-xs font-black text-slate-800">${data.date}</span>
-                    </td>
-                    <td class="py-2 px-3 align-middle w-full text-xs font-bold text-slate-600">
-                        ${data.description}
-                    </td>
-                    <td class="py-2 px-3 align-middle text-right shrink-0 whitespace-nowrap text-sm font-black text-emerald-600">
-                        -${Math.abs(parseFloat(data.customPrice) || 0)} €
-                    </td>
-                <td class="py-2 px-3 text-center align-middle shrink-0">
-                    <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', 'pago')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar pago"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                </td>
-            </tr>`;
-            }
-        } else {
-            if (index < window.fichaDisplayLimit) {
-                html += `
-                <tr class="group border-b border-slate-100 hover:bg-blue-50 transition-colors h-12 ${isPaid ? 'opacity-70 hover:opacity-100' : ''}" data-doc-id="${doc.id}">
-                    <td class="py-2 px-3 align-middle text-center" onclick="toggleHistorialRowSelection(this, '${doc.id}', '${dni}', ${p.total}, '${data.paymentStatus}', '${data.date.substring(0, 7)}')">
-                        <div class="cursor-pointer inline-block" title="Seleccionar fila">${checkIcon}</div>
-                    </td>
-                    ${centerColsHTML}
-                    <td class="py-2 px-3 text-right align-middle w-full">
-                        <div class="flex items-center justify-end gap-4 w-full">
-                            <div class="font-black text-slate-800 text-sm whitespace-nowrap shrink-0 cursor-pointer hover:text-blue-600 hover:scale-110 transition-all px-2 py-1 rounded hover:bg-blue-50 border border-transparent hover:border-blue-200" 
-                                 title="Click para editar precio" 
-                                 onclick="window.inlineEditPrice(event, this, '${dni}', '${doc.id}', ${p.total})">${p.total} €</div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <button onclick="window.generateFactura('${doc.id}')" class="px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-colors shadow-sm flex items-center justify-center h-[26px]" title="Ver Detalles Visuales">
-                                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                    Detalles
-                                </button>
-                                <div class="w-[85px] flex justify-end h-[26px]">${statusBtn}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="py-2 px-3 text-center align-middle shrink-0">
-                        <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', '${data.type || 'buceo'}')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                    </td>
-                </tr>`;
-            }
         }
 
         if (!isPaid) {
@@ -649,7 +564,187 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
                 positivePendingTotal += p.total;
             }
         }
+
+        let matchesFilter = true;
+        if (fromVal && data.date < fromVal) matchesFilter = false;
+        if (toVal && data.date > toVal) matchesFilter = false;
+
+        if (matchesFilter) {
+            if (data.type !== 'pago') grandTotal += p.total;
+
+            const isNitrox = (data.gas || '').includes('EAN');
+            const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
+            const gasShortText = (data.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
+
+            let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
+            let rentalText = 'Eq';
+            if (data.rental === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; }
+            else if (data.rental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
+            else if (data.rental === 'INC') {
+                rentalClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+                rentalText = 'INC';
+            }
+
+            let compHistClass = 'bg-slate-50 text-slate-200 border-slate-100';
+            let compHistText = 'Comp';
+            if (data.computer === 1) { compHistClass = 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner'; }
+            else if (data.computer === 'INC') { compHistClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner'; compHistText = 'INC'; }
+            let bonoClass = data.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200';
+
+            let insClass = 'px-1.5 min-w-[36px] bg-red-500 text-white border-red-600';
+            let insText = 'Seg 🛑';
+            if (cleanIns === 'INC') {
+                insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+                insText = 'INC';
+            } else if (cleanIns !== '0' && cleanIns !== 0) {
+                if (isCovered) {
+                    insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+                    insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
+                } else {
+                    insClass = 'px-1.5 min-w-[36px] bg-blue-500 text-white border-blue-600 font-bold shadow-sm';
+                    insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg 💳 (${cleanIns})` : 'Seg 💳';
+                }
+            }
+
+            const payTitle = isPaid ? `Cobrado con ${data.paymentMethod || 'Tarjeta'} por ${data.paidBy || 'N/A'}` : '';
+            const statusBtn = isPaid
+                ? `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors shrink-0 w-full shadow-sm" title="${payTitle}">Pagado</button>`
+                : `<button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'pending')" class="px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 shrink-0 w-full shadow-sm" title="Pendiente de Pago"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pendiente</button>`;
+
+            let isSel = window.activeHistorialSelection && window.activeHistorialSelection.find(x => x.docId === doc.id);
+            let checkIcon = isSel ?
+                `<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` :
+                `<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 flex items-center justify-center transition-colors shadow-inner"><svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>`;
+
+            let centerColsHTML = '';
+            if (data.type === 'producto' || data.type === 'servicio' || data.type === 'pago') {
+                const isProd = data.type === 'producto';
+                const isPago = data.type === 'pago';
+                let tagStr = isPago ? 'PAGO' : (isProd ? 'PROD' : 'SERV');
+                let tagColor = isPago ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : (isProd ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200');
+                
+                centerColsHTML = `
+                <td class="py-2 px-3 align-middle whitespace-nowrap">
+                    <span class="text-xs font-black text-slate-800">${data.date}</span>
+                </td>
+                <td class="py-2 px-3 align-middle w-full" colspan="2">
+                    <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <span class="px-1.5 ${tagColor} rounded text-[9px] uppercase font-black shadow-sm border">${tagStr}</span> 
+                        ${data.description}
+                    </div>
+                </td>`;
+            } else {
+                centerColsHTML = `
+                <td class="py-2 px-3 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-xs font-black text-slate-800 group-hover:text-blue-700 transition-colors">${data.date}</span>
+                        <span class="text-[10px] font-bold text-slate-400">${data.time}</span>
+                    </div>
+                </td>
+                <td class="py-2 px-3 text-xs font-bold text-slate-700 align-middle whitespace-nowrap cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">${data.site}</td>
+                <td class="py-2 px-3 align-middle cursor-pointer" onclick="openBoatFromHistory(event, '${data.date}', '${data.time}', '${data.assignedBoat}')">
+                    <div class="flex items-center justify-start gap-1">
+                        <div class="w-12 h-6 flex justify-center items-center rounded border text-[9px] font-black whitespace-nowrap ${gasColor}">${gasShortText}</div>
+                        <div class="w-7 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${rentalClass}">${rentalText}</div>
+                        <div class="w-9 h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${compHistClass}">${compHistText}</div>
+                        <div class="h-6 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${insClass}">${insText}</div>
+                        <div class="w-6 h-6 flex justify-center items-center rounded border text-[10px] font-bold shrink-0 ${bonoClass}" title="${data.hasBono ? 'Usa Bono' : 'Sin Bono'}">B</div>
+                        ${(data.localDeposit > 0) ? `<div class="h-6 px-1.5 flex justify-center items-center rounded border text-[9px] font-black shrink-0 whitespace-nowrap ${data.localDepositC ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-orange-50 text-orange-600 border-orange-300'}" title="Depósito: ${data.localDeposit}€${data.localDepositMethod ? ' (' + data.localDepositMethod + ')' : ''}">Señal ${data.localDeposit}€</div>` : ''}
+                    </div>
+                </td>`;
+            }
+
+            if (data.type === 'pago') {
+                pagosTotalSum += Math.abs(parseFloat(data.customPrice) || 0);
+                if (paymentsRenderCount < window.fichaDisplayLimit) {
+                    pagosHtml += `
+                    <tr class="group border-b border-slate-100 hover:bg-emerald-50 transition-colors h-12" data-doc-id="${doc.id}">
+                        <td class="py-2 px-3 align-middle text-center"></td>
+                        <td class="py-2 px-3 align-middle whitespace-nowrap">
+                            <span class="text-xs font-black text-slate-800">${data.date}</span>
+                        </td>
+                        <td class="py-2 px-3 align-middle w-full text-xs font-bold text-slate-600">
+                            ${data.description}
+                        </td>
+                        <td class="py-2 px-3 align-middle text-right shrink-0 whitespace-nowrap text-sm font-black text-emerald-600">
+                            -${Math.abs(parseFloat(data.customPrice) || 0)} €
+                        </td>
+                        <td class="py-2 px-3 text-center align-middle shrink-0">
+                            <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', 'pago')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar pago"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                        </td>
+                    </tr>`;
+                }
+                paymentsRenderCount++;
+            } else {
+                if (historyRenderCount < window.fichaDisplayLimit) {
+                    html += `
+                    <tr class="group border-b border-slate-100 hover:bg-blue-50 transition-colors h-12 ${isPaid ? 'opacity-70 hover:opacity-100' : ''}" data-doc-id="${doc.id}">
+                        <td class="py-2 px-3 align-middle text-center" onclick="toggleHistorialRowSelection(this, '${doc.id}', '${dni}', ${p.total}, '${data.paymentStatus}', '${data.date.substring(0, 7)}')">
+                            <div class="cursor-pointer inline-block" title="Seleccionar fila">${checkIcon}</div>
+                        </td>
+                        ${centerColsHTML}
+                        <td class="py-2 px-3 text-right align-middle w-full">
+                            <div class="flex items-center justify-end gap-4 w-full">
+                                <div class="font-black text-slate-800 text-sm whitespace-nowrap shrink-0 cursor-pointer hover:text-blue-600 hover:scale-110 transition-all px-2 py-1 rounded hover:bg-blue-50 border border-transparent hover:border-blue-200" 
+                                     title="Click para editar precio" 
+                                     onclick="window.inlineEditPrice(event, this, '${dni}', '${doc.id}', ${p.total})">${p.total} €</div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <button onclick="window.generateFactura('${doc.id}')" class="px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-colors shadow-sm flex items-center justify-center h-[26px]" title="Ver Detalles Visuales">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                        Detalles
+                                    </button>
+                                    <div class="w-[85px] flex justify-end h-[26px]">${statusBtn}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-2 px-3 text-center align-middle shrink-0">
+                            <button onclick="window.deleteHistoryItem('${dni}', '${doc.id}', '${data.date.substring(0, 7)}', '${data.type || 'buceo'}')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                        </td>
+                    </tr>`;
+                }
+                historyRenderCount++;
+            }
+        }
     });
+
+    let totalLocalDeposits = 0;
+    let oldestPendingTrip = null;
+    if (window.activeFichaDives) {
+        window.activeFichaDives.forEach(item => {
+            const { data } = item;
+            let isPaid = data.paymentStatus === 'paid';
+            if (data.type === 'pago' && data.isPartialAbono) {
+                isPaid = false;
+            } else if (data.type === 'pago' && data.paymentStatus === 'pending') {
+                isPaid = false;
+            }
+            
+            if (data.type === 'pago' || data.type === 'producto' || data.type === 'servicio') return;
+
+            if (!isPaid && data.localDeposit) {
+                totalLocalDeposits += parseFloat(data.localDeposit) || 0;
+            }
+        });
+
+        oldestPendingTrip = [...window.activeFichaDives].reverse().find(d => {
+            if (d.data.paymentStatus !== 'pending') return false;
+            if (d.data.type === 'pago' || d.data.type === 'producto' || d.data.type === 'servicio') return false;
+            return true;
+        });
+    }
+
+    const globalDeposit = customerInfo.deposit || 0;
+    const depositCaja = totalLocalDeposits + globalDeposit;
+    
+    let displayedDeposit = 0;
+    let displayedDepositMethod = '';
+    if (oldestPendingTrip && oldestPendingTrip.data.localDeposit) {
+        displayedDeposit = parseFloat(oldestPendingTrip.data.localDeposit) || 0;
+        displayedDepositMethod = oldestPendingTrip.data.localDepositMethod || '';
+    } else {
+        displayedDeposit = globalDeposit;
+        displayedDepositMethod = customerInfo.depositMethod || '';
+    }
 
     const cajaListEl = document.getElementById('caja-pending-list');
     if (cajaListEl) {
@@ -664,8 +759,6 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
             totalPendingCount += (pendingProductosHTML.match(/<tr class="group/g) || []).length;
         }
         
-        const depositCaja = customerInfo.deposit || 0;
-        
         if (pendingPagosHTML || fixedDiscountAmount > 0 || depositCaja > 0) {
              finalCajaHTML += `
              <tr class="bg-slate-50 border-y border-slate-100"><td colspan="2" class="px-3 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Subtotal:</td><td class="px-3 py-2 text-slate-700 text-right font-bold text-sm whitespace-nowrap">${positivePendingTotal.toFixed(2)} €</td><td></td></tr>
@@ -676,8 +769,18 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
              }
              
              if (depositCaja > 0) {
-                finalCajaHTML += `<tr class="bg-emerald-50/50 border-t border-emerald-100"><td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-emerald-600 tracking-widest text-right">Depósito a Cuenta:</td><td class="px-3 py-1.5 text-emerald-600 text-right font-bold text-xs whitespace-nowrap">-${depositCaja.toFixed(2)} €</td><td></td></tr>`;
-             }
+                 finalCajaHTML += `<tr class="bg-emerald-50/50 border-t border-emerald-100">
+                     <td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-emerald-600 tracking-widest text-right">Depósito a Cuenta:</td>
+                     <td class="px-3 py-1.5 text-emerald-600 text-right font-bold text-xs whitespace-nowrap">-${depositCaja.toFixed(2)} €</td>
+                     <td class="px-3 py-1.5 text-center align-middle w-8 shrink-0">
+                         <button onclick="window.clearCustomerDeposits('${dni}')" class="text-slate-300 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50" title="Eliminar depósito">
+                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                             </svg>
+                         </button>
+                     </td>
+                 </tr>`;
+              }
 
              const finalDebtObj = Math.max(0, positivePendingTotal + negativePendingTotal - depositCaja - fixedDiscountAmount);
              
@@ -696,8 +799,7 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
         document.getElementById('caja-pending-count').innerText = `${totalPendingCount} items`;
     }
 
-    const deposit = customerInfo.deposit || 0;
-    let totalAPagar = Math.max(0, pendingTotal - deposit - fixedDiscountAmount);
+    let totalAPagar = Math.max(0, pendingTotal - depositCaja - fixedDiscountAmount);
 
     if (grandTotal > 0) {
         html += `
@@ -708,26 +810,38 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
         </tr>`;
     }
 
-    if (window.activeFichaDives.length > window.fichaDisplayLimit) {
-        const moreBtn = `
+    if (historyRenderCount > window.fichaDisplayLimit) {
+        const moreBtnHistorial = `
         <tr>
             <td colspan="6" class="p-6 text-center">
-                <button onclick="window.fichaDisplayLimit += 15; window.renderFichaFromCache('${dni}', '${targetTab}');" class="px-6 py-2.5 bg-slate-50 border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 font-black text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 mx-auto">
+                <button onclick="window.fichaDisplayLimit += 15; window.renderFichaFromCache('${dni}', window.activeFichaTab);" class="px-6 py-2.5 bg-slate-50 border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 font-black text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 mx-auto">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    Cargar Más (${window.activeFichaDives.length - window.fichaDisplayLimit} ocultos)
+                    Cargar Más (${historyRenderCount - window.fichaDisplayLimit} ocultos)
                 </button>
             </td>
         </tr>`;
-        html += moreBtn;
-        if (pagosHtml) pagosHtml += moreBtn;
+        html += moreBtnHistorial;
+    }
+
+    if (paymentsRenderCount > window.fichaDisplayLimit) {
+        const moreBtnPagos = `
+        <tr>
+            <td colspan="6" class="p-6 text-center">
+                <button onclick="window.fichaDisplayLimit += 15; window.renderFichaFromCache('${dni}', window.activeFichaTab);" class="px-6 py-2.5 bg-slate-50 border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 font-black text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 mx-auto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    Cargar Más (${paymentsRenderCount - window.fichaDisplayLimit} ocultos)
+                </button>
+            </td>
+        </tr>`;
+        if (pagosHtml) pagosHtml += moreBtnPagos;
     }
 
     document.getElementById('profile-history-list').innerHTML = html || '<tr><td colspan="6" class="p-8 text-center text-slate-500 italic">No hay inmersiones registradas aún.</td></tr>';
     
-    if (pagosTotalSum > 0 || deposit > 0) {
+    if (pagosTotalSum > 0 || depositCaja > 0) {
         let depHtml = '';
-        if (deposit > 0) {
-            pagosTotalSum += deposit;
+        if (depositCaja > 0) {
+            pagosTotalSum += depositCaja;
             depHtml = `
             <tr class="group border-b border-slate-100 hover:bg-emerald-50 transition-colors h-12">
                 <td class="py-2 px-3 align-middle text-center"></td>
@@ -738,9 +852,15 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
                     Depósito a Cuenta
                 </td>
                 <td class="py-2 px-3 align-middle text-right shrink-0 whitespace-nowrap text-sm font-black text-emerald-600">
-                    -${deposit} €
+                    -${depositCaja} €
                 </td>
-                <td class="py-2 px-3 text-center align-middle shrink-0"></td>
+                <td class="py-2 px-3 text-center align-middle shrink-0">
+                    <button onclick="window.clearCustomerDeposits('${dni}')" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="Eliminar depósito">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </td>
             </tr>`;
         }
 
@@ -763,12 +883,12 @@ window.renderFichaFromCache = function(dni, targetTab = 'caja') {
         elDeuda.innerText = pendingTotal.toFixed(2);
         
         const senalInput = document.getElementById('ficha-caja-senal-input');
-        if (senalInput) senalInput.value = deposit;
+        if (senalInput) senalInput.value = displayedDeposit;
         
         const methodSpan = document.getElementById('ficha-caja-senal-method');
         if (methodSpan) {
-            if (deposit > 0 && customerInfo.depositMethod) {
-                methodSpan.innerText = customerInfo.depositMethod;
+            if (displayedDeposit > 0 && displayedDepositMethod) {
+                methodSpan.innerText = displayedDepositMethod;
                 methodSpan.classList.remove('hidden');
             } else {
                 methodSpan.classList.add('hidden');
@@ -1192,10 +1312,14 @@ window.executeDeleteCustomer = function () {
 window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite = false) {
     if (!dni) return 0;
     try {
+        const dObj = new Date();
+        const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
+        
         const snapshot = await db.collection('mangamar_customers').doc(dni).collection('history').get();
         const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
         
         let pendingTotal = 0;
+        let totalLocalDeposits = 0;
         let billedCourses = new Set();
         let activeInsExpiry = null;
         let docsArray = [];
@@ -1287,10 +1411,13 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
 
             if (!isPaid) {
                 pendingTotal += p.total;
+                if (data.localDeposit && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio') {
+                    totalLocalDeposits += parseFloat(data.localDeposit) || 0;
+                }
             }
         });
 
-        const deposit = customerInfo.deposit || 0;
+        const deposit = (customerInfo.deposit || 0) + totalLocalDeposits;
         let fixedDiscountAmount = 0;
         if (customerInfo.discount > 0 && customerInfo.discountType === 'fixed') {
             fixedDiscountAmount = customerInfo.discount;
@@ -1343,4 +1470,98 @@ window.updateMultipleCustomersOutstandingDebt = async function(dnis) {
     if (typeof renderDailyGrid === 'function') {
         renderDailyGrid();
     }
+};
+
+window.clearHistorialDateFilters = function() {
+    const fromEl = document.getElementById('historial-filter-from');
+    const toEl = document.getElementById('historial-filter-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+    window.renderFichaFromCache(window.activeFichaDni, 'historial');
+};
+
+window.openHistorialExportModal = function() {
+    if (!window.activeFichaDni) return;
+    const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, window.activeFichaDni)) || {};
+    const clientName = document.getElementById('profile-modal-name') ? document.getElementById('profile-modal-name').innerText : (window.getFullName(customerInfo) || 'Cliente');
+    
+    const fromEl = document.getElementById('historial-filter-from');
+    const toEl = document.getElementById('historial-filter-to');
+    const fromVal = fromEl ? fromEl.value : '';
+    const toVal = toEl ? toEl.value : '';
+    
+    let rangeStr = "";
+    if (fromVal && toVal) {
+        rangeStr = `Rango: ${fromVal} a ${toVal}`;
+    } else if (fromVal) {
+        rangeStr = `Desde: ${fromVal}`;
+    } else if (toVal) {
+        rangeStr = `Hasta: ${toVal}`;
+    } else {
+        rangeStr = `Todo el historial`;
+    }
+    
+    let text = `Resumen de Inmersiones — ${clientName}\n`;
+    text += `${rangeStr}\n`;
+    text += `========================================\n\n`;
+    
+    const groupedDives = {};
+    const sortedItems = [...window.activeFichaDives].reverse();
+    
+    sortedItems.forEach(item => {
+        const { data } = item;
+        const dateStr = data.date;
+        
+        // Apply date filter
+        if (fromVal && dateStr < fromVal) return;
+        if (toVal && dateStr > toVal) return;
+        
+        // Skip pagos, productos, and general/other servicios (only include dives, which have !data.type)
+        if (data.type) return;
+        
+        if (!groupedDives[dateStr]) {
+            groupedDives[dateStr] = [];
+        }
+        groupedDives[dateStr].push(data);
+    });
+    
+    let servicesText = "";
+    Object.keys(groupedDives).sort().forEach(dateStr => {
+        const parts = dateStr.split('-');
+        if (parts.length < 3) return;
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const dObj = new Date(year, month, day);
+
+        const weekday = dObj.toLocaleDateString('es-ES', { weekday: 'long' });
+        const monthName = dObj.toLocaleDateString('es-ES', { month: 'long' });
+        const formattedDay = `${weekday}, ${day} ${monthName} ${year}`;
+        
+        servicesText += `${formattedDay}:\n`;
+        groupedDives[dateStr].forEach(dive => {
+            let timeStr = dive.time || '';
+            if (timeStr && timeStr.includes(':')) {
+                const timeParts = timeStr.split(':');
+                let hours = parseInt(timeParts[0], 10);
+                let minutes = parseInt(timeParts[1], 10);
+                
+                hours = (hours - 1 + 24) % 24;
+                
+                const minStr = String(minutes).padStart(2, '0');
+                timeStr = `${hours}:${minStr}`;
+            }
+            servicesText += ` - ${timeStr} ${dive.site || 'Buceo'}\n`;
+        });
+        servicesText += `\n`;
+    });
+    
+    if (servicesText) {
+        text += servicesText.trim();
+    } else {
+        text += `No se encontraron inmersiones en este rango.\n`;
+    }
+    
+    document.getElementById('historial-export-text').value = text;
+    document.getElementById('historial-export-modal').classList.remove('hidden');
 };

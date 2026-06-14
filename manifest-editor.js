@@ -990,19 +990,6 @@ function _renderGroupsCore(skipAutoSave = false) {
 
             let customerDeposit = guest.localDeposit || 0;
             let depositContasimple = guest.localDepositC || false;
-            if (guest.dni) {
-                const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-                if (profile) {
-                    // Only overwrite with profile.deposit if the trip is not paid.
-                    // If the trip is paid, the profile's deposit has been cleared to 0, 
-                    // but we want to retain the localDeposit mention showing what was applied!
-                    const isPaid = (guest.paymentStatus === 'paid') || (window.activeTripPayments && window.activeTripPayments[guest.dni] && window.activeTripPayments[guest.dni].paymentStatus === 'paid');
-                    if (!isPaid) {
-                        if (profile.deposit !== undefined) customerDeposit = profile.deposit;
-                        if (profile.depositContasimple !== undefined) depositContasimple = profile.depositContasimple;
-                    }
-                }
-            }
             
             // Orange by default if there's any deposit, green if Contasimple (C) checked
             let depositColor = depositContasimple ? 'text-emerald-600 font-black' : 'text-orange-500 font-black';
@@ -2011,7 +1998,7 @@ function searchRelink(groupIndex, guestIndex, query) {
                 </div>`;
             } else {
                 const encodedData = encodeURIComponent(JSON.stringify(c));
-                return `<div class="px-3 py-2 bg-white hover:bg-blue-50 cursor-pointer border-b border-slate-100 text-left global-ac-item" onmousedown="executeRelink(${groupIndex}, ${guestIndex}, '${encodedData}')">
+                return `<div class="px-3 py-2 bg-white hover:bg-blue-50 cursor-pointer border-b border-slate-100 text-left global-ac-item" onmousedown="event.preventDefault(); window.executeRelink(${groupIndex}, ${guestIndex}, '${encodedData}')">
                     <div class="font-bold text-slate-800 text-xs">${fullName}</div>
                     <div class="text-[10px] text-slate-500">${c.titulacion || '-'} • ${c.dni}</div>
                 </div>`;
@@ -2058,243 +2045,209 @@ function checkRelinkEnter(event, groupIndex, guestIndex) {
 }
 
 window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
-    const data = JSON.parse(decodeURIComponent(encodedData));
-    const fullName = [data.nombre, data.apellido].filter(Boolean).join(' ').trim();
-    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
-    
-    // Save the old name and tempId to sync across other boats and groups
-    const oldNameLower = guest.nombre ? guest.nombre.toLowerCase() : null;
-    const guestTempId = guest.tempId || null;
-
-    const tag = findActiveTagForGuest(data.dni, fullName); // Auto-sync group!
-    guest.nombre = window.getFirstAndLastName(fullName); guest.titulacion = data.titulacion || ''; guest.telefono = data.telefono || ''; 
-    guest.email = data.email || ''; guest.dni = data.dni || ''; guest.isManual = !window.isProfileComplete(data); guest.isRelinking = false;
-    if (tag) guest.bookingTag = tag;
-    if (guestTempId) delete guest.tempId;
-    
-    // Determine which months we need to sync based on Global Group overlap
-    const monthsToFetch = new Set();
-    monthsToFetch.add(activeBoatItem.date.substring(0, 7)); // Current month always
-    
-    console.log("[executeRelink] Starting relink for", fullName, "guestTempId:", guestTempId, "oldName:", oldNameLower);
-    
-    // --- 1. SYNC TO GLOBAL GROUPS ---
-    if (window.globalGroups) {
-        const matchTarget = guestTempId || (oldNameLower ? (typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(oldNameLower) : oldNameLower.trim()) : null);
-        console.log("[executeRelink] matchTarget for Global Groups:", matchTarget);
+    try {
+        const data = JSON.parse(decodeURIComponent(encodedData));
+        const fullName = [data.nombre, data.apellido].filter(Boolean).join(' ').trim();
+        const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
         
-        window.globalGroups.forEach(grp => {
-            if (grp.members && matchTarget) {
-                // Check if the group contains the old name/tempId
-                const matchFound = grp.members.some(m => {
-                    if (guestTempId && m === guestTempId) return true;
-                    if (!guestTempId && m.toLowerCase().startsWith('temp_')) return false; // Don't text-match against tempIds
-                    const normM = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(m) : m.trim().toLowerCase();
-                    return normM === matchTarget;
-                });
-                
-                if (matchFound) {
-                    console.log("[executeRelink] Found in Global Group:", grp.name, "Start:", grp.startDate, "End:", grp.endDate);
-                    // It's in this group! Add its start/end months to our fetch list to guarantee cross-month sync
-                    if (grp.startDate) monthsToFetch.add(grp.startDate.substring(0, 7));
-                    if (grp.endDate) monthsToFetch.add(grp.endDate.substring(0, 7));
- 
-                    grp.members = grp.members.filter(m => {
-                        if (guestTempId && m === guestTempId) return false;
-                        if (!guestTempId && m.toLowerCase().startsWith('temp_')) return true;
-                        const normM = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(m) : m.trim().toLowerCase();
-                        return normM !== matchTarget;
-                    });
-                    const normalizedNewDni = window.normalizeDni(data.dni);
-                    if (!grp.members.some(m => window.isSameDni(m, normalizedNewDni))) {
-                        grp.members.push(normalizedNewDni);
-                    }
-                    if (window.saveGlobalGroup) window.saveGlobalGroup(grp);
-                }
-            }
-        });
-    }
+        // Save the old name and tempId to sync across other boats and groups
+        const oldNameLower = guest.nombre ? guest.nombre.toLowerCase() : null;
+        const guestTempId = guest.tempId || null;
 
-    // --- 2. SYNC ACROSS ALL REQUIRED MONTHS ---
-    if ((guestTempId || oldNameLower) && typeof db !== 'undefined') {
-        const matchTarget = guestTempId || (typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(oldNameLower) : oldNameLower.trim());
+        const tag = typeof findActiveTagForGuest === 'function' ? findActiveTagForGuest(data.dni, fullName) : null; // Auto-sync group!
+        guest.nombre = window.getFirstAndLastName(fullName); guest.titulacion = data.titulacion || ''; guest.telefono = data.telefono || ''; 
+        guest.email = data.email || ''; guest.dni = data.dni || ''; guest.isManual = !window.isProfileComplete(data); guest.isRelinking = false;
+        if (tag) guest.bookingTag = tag;
+        if (guestTempId) delete guest.tempId;
         
-        for (const monthStr of monthsToFetch) {
-            let tripsToCheck = [];
+        // Determine which months we need to sync based on Global Group overlap
+        const monthsToFetch = new Set();
+        monthsToFetch.add(activeBoatItem.date.substring(0, 7)); // Current month always
+        
+        console.log("[executeRelink] Starting relink for", fullName, "guestTempId:", guestTempId, "oldName:", oldNameLower);
+        
+        // --- 1. SYNC TO GLOBAL GROUPS ---
+        if (window.globalGroups) {
+            const matchTarget = guestTempId || (oldNameLower ? (typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(oldNameLower) : oldNameLower.trim()) : null);
+            console.log("[executeRelink] matchTarget for Global Groups:", matchTarget);
             
-            // If it's the current month, use the in-memory array to be fast and safe
-            if (monthStr === activeBoatItem.date.substring(0, 7) && window.internalTrips) {
-                tripsToCheck = JSON.parse(JSON.stringify(window.internalTrips.filter(t => t.date && t.date.substring(0, 7) === monthStr)));
-            } else {
-                // Background fetch the adjacent month!
-                console.log("[executeRelink] Fetching adjacent month:", monthStr);
-                try {
-                    const doc = await db.collection('mangamar_monthly').doc(monthStr).get();
-                    if (doc.exists && doc.data().allocations) {
-                        const monthData = doc.data().allocations;
-                        tripsToCheck = [];
-                        for (const tripId in monthData) {
-                            tripsToCheck.push({ id: tripId, ...monthData[tripId] });
-                        }
-                    }
-                } catch (e) { console.error("[executeRelink] Failed to fetch month", monthStr, e); }
-            }
-
-            let needsUpdate = false;
-            const updates = {};
-
-            tripsToCheck.forEach(clonedTrip => {
-                if (clonedTrip.id === activeBoatItem.id) return;
-                
-                let tripChanged = false;
-                
-                clonedTrip.groups?.forEach(g => {
-                    g.guests?.forEach(otherGuest => {
-                        let isMatch = false;
-                        if (guestTempId && otherGuest.tempId === guestTempId) {
-                            isMatch = true;
-                        } else if (data.dni && otherGuest.dni && window.normalizeDni(otherGuest.dni) === window.normalizeDni(data.dni)) {
-                            isMatch = true;
-                        } else if (matchTarget) {
-                            const normOther = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(otherGuest.nombre || '') : (otherGuest.nombre || '').trim().toLowerCase();
-                            isMatch = (!otherGuest.dni && otherGuest.nombre && normOther === matchTarget);
-                        }
-
-                        if (isMatch) {
-                            otherGuest.dni = data.dni || '';
-                            otherGuest.nombre = window.getFirstAndLastName(fullName);
-                            otherGuest.titulacion = data.titulacion || '';
-                            otherGuest.telefono = data.telefono || '';
-                            otherGuest.email = data.email || '';
-                            otherGuest.isManual = !window.isProfileComplete(data);
-                            if (tag) otherGuest.bookingTag = tag;
-                            if (otherGuest.tempId) delete otherGuest.tempId;
-                            tripChanged = true;
-                        }
+            window.globalGroups.forEach(grp => {
+                if (grp.members && matchTarget) {
+                    // Check if the group contains the old name/tempId
+                    const matchFound = grp.members.some(m => {
+                        if (guestTempId && m === guestTempId) return true;
+                        if (!guestTempId && m && typeof m === 'string' && m.toLowerCase().startsWith('temp_')) return false; // Don't text-match against tempIds
+                        const normM = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(m) : (m && typeof m === 'string' ? m.trim().toLowerCase() : '');
+                        return normM === matchTarget;
                     });
-                });
-                
-                if (tripChanged) {
-                    try {
-                        const newFlatGuests = []; 
-                        (clonedTrip.groups || []).forEach(g => {
-                            if (g.guests && Array.isArray(g.guests)) {
-                                newFlatGuests.push(...g.guests);
-                            }
+                    
+                    if (matchFound) {
+                        console.log("[executeRelink] Found in Global Group:", grp.name, "Start:", grp.startDate, "End:", grp.endDate);
+                        // It's in this group! Add its start/end months to our fetch list to guarantee cross-month sync
+                        if (grp.startDate) monthsToFetch.add(grp.startDate.substring(0, 7));
+                        if (grp.endDate) monthsToFetch.add(grp.endDate.substring(0, 7));
+ 
+                        grp.members = grp.members.filter(m => {
+                            if (guestTempId && m === guestTempId) return false;
+                            if (!guestTempId && m && typeof m === 'string' && m.toLowerCase().startsWith('temp_')) return true;
+                            const normM = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(m) : (m && typeof m === 'string' ? m.trim().toLowerCase() : '');
+                            return normM !== matchTarget;
                         });
-                        clonedTrip.guests = newFlatGuests;
-                        updates[`allocations.${clonedTrip.id}`] = {
-                            id: clonedTrip.id, date: clonedTrip.date, time: clonedTrip.time, assignedBoat: clonedTrip.assignedBoat,
-                            site: clonedTrip.site, captain: clonedTrip.captain, groups: clonedTrip.groups, guests: clonedTrip.guests
-                        };
-                        needsUpdate = true;
-                        
-                        // Update in-memory models if it's the current month
-                        if (monthStr === activeBoatItem.date.substring(0, 7)) {
-                            if (window.mergedAllocations && Array.isArray(window.mergedAllocations)) {
-                                const idx = window.mergedAllocations.findIndex(t => t.id === clonedTrip.id);
-                                if (idx > -1) window.mergedAllocations[idx] = clonedTrip;
-                            }
-                            if (window.internalTrips && Array.isArray(window.internalTrips)) {
-                                const idx2 = window.internalTrips.findIndex(t => t.id === clonedTrip.id);
-                                if (idx2 > -1) window.internalTrips[idx2] = clonedTrip;
-                            }
+                        const normalizedNewDni = window.normalizeDni(data.dni);
+                        if (!grp.members.some(m => m && window.isSameDni(m, normalizedNewDni))) {
+                            grp.members.push(normalizedNewDni);
                         }
-                    } catch (e) {
-                        console.error("[executeRelink] Error flattening guests for trip", clonedTrip.id, e);
+                        if (window.saveGlobalGroup) window.saveGlobalGroup(grp);
                     }
                 }
             });
+        }
+
+        // --- 2. SYNC ACROSS ALL REQUIRED MONTHS ---
+        if ((guestTempId || oldNameLower) && typeof db !== 'undefined') {
+            const matchTarget = guestTempId || (typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(oldNameLower) : oldNameLower.trim());
             
-            if (needsUpdate) {
-                // 🚨 SECONDARY FIX: Ensure history records are retroactively generated for these newly linked trips!
-                const historyBatch = db.batch();
-                let historyWrites = 0;
+            for (const monthStr of monthsToFetch) {
+                let tripsToCheck = [];
                 
-                Object.keys(updates).forEach(allocationKey => {
-                    const clonedTrip = updates[allocationKey];
-                    const linkedGuests = clonedTrip.guests.filter(g => g.dni && window.normalizeDni(g.dni) === window.normalizeDni(data.dni) && !g.cancelled);
-                    linkedGuests.forEach(g => {
-                        const historyRef = db.collection('mangamar_customers').doc(data.dni).collection('history').doc(clonedTrip.id);
-                        historyBatch.set(historyRef, {
-                            date: clonedTrip.date,
-                            time: clonedTrip.time,
-                            site: clonedTrip.site,
-                            assignedBoat: clonedTrip.assignedBoat,
-                            gas: g.gas || '15L Aire',
-                            rental: g.rental || 0,
-                            computer: g.computer || 0,
-                            computerPrice: g.computer ? (g.computerPrice || 7) : 0,
-                            insurance: g.course ? 'INC' : (g.insurance || 0),
-                            course: g.course || null,
-                            baseCourse: g.baseCourse || null,
-                            courseBadge: g.courseBadge || null,
-                            coursePrice: g.coursePrice || 0,
-                            hasBono: g.hasBono || false,
-                            paymentStatus: g.paymentStatus || 'pending',
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp() 
-                        }, { merge: true });
-                        historyWrites++;
-                    });
-                });
-                
-                if (historyWrites > 0) {
-                    historyBatch.commit().catch(e => console.error("[executeRelink] History batch FAILED", e));
+                // If it's the current month, use the in-memory array to be fast and safe
+                if (monthStr === activeBoatItem.date.substring(0, 7) && window.internalTrips) {
+                    tripsToCheck = JSON.parse(JSON.stringify(window.internalTrips.filter(t => t.date && t.date.substring(0, 7) === monthStr)));
+                } else {
+                    // Background fetch the adjacent month!
+                    console.log("[executeRelink] Fetching adjacent month:", monthStr);
+                    try {
+                        const doc = await db.collection('mangamar_monthly').doc(monthStr).get();
+                        if (doc.exists && doc.data().allocations) {
+                            const monthData = doc.data().allocations;
+                            tripsToCheck = [];
+                            for (const tripId in monthData) {
+                                tripsToCheck.push({ id: tripId, ...monthData[tripId] });
+                            }
+                        }
+                    } catch (e) { console.error("[executeRelink] Failed to fetch month", monthStr, e); }
                 }
 
-                db.collection('mangamar_monthly').doc(monthStr).update(updates).then(() => {
-                    if (monthStr === activeBoatItem.date.substring(0, 7)) {
-                        if (typeof renderDailyGrid === 'function') renderDailyGrid();
-                        if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
+                let needsUpdate = false;
+                const updates = {};
+
+                tripsToCheck.forEach(clonedTrip => {
+                    if (clonedTrip.id === activeBoatItem.id) return;
+                    
+                    let tripChanged = false;
+                    
+                    clonedTrip.groups?.forEach(g => {
+                        g.guests?.forEach(otherGuest => {
+                            let isMatch = false;
+                            if (guestTempId && otherGuest.tempId === guestTempId) {
+                                isMatch = true;
+                            } else if (data.dni && otherGuest.dni && window.normalizeDni(otherGuest.dni) === window.normalizeDni(data.dni)) {
+                                isMatch = true;
+                            } else if (matchTarget) {
+                                const normOther = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(otherGuest.nombre || '') : (otherGuest.nombre || '').trim().toLowerCase();
+                                isMatch = (!otherGuest.dni && otherGuest.nombre && normOther === matchTarget);
+                            }
+
+                            if (isMatch) {
+                                otherGuest.dni = data.dni || '';
+                                otherGuest.nombre = window.getFirstAndLastName(fullName);
+                                otherGuest.titulacion = data.titulacion || '';
+                                otherGuest.telefono = data.telefono || '';
+                                otherGuest.email = data.email || '';
+                                otherGuest.isManual = !window.isProfileComplete(data);
+                                if (tag) otherGuest.bookingTag = tag;
+                                if (otherGuest.tempId) delete otherGuest.tempId;
+                                tripChanged = true;
+                            }
+                        });
+                    });
+                    
+                    if (tripChanged) {
+                        try {
+                            const newFlatGuests = []; 
+                            (clonedTrip.groups || []).forEach(g => {
+                                if (g.guests && Array.isArray(g.guests)) {
+                                    newFlatGuests.push(...g.guests);
+                                }
+                            });
+                            clonedTrip.guests = newFlatGuests;
+                            updates[`allocations.${clonedTrip.id}`] = {
+                                id: clonedTrip.id, date: clonedTrip.date, time: clonedTrip.time, assignedBoat: clonedTrip.assignedBoat,
+                                site: clonedTrip.site, captain: clonedTrip.captain, groups: clonedTrip.groups, guests: clonedTrip.guests
+                            };
+                            needsUpdate = true;
+                            
+                            // Update in-memory models if it's the current month
+                            if (monthStr === activeBoatItem.date.substring(0, 7)) {
+                                if (window.mergedAllocations && Array.isArray(window.mergedAllocations)) {
+                                    const idx = window.mergedAllocations.findIndex(t => t.id === clonedTrip.id);
+                                    if (idx > -1) window.mergedAllocations[idx] = clonedTrip;
+                                }
+                                if (window.internalTrips && Array.isArray(window.internalTrips)) {
+                                    const idx2 = window.internalTrips.findIndex(t => t.id === clonedTrip.id);
+                                    if (idx2 > -1) window.internalTrips[idx2] = clonedTrip;
+                                }
+                            }
+                        } catch (e) {
+                            console.error("[executeRelink] Error flattening guests for trip", clonedTrip.id, e);
+                        }
                     }
-                }).catch(e => console.error("[executeRelink] Firebase update FAILED for", monthStr, e));
+                });
+                
+                if (needsUpdate) {
+                    // 🚨 SECONDARY FIX: Ensure history records are retroactively generated for these newly linked trips!
+                    const historyBatch = db.batch();
+                    let historyWrites = 0;
+                    
+                    Object.keys(updates).forEach(allocationKey => {
+                        const clonedTrip = updates[allocationKey];
+                        const linkedGuests = clonedTrip.guests.filter(g => g.dni && window.normalizeDni(g.dni) === window.normalizeDni(data.dni) && !g.cancelled);
+                        linkedGuests.forEach(g => {
+                            const historyRef = db.collection('mangamar_customers').doc(data.dni).collection('history').doc(clonedTrip.id);
+                            historyBatch.set(historyRef, {
+                                date: clonedTrip.date,
+                                time: clonedTrip.time,
+                                site: clonedTrip.site,
+                                assignedBoat: clonedTrip.assignedBoat,
+                                gas: g.gas || '15L Aire',
+                                rental: g.rental || 0,
+                                computer: g.computer || 0,
+                                computerPrice: g.computer ? (g.computerPrice || 7) : 0,
+                                insurance: g.course ? 'INC' : (g.insurance || 0),
+                                course: g.course || null,
+                                baseCourse: g.baseCourse || null,
+                                courseBadge: g.courseBadge || null,
+                                coursePrice: g.coursePrice || 0,
+                                hasBono: g.hasBono || false,
+                                paymentStatus: g.paymentStatus || 'pending',
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+                            }, { merge: true });
+                            historyWrites++;
+                        });
+                    });
+                    
+                    if (historyWrites > 0) {
+                        historyBatch.commit().catch(e => console.error("[executeRelink] History batch FAILED", e));
+                    }
+
+                    db.collection('mangamar_monthly').doc(monthStr).update(updates).then(() => {
+                        if (monthStr === activeBoatItem.date.substring(0, 7)) {
+                            const tempIdx = window.customerDatabase.findIndex(c => c.dni === guestTempId);
+                            if (tempIdx > -1) window.customerDatabase.splice(tempIdx, 1);
+                            if (typeof renderDailyGrid === 'function') renderDailyGrid();
+                            if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
+                        }
+                    }).catch(e => console.error("[executeRelink] Firebase update FAILED for", monthStr, e));
+                }
             }
         }
+
+        renderGroups();
+        triggerAutoSave();
+    } catch (err) {
+        console.error("Error in executeRelink:", err);
+        alert("Error in executeRelink: " + err.message + "\n" + err.stack);
     }
-
-    // --- 3. SYNC TO OTHER GROUPS IN *THIS* BOAT (just in case they are booked twice) ---
-    activeBoatItem.groups.forEach((g, gIdx) => {
-        g.guests.forEach((otherGuest, gstIdx) => {
-            if (gIdx === groupIndex && gstIdx === guestIndex) return; // skip self
-            
-            let isMatch = false;
-            if (guestTempId && otherGuest.tempId === guestTempId) {
-                isMatch = true;
-            } else if (data.dni && otherGuest.dni && window.normalizeDni(otherGuest.dni) === window.normalizeDni(data.dni)) {
-                isMatch = true;
-            } else if (oldNameLower) {
-                const normOther = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(otherGuest.nombre || '') : (otherGuest.nombre || '').trim().toLowerCase();
-                const matchTarget = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(oldNameLower) : oldNameLower.trim();
-                isMatch = (!otherGuest.dni && otherGuest.nombre && normOther === matchTarget);
-            }
-
-            if (isMatch) {
-                otherGuest.dni = data.dni || '';
-                otherGuest.nombre = window.getFirstAndLastName(fullName);
-                otherGuest.titulacion = data.titulacion || '';
-                otherGuest.telefono = data.telefono || '';
-                otherGuest.email = data.email || '';
-                otherGuest.isManual = !window.isProfileComplete(data);
-                if (tag) otherGuest.bookingTag = tag;
-                if (otherGuest.tempId) delete otherGuest.tempId;
-            }
-        });
-    });
-
-    // 🚨 CLEANUP TEMPORARY CUSTOMER 🚨
-    // Prevent the temporary "Cliente" profile from lingering in Dia de Hoy after linking a DNI
-    if (guestTempId && typeof db !== 'undefined') {
-        db.collection('mangamar_customers').doc(guestTempId).delete().catch(e => console.log("Silent temp cleanup fail", e));
-        
-        // Instantly remove from local RAM so Día de Hoy reflects the change immediately
-        if (window.customerDatabase) {
-            const tempIdx = window.customerDatabase.findIndex(c => c.dni === guestTempId);
-            if (tempIdx > -1) window.customerDatabase.splice(tempIdx, 1);
-        }
-    }
-
-    renderGroups();
-    triggerAutoSave();
 };
 
 // --- EDIT MODAL LOGIC (GLOBAL VS LOCAL DRAFT) ---
@@ -2557,7 +2510,7 @@ window.saveLocalGuestEdit = async function() {
         }
 
         // Recalculate group bookingTag in case the name or DNI changed
-        guest.bookingTag = findActiveTagForGuest(null, guest.nombre) || '';
+        guest.bookingTag = (typeof findActiveTagForGuest === 'function' ? findActiveTagForGuest(null, guest.nombre) : '') || '';
 
         // 1. Update matching manual names in globalGroups (RAM + Firestore)
         if (window.globalGroups && Array.isArray(window.globalGroups)) {
@@ -2748,7 +2701,7 @@ function searchCustomers(groupIndex, query) {
                     const encodedData = encodeURIComponent(JSON.stringify({ nombre, apellido: '', titulacion: tit, telefono: d.telefono || '', email: d.email || '', dni }));
                     dropdown.innerHTML = conflict.conflict
                         ? `<div class="px-4 py-3 bg-slate-50 opacity-60 text-sm font-bold text-slate-500">${nombre} <span class="text-xs">(En ${conflict.where})</span></div>`
-                        : `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer text-sm font-bold text-slate-800 global-ac-item" onmousedown="selectCustomer(${groupIndex}, '${encodedData}')">${nombre}<div class="text-xs text-slate-500 font-medium">${tit} • ${dni}</div></div>`;
+                        : `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer text-sm font-bold text-slate-800 global-ac-item" onmousedown="event.preventDefault(); window.selectCustomer(${groupIndex}, '${encodedData}')">${nombre}<div class="text-xs text-slate-500 font-medium">${tit} • ${dni}</div></div>`;
                     dropdown.classList.remove('hidden');
                 })
                 .catch(() => {});
@@ -2768,7 +2721,7 @@ function searchCustomers(groupIndex, query) {
                 </div>`;
             } else {
                 const encodedData = encodeURIComponent(JSON.stringify(c));
-                return `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer border-b border-slate-100 transition-colors global-ac-item" onmousedown="selectCustomer(${groupIndex}, '${encodedData}')">
+                return `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer border-b border-slate-100 transition-colors global-ac-item" onmousedown="event.preventDefault(); window.selectCustomer(${groupIndex}, '${encodedData}')">
                     <div class="font-bold text-slate-800 text-sm">${fullName}</div>
                     <div class="text-xs text-slate-500 font-medium">${c.titulacion || '-'} • ${c.dni}</div>
                 </div>`;
@@ -2784,72 +2737,76 @@ function searchCustomers(groupIndex, query) {
 }
 
 window.selectCustomer = function(groupIndex, encodedData) {
-    const data = JSON.parse(decodeURIComponent(encodedData));
-    const fullName = getFullName(data);
-    
-    // --- SMART RELINK DETECTION ---
-    // If the user uses the search bar to find someone who is ALREADY a manual guest on this boat,
-    // intercept it and RELINK them instead of duplicating!
-    let intercepted = false;
-    for (let gIdx = 0; gIdx < activeBoatItem.groups.length; gIdx++) {
-        for (let gstIdx = 0; gstIdx < activeBoatItem.groups[gIdx].guests.length; gstIdx++) {
-            const gst = activeBoatItem.groups[gIdx].guests[gstIdx];
-            if (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === data.nombre.toLowerCase()) {
-                window.executeRelink(gIdx, gstIdx, encodedData);
-                intercepted = true;
-                break;
-            }
-        }
-        if (intercepted) break;
-    }
-    
-    if (!intercepted) {
-        const tag = findActiveTagForGuest(data.dni, fullName); // Auto-sync group!
-        const existingData = typeof findExistingDiverData === 'function' ? findExistingDiverData(data.dni || fullName) : null;
+    try {
+        const data = JSON.parse(decodeURIComponent(encodedData));
+        const fullName = window.getFullName(data);
         
-        let localIns = 0;
-        if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
-            localIns = existingData.insurance;
-        } else if (data && data.insurance) {
-            const insObj = data.insurance;
-            const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
-            const activeDate = activeBoatItem ? activeBoatItem.date : '';
-            if (expiry && expiry >= activeDate) {
-                localIns = insObj.type || 0;
+        // --- SMART RELINK DETECTION ---
+        // If the user uses the search bar to find someone who is ALREADY a manual guest on this boat,
+        // intercept it and RELINK them instead of duplicating!
+        let intercepted = false;
+        for (let gIdx = 0; gIdx < activeBoatItem.groups.length; gIdx++) {
+            for (let gstIdx = 0; gstIdx < activeBoatItem.groups[gIdx].guests.length; gstIdx++) {
+                const gst = activeBoatItem.groups[gIdx].guests[gstIdx];
+                if (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === data.nombre.toLowerCase()) {
+                    window.executeRelink(gIdx, gstIdx, encodedData);
+                    intercepted = true;
+                    break;
+                }
             }
+            if (intercepted) break;
         }
+        
+        if (!intercepted) {
+            const tag = typeof findActiveTagForGuest === 'function' ? findActiveTagForGuest(data.dni, fullName) : null; // Auto-sync group!
+            const existingData = typeof findExistingDiverData === 'function' ? findExistingDiverData(data.dni || fullName) : null;
+            
+            let localIns = 0;
+            if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+                localIns = existingData.insurance;
+            } else if (data && data.insurance) {
+                const insObj = data.insurance;
+                const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+                const activeDate = activeBoatItem ? activeBoatItem.date : '';
+                if (expiry && expiry >= activeDate) {
+                    localIns = insObj.type || 0;
+                }
+            }
 
-        const newGuest = { 
-            nombre: window.getFirstAndLastName(fullName), 
-            titulacion: data.titulacion || '', 
-            telefono: data.telefono || '', 
-            email: data.email || '', 
-            dni: data.dni || '', 
-            gas: '15L Aire', 
-            isManual: !window.isProfileComplete(data), 
-            bookingTag: tag,
-            insurance: localIns
-        };
+            const newGuest = { 
+                nombre: window.getFirstAndLastName(fullName), 
+                titulacion: data.titulacion || '', 
+                telefono: data.telefono || '', 
+                email: data.email || '', 
+                dni: data.dni || '', 
+                gas: '15L Aire', 
+                isManual: !window.isProfileComplete(data), 
+                bookingTag: tag,
+                insurance: localIns
+            };
 
-        if (existingData && existingData.course) {
-            newGuest.baseCourse = existingData.baseCourse || existingData.course;
-            newGuest.course = existingData.course;
-            newGuest.courseBadge = existingData.courseBadge;
-            newGuest.coursePrice = existingData.coursePrice;
+            if (existingData && existingData.course) {
+                newGuest.baseCourse = existingData.baseCourse || existingData.course;
+                newGuest.course = existingData.course;
+                newGuest.courseBadge = existingData.courseBadge;
+                newGuest.coursePrice = existingData.coursePrice;
+            }
+            // NOTE: localDeposit is intentionally NOT copied — it is per-booking, not a per-day preference.
+            if (existingData && existingData.note) newGuest.note = existingData.note;
+            if (existingData && existingData.rental) newGuest.rental = existingData.rental;
+            if (existingData && existingData.computer) newGuest.computer = existingData.computer;
+            if (existingData && existingData.computerPrice) newGuest.computerPrice = existingData.computerPrice;
+            if (existingData && existingData.hasPaid) newGuest.hasPaid = existingData.hasPaid;
+
+            activeBoatItem.groups[groupIndex].guests.push(newGuest);
+            updateModalSubtitle(); renderGroups(); 
         }
-        if (existingData && existingData.localDeposit) newGuest.localDeposit = existingData.localDeposit;
-        if (existingData && existingData.note) newGuest.note = existingData.note;
-        if (existingData && existingData.rental) newGuest.rental = existingData.rental;
-        if (existingData && existingData.gas) newGuest.gas = existingData.gas;
-        if (existingData && existingData.computer) newGuest.computer = existingData.computer;
-        if (existingData && existingData.computerPrice) newGuest.computerPrice = existingData.computerPrice;
-        if (existingData && existingData.hasPaid) newGuest.hasPaid = existingData.hasPaid;
-
-        activeBoatItem.groups[groupIndex].guests.push(newGuest);
-        updateModalSubtitle(); renderGroups(); 
+        
+        const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden');
+    } catch (err) {
+        console.error("Error in selectCustomer:", err);
+        alert("Error in selectCustomer: " + err.message + "\n" + err.stack);
     }
-    
-    const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden');
 };
 
 function checkEnter(event, groupIndex) {
@@ -2892,7 +2849,7 @@ function checkEnter(event, groupIndex) {
         if (fullName !== '') {
             const conflict = checkDiverConflict(null, fullName);
             if (conflict.conflict) { showAppAlert(`Imposible: Asignado en ${conflict.where}`); return; }
-            const tag = findActiveTagForGuest(null, fullName);
+            const tag = typeof findActiveTagForGuest === 'function' ? findActiveTagForGuest(null, fullName) : null;
             const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             activeBoatItem.groups[groupIndex].guests.push({ nombre: fullName, titulacion: '', telefono: '', email: '', dni: '', gas: '15L Aire', isManual: true, bookingTag: tag, tempId: tempId });
             input.value = '';
@@ -3060,6 +3017,26 @@ window.mergeManifests = function(base, local, remote) {
     const baseGuests = indexGuests(base);
     const localGuests = indexGuests(local);
     const remoteGuests = indexGuests(remote);
+
+    // --- NEW: STALE REMOTE SNAPSHOT DETECTION ---
+    // If the remote state is missing any guest that exists in the base state (which was successfully 
+    // saved in a previous write), it means the remote snapshot has not yet caught up to our last write.
+    // In this case, we treat the remote state as containing the missing base guests to prevent 
+    // the 3-way merge from interpreting this as a remote deletion and discarding the guest.
+    let isRemoteStale = false;
+    for (const key of baseGuests.keys()) {
+        if (!remoteGuests.has(key)) {
+            isRemoteStale = true;
+            break;
+        }
+    }
+    if (isRemoteStale) {
+        for (const [key, val] of baseGuests.entries()) {
+            if (!remoteGuests.has(key)) {
+                remoteGuests.set(key, val);
+            }
+        }
+    }
 
     const allKeys = new Set([
         ...baseGuests.keys(),
@@ -3531,6 +3508,11 @@ async function saveBoatData(itemToSave = activeBoatItem) {
     if (savedSnapshot.maxDives) payload.maxDives = savedSnapshot.maxDives;
     
     try {
+        // Optimistically update local cache so the UI updates instantly (<16ms)
+        if (typeof window.updateLocalTripCache === 'function') {
+            window.updateLocalTripCache(targetTripId, targetDate, savedSnapshot);
+        }
+        
         await saveInternalBoatData(targetTripId, targetDate, payload);
         
         // --- ASYNC BACKGROUND FLOW FOR HEAVY SECONDARY WRITES ---
@@ -3746,6 +3728,9 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                         courseBadge: gst.courseBadge || null, 
                         coursePrice: gst.coursePrice || 0,    
                         hasBono: gst.hasBono || false,
+                        localDeposit: gst.localDeposit || 0,
+                        localDepositMethod: gst.localDepositMethod || '',
+                        localDepositC: gst.localDepositC || false,
                         paymentStatus: persistentState,
                         certStatus: (gst.course || gst.baseCourse) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
                         timestamp: firebase.firestore.FieldValue.serverTimestamp() 
@@ -4095,8 +4080,9 @@ async function confirmDeleteBoatData() {
     
     // CRITICAL Safeguard: Wait for any active Firestore auto-saves to fully complete first 
     // to prevent network race conditions from resurrecting the trip document in Firestore.
-    if (isSaving) {
-        while (isSaving) {
+    const activeQueue = window.saveQueues && window.saveQueues[activeBoatItem.id];
+    if (activeQueue && activeQueue.isSaving) {
+        while (activeQueue.isSaving) {
             await new Promise(resolve => setTimeout(resolve, 50));
         }
     }
@@ -4127,8 +4113,9 @@ async function confirmDeleteBoatData() {
         }
 
         const deletePromises = [];
+        const INTERNAL_DB_NAME = 'mangamar_monthly';
         targetMonths.forEach(monthKey => {
-            console.log(`🗑️ [HARD DELETE] Eliminando salida internamente de forma permanente: ${activeBoatItem.id} en ${INTERNAL_DB}/${monthKey}`);
+            console.log(`🗑️ [HARD DELETE] Eliminando salida internamente de forma permanente: ${activeBoatItem.id} en ${INTERNAL_DB_NAME}/${monthKey}`);
             
             // Soft delete for Visor trips, physical deletion for internal trips
             const updatePayload = {};
@@ -4143,7 +4130,7 @@ async function confirmDeleteBoatData() {
             }
             
             deletePromises.push(
-                db.collection(INTERNAL_DB).doc(monthKey).update(updatePayload)
+                db.collection(INTERNAL_DB_NAME).doc(monthKey).update(updatePayload)
                 .catch(err => {
                     console.warn(`Hard delete skipped for doc ${monthKey} (maybe it doesnt exist):`, err);
                 })
@@ -4165,30 +4152,39 @@ async function confirmDeleteBoatData() {
             window.mergeAndRender();
         }
 
-        await Promise.all(deletePromises);
-
-        // Update history Batch
-        if (historyWrites > 0) await historyBatch.commit();
-        
         // Clear activeBoatItem first to prevent closeManageBoatModal from reviving it!
         activeBoatItem = null;
         window.activeBoatItem = null;
 
         // Unlock the autosave engine
         window.isDeletingTrip = false;
-        
-        // --- GARBAGE COLLECTOR TRIGGER ---
-        if (originalTrip && originalTrip.guests) {
-            originalTrip.guests.forEach(g => {
-                if (g.dni && window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(g.dni);
-            });
-        }
 
-        showToast("Salida eliminada correctamente.");
+        // Close the modals instantly so the UI feels snappy and fast
         document.getElementById('delete-confirm-modal').classList.add('hidden');
         closeManageBoatModal();
+        showToast("Salida eliminada correctamente.");
+
+        // Run the deletion operations asynchronously in the background so the user doesn't wait
+        Promise.all(deletePromises)
+            .then(async () => {
+                if (historyWrites > 0) {
+                    await historyBatch.commit();
+                }
+                // --- GARBAGE COLLECTOR TRIGGER ---
+                if (originalTrip && originalTrip.guests) {
+                    originalTrip.guests.forEach(g => {
+                        if (g.dni && window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(g.dni);
+                    });
+                }
+            })
+            .catch(err => {
+                console.error("Error performing background trip delete:", err);
+                showAppAlert("Error al completar la eliminación en segundo plano: " + err.message);
+            });
     } catch (e) {
-        console.error(e); showAppAlert("Error al eliminar la salida: " + e.message);
+        window.isDeletingTrip = false; // Always unlock the autosave engine on error!
+        console.error(e); 
+        showAppAlert("Error al eliminar la salida: " + e.message);
     }
 }
 
@@ -4201,46 +4197,11 @@ window.toggleBono = function(groupIndex, guestIndex) {
 
 window.toggleContasimple = async function(groupIndex, guestIndex) {
     const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
-    const isLocal = !guest.dni || String(guest.dni) === 'undefined';
-    
-    if (isLocal) {
-        guest.localDepositC = !guest.localDepositC;
-        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
-        renderGroups();
-    } else {
-        const normGuestDni = (guest.dni || '').trim().toLowerCase();
-        const dbArray = (typeof customerDatabase !== 'undefined' && Array.isArray(customerDatabase)) ? customerDatabase : [];
-        const custIndex = dbArray.findIndex(c => (c.dni || '').trim().toLowerCase() === normGuestDni);
-        
-        if (custIndex !== -1) {
-            const newVal = !customerDatabase[custIndex].depositContasimple;
-            customerDatabase[custIndex].depositContasimple = newVal;
-            
-            // Also keep local guest sync'ed
-            guest.localDepositC = newVal;
-            
-            // Update UI instantly
-            renderGroups();
-            if (window.normalizeDni(window.activeFichaDni) === window.normalizeDni(guest.dni) && typeof window.renderFichaFromCache === 'function') {
-                window.renderFichaFromCache(guest.dni);
-            }
-            
-            // Auto save the manifest change to Firestore
-            if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
-            
-            // Save to Master List in background
-            try {
-                await window.safeMasterListWrite(customerDatabase, 'toggle-contasimple');
-            } catch (e) {
-                console.error(e);
-                showAppAlert("Error al guardar el estado de Contasimple");
-            }
-        } else {
-            // Fallback: If not found in customerDatabase, toggle locally on the guest
-            guest.localDepositC = !guest.localDepositC;
-            if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
-            renderGroups();
-        }
+    guest.localDepositC = !guest.localDepositC;
+    if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+    renderGroups();
+    if (guest.dni && window.normalizeDni(window.activeFichaDni) === window.normalizeDni(guest.dni) && typeof window.renderFichaFromCache === 'function') {
+        window.renderFichaFromCache(guest.dni);
     }
 };
 
