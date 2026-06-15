@@ -158,8 +158,13 @@ window.getFullName = function(c, includeApodo = true) {
     let n = (c.nombre || '').trim();
     let a = (c.apellido || '').trim();
     let rawName = n;
-    if (!(a && n.toLowerCase().endsWith(a.toLowerCase()))) {
-        rawName = [n, a].filter(Boolean).join(' ');
+    if (a) {
+        const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const normN = normalize(n);
+        const normA = normalize(a);
+        if (!normN.endsWith(normA)) {
+            rawName = [n, a].filter(Boolean).join(' ');
+        }
     }
     let formatted = window.formatNameStr(rawName);
     

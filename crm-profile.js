@@ -1021,6 +1021,7 @@ window.saveCustomerEdits = async function () {
         if (newIndex > -1) {
             // Updating an existing customer record (or linking a temp guest to an existing customer)
             customerDatabase[newIndex].nombre = nombre;
+            customerDatabase[newIndex].apellido = "";
             customerDatabase[newIndex].dob = window.normalizeDateStr(dob);
             customerDatabase[newIndex].telefono = telefono;
             customerDatabase[newIndex].email = email;
@@ -1047,6 +1048,7 @@ window.saveCustomerEdits = async function () {
                 // Renaming the existing customer's DNI
                 customerDatabase[oldIndex].dni = newDni;
                 customerDatabase[oldIndex].nombre = nombre;
+                customerDatabase[oldIndex].apellido = "";
                 customerDatabase[oldIndex].dob = window.normalizeDateStr(dob);
                 customerDatabase[oldIndex].telefono = telefono;
                 customerDatabase[oldIndex].email = email;
@@ -1068,6 +1070,7 @@ window.saveCustomerEdits = async function () {
                 const newCustomer = {
                     dni: newDni,
                     nombre: nombre,
+                    apellido: "",
                     dob: window.normalizeDateStr(dob),
                     telefono: telefono,
                     email: email,
