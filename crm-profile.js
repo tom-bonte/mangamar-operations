@@ -1542,6 +1542,11 @@ window.openHistorialExportModal = function() {
         const formattedDay = `${weekday}, ${day} ${monthName} ${year}`;
         
         servicesText += `${formattedDay}:\n`;
+        groupedDives[dateStr].sort((a, b) => {
+            const timeA = a.time || '00:00';
+            const timeB = b.time || '00:00';
+            return timeA.localeCompare(timeB);
+        });
         groupedDives[dateStr].forEach(dive => {
             let timeStr = dive.time || '';
             if (timeStr && timeStr.includes(':')) {
