@@ -1104,6 +1104,50 @@ window.saveCustomerEdits = async function () {
             }
         }
 
+        // 2.5 Update matching members in globalGroups if DNI changed or linked from tempId
+        if (oldDni !== newDni && window.globalGroups && Array.isArray(window.globalGroups)) {
+            const normalizedOld = oldDni.toLowerCase();
+            const normalizedNew = window.normalizeDni(newDni);
+            
+            window.globalGroups.forEach(grp => {
+                let memberMatched = false;
+                let matchedIndex = -1;
+                
+                if (grp.members) {
+                    matchedIndex = grp.members.findIndex(m => {
+                        if (m && window.isSameDni(m, normalizedOld)) return true;
+                        if (m && m.toLowerCase() === normalizedOld) return true;
+                        return false;
+                    });
+                }
+                
+                if (matchedIndex > -1) {
+                    memberMatched = true;
+                    const oldMemberId = grp.members[matchedIndex];
+                    
+                    // Replace old DNI or tempId with new DNI (prevent duplicate)
+                    const hasNewDni = grp.members.some(m => window.isSameDni(m, normalizedNew));
+                    if (hasNewDni) {
+                        grp.members.splice(matchedIndex, 1);
+                    } else {
+                        grp.members[matchedIndex] = normalizedNew;
+                    }
+                    
+                    if (grp.manualNames && oldMemberId) {
+                        delete grp.manualNames[oldMemberId.toLowerCase()];
+                    }
+                }
+                
+                if (grp.manualNames && grp.manualNames[normalizedOld]) {
+                    delete grp.manualNames[normalizedOld];
+                }
+                
+                if (memberMatched && window.saveGlobalGroup) {
+                    window.saveGlobalGroup(grp).catch(e => console.error("Error saving global group from CRM profile edit:", e));
+                }
+            });
+        }
+
         // 3. Update active boat manifests via mergedAllocations natively
         const modifiedTrips = [];
         mergedAllocations.forEach(trip => {
@@ -1172,7 +1216,7 @@ window.saveCustomerEdits = async function () {
         });
 
         if (modifiedTrips.length > 0 && typeof window.saveMultipleTripsData === 'function') {
-            await window.saveMultipleTripsData(modifiedTrips);
+            window.saveMultipleTripsData(modifiedTrips).catch(e => console.error("Error bg trips sync on saveCustomerEdits:", e));
         }
 
         // Redraw boats if manifest is active (unconditionally, instantly)

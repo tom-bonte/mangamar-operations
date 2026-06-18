@@ -2097,6 +2097,12 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                         if (!grp.members.some(m => m && window.isSameDni(m, normalizedNewDni))) {
                             grp.members.push(normalizedNewDni);
                         }
+                        if (grp.manualNames) {
+                            if (guestTempId) delete grp.manualNames[guestTempId];
+                            if (oldNameLower) delete grp.manualNames[oldNameLower];
+                            const matchTargetLower = matchTarget ? matchTarget.toLowerCase() : null;
+                            if (matchTargetLower) delete grp.manualNames[matchTargetLower];
+                        }
                         if (window.saveGlobalGroup) window.saveGlobalGroup(grp);
                     }
                 }
@@ -2298,7 +2304,14 @@ window.saveLocalGuestEdit = async function() {
         return s === '' || s === '-' || s === '---' || s.toLowerCase() === 'sin titulación' || s.toLowerCase() === 'sin titulacion';
     };
     
+    // Save original manual guest identifiers to sync across other boat allocations and global groups
+    const targetTempId = guest.tempId ? guest.tempId.toLowerCase() : null;
+    const targetNameLower = guest.nombre ? guest.nombre.trim().toLowerCase() : '';
+
     if (normDni) {
+        if (guest.tempId) {
+            delete guest.tempId;
+        }
         guest.dni = normDni;
         
         // 1. Check or create/update in CRM database
@@ -2383,6 +2396,52 @@ window.saveLocalGuestEdit = async function() {
         db.collection('mangamar_customers').doc(normDni).set(existingProfile, { merge: true }).catch(e => console.error("Error saving customer to Firestore:", e));
         window.safeMasterListWrite(customerDatabase, 'add-guest-to-manifest').catch(e => console.error("Error bg master sync:", e));
         
+        // Update matching manual members in globalGroups (RAM + Firestore)
+        if (window.globalGroups && Array.isArray(window.globalGroups)) {
+            for (let grp of window.globalGroups) {
+                let memberMatched = false;
+                let matchedIndex = -1;
+                
+                if (targetTempId) {
+                    matchedIndex = (grp.members || []).findIndex(m => m.toLowerCase() === targetTempId);
+                }
+                if (matchedIndex === -1 && targetNameLower) {
+                    matchedIndex = (grp.members || []).findIndex(m => m.toLowerCase() === targetNameLower);
+                }
+                
+                if (matchedIndex !== -1) {
+                    memberMatched = true;
+                    const oldMemberId = grp.members[matchedIndex];
+                    
+                    const hasDni = grp.members.some(m => window.isSameDni(m, normDni));
+                    if (hasDni) {
+                        grp.members.splice(matchedIndex, 1);
+                    } else {
+                        grp.members[matchedIndex] = normDni;
+                    }
+                    
+                    if (grp.manualNames && oldMemberId) {
+                        delete grp.manualNames[oldMemberId.toLowerCase()];
+                    }
+                }
+                
+                if (grp.manualNames) {
+                    if (targetTempId && grp.manualNames[targetTempId]) {
+                        delete grp.manualNames[targetTempId];
+                    }
+                    if (targetNameLower && grp.manualNames[targetNameLower]) {
+                        delete grp.manualNames[targetNameLower];
+                    }
+                }
+                
+                if (memberMatched) {
+                    if (window.saveGlobalGroup) {
+                        await window.saveGlobalGroup(grp).catch(e => console.error("Error saving global group in guest edit:", e));
+                    }
+                }
+            }
+        }
+
         // 3. Propagate this rich database info to all matching trip bookings month-wide in mergedAllocations
         let boatSyncPromises = [];
         mergedAllocations.forEach(trip => {
@@ -2391,7 +2450,12 @@ window.saveLocalGuestEdit = async function() {
                 trip.groups.forEach(group => {
                     if (group.guests) {
                         group.guests.forEach(gst => {
-                            if (gst.dni && window.normalizeDni(gst.dni) === normDni) {
+                            const isMatch = (gst.dni && window.normalizeDni(gst.dni) === normDni) ||
+                                            ((!gst.dni) && (
+                                                (targetTempId && gst.tempId && gst.tempId.toLowerCase() === targetTempId) ||
+                                                (!targetTempId && gst.nombre && gst.nombre.toLowerCase() === targetNameLower)
+                                            ));
+                            if (isMatch) {
                                 // Inherit full details from profile
                                 const dbFullName = window.getFullName(existingProfile);
                                 const profileName = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : gst.nombre;
@@ -2412,13 +2476,15 @@ window.saveLocalGuestEdit = async function() {
                                 }
                                 
                                 const expectedIsManual = !window.isProfileComplete(existingProfile);
-                                if (gst.nombre !== profileName || gst.titulacion !== profileTit || gst.telefono !== profilePhone || gst.email !== profileEmail || gst.insurance !== profileIns || gst.isManual !== expectedIsManual) {
+                                if (gst.dni !== normDni || gst.nombre !== profileName || gst.titulacion !== profileTit || gst.telefono !== profilePhone || gst.email !== profileEmail || gst.insurance !== profileIns || gst.isManual !== expectedIsManual || gst.tempId) {
+                                     gst.dni = normDni;
                                      gst.nombre = profileName;
                                      gst.titulacion = profileTit;
                                      gst.telefono = profilePhone;
                                      gst.email = profileEmail;
                                      gst.insurance = profileIns;
                                      gst.isManual = expectedIsManual;
+                                     if (gst.tempId) delete gst.tempId;
                                      modified = true;
                                 }
                             }
@@ -2432,8 +2498,14 @@ window.saveLocalGuestEdit = async function() {
                     activeBoatItem.groups.forEach(g => {
                         if (g.guests) {
                             g.guests.forEach(gst => {
-                                if (gst.dni && window.normalizeDni(gst.dni) === normDni) {
+                                const isMatch = (gst.dni && window.normalizeDni(gst.dni) === normDni) ||
+                                                ((!gst.dni) && (
+                                                    (targetTempId && gst.tempId && gst.tempId.toLowerCase() === targetTempId) ||
+                                                    (!targetTempId && gst.nombre && gst.nombre.toLowerCase() === targetNameLower)
+                                                ));
+                                if (isMatch) {
                                     const dbFullName = window.getFullName(existingProfile);
+                                    gst.dni = normDni;
                                     gst.nombre = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : gst.nombre;
                                     gst.titulacion = !isEmptyValue(existingProfile.titulacion) ? existingProfile.titulacion : gst.titulacion;
                                     gst.telefono = !isEmptyValue(existingProfile.telefono) ? existingProfile.telefono : gst.telefono;
@@ -2452,6 +2524,7 @@ window.saveLocalGuestEdit = async function() {
                                     }
                                     gst.insurance = profileIns;
                                     gst.isManual = !window.isProfileComplete(existingProfile);
+                                    if (gst.tempId) delete gst.tempId;
                                 }
                             });
                         }
