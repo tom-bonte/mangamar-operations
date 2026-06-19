@@ -467,7 +467,7 @@ function renderDailyGrid() {
     const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
     
     // We establish the 4 columns: Time, Ares, Kaiser, Shore
-    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-8 pb-12 px-2 md:min-w-[800px] min-w-0 w-full';
+    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-12 pb-12 px-2 md:min-w-[800px] min-w-0 w-full';
 
     const timeCol = document.createElement('div');
     timeCol.className = 'flex flex-col gap-4 pt-[60px]';
@@ -575,11 +575,14 @@ function renderDailyGrid() {
             // Append the hover gap zone between Ares and Kaiser
             if (boatId === 'ares' && (aTrip || kTrip)) {
                 const gapZone = document.createElement('div');
-                gapZone.className = "absolute right-[-56px] top-0 w-[56px] h-[130px] flex items-center justify-center group/gap z-20 cursor-default";
+                gapZone.className = "absolute top-0 flex items-center justify-center group/gap z-20 cursor-default";
+                gapZone.style.right = "-60px";
+                gapZone.style.width = "48px";
+                gapZone.style.height = "130px";
                 gapZone.innerHTML = `
                     <button onclick="window.openMoveDiversModal('${timeSlot}')" 
                             title="Mover buceadores/grupos" 
-                            class="hidden group-hover/gap:flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-md border border-orange-400 transition-all duration-200 cursor-pointer">
+                            class="hidden group-hover/gap:flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-md border border-orange-400 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
                         </svg>
