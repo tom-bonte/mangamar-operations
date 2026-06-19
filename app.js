@@ -533,24 +533,6 @@ function renderDailyGrid() {
             // Fixed height container ensures the grid NEVER shifts out of alignment
             slotContainer.className = "h-[130px] w-full flex gap-2 relative rounded-2xl transition-all min-w-0";
             
-            // Hover synchronization for the move divers button in the gap
-            if (boatId === 'ares' || boatId === 'kaiser') {
-                slotContainer.addEventListener('mouseenter', () => {
-                    const btn = document.getElementById(`btn-move-slot-${timeSlot.replace(':', '_')}`);
-                    if (btn) {
-                        btn.classList.remove('hidden');
-                        btn.classList.add('flex');
-                    }
-                });
-                slotContainer.addEventListener('mouseleave', () => {
-                    const btn = document.getElementById(`btn-move-slot-${timeSlot.replace(':', '_')}`);
-                    if (btn) {
-                        btn.classList.remove('flex');
-                        btn.classList.add('hidden');
-                    }
-                });
-            }
-            
             // Mobile-only time indicator at the top of the slot
             const mobileTimeDivider = document.createElement('div');
             mobileTimeDivider.className = "flex md:hidden items-center gap-2 w-full mt-2 mb-1 shrink-0 select-none";
@@ -590,19 +572,20 @@ function renderDailyGrid() {
                 }
             }
 
-            // Append the hover button in the gap between Ares and Kaiser
+            // Append the hover gap zone between Ares and Kaiser
             if (boatId === 'ares' && (aTrip || kTrip)) {
-                const hoverBtn = document.createElement('button');
-                hoverBtn.id = `btn-move-slot-${timeSlot.replace(':', '_')}`;
-                hoverBtn.onclick = (e) => { e.stopPropagation(); window.openMoveDiversModal(timeSlot); };
-                hoverBtn.title = "Mover buceadores/grupos entre barcos";
-                hoverBtn.className = "hidden absolute right-[-24px] top-1/2 -translate-y-1/2 items-center justify-center w-8 h-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-md border border-orange-400 transition-all duration-200 cursor-pointer z-30";
-                hoverBtn.innerHTML = `
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
-                    </svg>
+                const gapZone = document.createElement('div');
+                gapZone.className = "absolute right-[-24px] top-0 w-[24px] h-[130px] flex items-center justify-center group/gap z-20 cursor-default";
+                gapZone.innerHTML = `
+                    <button onclick="window.openMoveDiversModal('${timeSlot}')" 
+                            title="Mover buceadores/grupos" 
+                            class="hidden group-hover/gap:flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-md border border-orange-400 transition-all duration-200 cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
+                        </svg>
+                    </button>
                 `;
-                slotContainer.appendChild(hoverBtn);
+                slotContainer.appendChild(gapZone);
             }
 
             parentCol.appendChild(slotContainer);
