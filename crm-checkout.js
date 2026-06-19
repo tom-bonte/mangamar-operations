@@ -97,9 +97,9 @@ function calculateDivePrice(historyItem) {
             
             dive = 0;
             tasa = 0;
-            if (historyItem.rental === 'INC') rental = 0;
+            rental = 0; // Course always includes rental
             insurance = 0; // Course always includes insurance
-            if (historyItem.computer === 'INC') computer = 0;
+            computer = 0; // Course always includes computer
         }
     }
 
@@ -1466,7 +1466,8 @@ window.generateJointFactura = async function (repName, repDni, groupDiscount = 0
                     billedCourses.add(baseCourse);
                 } else { p.course = 0; }
                 p.dive = 0; p.tasa = 0;
-                if (data.rental === 'INC') p.rental = 0;
+                p.rental = 0; // Course always includes rental
+                p.computer = 0; // Course always includes computer
                 p.insurance = 0; // Course always includes insurance
             }
 

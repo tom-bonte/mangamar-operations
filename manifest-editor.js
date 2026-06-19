@@ -790,9 +790,11 @@ function _renderGroupsCore(skipAutoSave = false) {
         `;
 
         group.guests.forEach((guest, guestIndex) => {
-            // Courses always include insurance
+            // Courses always include rental, computer, and insurance
             if (guest.course) {
+                guest.rental = 'INC';
                 guest.insurance = 'INC';
+                guest.computer = 'INC';
             }
             // Live-heal isManual based on the CRM database profile status
             if (window.crmLoaded && guest.dni && typeof customerDatabase !== 'undefined') {
@@ -2216,9 +2218,9 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                                 site: clonedTrip.site,
                                 assignedBoat: clonedTrip.assignedBoat,
                                 gas: g.gas || '15L Aire',
-                                rental: g.rental || 0,
-                                computer: g.computer || 0,
-                                computerPrice: g.computer ? (g.computerPrice || 7) : 0,
+                                rental: g.course ? 'INC' : (g.rental || 0),
+                                computer: g.course ? 'INC' : (g.computer || 0),
+                                computerPrice: g.course ? 0 : (g.computer ? (g.computerPrice || 7) : 0),
                                 insurance: g.course ? 'INC' : (g.insurance || 0),
                                 course: g.course || null,
                                 baseCourse: g.baseCourse || null,
@@ -3686,10 +3688,10 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                                     const histRef = db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(trip.id);
                                     histRef.update({
                                         gas: gst.gas || '15L Aire',
-                                        rental: gst.rental || 0,
-                                        computer: gst.computer || 0,
-                                        computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
-                                        insurance: gst.insurance || 0,
+                                        rental: gst.course ? 'INC' : (gst.rental || 0),
+                                        computer: gst.course ? 'INC' : (gst.computer || 0),
+                                        computerPrice: gst.course ? 0 : (gst.computer ? (gst.computerPrice || 7) : 0),
+                                        insurance: gst.course ? 'INC' : (gst.insurance || 0),
                                     }).catch(() => {
                                         // History doc may not exist yet — safe to ignore
                                     });
@@ -3792,9 +3794,9 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                         site: targetSite,
                         assignedBoat: targetAssignedBoat,
                         gas: gst.gas || '15L Aire',
-                        rental: gst.rental || 0,
-                        computer: gst.computer || 0,
-                        computerPrice: gst.computer ? (gst.computerPrice || 7) : 0,
+                        rental: gst.course ? 'INC' : (gst.rental || 0),
+                        computer: gst.course ? 'INC' : (gst.computer || 0),
+                        computerPrice: gst.course ? 0 : (gst.computer ? (gst.computerPrice || 7) : 0),
                         insurance: gst.course ? 'INC' : (gst.insurance || 0),
                         course: gst.course || null,           
                         baseCourse: gst.baseCourse || null,   

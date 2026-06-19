@@ -974,7 +974,9 @@ window.handleDrop = async function(event, targetBoat, targetTime) {
                         site: updatedTrip.site || '',
                         assignedBoat: updatedTrip.assignedBoat || '',
                         gas: gst.gas || '15L Aire',
-                        rental: gst.rental || 0,
+                        rental: gst.course ? 'INC' : (gst.rental || 0),
+                        computer: gst.course ? 'INC' : (gst.computer || 0),
+                        computerPrice: gst.course ? 0 : (gst.computer ? (gst.computerPrice || 7) : 0),
                         insurance: gst.course ? 'INC' : (gst.insurance || 0),
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
