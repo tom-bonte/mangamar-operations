@@ -490,19 +490,10 @@ function renderDailyGrid() {
     const activeTimes = todaysTrips.some(t => t.time === '07:00') ? TIMES : TIMES.filter(t => t !== '07:00');
 
     activeTimes.forEach(time => {
-        // Time label wrapper that shows a double arrow on hover (desktop only)
+        // Time label perfectly locked to the same height as the cards
         const tLabel = document.createElement('div');
-        tLabel.className = 'relative group/time flex flex-col items-end w-full h-[130px] justify-start pt-4 shrink-0 pr-2';
-        tLabel.innerHTML = `
-            <span class="text-[11px] font-black text-slate-400 text-right opacity-80">${time}</span>
-            <button onclick="window.openMoveDiversModal('${time}')" 
-                    title="Mover buceadores entre barcos" 
-                    class="hidden md:group-hover/time:flex items-center justify-center mt-1.5 w-6 h-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-md border border-orange-400 transition-all duration-200 cursor-pointer">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
-                </svg>
-            </button>
-        `;
+        tLabel.className = 'text-[11px] font-black text-slate-400 text-right pr-2 flex items-start justify-end h-[130px] shrink-0 pt-4 opacity-80';
+        tLabel.innerText = time;
         timeCol.appendChild(tLabel);
 
         let finalTrips = getMergedTrips(todaysTrips.filter(t => t.time === time));
@@ -542,6 +533,24 @@ function renderDailyGrid() {
             // Fixed height container ensures the grid NEVER shifts out of alignment
             slotContainer.className = "h-[130px] w-full flex gap-2 relative rounded-2xl transition-all min-w-0";
             
+            // Hover synchronization for the move divers button in the gap
+            if (boatId === 'ares' || boatId === 'kaiser') {
+                slotContainer.addEventListener('mouseenter', () => {
+                    const btn = document.getElementById(`btn-move-slot-${timeSlot.replace(':', '_')}`);
+                    if (btn) {
+                        btn.classList.remove('hidden');
+                        btn.classList.add('flex');
+                    }
+                });
+                slotContainer.addEventListener('mouseleave', () => {
+                    const btn = document.getElementById(`btn-move-slot-${timeSlot.replace(':', '_')}`);
+                    if (btn) {
+                        btn.classList.remove('flex');
+                        btn.classList.add('hidden');
+                    }
+                });
+            }
+            
             // Mobile-only time indicator at the top of the slot
             const mobileTimeDivider = document.createElement('div');
             mobileTimeDivider.className = "flex md:hidden items-center gap-2 w-full mt-2 mb-1 shrink-0 select-none";
@@ -580,6 +589,22 @@ function renderDailyGrid() {
                     });
                 }
             }
+
+            // Append the hover button in the gap between Ares and Kaiser
+            if (boatId === 'ares' && (aTrip || kTrip)) {
+                const hoverBtn = document.createElement('button');
+                hoverBtn.id = `btn-move-slot-${timeSlot.replace(':', '_')}`;
+                hoverBtn.onclick = (e) => { e.stopPropagation(); window.openMoveDiversModal(timeSlot); };
+                hoverBtn.title = "Mover buceadores/grupos entre barcos";
+                hoverBtn.className = "hidden absolute right-[-24px] top-1/2 -translate-y-1/2 items-center justify-center w-8 h-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-md border border-orange-400 transition-all duration-200 cursor-pointer z-30";
+                hoverBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
+                    </svg>
+                `;
+                slotContainer.appendChild(hoverBtn);
+            }
+
             parentCol.appendChild(slotContainer);
         };
 

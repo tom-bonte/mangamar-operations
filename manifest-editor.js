@@ -4942,11 +4942,21 @@ function renderMoveDiversBoatContent(trip, boatId, otherBoatId, timeSlot, target
         trip.groups.forEach((group, grpIdx) => {
             const guideName = group.guide ? window.getFirstName(group.guide) : 'Sin Guía';
             const apoyoText = group.apoyo ? ` (Apoyo: ${window.getFirstName(group.apoyo)})` : '';
+            const moveGroupBtn = `
+                <button onclick="window.moveGroupBetweenBoats('${timeSlot}', '${targetDateStr}', '${boatId}', '${otherBoatId}', ${grpIdx})" 
+                        title="Mover todo el grupo a ${otherBoatId === 'ares' ? 'Ares' : 'Kaiser'}" 
+                        class="px-2 py-0.5 text-[8.5px] font-black bg-orange-100 hover:bg-orange-500 hover:text-white text-orange-700 rounded-md border border-orange-200 transition-colors cursor-pointer shrink-0 uppercase tracking-wide">
+                    ${boatId === 'ares' ? 'Mover Grupo ➔' : '➔ Mover Grupo'}
+                </button>
+            `;
             html += `
                 <div class="bg-slate-50/50 border border-slate-200/60 rounded-xl p-3">
-                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 pb-1 border-b border-slate-200/50 flex justify-between items-center">
-                        <span>Guía: ${guideName}${apoyoText}</span>
-                        <span class="text-[9px] font-bold text-slate-500">${(group.guests || []).length} buzos</span>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 pb-1 border-b border-slate-200/50 flex justify-between items-center gap-2">
+                        <span class="truncate">Guía: ${guideName}${apoyoText}</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${moveGroupBtn}
+                            <span class="text-[9px] font-bold text-slate-500">(${(group.guests || []).length})</span>
+                        </div>
                     </div>
                     <div class="space-y-1.5">
             `;
@@ -5165,6 +5175,7 @@ window.moveDiverBetweenBoats = function(timeSlot, targetDateStr, sourceBoat, tar
                     historyData.assignedBoat = targetBoat;
                     historyData.time = timeSlot;
                     historyData.date = targetDateStr;
+                    historyData.site = targetTrip.site || 'Sin Destino';
                     
                     const newHistoryRef = db.collection('mangamar_customers').doc(foundGuest.dni).collection('history').doc(targetTrip.id);
                     const batch = db.batch();
@@ -5176,6 +5187,78 @@ window.moveDiverBetweenBoats = function(timeSlot, targetDateStr, sourceBoat, tar
                 console.error("Error migrating customer history:", err);
             }
         })();
+    }
+};
+
+window.moveGroupBetweenBoats = function(timeSlot, targetDateStr, sourceBoat, targetBoat, groupIdx) {
+    const todaysTrips = (window.mergedAllocations || mergedAllocations || []).filter(t => t.date === targetDateStr && t.time === timeSlot);
+    let sourceTrip = todaysTrips.find(t => t.assignedBoat === sourceBoat && t.isInternalTrip) 
+                  || todaysTrips.find(t => t.assignedBoat === sourceBoat);
+    let targetTrip = todaysTrips.find(t => t.assignedBoat === targetBoat && t.isInternalTrip) 
+                  || todaysTrips.find(t => t.assignedBoat === targetBoat);
+
+    if (!sourceTrip || !sourceTrip.groups || !sourceTrip.groups[groupIdx]) return;
+
+    if (!targetTrip) {
+        targetTrip = {
+            id: `internal_${Date.now()}`,
+            date: targetDateStr,
+            time: timeSlot,
+            assignedBoat: targetBoat,
+            site: sourceTrip.site || 'Sin Destino',
+            captain: '',
+            isVisor: false,
+            groups: []
+        };
+        if (typeof internalTrips !== 'undefined') internalTrips.push(targetTrip);
+        if (window.internalTrips) window.internalTrips.push(targetTrip);
+        (window.mergedAllocations || mergedAllocations || []).push(targetTrip);
+    }
+
+    const groupToMove = sourceTrip.groups[groupIdx];
+
+    // Remove from source
+    sourceTrip.groups.splice(groupIdx, 1);
+
+    // Add to target
+    targetTrip.groups.push(groupToMove);
+
+    // Force RAM update UI instantly
+    if (typeof renderDailyGrid === 'function') renderDailyGrid();
+    else if (typeof window.renderDailyGrid === 'function') window.renderDailyGrid();
+    window.renderMoveDiversModalContent(timeSlot, targetDateStr);
+
+    // Save in background
+    window.saveMultipleTripsData([sourceTrip, targetTrip])
+        .catch(e => console.error("Error saving moved group:", e));
+
+    // Migrate history for all guests in this group in background
+    if (groupToMove.guests && groupToMove.guests.length > 0) {
+        groupToMove.guests.forEach(guest => {
+            if (guest.dni) {
+                (async () => {
+                    try {
+                        const oldHistoryRef = db.collection('mangamar_customers').doc(guest.dni).collection('history').doc(sourceTrip.id);
+                        const oldHistorySnap = await oldHistoryRef.get();
+                        if (oldHistorySnap.exists) {
+                            const historyData = oldHistorySnap.data();
+                            historyData.assignedBoat = targetBoat;
+                            historyData.time = timeSlot;
+                            historyData.date = targetDateStr;
+                            historyData.site = targetTrip.site || 'Sin Destino';
+                            
+                            const newHistoryRef = db.collection('mangamar_customers').doc(guest.dni).collection('history').doc(targetTrip.id);
+                            const batch = db.batch();
+                            batch.set(newHistoryRef, historyData);
+                            batch.delete(oldHistoryRef);
+                            await batch.commit();
+                        }
+                    } catch (err) {
+                        console.error("Error migrating group guest history:", err);
+                    }
+                })();
+            }
+        });
     }
 };
 
