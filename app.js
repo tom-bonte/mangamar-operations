@@ -576,7 +576,7 @@ function renderDailyGrid() {
             if (boatId === 'ares' && aTrip && kTrip) {
                 const gapZone = document.createElement('div');
                 gapZone.className = "absolute top-0 flex items-center justify-center group/gap z-20 cursor-default";
-                gapZone.style.right = "-46px";
+                gapZone.style.right = "-45px";
                 gapZone.style.width = "32px";
                 gapZone.style.height = "130px";
                 gapZone.innerHTML = `
