@@ -467,7 +467,7 @@ function renderDailyGrid() {
     const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
     
     // We establish the 4 columns: Time, Ares, Kaiser, Shore
-    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-6 pb-12 px-2 md:min-w-[800px] min-w-0 w-full';
+    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-8 pb-12 px-2 md:min-w-[800px] min-w-0 w-full';
 
     const timeCol = document.createElement('div');
     timeCol.className = 'flex flex-col gap-4 pt-[60px]';
@@ -575,7 +575,7 @@ function renderDailyGrid() {
             // Append the hover gap zone between Ares and Kaiser
             if (boatId === 'ares' && (aTrip || kTrip)) {
                 const gapZone = document.createElement('div');
-                gapZone.className = "absolute right-[-24px] top-0 w-[24px] h-[130px] flex items-center justify-center group/gap z-20 cursor-default";
+                gapZone.className = "absolute right-[-56px] top-0 w-[56px] h-[130px] flex items-center justify-center group/gap z-20 cursor-default";
                 gapZone.innerHTML = `
                     <button onclick="window.openMoveDiversModal('${timeSlot}')" 
                             title="Mover buceadores/grupos" 
