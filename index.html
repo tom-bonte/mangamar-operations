@@ -991,6 +991,57 @@
         Mensaje copiado
     </div>
 
+    <!-- Move Divers Modal -->
+    <div id="move-divers-modal" class="fixed inset-0 z-[250] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) window.closeMoveDiversModal()">
+        <div class="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden border border-slate-200" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div class="px-8 py-5 border-b border-slate-200 bg-white flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
+                        </svg>
+                        Mover Buceadores — <span id="move-divers-time-title" class="text-orange-600"></span>
+                    </h3>
+                    <p id="move-divers-date-subtitle" class="text-xs font-bold text-slate-400 mt-0.5"></p>
+                </div>
+                <button onclick="window.closeMoveDiversModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Modal Body (Two columns comparing Ares and Kaiser) -->
+            <div class="flex-1 overflow-y-auto p-6 flex flex-col md:flex-row gap-6 min-h-0">
+                <!-- Ares Column -->
+                <div class="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div class="px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black text-sm uppercase tracking-wider flex justify-between items-center shrink-0">
+                        <span>Ares</span>
+                        <span id="move-divers-ares-capacity" class="text-xs opacity-90 font-bold"></span>
+                    </div>
+                    <div id="move-divers-ares-content" class="flex-1 overflow-y-auto p-4 space-y-4">
+                        <!-- Rendered groups and divers dynamically -->
+                    </div>
+                </div>
+                
+                <!-- Kaiser Column -->
+                <div class="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div class="px-4 py-3 bg-gradient-to-r from-slate-700 to-slate-800 text-white font-black text-sm uppercase tracking-wider flex justify-between items-center shrink-0">
+                        <span>Kaiser</span>
+                        <span id="move-divers-kaiser-capacity" class="text-xs opacity-90 font-bold"></span>
+                    </div>
+                    <div id="move-divers-kaiser-content" class="flex-1 overflow-y-auto p-4 space-y-4">
+                        <!-- Rendered groups and divers dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-8 py-4 border-t border-slate-200 bg-white flex justify-end shrink-0">
+                <button onclick="window.closeMoveDiversModal()" class="px-6 py-2.5 rounded-xl text-sm font-black text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors shadow-xs">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="group-link-modal" class="fixed inset-0 z-[250] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm transition-opacity p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 flex flex-col h-[95vh] min-h-[600px] overflow-hidden">
             <div class="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">

@@ -490,10 +490,19 @@ function renderDailyGrid() {
     const activeTimes = todaysTrips.some(t => t.time === '07:00') ? TIMES : TIMES.filter(t => t !== '07:00');
 
     activeTimes.forEach(time => {
-        // Time label perfectly locked to the same height as the cards
+        // Time label wrapper that shows a double arrow on hover (desktop only)
         const tLabel = document.createElement('div');
-        tLabel.className = 'text-[11px] font-black text-slate-400 text-right pr-2 flex items-start justify-end h-[130px] shrink-0 pt-4 opacity-80';
-        tLabel.innerText = time;
+        tLabel.className = 'relative group/time flex flex-col items-end w-full h-[130px] justify-start pt-4 shrink-0 pr-2';
+        tLabel.innerHTML = `
+            <span class="text-[11px] font-black text-slate-400 text-right opacity-80">${time}</span>
+            <button onclick="window.openMoveDiversModal('${time}')" 
+                    title="Mover buceadores entre barcos" 
+                    class="hidden md:group-hover/time:flex items-center justify-center mt-1.5 w-6 h-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-md border border-orange-400 transition-all duration-200 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
+                </svg>
+            </button>
+        `;
         timeCol.appendChild(tLabel);
 
         let finalTrips = getMergedTrips(todaysTrips.filter(t => t.time === time));

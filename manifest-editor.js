@@ -4862,3 +4862,320 @@ document.getElementById('guest-note-input') && document.getElementById('guest-no
     }
 })();
 
+// ==========================================
+// MOVE DIVERS SIDE-BY-SIDE MODAL MODULE
+// ==========================================
+window.openMoveDiversModal = function(timeSlot) {
+    const modal = document.getElementById('move-divers-modal');
+    if (!modal) return;
+    
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentDate.getDate()).padStart(2, '0');
+    const targetDateStr = `${year}-${month}-${day}`;
+    
+    document.getElementById('move-divers-time-title').innerText = timeSlot;
+    
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateFormatted = currentDate.toLocaleDateString('es-ES', options);
+    document.getElementById('move-divers-date-subtitle').innerText = dateFormatted.charAt(0).toUpperCase() + dateFormatted.slice(1);
+    
+    window.renderMoveDiversModalContent(timeSlot, targetDateStr);
+    modal.classList.remove('hidden');
+};
+
+window.closeMoveDiversModal = function() {
+    const modal = document.getElementById('move-divers-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.renderMoveDiversModalContent = function(timeSlot, targetDateStr) {
+    const aresContent = document.getElementById('move-divers-ares-content');
+    const kaiserContent = document.getElementById('move-divers-kaiser-content');
+    if (!aresContent || !kaiserContent) return;
+
+    const todaysTrips = (window.mergedAllocations || mergedAllocations || []).filter(t => t.date === targetDateStr && t.time === timeSlot);
+    let aTrip = todaysTrips.find(t => t.assignedBoat === 'ares' && t.isInternalTrip) 
+             || todaysTrips.find(t => t.assignedBoat === 'ares');
+    let kTrip = todaysTrips.find(t => t.assignedBoat === 'kaiser' && t.isInternalTrip) 
+             || todaysTrips.find(t => t.assignedBoat === 'kaiser');
+
+    const aGuestsCount = aTrip ? (aTrip.groups || []).reduce((acc, g) => acc + (g.guests ? g.guests.filter(x => !x.cancelled).length : 0), 0) : 0;
+    const aCapacity = aTrip ? (parseInt(aTrip.maxDives) || parseInt(aTrip.pax) || parseInt(aTrip.plazas) || 12) : 12;
+    document.getElementById('move-divers-ares-capacity').innerText = aTrip ? `(${aGuestsCount}/${aCapacity} Plazas)` : '';
+
+    const kGuestsCount = kTrip ? (kTrip.groups || []).reduce((acc, g) => acc + (g.guests ? g.guests.filter(x => !x.cancelled).length : 0), 0) : 0;
+    const kCapacity = kTrip ? (parseInt(kTrip.maxDives) || parseInt(kTrip.pax) || parseInt(kTrip.plazas) || 12) : 12;
+    document.getElementById('move-divers-kaiser-capacity').innerText = kTrip ? `(${kGuestsCount}/${kCapacity} Plazas)` : '';
+
+    aresContent.innerHTML = renderMoveDiversBoatContent(aTrip, 'ares', 'kaiser', timeSlot, targetDateStr);
+    kaiserContent.innerHTML = renderMoveDiversBoatContent(kTrip, 'kaiser', 'ares', timeSlot, targetDateStr);
+};
+
+function renderMoveDiversBoatContent(trip, boatId, otherBoatId, timeSlot, targetDateStr) {
+    if (!trip) {
+        return `
+            <div class="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 italic">
+                <svg class="w-10 h-10 text-slate-200 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <span class="text-xs font-bold">Sin salida programada</span>
+                <button onclick="window.createMoveDiversTrip('${boatId}', '${timeSlot}', '${targetDateStr}')" 
+                        class="mt-3 px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-200 font-black text-[10px] rounded-xl hover:bg-orange-100 transition-all shadow-xs cursor-pointer uppercase tracking-wider">
+                    + Crear Salida
+                </button>
+            </div>
+        `;
+    }
+
+    let html = `
+        <div class="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 flex justify-between gap-2 shrink-0">
+            <span class="truncate">Destino: <strong class="text-slate-800">${trip.site || 'Sin Destino'}</strong></span>
+            <span class="truncate shrink-0">Capitán: <strong class="text-slate-800">${trip.captain ? window.getFirstName(trip.captain) : 'Sin Asignar'}</strong></span>
+        </div>
+        <div class="space-y-3 mt-3">
+    `;
+
+    if (!trip.groups || trip.groups.length === 0) {
+        html += `<div class="text-center text-slate-400 italic text-xs py-4">No hay grupos asignados</div>`;
+    } else {
+        trip.groups.forEach((group, grpIdx) => {
+            const guideName = group.guide ? window.getFirstName(group.guide) : 'Sin Guía';
+            const apoyoText = group.apoyo ? ` (Apoyo: ${window.getFirstName(group.apoyo)})` : '';
+            html += `
+                <div class="bg-slate-50/50 border border-slate-200/60 rounded-xl p-3">
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 pb-1 border-b border-slate-200/50 flex justify-between items-center">
+                        <span>Guía: ${guideName}${apoyoText}</span>
+                        <span class="text-[9px] font-bold text-slate-500">${(group.guests || []).length} buzos</span>
+                    </div>
+                    <div class="space-y-1.5">
+            `;
+
+            if (!group.guests || group.guests.length === 0) {
+                html += `<div class="text-center text-slate-300 italic text-[10px] py-1">Vacío</div>`;
+            } else {
+                group.guests.forEach((guest) => {
+                    const isNitrox = (guest.gas || '').includes('EAN');
+                    const gasBadge = isNitrox ? `<span class="px-1 py-0.5 text-[8px] font-black bg-emerald-500 text-white border border-emerald-600 rounded">NITROX</span>` : '';
+                    
+                    const isSnorkel = (guest.baseCourse === "Snorkeling" || guest.courseBadge === "Snorkel" || (guest.baseCourse && guest.baseCourse.toLowerCase().includes("snorkel")) || (guest.course && guest.course.toLowerCase().includes("snorkel")));
+                    const courseText = isSnorkel ? 'SNORKEL' : (guest.courseBadge || guest.course || '');
+                    const courseBadge = courseText ? `<span class="px-1.5 py-0.5 text-[8.5px] font-black bg-orange-500 text-white rounded uppercase shrink-0 leading-none shadow-xs ml-1">${courseText}</span>` : '';
+                    
+                    const arrivedClass = guest.cancelled
+                        ? 'bg-red-500 border-red-600'
+                        : guest.arrived
+                            ? 'bg-emerald-500 border-emerald-600'
+                            : 'bg-white border-slate-300';
+                    const arrivedDot = `<span class="w-2 h-2 rounded-full border shrink-0 ${arrivedClass}"></span>`;
+                    
+                    const cancelledClass = guest.cancelled ? 'line-through text-slate-400' : 'text-slate-700 font-bold';
+                    
+                    const buttonArrow = boatId === 'ares' 
+                        ? `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" /></svg>`
+                        : `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>`;
+
+                    html += `
+                        <div class="flex items-center justify-between bg-white border border-slate-100 rounded-lg p-2 hover:border-slate-300 transition-colors shadow-xs">
+                            <div class="flex items-center gap-1.5 overflow-hidden min-w-0 flex-1 pr-2">
+                                ${arrivedDot}
+                                <span class="text-xs truncate ${cancelledClass}" title="${guest.nombre}">${guest.nombre}</span>
+                                ${courseBadge}
+                                ${gasBadge}
+                            </div>
+                            <div class="relative shrink-0 flex items-center">
+                                <button onclick="window.toggleMoveGroupDropdown(event, '${timeSlot}', '${targetDateStr}', '${boatId}', '${otherBoatId}', '${guest.dni || ''}', '${guest.nombre.replace(/'/g, "\\'")}')" 
+                                        title="Mover a ${otherBoatId === 'ares' ? 'Ares' : 'Kaiser'}" 
+                                        class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-orange-500 hover:text-white border border-slate-200 text-slate-500 transition-all duration-150 cursor-pointer shadow-xs">
+                                    ${buttonArrow}
+                                </button>
+                                <div class="move-group-dropdown hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl py-1 w-48 z-40">
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    html += `</div>`;
+    return html;
+}
+
+window.createMoveDiversTrip = function(boatId, timeSlot, targetDateStr) {
+    const newTrip = {
+        id: `internal_${Date.now()}`,
+        date: targetDateStr,
+        time: timeSlot,
+        assignedBoat: boatId,
+        site: 'Sin Destino',
+        captain: '',
+        isVisor: false,
+        groups: [
+            {
+                guide: '',
+                apoyo: '',
+                guests: []
+            }
+        ]
+    };
+    
+    if (typeof internalTrips !== 'undefined') internalTrips.push(newTrip);
+    if (window.internalTrips) window.internalTrips.push(newTrip);
+    (window.mergedAllocations || mergedAllocations || []).push(newTrip);
+
+    window.saveMultipleTripsData([newTrip])
+        .catch(e => console.error("Error creating empty trip via Move Divers modal:", e));
+
+    if (typeof renderDailyGrid === 'function') renderDailyGrid();
+    else if (typeof window.renderDailyGrid === 'function') window.renderDailyGrid();
+    window.renderMoveDiversModalContent(timeSlot, targetDateStr);
+};
+
+window.toggleMoveGroupDropdown = function(event, timeSlot, targetDateStr, sourceBoat, targetBoat, guestDni, guestName) {
+    event.stopPropagation();
+    const btn = event.currentTarget;
+    const dropdown = btn.nextElementSibling;
+    
+    document.querySelectorAll('.move-group-dropdown').forEach(d => {
+        if (d !== dropdown) d.classList.add('hidden');
+    });
+
+    if (!dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+
+    const todaysTrips = (window.mergedAllocations || mergedAllocations || []).filter(t => t.date === targetDateStr && t.time === timeSlot);
+    const targetTrip = todaysTrips.find(t => t.assignedBoat === targetBoat && t.isInternalTrip) 
+                    || todaysTrips.find(t => t.assignedBoat === targetBoat);
+
+    let html = `<div class="text-[9px] font-black text-slate-400 uppercase px-3 py-1 tracking-wider border-b border-slate-100">Mover a:</div>`;
+    
+    if (targetTrip && targetTrip.groups && targetTrip.groups.length > 0) {
+        targetTrip.groups.forEach((g, gIdx) => {
+            const guideLabel = g.guide ? `Guía: ${window.getFirstName(g.guide)}` : `Grupo ${gIdx + 1} (Sin Guía)`;
+            html += `<button onclick="window.moveDiverBetweenBoats('${timeSlot}', '${targetDateStr}', '${sourceBoat}', '${targetBoat}', '${guestDni}', '${guestName}', ${gIdx})" class="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs font-bold text-slate-700 truncate block border-b border-slate-50">${guideLabel}</button>`;
+        });
+    }
+    
+    html += `<button onclick="window.moveDiverBetweenBoats('${timeSlot}', '${targetDateStr}', '${sourceBoat}', '${targetBoat}', '${guestDni}', '${guestName}', -1)" class="w-full text-left px-3 py-2 hover:bg-orange-50 text-xs font-black text-orange-600 block">+ Nuevo Grupo</button>`;
+    
+    dropdown.innerHTML = html;
+    dropdown.classList.remove('hidden');
+
+    const closeAll = () => {
+        dropdown.classList.add('hidden');
+        document.removeEventListener('click', closeAll);
+    };
+    setTimeout(() => document.addEventListener('click', closeAll), 10);
+};
+
+window.moveDiverBetweenBoats = function(timeSlot, targetDateStr, sourceBoat, targetBoat, guestDni, guestName, targetGroupIdx) {
+    const todaysTrips = (window.mergedAllocations || mergedAllocations || []).filter(t => t.date === targetDateStr && t.time === timeSlot);
+    let sourceTrip = todaysTrips.find(t => t.assignedBoat === sourceBoat && t.isInternalTrip) 
+                  || todaysTrips.find(t => t.assignedBoat === sourceBoat);
+    let targetTrip = todaysTrips.find(t => t.assignedBoat === targetBoat && t.isInternalTrip) 
+                  || todaysTrips.find(t => t.assignedBoat === targetBoat);
+
+    if (!sourceTrip) return;
+
+    if (!targetTrip) {
+        targetTrip = {
+            id: `internal_${Date.now()}`,
+            date: targetDateStr,
+            time: timeSlot,
+            assignedBoat: targetBoat,
+            site: sourceTrip.site || 'Sin Destino',
+            captain: '',
+            isVisor: false,
+            groups: [
+                {
+                    guide: '',
+                    apoyo: '',
+                    guests: []
+                }
+            ]
+        };
+        if (typeof internalTrips !== 'undefined') internalTrips.push(targetTrip);
+        if (window.internalTrips) window.internalTrips.push(targetTrip);
+        (window.mergedAllocations || mergedAllocations || []).push(targetTrip);
+    }
+
+    let foundGuest = null;
+    let sourceGroupIdx = -1;
+    let sourceGuestIdx = -1;
+    
+    for (let gIdx = 0; gIdx < sourceTrip.groups.length; gIdx++) {
+        const group = sourceTrip.groups[gIdx];
+        const gstIdx = group.guests.findIndex(g => 
+            (g.dni && guestDni && g.dni === guestDni) || 
+            (g.nombre && guestName && g.nombre === guestName)
+        );
+        if (gstIdx > -1) {
+            foundGuest = group.guests[gstIdx];
+            sourceGroupIdx = gIdx;
+            sourceGuestIdx = gstIdx;
+            break;
+        }
+    }
+
+    if (!foundGuest) return;
+
+    // Remove from source
+    sourceTrip.groups[sourceGroupIdx].guests.splice(sourceGuestIdx, 1);
+
+    // Add to target
+    if (targetGroupIdx === -1) {
+        targetTrip.groups.push({
+            guide: '',
+            apoyo: '',
+            guests: [foundGuest]
+        });
+    } else {
+        while (targetTrip.groups.length <= targetGroupIdx) {
+            targetTrip.groups.push({ guide: '', apoyo: '', guests: [] });
+        }
+        targetTrip.groups[targetGroupIdx].guests.push(foundGuest);
+    }
+
+    // Force RAM update UI instantly
+    if (typeof renderDailyGrid === 'function') renderDailyGrid();
+    else if (typeof window.renderDailyGrid === 'function') window.renderDailyGrid();
+    window.renderMoveDiversModalContent(timeSlot, targetDateStr);
+
+    // Save in background
+    window.saveMultipleTripsData([sourceTrip, targetTrip])
+        .catch(e => console.error("Error saving moved trips:", e));
+
+    // Migrating customer history doc in background if guest has DNI
+    if (foundGuest.dni) {
+        (async () => {
+            try {
+                const oldHistoryRef = db.collection('mangamar_customers').doc(foundGuest.dni).collection('history').doc(sourceTrip.id);
+                const oldHistorySnap = await oldHistoryRef.get();
+                if (oldHistorySnap.exists) {
+                    const historyData = oldHistorySnap.data();
+                    historyData.assignedBoat = targetBoat;
+                    historyData.time = timeSlot;
+                    historyData.date = targetDateStr;
+                    
+                    const newHistoryRef = db.collection('mangamar_customers').doc(foundGuest.dni).collection('history').doc(targetTrip.id);
+                    const batch = db.batch();
+                    batch.set(newHistoryRef, historyData);
+                    batch.delete(oldHistoryRef);
+                    await batch.commit();
+                }
+            } catch (err) {
+                console.error("Error migrating customer history:", err);
+            }
+        })();
+    }
+};
+
