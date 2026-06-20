@@ -1603,7 +1603,19 @@ window.openHistorialExportModal = function() {
                 const minStr = String(minutes).padStart(2, '0');
                 timeStr = `${hours}:${minStr}`;
             }
-            servicesText += ` - ${timeStr} ${dive.site || 'Buceo'}\n`;
+            
+            let gasSuffix = "";
+            const includeGasCheckbox = document.getElementById('historial-export-include-gas');
+            const includeGas = includeGasCheckbox ? includeGasCheckbox.checked : false;
+            if (includeGas && dive.gas) {
+                const gasLower = dive.gas.toLowerCase();
+                if (!gasLower.includes('aire')) {
+                    const cleanGas = dive.gas.replace('15L ', '').replace('12L ', '').trim();
+                    gasSuffix = ` (${cleanGas})`;
+                }
+            }
+            
+            servicesText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}\n`;
         });
         servicesText += `\n`;
     });

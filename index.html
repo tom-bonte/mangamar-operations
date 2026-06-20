@@ -3322,6 +3322,12 @@
                 <div class="text-xs text-slate-500 font-bold leading-normal">
                     Este es el desglose de los servicios y productos realizados. Puedes copiarlo para compartirlo directamente por WhatsApp o Correo.
                 </div>
+                <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-sm shrink-0">
+                    <input type="checkbox" id="historial-export-include-gas" class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer" checked onchange="window.openHistorialExportModal()">
+                    <label for="historial-export-include-gas" class="text-xs font-black text-slate-700 cursor-pointer select-none">
+                        Incluir mezcla de gas (cuando no sea Aire)
+                    </label>
+                </div>
                 <div class="flex-1 min-h-0 flex flex-col">
                     <textarea id="historial-export-text" class="flex-1 w-full p-4 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-inner resize-none text-slate-700 leading-relaxed" readonly></textarea>
                 </div>
