@@ -369,6 +369,18 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     const delBtn = document.getElementById('btn-delete-boat');
     delBtn.classList.remove('hidden'); // UNLOCK SUPERUSER DELETE FOR ALL TRIPS
 
+    const cancelBtn = document.getElementById('btn-cancel-boat');
+    if (cancelBtn) {
+        cancelBtn.classList.remove('hidden');
+        if (activeBoatItem && activeBoatItem.cancelled) {
+            cancelBtn.innerHTML = `<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0"></path></svg> Reactivar Salida`;
+            cancelBtn.className = "px-4 py-3 rounded-lg text-sm font-bold text-emerald-600 bg-white border border-emerald-200 hover:bg-emerald-50 transition-colors shadow-sm flex items-center gap-1 auth-hide";
+        } else {
+            cancelBtn.innerHTML = `<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> Anular Salida`;
+            cancelBtn.className = "px-4 py-3 rounded-lg text-sm font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-1 auth-hide";
+        }
+    }
+
     if (boatId === 'shore') {
         document.getElementById('destino-container').classList.add('hidden');
         document.getElementById('captain-inline-container').classList.add('hidden');
@@ -573,7 +585,11 @@ function updateModalSubtitle() {
     let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.pax) || parseInt(activeBoatItem.plazas) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
     let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : `${capacityNum} Plazas Ocupadas`;
     const totalPeople = typeof window.calculateTotalPeopleOnBoat === 'function' ? window.calculateTotalPeopleOnBoat(activeBoatItem) : total;
-    document.getElementById('modal-boat-subtitle').innerText = `${activeBoatItem.time} • ${total}/${capText} (total: ${totalPeople})`;
+    let subtitle = `${activeBoatItem.time} • ${total}/${capText} (total: ${totalPeople})`;
+    if (activeBoatItem && activeBoatItem.cancelled) {
+        subtitle = `⚠️ [ANULADA] • ${subtitle}`;
+    }
+    document.getElementById('modal-boat-subtitle').innerText = subtitle;
 }
 
 function checkDiverConflict(dni, fullName, skipGroupIdx = -1, skipGuestIdx = -1) {
@@ -2181,7 +2197,13 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                             clonedTrip.guests = newFlatGuests;
                             updates[`allocations.${clonedTrip.id}`] = {
                                 id: clonedTrip.id, date: clonedTrip.date, time: clonedTrip.time, assignedBoat: clonedTrip.assignedBoat,
-                                site: clonedTrip.site, captain: clonedTrip.captain, groups: clonedTrip.groups, guests: clonedTrip.guests
+                                site: clonedTrip.site, captain: clonedTrip.captain, groups: clonedTrip.groups, guests: clonedTrip.guests,
+                                waitlist: clonedTrip.waitlist || [],
+                                timeSaliendo: clonedTrip.timeSaliendo || '',
+                                timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
+                                timeVolviendo: clonedTrip.timeVolviendo || '',
+                                rmLocked: clonedTrip.rmLocked || false,
+                                cancelled: clonedTrip.cancelled || false
                             };
                             needsUpdate = true;
                             
@@ -3051,6 +3073,7 @@ window.mergeManifests = function(base, local, remote) {
     mergeField('timeBuzosAgua', '');
     mergeField('timeVolviendo', '');
     mergeField('rmLocked', false);
+    mergeField('cancelled', false);
     
     if (local.maxDives !== base.maxDives) {
         if (local.maxDives) merged.maxDives = local.maxDives;
@@ -3488,6 +3511,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
     itemToSave.timeBuzosAgua = mergedTrip.timeBuzosAgua;
     itemToSave.timeVolviendo = mergedTrip.timeVolviendo;
     itemToSave.rmLocked = mergedTrip.rmLocked;
+    itemToSave.cancelled = mergedTrip.cancelled || false;
     if (mergedTrip.maxDives) itemToSave.maxDives = mergedTrip.maxDives;
     else delete itemToSave.maxDives;
     
@@ -3578,7 +3602,8 @@ async function saveBoatData(itemToSave = activeBoatItem) {
         timeSaliendo: savedSnapshot.timeSaliendo || '',
         timeBuzosAgua: savedSnapshot.timeBuzosAgua || '',
         timeVolviendo: savedSnapshot.timeVolviendo || '',
-        rmLocked: savedSnapshot.rmLocked || false
+        rmLocked: savedSnapshot.rmLocked || false,
+        cancelled: savedSnapshot.cancelled || false
     };
     if (savedSnapshot.maxDives) payload.maxDives = savedSnapshot.maxDives;
     
@@ -3674,7 +3699,8 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                             timeSaliendo: clonedTrip.timeSaliendo || '',
                             timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
                             timeVolviendo: clonedTrip.timeVolviendo || '',
-                            rmLocked: clonedTrip.rmLocked || false
+                            rmLocked: clonedTrip.rmLocked || false,
+                            cancelled: clonedTrip.cancelled || false
                         };
                         if (clonedTrip.maxDives) otherPayload.maxDives = clonedTrip.maxDives;
                         if (clonedTrip.isVisor) otherPayload.visorTripFallback = true;
@@ -3756,7 +3782,8 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                             timeSaliendo: clonedTrip.timeSaliendo || '',
                             timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
                             timeVolviendo: clonedTrip.timeVolviendo || '',
-                            rmLocked: clonedTrip.rmLocked || false
+                            rmLocked: clonedTrip.rmLocked || false,
+                            cancelled: clonedTrip.cancelled || false
                         };
                         needsUpdate = true;
                     }
@@ -4142,6 +4169,34 @@ window.loadWaitlistForTrip = function() {
 }
 
 
+
+window.toggleCancelBoatData = function() {
+    if (!window.isLoggedIn) return;
+    if (!activeBoatItem) return;
+    
+    activeBoatItem.cancelled = !activeBoatItem.cancelled;
+    
+    // Update the button text and icon in the UI
+    const cancelBtn = document.getElementById('btn-cancel-boat');
+    if (cancelBtn) {
+        if (activeBoatItem.cancelled) {
+            cancelBtn.innerHTML = `<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0"></path></svg> Reactivar Salida`;
+            cancelBtn.className = "px-4 py-3 rounded-lg text-sm font-bold text-emerald-600 bg-white border border-emerald-200 hover:bg-emerald-50 transition-colors shadow-sm flex items-center gap-1 auth-hide";
+        } else {
+            cancelBtn.innerHTML = `<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> Anular Salida`;
+            cancelBtn.className = "px-4 py-3 rounded-lg text-sm font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-1 auth-hide";
+        }
+    }
+    
+    // Update subtitle of the modal to show [ANULADA]
+    updateModalSubtitle();
+    
+    // Trigger saving the updated trip
+    window.isManifestDirty = true;
+    window.triggerAutoSave();
+    
+    showToast(activeBoatItem.cancelled ? "Salida anulada" : "Salida reactivada");
+};
 
 function deleteBoatData() {
     if(!window.isLoggedIn) return;

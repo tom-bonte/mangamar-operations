@@ -1888,7 +1888,7 @@ window.incidenciaWizardLoadTrips = function() {
     document.getElementById('inc-dia-incidencia').value = `${d}/${m}/${y}`;
 
     const allTripsOnDate = mergedAllocations.filter(t =>
-        t.date === dateVal && t.assignedBoat !== 'shore'
+        t.date === dateVal && t.assignedBoat !== 'shore' && !t.cancelled
     );
 
     // Dedup by ID: prefer internal trip (has guests) over Visor-only
@@ -2370,7 +2370,8 @@ window.testFueraLoadTrips = function() {
         t.date === dateVal && 
         t.assignedBoat !== 'shore' && 
         t.site && 
-        t.site.toLowerCase().includes('fuera')
+        t.site.toLowerCase().includes('fuera') &&
+        !t.cancelled
     );
 
     // Dedup by ID: prefer internal trip over Visor-only

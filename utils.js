@@ -234,6 +234,7 @@ window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGr
     const deduplicatedOtherTrips = getMergedTrips(rawOtherTrips);
 
     for (const t of deduplicatedOtherTrips) {
+        if (t.cancelled) continue; // Cancelled departures do not lock up staff or clients
         const boatName = getTripLocationName(t);
         if (t.captain && matches(null, t.captain)) return boatName;
         if (t.guide && matches(null, t.guide)) return boatName;
@@ -250,7 +251,7 @@ window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGr
         }
     }
 
-    if (refItem && refItem.id === idStr) {
+    if (refItem && refItem.id === idStr && !refItem.cancelled) {
         if (excludeType !== 'captain' && refItem.captain && matches(null, refItem.captain)) return "Este barco (Capitán)";
         
         if (refItem.groups) {
@@ -450,6 +451,7 @@ window.runStaffViewsFilter = async function() {
 
     let matchTrips = [];
     mergedAllocations.forEach(trip => {
+        if (trip.cancelled) return;
         let isCapMatch = trip.captain === name;
         let isGuiMatch = false;
         if (trip.groups) {
@@ -800,8 +802,8 @@ function renderDailyGeneralStaffView(dateStr, container) {
     const captains = [...(staffDatabase.capitanes || [])].sort((a,b) => a.nombre.localeCompare(b.nombre));
     const guides   = [...(staffDatabase.guias || [])].sort((a,b) => a.nombre.localeCompare(b.nombre));
 
-    // Get all trips on this day
-    const dayTrips = mergedAllocations.filter(t => t.date === dateStr);
+    // Get all trips on this day, excluding cancelled ones
+    const dayTrips = mergedAllocations.filter(t => t.date === dateStr && !t.cancelled);
 
     // Helper to extract assignments for a person
     const getAssignments = (name) => {
@@ -1023,7 +1025,7 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
     const getWorkload = (name, dateStr) => {
         let count = 0;
         mergedAllocations.forEach(t => {
-            if (t.date === dateStr) {
+            if (t.date === dateStr && !t.cancelled) {
                 let matches = t.captain === name;
                 if (!matches && t.groups) {
                     matches = t.groups.some(g => g.guide === name || g.apoyo === name);

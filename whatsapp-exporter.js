@@ -226,6 +226,7 @@ window.generateWhatsAppText = function() {
     const allTrips = getMergedTrips(mergedAllocations);
     
     const filteredTrips = allTrips.filter(t => {
+        if (t.cancelled) return false;
         let matchesDate = false;
         
         // 1. Check if it's within the Native Rango de Fechas

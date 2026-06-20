@@ -702,6 +702,10 @@
 
             <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 rounded-b-2xl shrink-0">
                 <button id="btn-delete-boat" onclick="deleteBoatData()" class="px-4 py-3 rounded-lg text-sm font-bold text-red-500 bg-white border border-red-200 hover:bg-red-50 transition-colors shadow-sm hidden flex items-center gap-1 auth-hide"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Eliminar Salida</button>
+                <button id="btn-cancel-boat" onclick="window.toggleCancelBoatData()" class="px-4 py-3 rounded-lg text-sm font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm hidden flex items-center gap-1 auth-hide">
+                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                    Anular Salida
+                </button>
                 <div class="flex gap-3 flex-1 justify-end">
                     <button onclick="closeManageBoatModal()" class="px-8 py-3 rounded-lg text-sm font-black text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm">Cerrar</button>
                     <button id="btn-manual-save" onclick="manualSaveBoatData(false)" class="px-6 py-3 rounded-lg text-sm font-black text-white bg-blue-500 hover:bg-blue-600 transition-all shadow-md active:scale-95 flex items-center gap-2">

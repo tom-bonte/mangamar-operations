@@ -70,7 +70,7 @@ window._buildTVContent = function() {
 
     // Helper: does this trip have any real content to show?
     const tripHasContent = trip => {
-        if (!trip) return false;
+        if (!trip || trip.cancelled) return false;
         return (trip.groups || []).some(g => (g.guests || []).some(guest => !guest.cancelled) || g.guide || g.apoyo);
     };
 

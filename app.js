@@ -129,7 +129,7 @@ window.checkDniMatch = function(dni, normQuery) {
 };
 
 window.calculateTotalPeopleOnBoat = function(trip) {
-    if (!trip) return 0;
+    if (!trip || trip.cancelled) return 0;
     const guests = trip.guests || [];
     const guestCount = guests.filter(g => !g.cancelled).length;
     
@@ -383,7 +383,7 @@ function renderMonthlyCalendar() {
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
-        const tripsToday = allTrips.filter(t => t.date === dateStr && monthlySiteFilters.includes(t.site || ''));
+        const tripsToday = allTrips.filter(t => t.date === dateStr && !t.cancelled && monthlySiteFilters.includes(t.site || ''));
         const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
         
         const cell = document.createElement('div');
@@ -554,10 +554,14 @@ function renderDailyGrid() {
                 handleDrop(e, boatId, timeSlot);
             };
 
-            const totalTrips = (mainTrip ? 1 : 0) + (conflictArray ? conflictArray.length : 0);
-            const isCompact = totalTrips > 1; // Flag to squish cards side-by-side
+            const allTripsInSlot = [mainTrip, ...(conflictArray || [])].filter(Boolean);
+            const hasActiveTrip = allTripsInSlot.some(t => !t.cancelled);
+            const showEmptySlot = (allTripsInSlot.length === 0) || !hasActiveTrip;
+            
+            const totalItemsToRender = allTripsInSlot.length + (showEmptySlot && allTripsInSlot.length > 0 ? 1 : 0);
+            const isCompact = totalItemsToRender > 1;
 
-            if (totalTrips === 0) {
+            if (allTripsInSlot.length === 0) {
                 const empty = document.createElement('div');
                 empty.className = "w-full h-full rounded-2xl border border-dashed border-slate-300 hover:bg-white hover:shadow-sm cursor-pointer transition-all flex items-center justify-center group auth-hide";
                 empty.onclick = () => openManageBoatModal(null, boatId, timeSlot, targetDateStr);
@@ -565,9 +569,12 @@ function renderDailyGrid() {
                 slotContainer.appendChild(empty);
             } else {
                 const getIsConflict = (trip, isIndexConflict) => {
-                    if (boatId !== 'shore') return isIndexConflict;
-                    const allTripsInSlot = [mainTrip, ...(conflictArray || [])].filter(Boolean);
-                    const countSameSite = allTripsInSlot.filter(t => t.site === trip.site).length;
+                    if (trip.cancelled) return false;
+                    const activeTripsInSlot = allTripsInSlot.filter(t => !t.cancelled);
+                    if (boatId !== 'shore') {
+                        return activeTripsInSlot.length > 1;
+                    }
+                    const countSameSite = activeTripsInSlot.filter(t => t.site === trip.site).length;
                     return countSameSite > 1;
                 };
 
@@ -578,6 +585,13 @@ function renderDailyGrid() {
                     conflictArray.forEach(conflictTrip => {
                         slotContainer.appendChild(buildBoatCard(conflictTrip, boatId, timeSlot, targetDateStr, isCompact, getIsConflict(conflictTrip, true)));
                     });
+                }
+                if (showEmptySlot && allTripsInSlot.length > 0) {
+                    const empty = document.createElement('div');
+                    empty.className = "flex-1 min-w-0 h-full rounded-2xl border border-dashed border-slate-300 hover:bg-white hover:shadow-sm cursor-pointer transition-all flex items-center justify-center group auth-hide";
+                    empty.onclick = () => openManageBoatModal(null, boatId, timeSlot, targetDateStr);
+                    empty.innerHTML = `<svg class="w-8 h-8 text-slate-200 group-hover:text-blue-400 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`;
+                    slotContainer.appendChild(empty);
                 }
             }
 
@@ -628,8 +642,10 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     const col = document.createElement('div');
     col.setAttribute('data-trip-id', trip.id);
     const guests = trip.guests || [];
-    const guestCount = guests.filter(g => !g.cancelled).length;
-    const siteColorConfig = SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-300';
+    const guestCount = trip.cancelled ? 0 : guests.filter(g => !g.cancelled).length;
+    const siteColorConfig = trip.cancelled
+        ? 'bg-slate-200 text-slate-500 border-slate-350'
+        : (SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-300');
     
     let hasVisorTag = (trip.isVisor && (!trip.isInternalTrip || trip.site === trip.originalVisorSite));
 
@@ -827,7 +843,9 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     
     let barColor = 'bg-orange-500';
 
-    let cardBaseClass = isConflict ? "bg-red-50 border-red-500 shadow-md border-2" : "bg-white border-slate-200 shadow-sm border hover:shadow-md hover:border-blue-300";
+    let cardBaseClass = trip.cancelled
+        ? "bg-slate-50 border-slate-200 opacity-60 shadow-none border border-dashed"
+        : (isConflict ? "bg-red-50 border-red-500 shadow-md border-2" : "bg-white border-slate-200 shadow-sm border hover:shadow-md hover:border-blue-300");
     
     // Increased height to 115px to fit the new lines comfortably
     col.className = `group-tooltip relative rounded-2xl transition-all flex flex-col h-[115px] shrink-0 z-10 hover:z-[100] ${isCompact ? 'flex-1 min-w-0' : 'w-full'} ${cardBaseClass}`;
@@ -874,15 +892,20 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
     col.innerHTML = `
         <div class="w-full h-full flex flex-col overflow-hidden rounded-[15px]">
-            ${isConflict ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
-            <div class="h-1.5 w-full shrink-0 ${topBarColor}"></div> 
+            ${(!trip.cancelled && isConflict) ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
+            <div class="h-1.5 w-full shrink-0 ${trip.cancelled ? 'bg-slate-300' : topBarColor}"></div> 
             <div class="p-2.5 flex-1 flex flex-col justify-between overflow-hidden gap-1">
                 <div class="flex items-center gap-1.5 overflow-hidden min-w-0 shrink-0 w-full">
                     <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${siteColorConfig} truncate leading-tight shrink-0 max-w-[70%]">${trip.site || 'Sin Destino'}</span>
-                    ${hasVisorTag ? (trip.rmLocked 
-                        ? `<span class="text-[7px] font-black uppercase text-emerald-700 tracking-widest bg-emerald-50 px-1 rounded border border-emerald-300 flex items-center shrink-0">VISOR</span>`
-                        : `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>`
-                    ) : ''}
+                    ${trip.cancelled 
+                        ? `<span class="text-[7px] font-black uppercase text-rose-700 tracking-widest bg-rose-50 px-1 rounded border border-rose-200 flex items-center shrink-0">ANULADA</span>`
+                        : hasVisorTag 
+                            ? (trip.rmLocked 
+                                ? `<span class="text-[7px] font-black uppercase text-emerald-700 tracking-widest bg-emerald-50 px-1 rounded border border-emerald-300 flex items-center shrink-0">VISOR</span>`
+                                : `<span class="text-[7px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-1 rounded border border-orange-200 flex items-center shrink-0">VISOR</span>`
+                            ) 
+                            : ''
+                    }
                 </div>
 
                 <div class="flex-1 flex flex-col justify-center min-w-0 w-full px-0.5">
