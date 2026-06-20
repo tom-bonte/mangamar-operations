@@ -168,7 +168,14 @@ window.switchTodayTab = async function (tabId) {
 
                             if (data.course) {
                                 let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
-                                if (!billedCourses.has(baseCourse)) {
+                                let alreadyBilled = false;
+                                for (let bc of billedCourses) {
+                                    if (window.matchCourseNames(bc, baseCourse)) {
+                                        alreadyBilled = true;
+                                        break;
+                                    }
+                                }
+                                if (!alreadyBilled) {
                                     p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
                                     billedCourses.add(baseCourse);
                                 } else { p.course = 0; }
@@ -311,7 +318,14 @@ window.switchTodayTab = async function (tabId) {
                         // Engine 1: Course Deduplication
                         if (data.course) {
                             let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
-                            if (!billedCourses.has(baseCourse)) {
+                            let alreadyBilled = false;
+                            for (let bc of billedCourses) {
+                                if (window.matchCourseNames(bc, baseCourse)) {
+                                    alreadyBilled = true;
+                                    break;
+                                }
+                            }
+                            if (!alreadyBilled) {
                                 p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
                                 billedCourses.add(baseCourse);
                             } else {
@@ -446,7 +460,15 @@ window.renderTodayCerts = async function (forceFetch = false) {
 
                 let uniqKey = dni + '_' + cleanCourse;
 
-                if (!tempCertsMap.has(uniqKey)) {
+                let alreadyAdded = false;
+                for (let [key, val] of tempCertsMap.entries()) {
+                    if (val.dni === dni && window.matchCourseNames(val.course, cleanCourse)) {
+                        alreadyAdded = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyAdded) {
                     tempCertsMap.set(uniqKey, {
                         dni, nombre,
                         date: data.date,

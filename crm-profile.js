@@ -288,7 +288,15 @@ setTimeout(() => {
         if (data.course) {
             let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
 
-            if (!billedCourses.has(baseCourse)) {
+            let alreadyBilled = false;
+            for (let bc of billedCourses) {
+                if (window.matchCourseNames(bc, baseCourse)) {
+                    alreadyBilled = true;
+                    break;
+                }
+            }
+
+            if (!alreadyBilled) {
                 courseRate = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
                 billedCourses.add(baseCourse);
                 p.course = courseRate;
@@ -1409,7 +1417,14 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
 
             if (data.course) {
                 let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
-                if (!billedCourses.has(baseCourse)) {
+                let alreadyBilled = false;
+                for (let bc of billedCourses) {
+                    if (window.matchCourseNames(bc, baseCourse)) {
+                        alreadyBilled = true;
+                        break;
+                    }
+                }
+                if (!alreadyBilled) {
                     p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
                     billedCourses.add(baseCourse);
                 } else {
