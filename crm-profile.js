@@ -1610,7 +1610,8 @@ window.openHistorialExportModal = function() {
             if (includeGas && dive.gas) {
                 const gasLower = dive.gas.toLowerCase();
                 if (!gasLower.includes('aire')) {
-                    const cleanGas = dive.gas.replace('15L ', '').replace('12L ', '').trim();
+                    let cleanGas = dive.gas.replace('15L ', '').replace('12L ', '').trim();
+                    cleanGas = cleanGas.replace(/ean/i, 'Nitrox');
                     gasSuffix = ` (${cleanGas})`;
                 }
             }
