@@ -1356,6 +1356,11 @@ window.processGroupCheckout = async function(method) {
                 } else {
                     // Full Payment: Mark all items as paid and log a standard liquidation record
                     snap.forEach(doc => {
+                        let data = doc.data();
+                        if (window.isTripOrGuestCancelled && window.isTripOrGuestCancelled(doc.id, data, c.dni)) {
+                            batch.delete(doc.ref);
+                            return;
+                        }
                         batch.update(doc.ref, { 
                             paymentStatus: 'paid',
                             paidAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1455,6 +1460,8 @@ window.generateJointFactura = async function (repName, repDni, groupDiscount = 0
 
         docsArray.forEach(doc => {
             let data = doc.data();
+            if (window.isTripOrGuestCancelled && window.isTripOrGuestCancelled(doc.id, data, dni)) return;
+
             if (data.paymentStatus === 'pending') window.currentJointFacturaRefs.push(doc.ref);
 
             let p = window.calculateDivePrice(data);

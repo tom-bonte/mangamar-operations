@@ -245,6 +245,7 @@ setTimeout(() => {
 
     // Helper: check both flat guests[] AND groups[].guests[] for a DNI match
     const isGuestOnTrip = (trip, targetDni) => {
+        if (!trip || trip.cancelled) return false;
         const normTarget = (targetDni || '').trim().toLowerCase();
         // Check flat guests array (Visor-style trips)
         if ((trip.guests || []).some(g => (g.dni || '').trim().toLowerCase() === normTarget && !g.cancelled)) return true;
@@ -431,13 +432,7 @@ setTimeout(() => {
                         }
                     } else {
                         // Exists internally. Verify guest list — check BOTH flat guests[] AND groups[].guests[]
-                        const normDni = (dni || '').toLowerCase();
-                        let isActuallyOnBoat = (internalTrip.guests || []).some(g => (g.dni || '').toLowerCase() === normDni && !g.cancelled);
-                        if (!isActuallyOnBoat) {
-                            isActuallyOnBoat = (internalTrip.groups || []).some(grp =>
-                                (grp.guests || []).some(g => (g.dni || '').toLowerCase() === normDni && !g.cancelled)
-                            );
-                        }
+                        let isActuallyOnBoat = isGuestOnTrip(internalTrip, dni);
                         if (!isActuallyOnBoat) shouldDelete = true;
                     }
 

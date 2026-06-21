@@ -106,6 +106,22 @@ window.setCertsFilter = function (mode) {
     renderTodayCerts(true);
 };
 
+window.isTripOrGuestCancelled = function (docId, data, dni) {
+    if (docId && !docId.startsWith('temp_') && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio') {
+        let activeTrip = (window.mergedAllocations || []).find(t => t.id === docId) || (window.internalTrips || []).find(t => t.id === docId);
+        if (activeTrip) {
+            if (activeTrip.cancelled) return true;
+            let isCancelledOnBoat = false;
+            const normDni = (dni || '').toLowerCase();
+            const matchG = (g) => (g.dni || '').toLowerCase() === normDni && g.cancelled;
+            if ((activeTrip.guests || []).some(matchG)) isCancelledOnBoat = true;
+            if ((activeTrip.groups || []).some(grp => (grp.guests || []).some(matchG))) isCancelledOnBoat = true;
+            if (isCancelledOnBoat) return true;
+        }
+    }
+    return false;
+};
+
 window.switchTodayTab = async function (tabId) {
     const btnToday = document.getElementById('tab-primary-today');
     const btnGlobal = document.getElementById('tab-primary-global');
@@ -164,6 +180,7 @@ window.switchTodayTab = async function (tabId) {
 
                         docsArray.forEach(doc => {
                             let data = doc.data();
+                            if (window.isTripOrGuestCancelled && window.isTripOrGuestCancelled(doc.id, data, dni)) return;
                             let p = window.calculateDivePrice(data);
 
                             if (data.course) {
@@ -313,6 +330,7 @@ window.switchTodayTab = async function (tabId) {
 
                     docsArray.forEach(doc => {
                         let data = doc.data();
+                        if (window.isTripOrGuestCancelled && window.isTripOrGuestCancelled(doc.id, data, dni)) return;
                         let p = window.calculateDivePrice(data);
 
                         // Engine 1: Course Deduplication
@@ -690,7 +708,7 @@ window.openTodayDiversModal = function (isNavBackForward = false) {
     // Writes the date into the new top-pinned Header
     document.getElementById('today-modal-date-display').innerText = prettyDate.charAt(0).toUpperCase() + prettyDate.slice(1);
 
-    const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
+    const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr && !t.cancelled);
     let uniqueDivers = new Map();
     let dailyCustomGroups = new Map(); // Store custom groups and their divers
 
@@ -702,6 +720,7 @@ window.openTodayDiversModal = function (isNavBackForward = false) {
         });
 
         allGuests.forEach(g => {
+            if (g.cancelled) return; // Skip individually cancelled guests
             if (g.dni) {
                 let tag = g.bookingTag || 'Sin Grupo';
                 if (!dailyCustomGroups.has(tag)) dailyCustomGroups.set(tag, []);
