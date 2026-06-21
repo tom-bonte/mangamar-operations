@@ -519,13 +519,22 @@ function renderDailyGrid() {
             else { t.assignedBoat = 'ares'; aConflicts.push(t); } 
         };
 
-        // 1. Asignaciones explícitas primero (Visor y luego Interno)
-        finalTrips.filter(t => t.isVisor && t.assignedBoat).forEach(t => forcePlace(t, t.assignedBoat));
-        finalTrips.filter(t => !t.isVisor && t.assignedBoat).forEach(t => forcePlace(t, t.assignedBoat));
+        // Prioritize active (not cancelled) trips first so they are assigned to the main slot (rendered on the left)
+        const activeTrips = finalTrips.filter(t => !t.cancelled);
+        const cancelledTrips = finalTrips.filter(t => t.cancelled);
 
-        // 2. Viajes sin asignar llenan los huecos vacíos
-        finalTrips.filter(t => t.isVisor && !t.assignedBoat).forEach(t => findEmptyBoat(t));
-        finalTrips.filter(t => !t.isVisor && !t.assignedBoat).forEach(t => findEmptyBoat(t));
+        const processTrips = (list) => {
+            // 1. Asignaciones explícitas primero (Visor y luego Interno)
+            list.filter(t => t.isVisor && t.assignedBoat).forEach(t => forcePlace(t, t.assignedBoat));
+            list.filter(t => !t.isVisor && t.assignedBoat).forEach(t => forcePlace(t, t.assignedBoat));
+
+            // 2. Viajes sin asignar llenan los huecos vacíos
+            list.filter(t => t.isVisor && !t.assignedBoat).forEach(t => findEmptyBoat(t));
+            list.filter(t => !t.isVisor && !t.assignedBoat).forEach(t => findEmptyBoat(t));
+        };
+
+        processTrips(activeTrips);
+        processTrips(cancelledTrips);
 
         // Creates a fixed-height slot that can accept drag-and-drop and squishes cards side-by-side on conflict
         const appendSlot = (parentCol, mainTrip, conflictArray, boatId, timeSlot) => {

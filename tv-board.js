@@ -80,7 +80,7 @@ window._buildTVContent = function() {
         if (timeIdx <= 0) return null;
         for (let i = timeIdx - 1; i >= 0; i--) {
             const prevTime = TIMES[i];
-            const prevTrip = todaysTrips.find(t => t.assignedBoat === boatId && t.time === prevTime);
+            const prevTrip = todaysTrips.find(t => t.assignedBoat === boatId && t.time === prevTime && !t.cancelled);
             if (tripHasContent(prevTrip)) {
                 return prevTrip;
             }
@@ -110,16 +110,15 @@ window._buildTVContent = function() {
         return normalized;
     };
 
-    // Build the ordered list of active time slots so we can find the "previous" one
     const activeSlots = TIMES.filter(time => {
-        const a = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time);
-        const k = todaysTrips.find(t => t.assignedBoat === 'kaiser' && t.time === time);
+        const a = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time && !t.cancelled);
+        const k = todaysTrips.find(t => t.assignedBoat === 'kaiser' && t.time === time && !t.cancelled);
         return tripHasContent(a) || tripHasContent(k);
     });
 
     activeSlots.forEach((time, slotIdx) => {
-        const aresTrip   = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time);
-        const kaiserTrip = todaysTrips.find(t => t.assignedBoat === 'kaiser' && t.time === time);
+        const aresTrip   = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time && !t.cancelled);
+        const kaiserTrip = todaysTrips.find(t => t.assignedBoat === 'kaiser' && t.time === time && !t.cancelled);
 
         // CREATE A SNAP ROW WRAPPER
         // min-h-full ensures each row takes up at least the visible height of the bottom panel
@@ -134,7 +133,7 @@ window._buildTVContent = function() {
         if (timeIdx > 0) {
             const prevTime = TIMES[timeIdx - 1];
             ['ares', 'kaiser'].forEach(bId => {
-                const prevTrip = todaysTrips.find(t => t.assignedBoat === bId && t.time === prevTime);
+                const prevTrip = todaysTrips.find(t => t.assignedBoat === bId && t.time === prevTime && !t.cancelled);
                 if (prevTrip) {
                     (prevTrip.groups || []).forEach(g => {
                         (g.guests || []).forEach(guest => {
