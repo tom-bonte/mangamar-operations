@@ -161,7 +161,15 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
 
         window.activeFichaRawDocs = [];
         snapshot.forEach(doc => window.activeFichaRawDocs.push(doc));
-        window.activeFichaRawDocs.reverse();
+        // Sort explicitly by date & time ascending so chronological calculations (like deposits/insurance)
+        // are applied correctly, and reversing later yields strict descending order.
+        window.activeFichaRawDocs.sort((a, b) => {
+            const dataA = typeof a.data === 'function' ? a.data() : a.data;
+            const dataB = typeof b.data === 'function' ? b.data() : b.data;
+            const dateTimeA = `${dataA.date || ''}T${dataA.time || '00:00'}`;
+            const dateTimeB = `${dataB.date || ''}T${dataB.time || '00:00'}`;
+            return dateTimeA.localeCompare(dateTimeB);
+        });
 
         window.recalculateFichaHistory(dni);
         window.renderFichaFromCache(dni, targetTab);

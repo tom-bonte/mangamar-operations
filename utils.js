@@ -450,15 +450,17 @@ window.runStaffViewsFilter = async function() {
     } // If 'mensual', we apply no boundaries to show all, or limit to 1 year? Let's leave unbound for 'mensual' as original
 
     let matchTrips = [];
-    mergedAllocations.forEach(trip => {
+    getMergedTrips(mergedAllocations).forEach(trip => {
         if (trip.cancelled) return;
         let isCapMatch = trip.captain === name;
         let isGuiMatch = false;
+        let isApoMatch = false;
         if (trip.groups) {
             isGuiMatch = trip.groups.some(g => g.guide === name);
+            isApoMatch = trip.groups.some(g => g.apoyo === name);
         }
         
-        if ((isCapMatch || isGuiMatch) && trip.date && trip.time) {
+        if ((isCapMatch || isGuiMatch || isApoMatch) && trip.date && trip.time) {
             // Apply bounding box dates if needed
             if (filterStart && filterEnd) {
                 const tripDate = new Date(trip.date);
@@ -469,7 +471,7 @@ window.runStaffViewsFilter = async function() {
                 
                 if (tripDate < filterStart || tripDate > filterEnd) return;
             }
-            matchTrips.push({ ...trip, actingAsCap: isCapMatch, actingAsGui: isGuiMatch });
+            matchTrips.push({ ...trip, actingAsCap: isCapMatch, actingAsGui: isGuiMatch, actingAsApo: isApoMatch });
         }
     });
 
@@ -542,6 +544,7 @@ window.runStaffViewsFilter = async function() {
                 let roleBadge = '';
                 if (t.actingAsCap) roleBadge += `<span class="text-blue-600 font-black text-[9px] uppercase bg-blue-50 px-1.5 py-0.5 rounded shadow-sm shrink-0 border border-blue-100">Cap</span>`;
                 if (t.actingAsGui) roleBadge += `<span class="text-emerald-600 font-black text-[9px] uppercase bg-emerald-50 px-1.5 py-0.5 rounded shadow-sm shrink-0 border border-emerald-100">Guía</span>`;
+                if (t.actingAsApo) roleBadge += `<span class="text-amber-600 font-black text-[9px] uppercase bg-amber-50 px-1.5 py-0.5 rounded shadow-sm shrink-0 border border-amber-100">Apoyo</span>`;
 
                 h += `
                 <div onclick="openBoatFromStaffView('${t.assignedBoat}', '${t.time}', '${t.date}')" class="bg-white border text-left border-slate-200 hover:border-orange-300 hover:ring-1 hover:ring-orange-100 p-2 rounded-lg shadow-sm transition-all cursor-pointer flex items-center justify-between gap-2 overflow-hidden">
@@ -618,7 +621,7 @@ window.renderNitroxForecast = function() {
     }
 
     // 1. Find all trips on this date
-    let dayTrips = mergedAllocations.filter(t => t.date === dateStr);
+    let dayTrips = getMergedTrips(mergedAllocations.filter(t => t.date === dateStr));
     
     if (dayTrips.length === 0) {
         container.innerHTML = `
@@ -803,7 +806,7 @@ function renderDailyGeneralStaffView(dateStr, container) {
     const guides   = [...(staffDatabase.guias || [])].sort((a,b) => a.nombre.localeCompare(b.nombre));
 
     // Get all trips on this day, excluding cancelled ones
-    const dayTrips = mergedAllocations.filter(t => t.date === dateStr && !t.cancelled);
+    const dayTrips = getMergedTrips(mergedAllocations.filter(t => t.date === dateStr && !t.cancelled));
 
     // Helper to extract assignments for a person
     const getAssignments = (name) => {
@@ -1024,14 +1027,13 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
     // Helper to get number of assignments for a person on a specific date
     const getWorkload = (name, dateStr) => {
         let count = 0;
-        mergedAllocations.forEach(t => {
-            if (t.date === dateStr && !t.cancelled) {
-                let matches = t.captain === name;
-                if (!matches && t.groups) {
-                    matches = t.groups.some(g => g.guide === name || g.apoyo === name);
-                }
-                if (matches) count++;
+        const dayTrips = getMergedTrips(mergedAllocations.filter(t => t.date === dateStr && !t.cancelled));
+        dayTrips.forEach(t => {
+            let matches = t.captain === name;
+            if (!matches && t.groups) {
+                matches = t.groups.some(g => g.guide === name || g.apoyo === name);
             }
+            if (matches) count++;
         });
         return count;
     };

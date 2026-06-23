@@ -799,7 +799,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                     }
                 }
 
-                const isPaid = (g.paymentStatus === 'paid') && (outstandingDebt === 0 || outstandingDebt === undefined);
+                const isPaid = (outstandingDebt === 0) || (g.paymentStatus === 'paid' && outstandingDebt === undefined);
                 const euroBadge = (isPaid && !g.cancelled) 
                     ? `<span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full ml-1 shadow-sm shrink-0 select-none" style="vertical-align: middle; background: linear-gradient(135deg, #ffe066, #d4af37);" title="Liquidado (Pagado)"><svg class="w-2.5 h-2.5 shrink-0" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 2.5C8 2.1 7.3 1.8 6.5 1.8C4.3 1.8 2.5 3.2 2.5 5C2.5 6.8 4.3 8.2 6.5 8.2C7.3 8.2 8.0 7.9 8.5 7.5M1.5 4.2H6M1.5 5.8H6" stroke="black" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` 
                     : '';

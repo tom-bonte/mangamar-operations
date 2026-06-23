@@ -1069,7 +1069,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                                 if (customerInfo) outstandingDebt = customerInfo.outstandingDebt;
                             }
                             
-                            const isPaid = (payInfo.paymentStatus === 'paid') && (outstandingDebt === 0 || outstandingDebt === undefined);
+                            const isPaid = (outstandingDebt === 0) || (payInfo.paymentStatus === 'paid' && outstandingDebt === undefined);
                             const btnClass = 'text-slate-300 hover:text-emerald-500 transition-colors mr-2';
                             const btnTitle = isPaid 
                                 ? `Cobrado con ${payInfo.paymentMethod || 'Tarjeta'} por ${payInfo.paidBy || 'N/A'}` 
