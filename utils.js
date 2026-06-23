@@ -1128,4 +1128,27 @@ function renderWeeklyGeneralStaffView(activeDate, container) {
     container.innerHTML = html;
 }
 
+window.formatTimeToHHMM = function(timeStr) {
+    if (!timeStr) return '';
+    let normalized = timeStr.trim().replace(/[\.,;:\-\/\s]+/g, ':');
+    if (!normalized.includes(':')) {
+        if (normalized.length === 1 || normalized.length === 2) {
+            normalized = normalized + ':00';
+        } else if (normalized.length === 3) {
+            normalized = '0' + normalized.substring(0, 1) + ':' + normalized.substring(1);
+        } else if (normalized.length === 4) {
+            normalized = normalized.substring(0, 2) + ':' + normalized.substring(2);
+        }
+    }
+    const parts = normalized.split(':');
+    if (parts.length >= 2) {
+        let hr = parts[0].trim().padStart(2, '0');
+        let min = parts[1].trim().padEnd(2, '0').substring(0, 2);
+        if (/^\d+$/.test(hr) && /^\d+$/.test(min)) {
+            return `${hr}:${min}`;
+        }
+    }
+    return normalized;
+};
+
 // Guide reassignment from staff view has been removed — editing is done directly in the boat manifest.

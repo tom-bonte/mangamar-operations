@@ -454,7 +454,7 @@ function renderCaptainDropdown() {
                 ${options}
             </select>
             ${activeBoatItem.captain ? `<button onclick="window.clearCaptain()" title="Quitar Capitán" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-colors shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
-            <button onclick="copyStaffDni('capitanes', document.getElementById('input-captain').value)" title="Copiar DNI del Capitán" class="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-orange-600 rounded-lg transition-colors shadow-sm shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+            <button onclick="window.copyStaffDni('capitanes', document.getElementById('input-captain').value)" title="Copiar DNI del Capitán" class="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-orange-600 rounded-lg transition-colors shadow-sm shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
             ${(activeBoatItem.site || '').toLowerCase().includes('fuera') ? `
             <button onclick="window.openTestFueraFromManifest()" title="Generar Documentación Bajo de Fuera" class="px-2.5 h-7 flex items-center justify-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-200 rounded-lg font-black text-xs transition-colors shadow-sm shrink-0 active:scale-95 gap-1.5 ml-1">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -492,43 +492,43 @@ function renderCaptainDropdown() {
                     <input type="text" id="input-time-saliendo" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
                            value="${activeBoatItem.timeSaliendo || ''}" 
                            onkeydown="if(event.key === 'Enter') { this.blur(); }"
-                           onblur="if(activeBoatItem.timeSaliendo !== this.value) { activeBoatItem.timeSaliendo = this.value; window.triggerAutoSave(); }">
+                           onblur="const formatted = window.formatTimeToHHMM(this.value); this.value = formatted; if(activeBoatItem.timeSaliendo !== formatted) { activeBoatItem.timeSaliendo = formatted; window.triggerAutoSave(); }">
                 </div>
                 <div class="flex items-center gap-2.5">
                     <span class="text-xs font-black text-black uppercase tracking-wider">Buzos en Agua:</span>
                     <input type="text" id="input-time-buzos-agua" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
                            value="${activeBoatItem.timeBuzosAgua || ''}" 
                            onkeydown="if(event.key === 'Enter') { this.blur(); }"
-                           onblur="if(activeBoatItem.timeBuzosAgua !== this.value) { activeBoatItem.timeBuzosAgua = this.value; window.triggerAutoSave(); }">
+                           onblur="const formatted = window.formatTimeToHHMM(this.value); this.value = formatted; if(activeBoatItem.timeBuzosAgua !== formatted) { activeBoatItem.timeBuzosAgua = formatted; window.triggerAutoSave(); }">
                 </div>
                 <div class="flex items-center gap-2.5">
                     <span class="text-xs font-black text-black uppercase tracking-wider">Regreso:</span>
                     <input type="text" id="input-time-volviendo" placeholder="--:--" class="w-[60px] px-2 py-1 bg-white border border-orange-200 focus:border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 text-center h-[30px]" 
                            value="${activeBoatItem.timeVolviendo || ''}" 
                            onkeydown="if(event.key === 'Enter') { this.blur(); }"
-                           onblur="if(activeBoatItem.timeVolviendo !== this.value) { activeBoatItem.timeVolviendo = this.value; window.triggerAutoSave(); }">
+                           onblur="const formatted = window.formatTimeToHHMM(this.value); this.value = formatted; if(activeBoatItem.timeVolviendo !== formatted) { activeBoatItem.timeVolviendo = formatted; window.triggerAutoSave(); }">
                 </div>
             </div>
         `;
     }
 }
 
-function copyStaffDni(type, name, groupIndex) {
+window.copyStaffDni = function(type, name, groupIndex) {
     if(!name) return;
     if (groupIndex !== undefined && activeBoatItem && activeBoatItem.groups[groupIndex]) {
         const group = activeBoatItem.groups[groupIndex];
         if (group.guide === name && group.guideDni) {
-            copyData(group.guideDni, 'DNI de Guía Personalizado');
+            window.copyData(group.guideDni, 'DNI de Guía Personalizado');
             return;
         }
         if (group.apoyo === name && group.apoyoDni) {
-            copyData(group.apoyoDni, 'DNI de Apoyo Personalizado');
+            window.copyData(group.apoyoDni, 'DNI de Apoyo Personalizado');
             return;
         }
     }
     const person = (staffDatabase[type] || []).find(p => p.nombre === name);
-    if(person) copyData(person.dni, 'DNI de Staff');
-}
+    if(person) window.copyData(person.dni, 'DNI de Staff');
+};
 function closeManageBoatModal() {
     // ── Synchronize DOM values to activeBoatItem before clearing it ─────────
     if (activeBoatItem) {
@@ -770,7 +770,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                             ${guideOpts}
                         </select>
                         ${group.guide ? `<button onclick="window.clearGuide(${groupIndex})" title="Quitar Guía" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
-                        <button onclick="copyStaffDni('guias', '${(group.guide || '').replace(/'/g, "\\'")}', ${groupIndex})" title="Copiar DNI del Guía" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                        <button onclick="window.copyStaffDni('guias', '${(group.guide || '').replace(/'/g, "\\'")}', ${groupIndex})" title="Copiar DNI del Guía" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
                     </div>
                     
                     <div class="flex items-center gap-1.5">
@@ -782,7 +782,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                             ${apoyoOpts}
                         </select>
                         ${group.apoyo ? `<button onclick="window.clearApoyo(${groupIndex})" title="Quitar Apoyo" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-lg font-black text-xs transition-all shadow-sm shrink-0 active:scale-95">✕</button>` : ''}
-                        <button onclick="copyStaffDni('guias', '${(group.apoyo || '').replace(/'/g, "\\'")}', ${groupIndex})" title="Copiar DNI del Apoyo" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
+                        <button onclick="window.copyStaffDni('guias', '${(group.apoyo || '').replace(/'/g, "\\'")}', ${groupIndex})" title="Copiar DNI del Apoyo" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
                     </div>
                 </div>
                 <button onclick="removeGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 p-1" title="Eliminar Grupo"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
@@ -1225,6 +1225,9 @@ function updateApoyo(groupIndex, value) {
 
 window.clearGuide = function(groupIndex) {
     activeBoatItem.groups[groupIndex].guide = '';
+    if (activeBoatItem.groups[groupIndex].guideDni) {
+        delete activeBoatItem.groups[groupIndex].guideDni;
+    }
     renderGroups();
     renderCaptainDropdown();
     triggerAutoSave();
@@ -1232,6 +1235,9 @@ window.clearGuide = function(groupIndex) {
 
 window.clearApoyo = function(groupIndex) {
     activeBoatItem.groups[groupIndex].apoyo = '';
+    if (activeBoatItem.groups[groupIndex].apoyoDni) {
+        delete activeBoatItem.groups[groupIndex].apoyoDni;
+    }
     renderGroups();
     renderCaptainDropdown();
     triggerAutoSave();
@@ -3254,11 +3260,23 @@ window.mergeManifests = function(base, local, remote) {
             guests: []
         };
 
-        if (localGrp.guide !== baseGrp.guide) mergedGrp.guide = localGrp.guide || '';
-        else mergedGrp.guide = remoteGrp.guide || '';
+        if (localGrp.guide !== baseGrp.guide) {
+            mergedGrp.guide = localGrp.guide || '';
+            if (localGrp.guideDni) mergedGrp.guideDni = localGrp.guideDni;
+        } else {
+            mergedGrp.guide = remoteGrp.guide || '';
+            const targetDni = localGrp.guideDni !== baseGrp.guideDni ? localGrp.guideDni : remoteGrp.guideDni;
+            if (targetDni) mergedGrp.guideDni = targetDni;
+        }
 
-        if (localGrp.apoyo !== baseGrp.apoyo) mergedGrp.apoyo = localGrp.apoyo || '';
-        else mergedGrp.apoyo = remoteGrp.apoyo || '';
+        if (localGrp.apoyo !== baseGrp.apoyo) {
+            mergedGrp.apoyo = localGrp.apoyo || '';
+            if (localGrp.apoyoDni) mergedGrp.apoyoDni = localGrp.apoyoDni;
+        } else {
+            mergedGrp.apoyo = remoteGrp.apoyo || '';
+            const targetDni = localGrp.apoyoDni !== baseGrp.apoyoDni ? localGrp.apoyoDni : remoteGrp.apoyoDni;
+            if (targetDni) mergedGrp.apoyoDni = targetDni;
+        }
 
         mergedGroups.push(mergedGrp);
     }
@@ -3474,13 +3492,25 @@ function syncDOMToActiveBoatItem() {
     }
     
     const salEl = document.getElementById('input-time-saliendo');
-    if (salEl) activeBoatItem.timeSaliendo = activeBoatItem.assignedBoat === 'shore' ? '' : (salEl.value || '');
+    if (salEl) {
+        const formatted = window.formatTimeToHHMM(salEl.value);
+        salEl.value = formatted;
+        activeBoatItem.timeSaliendo = activeBoatItem.assignedBoat === 'shore' ? '' : (formatted || '');
+    }
     
     const buzAEl = document.getElementById('input-time-buzos-agua');
-    if (buzAEl) activeBoatItem.timeBuzosAgua = activeBoatItem.assignedBoat === 'shore' ? '' : (buzAEl.value || '');
+    if (buzAEl) {
+        const formatted = window.formatTimeToHHMM(buzAEl.value);
+        buzAEl.value = formatted;
+        activeBoatItem.timeBuzosAgua = activeBoatItem.assignedBoat === 'shore' ? '' : (formatted || '');
+    }
     
     const volEl = document.getElementById('input-time-volviendo');
-    if (volEl) activeBoatItem.timeVolviendo = activeBoatItem.assignedBoat === 'shore' ? '' : (volEl.value || '');
+    if (volEl) {
+        const formatted = window.formatTimeToHHMM(volEl.value);
+        volEl.value = formatted;
+        activeBoatItem.timeVolviendo = activeBoatItem.assignedBoat === 'shore' ? '' : (formatted || '');
+    }
 }
 
 async function saveBoatData(itemToSave = activeBoatItem) {

@@ -90,10 +90,15 @@ window._buildTVContent = function() {
 
     // Helper: format time values to standard HH:MM
     const formatTimeToHHMM = (timeStr) => {
+        if (typeof window.formatTimeToHHMM === 'function') {
+            return window.formatTimeToHHMM(timeStr);
+        }
         if (!timeStr) return '';
-        let normalized = timeStr.trim().replace(/[\.,\s]+/g, ':');
+        let normalized = timeStr.trim().replace(/[\.,;:\-\/\s]+/g, ':');
         if (!normalized.includes(':')) {
-            if (normalized.length === 3) {
+            if (normalized.length === 1 || normalized.length === 2) {
+                normalized = normalized + ':00';
+            } else if (normalized.length === 3) {
                 normalized = '0' + normalized.substring(0, 1) + ':' + normalized.substring(1);
             } else if (normalized.length === 4) {
                 normalized = normalized.substring(0, 2) + ':' + normalized.substring(2);

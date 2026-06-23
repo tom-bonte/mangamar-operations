@@ -808,9 +808,10 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                             <div class="flex items-center min-w-0 flex-1">
                                 ${arrivedDot}
                                 <button onclick="if(!window.isLoggedIn || window.isStaffLoggedIn) { event.preventDefault(); return; } event.stopPropagation(); openCustomerProfile('${g.dni}', '${g.nombre.replace(/'/g, "\\'")}')" 
-                                        class="block truncate flex-1 min-w-0 pr-2 font-bold focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock ${cancelledClass}">
-                                    ${displayName}${euroBadge}
+                                        class="block truncate flex-1 min-w-0 pr-1 font-bold focus:outline-none focus:ring-opacity-0 transition-colors cursor-pointer text-left auth-lock ${cancelledClass}">
+                                    ${displayName}
                                 </button>
+                                ${euroBadge}
                                 ${mobileCourseHtml}
                             </div>
                             <span class="shrink-0 font-black ${gasColorClass} text-[8px] ml-2" style="color: ${gasColorHex} !important;">${gasShort}</span>
@@ -881,19 +882,19 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeSaliendo ? 'bg-orange-500/10 border-orange-500/30 text-orange-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Saliendo">
             <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Saliendo</span>
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
-                <span>${trip.timeSaliendo || '--:--'}</span>
+                <span>${(window.formatTimeToHHMM && window.formatTimeToHHMM(trip.timeSaliendo)) || trip.timeSaliendo || '--:--'}</span>
             </div>
         </div>
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeBuzosAgua ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Buzos en Agua">
             <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">En Agua</span>
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
-                <span>${trip.timeBuzosAgua || '--:--'}</span>
+                <span>${(window.formatTimeToHHMM && window.formatTimeToHHMM(trip.timeBuzosAgua)) || trip.timeBuzosAgua || '--:--'}</span>
             </div>
         </div>
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeVolviendo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Volviendo a Puerto">
             <span class="text-[7px] font-black uppercase tracking-wider mb-0.5 opacity-60">Regreso</span>
             <div class="flex items-center gap-0.5 text-[8.5px] leading-none">
-                <span>${trip.timeVolviendo || '--:--'}</span>
+                <span>${(window.formatTimeToHHMM && window.formatTimeToHHMM(trip.timeVolviendo)) || trip.timeVolviendo || '--:--'}</span>
             </div>
         </div>
     </div>
