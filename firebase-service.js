@@ -559,7 +559,7 @@ function startFirestoreListeners() {
                     // If Group Link modal is open, refresh it so DNI members display their correct names from CRM
                     const groupModal = document.getElementById('group-link-modal');
                     if (groupModal && !groupModal.classList.contains('hidden') && typeof window.openGroupLinkModal === 'function') {
-                        window.openGroupLinkModal(window._editingGroupName, true);
+                        window.openGroupLinkModal(window._editingGroupName, true, true);
                     }
                 }
             }, (e) => {

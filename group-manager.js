@@ -114,7 +114,7 @@ function findActiveTagForGuest(guestDni, guestName) {
     return foundTag;
 }
 
-window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = false) {
+window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = false, isBackgroundRefresh = false) {
     const modalEl = document.getElementById('group-link-modal');
     const isCurrentlyOpen = modalEl && !modalEl.classList.contains('hidden');
 
@@ -127,7 +127,9 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
     }
 
     const nameInput = document.getElementById('group-name-input');
-    nameInput.value = editGroupName || '';
+    if (nameInput && (!isBackgroundRefresh || document.activeElement !== nameInput)) {
+        nameInput.value = editGroupName || '';
+    }
     
     let defaultRange = activeBoatItem && activeBoatItem.date ? [activeBoatItem.date, activeBoatItem.date] : [];
     let existingGlobal = null;
@@ -174,27 +176,31 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
         defaultRange = [toDisplayDate(activeBoatItem.date), toDisplayDate(activeBoatItem.date)];
     }
 
-    if (existingGlobal) {
-        window.selectGroupColor(existingGlobal.color || null);
-    } else {
-        window.selectGroupColor(null);
+    if (!isBackgroundRefresh) {
+        if (existingGlobal) {
+            window.selectGroupColor(existingGlobal.color || null);
+        } else {
+            window.selectGroupColor(window._selectedGroupColor || null);
+        }
     }
     
     // Only hide the members container if we are creating a brand new group that doesn't exist yet
     if (membersContainer) membersContainer.classList.toggle('hidden', isCreationMode && !existingGlobal);
 
-    if (window.groupFlatpickr) window.groupFlatpickr.destroy();
-    window.groupFlatpickr = flatpickr("#group-date-range", {
-        mode: "range",
-        dateFormat: "d/m/Y",
-        defaultDate: defaultRange,
-        locale: {
-            firstDayOfWeek: 1,
-            rangeSeparator: " hasta ",
-            weekdays: { shorthand: ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"], longhand: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] },
-            months: { shorthand: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"], longhand: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"] }
-        }
-    });
+    if (!isBackgroundRefresh || !window.groupFlatpickr) {
+        if (window.groupFlatpickr) window.groupFlatpickr.destroy();
+        window.groupFlatpickr = flatpickr("#group-date-range", {
+            mode: "range",
+            dateFormat: "d/m/Y",
+            defaultDate: defaultRange,
+            locale: {
+                firstDayOfWeek: 1,
+                rangeSeparator: " hasta ",
+                weekdays: { shorthand: ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"], longhand: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] },
+                months: { shorthand: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"], longhand: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"] }
+            }
+        });
+    }
 
 
     // 1. Render Suggested Groups (Left Side)
@@ -342,7 +348,7 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
         window.filterGroupsList(activeQuery);
     }
     
-    if (!editGroupName) setTimeout(() => nameInput.focus(), 100);
+    if (!isBackgroundRefresh && !editGroupName) setTimeout(() => nameInput.focus(), 100);
 }
 
 // Scans today's manifests (and the current activeBoatItem) to find if this diver
