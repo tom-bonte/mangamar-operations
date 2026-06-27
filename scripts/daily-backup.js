@@ -10,12 +10,8 @@ const db = admin.firestore();
 
 // 2. Initialize Google Drive API Client using service account credentials from ENV
 const driveKey = JSON.parse(process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY);
-const auth = new google.auth.JWT(
-    driveKey.client_email,
-    null,
-    driveKey.private_key,
-    ['https://www.googleapis.com/auth/drive']
-);
+const auth = google.auth.fromJSON(driveKey);
+auth.scopes = ['https://www.googleapis.com/auth/drive'];
 const drive = google.drive({ version: 'v3', auth });
 
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID; // The folder ID of "maganmar app archives"
