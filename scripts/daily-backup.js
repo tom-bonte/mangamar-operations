@@ -159,7 +159,7 @@ async function generateYearCsv(year) {
         }
     });
 
-    const trips = Array.from(deduplicated.values());
+    const trips = Array.from(deduplicated.values()).filter(t => t.date);
     trips.sort((a, b) => {
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         return (a.time || '').localeCompare(b.time || '');
