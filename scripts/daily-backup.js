@@ -219,7 +219,10 @@ async function generateYearCsv(year) {
 
 async function run() {
     try {
-        const today = new Date();
+        const now = new Date();
+        // Shift back by 6 hours so that runs occurring slightly after midnight (due to cron delays or DST shifts)
+        // are correctly catalogued under the calendar date that just concluded.
+        const today = new Date(now.getTime() - 6 * 60 * 60 * 1000);
         const year = today.getFullYear();
         
         console.log(`Starting backup for year ${year}...`);
