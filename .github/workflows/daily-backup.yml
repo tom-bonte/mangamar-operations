@@ -21,11 +21,12 @@ jobs:
       - name: Install Dependencies
         run: |
           npm init -y
-          npm install googleapis firebase-admin
+          npm install firebase-admin
 
       - name: Run Backup Script
         env:
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-          GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY }}
           DRIVE_ROOT_FOLDER_ID: ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
+          BACKUP_WEBAPP_URL: ${{ secrets.BACKUP_WEBAPP_URL }}
+          BACKUP_SECURITY_TOKEN: ${{ secrets.BACKUP_SECURITY_TOKEN }}
         run: node scripts/daily-backup.js

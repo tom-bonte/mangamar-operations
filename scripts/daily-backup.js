@@ -1,4 +1,3 @@
-const { google } = require('googleapis');
 const admin = require('firebase-admin');
 
 // 1. Initialize Firebase Admin SDK using service account credentials from ENV
@@ -8,13 +7,9 @@ admin.initializeApp({
 });
 const db = admin.firestore();
 
-// 2. Initialize Google Drive API Client using service account credentials from ENV
-const driveKey = JSON.parse(process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY);
-const auth = google.auth.fromJSON(driveKey);
-auth.scopes = ['https://www.googleapis.com/auth/drive'];
-const drive = google.drive({ version: 'v3', auth });
-
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID; // The folder ID of "maganmar app archives"
+const BACKUP_WEBAPP_URL = process.env.BACKUP_WEBAPP_URL;       // The deployed Apps Script URL
+const BACKUP_SECURITY_TOKEN = process.env.BACKUP_SECURITY_TOKEN; // Secret token shared with Apps Script
 const MANGAMAR_CODE = "M";
 
 const MONTHS_SPANISH_SHORT = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -22,57 +17,6 @@ const MONTHS_SPANISH_FULL = [
     '01_Enero', '02_Febrero', '03_Marzo', '04_Abril', '05_Mayo', '06_Junio',
     '07_Julio', '08_Agosto', '09_Septiembre', '10_Octubre', '11_Noviembre', '12_Diciembre'
 ];
-
-async function getOrCreateFolder(folderName, parentId) {
-    const q = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`;
-    const response = await drive.files.list({
-        q: q,
-        spaces: 'drive',
-        fields: 'files(id, name)'
-    });
-    
-    const files = response.data.files;
-    if (files && files.length > 0) {
-        console.log(`Found existing month folder: ${folderName} (ID: ${files[0].id})`);
-        return files[0].id;
-    }
-    
-    console.log(`Creating folder: ${folderName}...`);
-    const fileMetadata = {
-        name: folderName,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [parentId]
-    };
-    
-    const file = await drive.files.create({
-        resource: fileMetadata,
-        fields: 'id'
-    });
-    
-    console.log(`Created folder: ${folderName} (ID: ${file.data.id})`);
-    return file.data.id;
-}
-
-async function uploadFile(filename, content, folderId) {
-    const fileMetadata = {
-        name: filename,
-        parents: [folderId]
-    };
-    
-    const media = {
-        mimeType: 'text/csv',
-        body: content
-    };
-    
-    const response = await drive.files.create({
-        resource: fileMetadata,
-        media: media,
-        fields: 'id'
-    });
-    
-    console.log(`File uploaded successfully (ID: ${response.data.id})`);
-    return response.data.id;
-}
 
 async function generateYearCsv(year) {
     const monthKeys = [];
@@ -285,18 +229,39 @@ async function run() {
         const monthIndex = today.getMonth();
         const monthFolderName = `${year}-${String(monthIndex + 1).padStart(2, '0')}_${MONTHS_SPANISH_FULL[monthIndex].split('_')[1]}`;
         
-        // Find or create month folder
-        const monthFolderId = await getOrCreateFolder(monthFolderName, DRIVE_ROOT_FOLDER_ID);
-        
-        // Build filename (e.g., 25-aug-backup.csv)
+        // Build filename (e.g., 27-jun-backup.csv)
         const dayStr = String(today.getDate()).padStart(2, '0');
         const monthShort = MONTHS_SPANISH_SHORT[monthIndex];
         const filename = `${dayStr}-${monthShort}-backup.csv`;
         
-        console.log(`Uploading file ${filename} to folder ${monthFolderName}...`);
-        await uploadFile(filename, csvContent, monthFolderId);
+        console.log(`Uploading file ${filename} to folder ${monthFolderName} via Apps Script...`);
         
-        console.log("BACKUP COMPLETED SUCCESSFULLY!");
+        const payload = {
+            token: BACKUP_SECURITY_TOKEN,
+            rootFolderId: DRIVE_ROOT_FOLDER_ID,
+            monthFolderName: monthFolderName,
+            filename: filename,
+            csvContent: csvContent
+        };
+        
+        const response = await fetch(BACKUP_WEBAPP_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            console.log(`BACKUP COMPLETED SUCCESSFULLY! File ID: ${result.fileId}`);
+        } else {
+            throw new Error(`Google Apps Script reported error: ${result.message}`);
+        }
     } catch (e) {
         console.error("Backup failed:", e);
         process.exit(1);
