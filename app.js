@@ -1715,7 +1715,6 @@ window.openExportCsvModal = function() {
     if (!modal) return;
     modal.classList.remove('hidden');
     
-    // Initialize date range selector
     const today = new Date();
     const displayDate = (d) => {
         const day = String(d.getDate()).padStart(2, '0');
@@ -1723,17 +1722,41 @@ window.openExportCsvModal = function() {
         const year = d.getFullYear();
         return `${day}/${month}/${year}`;
     };
-    
-    if (window.exportFlatpickr) window.exportFlatpickr.destroy();
-    window.exportFlatpickr = flatpickr("#export-date-range", {
-        mode: "range",
+
+    const config = {
         dateFormat: "d/m/Y",
-        defaultDate: [displayDate(today), displayDate(today)],
+        defaultDate: displayDate(today),
         locale: {
             firstDayOfWeek: 1,
-            rangeSeparator: " hasta ",
             weekdays: { shorthand: ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"], longhand: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] },
             months: { shorthand: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"], longhand: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"] }
+        }
+    };
+
+    if (window.exportStartFlatpickr) window.exportStartFlatpickr.destroy();
+    if (window.exportEndFlatpickr) window.exportEndFlatpickr.destroy();
+
+    window.exportStartFlatpickr = flatpickr("#export-date-start", {
+        ...config,
+        onChange: function(selectedDates) {
+            if (selectedDates[0]) {
+                const endDate = window.exportEndFlatpickr.selectedDates[0];
+                if (endDate && endDate < selectedDates[0]) {
+                    window.exportEndFlatpickr.setDate(selectedDates[0]);
+                }
+            }
+        }
+    });
+
+    window.exportEndFlatpickr = flatpickr("#export-date-end", {
+        ...config,
+        onChange: function(selectedDates) {
+            if (selectedDates[0]) {
+                const startDate = window.exportStartFlatpickr.selectedDates[0];
+                if (startDate && startDate > selectedDates[0]) {
+                    window.exportStartFlatpickr.setDate(selectedDates[0]);
+                }
+            }
         }
     });
 };
@@ -1854,14 +1877,16 @@ async function fetchTripsForDateRange(startDateStr, endDateStr) {
 }
 
 window.downloadCsvExport = async function() {
-    const rangeInput = document.getElementById('export-date-range');
-    const rangeVal = rangeInput ? rangeInput.value : '';
-    if (!rangeVal) {
-        showToast("⚠️ Selecciona un rango de fechas", "error");
+    const startInput = document.getElementById('export-date-start');
+    const endInput = document.getElementById('export-date-end');
+    const startVal = startInput ? startInput.value : '';
+    const endVal = endInput ? endInput.value : '';
+    
+    if (!startVal || !endVal) {
+        showToast("⚠️ Selecciona el rango de fechas", "error");
         return;
     }
     
-    const dates = rangeVal.split(' hasta ');
     const toStorageDate = (s) => {
         if (!s) return '';
         const p = s.split('/');
@@ -1869,8 +1894,8 @@ window.downloadCsvExport = async function() {
         return s;
     };
     
-    const startStr = toStorageDate(dates[0]);
-    const endStr = toStorageDate(dates[1] || dates[0]);
+    const startStr = toStorageDate(startVal);
+    const endStr = toStorageDate(endVal);
     
     showToast("⏳ Preparando exportación...");
     
