@@ -1,0 +1,31 @@
+name: Daily Google Drive Backup
+
+on:
+  schedule:
+    # Runs at 22:00 UTC every day (approx 12:00 AM Spanish local time)
+    - cron: '0 22 * * *'
+  workflow_dispatch: # Allows manual run from GitHub UI
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: |
+          npm init -y
+          npm install googleapis firebase-admin
+
+      - name: Run Backup Script
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY }}
+          DRIVE_ROOT_FOLDER_ID: ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
+        run: node scripts/daily-backup.js
