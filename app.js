@@ -129,7 +129,7 @@ window.checkDniMatch = function(dni, normQuery) {
 };
 
 window.calculateTotalPeopleOnBoat = function(trip) {
-    if (!trip || trip.cancelled) return 0;
+    if (!trip) return 0;
     const guests = trip.guests || [];
     const guestCount = guests.filter(g => !g.cancelled).length;
     
@@ -651,7 +651,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     const col = document.createElement('div');
     col.setAttribute('data-trip-id', trip.id);
     const guests = trip.guests || [];
-    const guestCount = trip.cancelled ? 0 : guests.filter(g => !g.cancelled).length;
+    const guestCount = guests.filter(g => !g.cancelled).length;
     const siteColorConfig = trip.cancelled
         ? 'bg-slate-200 text-slate-500 border-slate-350'
         : (SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-300');
@@ -851,7 +851,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     let isShore = boatId === 'shore';
     let percent = isShore ? 0 : Math.min(100, Math.round((guestCount / capacityNum) * 100));
     
-    let barColor = 'bg-orange-500';
+    let barColor = trip.cancelled ? 'bg-slate-300' : 'bg-orange-500';
 
     let cardBaseClass = trip.cancelled
         ? "bg-slate-50 border-slate-200 opacity-60 shadow-none border border-dashed"

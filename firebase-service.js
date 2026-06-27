@@ -676,17 +676,71 @@ window.mergeAndRender = function mergeAndRender() {
 
     // 1. Convert Visor and Internal data to Maps for easy lookup
     const visorMap = new Map(visibleVisorTrips.map(t => [t.id, t]));
+
+    // --- VISOR DELETIONS PRUNING ---
+    // If a Visor trip is deleted/removed in the Visor (no longer in visorMap):
+    // - If the internal shadow has cancelled: true, we KEEP it (do not delete).
+    // - If it was NOT cancelled, we delete/prune it from the internal database.
+    const internalToKeep = [];
+    const internalToDelete = [];
+
+    (window.internalTrips || []).forEach(internal => {
+        const isVisorId = internal.id && !internal.id.startsWith('internal_') && !internal.id.startsWith('boat_') && internal.id.includes('_M_');
+        if (isVisorId && !visorMap.has(internal.id)) {
+            if (internal.cancelled) {
+                internalToKeep.push(internal);
+            } else {
+                internalToDelete.push(internal);
+            }
+        } else {
+            internalToKeep.push(internal);
+        }
+    });
+
+    if (internalToDelete.length > 0) {
+        internalToDelete.forEach(t => {
+            console.log(`🧹 Visor deleted departure ${t.id} which was NOT annulled. Auto-pruning internal shadow.`);
+            const monthKey = t.date ? t.date.substring(0, 7) : t.id.substring(0, 7);
+            db.collection(INTERNAL_DB).doc(monthKey).update({
+                [`allocations.${t.id}`]: firebase.firestore.FieldValue.delete()
+            }).catch(e => console.error("Pruning visor shadow failed:", e));
+        });
+        window.internalTrips = internalToKeep;
+    }
+
     const internalMap = new Map((window.internalTrips || []).map(t => [t.id, t]));
+
+    // Helper to extract the unique Visor slot suffix (e.g. "_M_1", "_H_2")
+    const getVisorSuffix = (id) => {
+        if (!id) return '';
+        const parts = id.split('_');
+        if (parts.length >= 5) {
+            const center = parts[parts.length - 2];
+            const idx = parts[parts.length - 1];
+            if (center.length === 1 && !isNaN(idx)) {
+                return `_${center}_${idx}`;
+            }
+        }
+        return '';
+    };
 
     // --- NEW: AUTO-HEALING MIGRATION ---
     // Detect orphaned Visor shadows (Internal has it, Visor doesn't). 
-    // We only want to heal 'boat_' prefixed IDs. Pure internal trips start with 'internal_' and must NOT be migrated.
-    const orphans = (window.internalTrips || []).filter(t => t.id && t.id.startsWith('boat_') && !visorMap.has(t.id) && t.assignedBoat !== 'shore' && t.assignedBoat !== 'aula');
+    // We only heal standard Visor IDs whose slot suffixes match a new Visor trip (site renamed in Visor).
+    const orphans = (window.internalTrips || []).filter(t => {
+        if (!t.id || !t.date) return false;
+        const suffix = getVisorSuffix(t.id);
+        return suffix && !visorMap.has(t.id);
+    });
 
     orphans.forEach(orphan => {
-        // Detect if Visor just moved the site (Visor has a trip at same date/time)
+        const orphanSuffix = getVisorSuffix(orphan.id);
+        
+        // Detect if Visor just renamed the destination site (same date, time, and slot suffix)
         const renamedVisorTrip = (window.visorTrips || []).find(v => {
             if (v.date !== orphan.date || v.time !== orphan.time) return false;
+            if (getVisorSuffix(v.id) !== orphanSuffix) return false;
+            
             // Target is available if it has no shadow, or its shadow is completely empty
             const shadow = internalMap.get(v.id);
             return !shadow || !shadow.guests || shadow.guests.length === 0;
@@ -1065,15 +1119,29 @@ window.saveMultipleTripsData = async function(trips) {
         }
         
         const prefix = `allocations.${trip.id}`;
+        updatesByMonth[monthKey][`${prefix}.id`] = trip.id;
+        updatesByMonth[monthKey][`${prefix}.date`] = trip.date || '';
+        updatesByMonth[monthKey][`${prefix}.time`] = trip.time || '';
+        updatesByMonth[monthKey][`${prefix}.assignedBoat`] = trip.assignedBoat || 'ares';
+        updatesByMonth[monthKey][`${prefix}.site`] = trip.site || 'Sin Destino';
         updatesByMonth[monthKey][`${prefix}.captain`] = trip.captain || '';
         updatesByMonth[monthKey][`${prefix}.guide`] = trip.guide || '';
         updatesByMonth[monthKey][`${prefix}.groups`] = trip.groups || [];
         updatesByMonth[monthKey][`${prefix}.guests`] = flatGuests;
-        if (trip.waitlist) {
-            updatesByMonth[monthKey][`${prefix}.waitlist`] = trip.waitlist;
-        }
+        updatesByMonth[monthKey][`${prefix}.waitlist`] = trip.waitlist || [];
+        updatesByMonth[monthKey][`${prefix}.timeSaliendo`] = trip.timeSaliendo || '';
+        updatesByMonth[monthKey][`${prefix}.timeBuzosAgua`] = trip.timeBuzosAgua || '';
+        updatesByMonth[monthKey][`${prefix}.timeVolviendo`] = trip.timeVolviendo || '';
+        updatesByMonth[monthKey][`${prefix}.rmLocked`] = trip.rmLocked || false;
+
         if (trip.isVisorTrip || trip.isVisor) {
             updatesByMonth[monthKey][`${prefix}.visorTripFallback`] = true;
+        }
+        if (trip.cancelled !== undefined) {
+            updatesByMonth[monthKey][`${prefix}.cancelled`] = trip.cancelled || false;
+        }
+        if (trip.maxDives !== undefined) {
+            updatesByMonth[monthKey][`${prefix}.maxDives`] = trip.maxDives;
         }
     });
     
@@ -1104,7 +1172,8 @@ window.saveMultipleTripsData = async function(trips) {
                                 captain: originalTrip.captain || '',
                                 groups: originalTrip.groups || [],
                                 guests: flatG,
-                                waitlist: originalTrip.waitlist || []
+                                waitlist: originalTrip.waitlist || [],
+                                cancelled: originalTrip.cancelled || false
                             };
                             if (originalTrip.isVisorTrip || originalTrip.isVisor) {
                                 fallbackObj.allocations[tripId].visorTripFallback = true;
