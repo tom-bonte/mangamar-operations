@@ -1706,3 +1706,317 @@ window.toggleMobileToolsModal = function() {
         }
     }
 };
+
+// ============================================
+// EXPORT MANIFESTS TO CSV LOGIC
+// ============================================
+window.openExportCsvModal = function() {
+    const modal = document.getElementById('export-csv-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    
+    // Initialize date range selector
+    const today = new Date();
+    const displayDate = (d) => {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+    };
+    
+    if (window.exportFlatpickr) window.exportFlatpickr.destroy();
+    window.exportFlatpickr = flatpickr("#export-date-range", {
+        mode: "range",
+        dateFormat: "d/m/Y",
+        defaultDate: [displayDate(today), displayDate(today)],
+        locale: {
+            firstDayOfWeek: 1,
+            rangeSeparator: " hasta ",
+            weekdays: { shorthand: ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"], longhand: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] },
+            months: { shorthand: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"], longhand: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"] }
+        }
+    });
+};
+
+function getMonthsInRange(startDateStr, endDateStr) {
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    const months = [];
+    let current = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (current <= end) {
+        const y = current.getFullYear();
+        const m = String(current.getMonth() + 1).padStart(2, '0');
+        months.push(`${y}-${m}`);
+        current.setMonth(current.getMonth() + 1);
+    }
+    return months;
+}
+
+async function fetchTripsForDateRange(startDateStr, endDateStr) {
+    const monthKeys = getMonthsInRange(startDateStr, endDateStr);
+    const allVisorTrips = [];
+    const allInternalTrips = [];
+    const allTombstones = new Set();
+
+    const fetchPromises = monthKeys.map(async (monthKey) => {
+        // If months are currently loaded dynamically in active listeners, use memory
+        if (typeof visorMonthData !== 'undefined' && typeof internalMonthData !== 'undefined' &&
+            visorMonthData.has(monthKey) && internalMonthData.has(monthKey)) {
+            allVisorTrips.push(...(visorMonthData.get(monthKey) || []));
+            allInternalTrips.push(...(internalMonthData.get(monthKey) || []));
+            const tombstones = internalMonthTombstones.get(monthKey);
+            if (tombstones) {
+                tombstones.forEach(id => allTombstones.add(id));
+            }
+            return;
+        }
+
+        // Fetch from Firestore
+        const visorPromise = db.collection('reservations_monthly').doc(monthKey).get()
+            .then(doc => {
+                if (doc.exists) {
+                    const monthData = doc.data().allocations || {};
+                    for (const id in monthData) {
+                        if (monthData[id].center === MANGAMAR_CODE) {
+                            if (monthData[id]._deleted) continue;
+                            const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
+                            if (tripMonth && tripMonth !== doc.id) continue;
+                            allVisorTrips.push({ id, ...monthData[id], isVisorTrip: true, _sourceDocId: doc.id });
+                        }
+                    }
+                }
+            })
+            .catch(err => console.warn("Error fetching visor monthly for export:", err));
+
+        const internalPromise = db.collection('mangamar_monthly').doc(monthKey).get()
+            .then(doc => {
+                if (doc.exists) {
+                    const monthData = doc.data().allocations || {};
+                    for (const id in monthData) {
+                        if (monthData[id]._deleted) {
+                            allTombstones.add(id);
+                            continue;
+                        }
+                        const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
+                        if (tripMonth && tripMonth !== doc.id) continue;
+                        allInternalTrips.push({ id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id });
+                    }
+                }
+            })
+            .catch(err => console.warn("Error fetching internal monthly for export:", err));
+
+        await Promise.all([visorPromise, internalPromise]);
+    });
+
+    await Promise.all(fetchPromises);
+
+    // Filter out tombstones
+    const filteredVisor = allVisorTrips.filter(t => !allTombstones.has(t.id));
+    const filteredInternal = allInternalTrips.filter(t => !allTombstones.has(t.id));
+
+    // Align Internal shadows with Visor masters
+    const visorMap = new Map(filteredVisor.map(t => [t.id, t]));
+    const alignedInternal = filteredInternal.map(internal => {
+        if (visorMap.has(internal.id)) {
+            const visorMaster = visorMap.get(internal.id);
+            return {
+                ...internal,
+                date: visorMaster.date,
+                time: visorMaster.time,
+                plazas: visorMaster.pax,
+                site: visorMaster.site
+            };
+        }
+        return internal;
+    });
+
+    // Merge logic matching window.getMergedTrips
+    const combined = [...filteredVisor, ...alignedInternal];
+    const deduplicated = new Map();
+    combined.forEach(t => {
+        if (t.isVisorTrip) {
+            deduplicated.set(t.id, { ...t, isVisor: true, originalVisorSite: t.site });
+        }
+    });
+    combined.forEach(t => {
+        if (t.isInternalTrip) {
+            if (deduplicated.has(t.id)) {
+                deduplicated.set(t.id, { ...deduplicated.get(t.id), ...t, isVisor: true });
+            } else {
+                deduplicated.set(t.id, { ...t, isVisor: false });
+            }
+        }
+    });
+
+    return Array.from(deduplicated.values()).filter(t => {
+        return t.date >= startDateStr && t.date <= endDateStr;
+    });
+}
+
+window.downloadCsvExport = async function() {
+    const rangeInput = document.getElementById('export-date-range');
+    const rangeVal = rangeInput ? rangeInput.value : '';
+    if (!rangeVal) {
+        showToast("⚠️ Selecciona un rango de fechas", "error");
+        return;
+    }
+    
+    const dates = rangeVal.split(' hasta ');
+    const toStorageDate = (s) => {
+        if (!s) return '';
+        const p = s.split('/');
+        if (p.length === 3) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+        return s;
+    };
+    
+    const startStr = toStorageDate(dates[0]);
+    const endStr = toStorageDate(dates[1] || dates[0]);
+    
+    showToast("⏳ Preparando exportación...");
+    
+    try {
+        const trips = await fetchTripsForDateRange(startStr, endStr);
+        
+        // Sort trips chronologically by date and time
+        trips.sort((a, b) => {
+            if (a.date !== b.date) return a.date.localeCompare(b.date);
+            return (a.time || '').localeCompare(b.time || '');
+        });
+        
+        // Build CSV lines
+        const csvRows = [];
+        
+        // Header line
+        csvRows.push([
+            "Fecha",
+            "Barco",
+            "Destino",
+            "Hora",
+            "Guia",
+            "Apoyo",
+            "Nombre Cliente",
+            "DNI",
+            "Telefono",
+            "Gas",
+            "Alquiler",
+            "Seguro",
+            "Grupo/Reserva",
+            "Estado Salida"
+        ].map(val => `"${val.replace(/"/g, '""')}"`).join(','));
+        
+        trips.forEach(trip => {
+            const dateDisplay = trip.date.split('-').reverse().join('/');
+            const boatName = (trip.assignedBoat || '').toUpperCase() || 'SIN ASIGNAR';
+            const siteName = trip.site || 'Sin Destino';
+            const timeVal = trip.time || '';
+            const status = trip.cancelled ? 'ANULADA' : 'ACTIVA';
+            
+            // Loop through groups and guests
+            if (trip.groups && trip.groups.length > 0) {
+                trip.groups.forEach(group => {
+                    const guideName = group.guide || '';
+                    const apoyoName = group.apoyo || '';
+                    
+                    if (group.guests && group.guests.length > 0) {
+                        group.guests.forEach(guest => {
+                            const guestName = guest.nombre || '';
+                            const guestDni = guest.dni || '';
+                            const guestPhone = guest.telefono || '';
+                            const guestGas = guest.gas || '15L Aire';
+                            
+                            // Map rental code/count to readable text
+                            let rentalText = 'No';
+                            if (guest.rental === 1 || guest.rental === '1') rentalText = 'Sí';
+                            else if (guest.rental > 1) rentalText = `Sí (${guest.rental})`;
+                            else if (guest.rental === 'INC') rentalText = 'Incluido';
+                            
+                            // Map insurance code to readable text
+                            let insText = 'No';
+                            if (guest.insurance === 1 || guest.insurance === '1') insText = 'Diario';
+                            else if (guest.insurance === 2 || guest.insurance === '2') insText = 'Anual';
+                            else if (guest.insurance === 'INC') insText = 'Incluido';
+                            else if (guest.insurance && typeof guest.insurance === 'string') insText = guest.insurance;
+                            
+                            const bookingTag = guest.bookingTag || '';
+                            
+                            csvRows.push([
+                                dateDisplay,
+                                boatName,
+                                siteName,
+                                timeVal,
+                                guideName,
+                                apoyoName,
+                                guestName,
+                                guestDni,
+                                guestPhone,
+                                guestGas,
+                                rentalText,
+                                insText,
+                                bookingTag,
+                                status
+                            ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+                        });
+                    }
+                });
+            } else if (trip.guests && trip.guests.length > 0) {
+                trip.guests.forEach(guest => {
+                    const guestName = guest.nombre || '';
+                    const guestDni = guest.dni || '';
+                    const guestPhone = guest.telefono || '';
+                    const guestGas = guest.gas || '15L Aire';
+                    
+                    let rentalText = 'No';
+                    if (guest.rental === 1 || guest.rental === '1') rentalText = 'Sí';
+                    else if (guest.rental > 1) rentalText = `Sí (${guest.rental})`;
+                    else if (guest.rental === 'INC') rentalText = 'Incluido';
+                    
+                    let insText = 'No';
+                    if (guest.insurance === 1 || guest.insurance === '1') insText = 'Diario';
+                    else if (guest.insurance === 2 || guest.insurance === '2') insText = 'Anual';
+                    else if (guest.insurance === 'INC') insText = 'Incluido';
+                    else if (guest.insurance && typeof guest.insurance === 'string') insText = guest.insurance;
+                    
+                    const bookingTag = guest.bookingTag || '';
+                    
+                    csvRows.push([
+                        dateDisplay,
+                        boatName,
+                        siteName,
+                        timeVal,
+                        '',
+                        '',
+                        guestName,
+                        guestDni,
+                        guestPhone,
+                        guestGas,
+                        rentalText,
+                        insText,
+                        bookingTag,
+                        status
+                    ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+                });
+            }
+        });
+        
+        // Generate CSV file download (including UTF-8 BOM for Spanish character encoding in Excel)
+        const csvContent = "\uFEFF" + csvRows.join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        
+        const displayStart = startStr.split('-').reverse().join('-');
+        const displayEnd = endStr.split('-').reverse().join('-');
+        link.setAttribute("download", `manifiestos_mangamar_${displayStart}_a_${displayEnd}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast("✅ CSV descargado correctamente");
+        document.getElementById('export-csv-modal').classList.add('hidden');
+    } catch (e) {
+        console.error("Export error:", e);
+        showToast("❌ Error al exportar los datos", "error");
+    }
+};
