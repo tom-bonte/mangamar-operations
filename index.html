@@ -3004,6 +3004,12 @@
                             <!-- Populated by JS -->
                         </select>
                         
+                        <!-- Horarios Mañana Button -->
+                        <button onclick="window.showStaffTomorrowTimes()" class="px-4 py-2 bg-gradient-to-br from-violet-500 to-violet-700 text-white rounded-xl text-xs font-black shadow-sm flex items-center gap-1.5 transition-all hover:scale-102 active:scale-95 whitespace-nowrap hover:shadow-md hover:from-violet-600 hover:to-violet-800">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Horarios Mañana
+                        </button>
+                        
                         <!-- Role Filter -->
                         <div class="flex bg-slate-100 p-0.5 rounded-xl items-center border border-slate-200 h-9 select-none overflow-x-auto max-w-full">
                             <button onclick="window.setStaffScheduleRoleFilter('all')" id="btn-sch-all" class="px-3 py-1 rounded-lg text-xs font-black shadow bg-white text-violet-700 transition-all active:scale-95 cursor-pointer whitespace-nowrap">Todos</button>
@@ -3037,6 +3043,30 @@
                 <div id="staff-schedule-grid-container" class="flex-1 overflow-auto p-6 bg-slate-50 custom-scrollbar">
                     <!-- Dynamically Rendered Grid -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Tomorrow Times Modal -->
+    <div id="staff-tomorrow-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) this.classList.add('hidden')">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden flex flex-col animate-scale-up">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Horarios de Mañana
+                    </h3>
+                    <p id="staff-tomorrow-date-title" class="text-xs font-bold text-violet-600 mt-0.5"></p>
+                </div>
+                <button onclick="document.getElementById('staff-tomorrow-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            
+            <div id="staff-tomorrow-list-container" class="p-6 space-y-3 overflow-y-auto max-h-[50vh] custom-scrollbar bg-slate-50/50">
+                <!-- Populated dynamically -->
+            </div>
+            
+            <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="document.getElementById('staff-tomorrow-modal').classList.add('hidden')" class="px-6 py-2.5 bg-violet-600 text-white font-black text-xs rounded-xl hover:bg-violet-700 shadow-md shadow-violet-500/10 hover:shadow-violet-500/20 active:scale-95 transition-all uppercase tracking-widest">Cerrar</button>
             </div>
         </div>
     </div>

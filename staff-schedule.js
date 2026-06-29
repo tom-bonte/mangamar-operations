@@ -1092,3 +1092,169 @@ window.renderStaffScheduleGrid = function() {
     // Update the visibility of scroll buttons
     setTimeout(window.updateStaffScheduleScrollButtons, 50);
 };
+
+// ============================================
+// TOMORROW START TIMES POPUP (MOBILE-FRIENDLY)
+// ============================================
+window.showStaffTomorrowTimes = async function() {
+    const modal = document.getElementById('staff-tomorrow-modal');
+    const titleEl = document.getElementById('staff-tomorrow-date-title');
+    const container = document.getElementById('staff-tomorrow-list-container');
+    if (!modal || !titleEl || !container) return;
+
+    // Show loading state
+    container.innerHTML = '<div class="text-center py-8 text-slate-400 font-bold text-sm">Cargando horarios de mañana...</div>';
+    modal.classList.remove('hidden');
+
+    // 1. Calculate tomorrow's date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    const tomorrowDateStr = `${year}-${month}-${day}`;
+    const tomorrowMonthKey = `${year}-${month}`;
+
+    // Format human-readable title in Spanish
+    const weekdays = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    titleEl.textContent = `${weekdays[tomorrow.getDay()]}, ${tomorrow.getDate()} de ${months[tomorrow.getMonth()]} de ${year}`;
+
+    try {
+        let scheduleData = null;
+
+        // 2. Fetch correct monthly document (either active in memory or from Firestore)
+        if (window.activeStaffSchedule && window.activeStaffSchedule.monthKey === tomorrowMonthKey) {
+            scheduleData = window.activeStaffSchedule;
+        } else {
+            const doc = await db.collection('mangamar_staff_schedule').doc(tomorrowMonthKey).get();
+            if (doc.exists) {
+                scheduleData = doc.data();
+            }
+        }
+
+        if (!scheduleData || !scheduleData.columns || scheduleData.columns.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-10 text-slate-400 font-bold text-xs">
+                    No hay horarios planificados para el mes de mañana (${tomorrowMonthKey}).
+                </div>
+            `;
+            return;
+        }
+
+        const columns = scheduleData.columns;
+        const daysOff = scheduleData.daysOff || {};
+        const workedHours = scheduleData.workedHours || {};
+        const dayOffNotes = scheduleData.dayOffNotes || {};
+        const dayOffCategories = scheduleData.dayOffCategories || {};
+
+        const formatStaffDisplayName = (name) => {
+            if (!name) return '';
+            const p = name.trim().split(/\s+/);
+            if (p.length > 1) {
+                return `${p[0]} ${p[1][0].toUpperCase()}.`;
+            }
+            return name;
+        };
+
+        const getStaffRoleLabel = (name) => {
+            if ((window.staffDatabase.capitanes || []).some(c => c.nombre === name)) return { label: 'Capitán', color: 'bg-blue-50 text-blue-700 border-blue-200/80' };
+            if ((window.staffDatabase.guias || []).some(g => g.nombre === name)) return { label: 'Guía', color: 'bg-emerald-50 text-emerald-700 border-emerald-200/80' };
+            if ((window.staffDatabase.recepcion || []).some(r => r.nombre === name)) return { label: 'Recepción', color: 'bg-amber-50 text-amber-700 border-amber-200/80' };
+            return { label: 'Staff', color: 'bg-slate-50 text-slate-700 border-slate-200/80' };
+        };
+
+        // Compile and format list items
+        const listItems = columns.map(staff => {
+            const isDayOff = (daysOff[staff] || []).includes(tomorrowDateStr);
+            const hoursData = workedHours[staff]?.[tomorrowDateStr] || null;
+            const hasHours = hoursData && hoursData.frames && hoursData.frames.length > 0;
+            
+            const role = getStaffRoleLabel(staff);
+            let statusHtml = '';
+            let isWorking = false;
+
+            if (hasHours) {
+                isWorking = true;
+                const framesText = hoursData.frames.map(f => `${f.start}-${f.end || '...'}`).join(', ');
+                statusHtml = `
+                    <div class="flex items-center gap-1.5 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-xl font-mono font-black text-[13px] shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        ${framesText}
+                    </div>
+                `;
+            } else if (isDayOff) {
+                const category = dayOffCategories[staff]?.[tomorrowDateStr] || 'libre';
+                const note = dayOffNotes[staff]?.[tomorrowDateStr] || '';
+                
+                let labelText = 'LIBRE';
+                let colorClass = 'bg-emerald-500 text-white border-emerald-600';
+                if (category === 'vacaciones') {
+                    labelText = 'VACACIONES';
+                    colorClass = 'bg-amber-500 text-white border-amber-600';
+                } else if (category === 'baja') {
+                    labelText = 'BAJA MÉDICA';
+                    colorClass = 'bg-rose-500 text-white border-rose-600';
+                } else if (category === 'asuntos') {
+                    labelText = 'ASUNTOS P.';
+                    colorClass = 'bg-blue-500 text-white border-blue-600';
+                }
+
+                statusHtml = `
+                    <div class="flex flex-col items-end gap-1">
+                        <span class="px-3 py-1 text-[10px] font-black border rounded-lg tracking-wider ${colorClass}">
+                            ${labelText}
+                        </span>
+                        ${note ? `<span class="text-[10px] text-slate-500 font-bold max-w-[150px] truncate" title="${note}">${note}</span>` : ''}
+                    </div>
+                `;
+            } else {
+                statusHtml = `
+                    <span class="px-3 py-1 text-[10px] font-black border bg-emerald-500 text-white border-emerald-600 rounded-lg tracking-wider">
+                        LIBRE
+                    </span>
+                `;
+            }
+
+            return {
+                name: staff,
+                displayName: formatStaffDisplayName(staff),
+                role: role,
+                isWorking: isWorking,
+                statusHtml: statusHtml
+            };
+        });
+
+        // Sort: working staff first, then alphabetically
+        listItems.sort((a, b) => {
+            if (a.isWorking !== b.isWorking) {
+                return a.isWorking ? -1 : 1;
+            }
+            return a.name.localeCompare(b.name);
+        });
+
+        // Render HTML
+        container.innerHTML = listItems.map(item => `
+            <div class="flex items-center justify-between p-3.5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-slate-200 transition-colors">
+                <div class="flex flex-col gap-1">
+                    <span class="text-sm font-black text-slate-800 tracking-tight">${item.displayName}</span>
+                    <span class="text-[9px] font-extrabold border px-2 py-0.5 rounded-md uppercase tracking-wider self-start ${item.role.color}">
+                        ${item.role.label}
+                    </span>
+                </div>
+                <div>
+                    ${item.statusHtml}
+                </div>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        console.error("Error loading tomorrow times:", e);
+        container.innerHTML = `
+            <div class="text-center py-8 text-rose-500 font-bold text-xs">
+                ⚠️ Error al cargar los horarios. Inténtalo de nuevo.
+            </div>
+        `;
+    }
+};
