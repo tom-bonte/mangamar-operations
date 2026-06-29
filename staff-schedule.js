@@ -1179,8 +1179,8 @@ window.showStaffTomorrowTimes = async function() {
                 isWorking = true;
                 const framesText = hoursData.frames.map(f => `${f.start}-${f.end || '...'}`).join(', ');
                 statusHtml = `
-                    <div class="flex items-center gap-1.5 bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5 rounded-xl font-mono font-black text-[13px] shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div class="flex items-center gap-1 bg-violet-50 text-violet-700 border border-violet-200 px-2 py-1 rounded-lg font-mono font-black text-[11px] sm:text-[13px] shadow-sm">
+                        <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         ${framesText}
                     </div>
                 `;
@@ -1202,16 +1202,16 @@ window.showStaffTomorrowTimes = async function() {
                 }
 
                 statusHtml = `
-                    <div class="flex flex-col items-end gap-1">
-                        <span class="px-3 py-1 text-[10px] font-black border rounded-lg tracking-wider ${colorClass}">
+                    <div class="flex flex-col items-end gap-0.5">
+                        <span class="px-2 py-0.5 text-[8.5px] sm:text-[10px] font-black border rounded-md tracking-wider ${colorClass}">
                             ${labelText}
                         </span>
-                        ${note ? `<span class="text-[10px] text-slate-500 font-bold max-w-[150px] truncate" title="${note}">${note}</span>` : ''}
+                        ${note ? `<span class="text-[9px] sm:text-[10px] text-slate-500 font-bold max-w-[150px] truncate" title="${note}">${note}</span>` : ''}
                     </div>
                 `;
             } else {
                 statusHtml = `
-                    <span class="px-3 py-1 text-[10px] font-black border bg-emerald-500 text-white border-emerald-600 rounded-lg tracking-wider">
+                    <span class="px-2 py-0.5 text-[8.5px] sm:text-[10px] font-black border bg-emerald-500 text-white border-emerald-600 rounded-md tracking-wider">
                         LIBRE
                     </span>
                 `;
@@ -1234,14 +1234,11 @@ window.showStaffTomorrowTimes = async function() {
             return a.name.localeCompare(b.name);
         });
 
-        // Render HTML
+        // Render HTML (extremely compact layout for mobile)
         container.innerHTML = listItems.map(item => `
-            <div class="flex items-center justify-between p-3.5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-slate-200 transition-colors">
-                <div class="flex flex-col gap-1">
-                    <span class="text-sm font-black text-slate-800 tracking-tight">${item.displayName}</span>
-                    <span class="text-[9px] font-extrabold border px-2 py-0.5 rounded-md uppercase tracking-wider self-start ${item.role.color}">
-                        ${item.role.label}
-                    </span>
+            <div class="flex items-center justify-between p-2 sm:p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-slate-200 transition-colors">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs sm:text-sm font-black text-slate-800 tracking-tight">${item.displayName}</span>
                 </div>
                 <div>
                     ${item.statusHtml}
