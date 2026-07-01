@@ -150,7 +150,7 @@ window.renderContactsList = function() {
                     <button onclick="window.openContactNoteOnlyModal('${c.id}')" class="text-amber-500 hover:text-amber-700 transition-colors">
                         <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 24 24"><path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
                     </button>
-                    <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-max max-w-[200px] bg-orange-500 text-white text-[10px] font-black rounded-lg px-2.5 py-1.5 shadow-lg opacity-0 group-hover/note:opacity-100 transition-opacity pointer-events-none z-50 whitespace-pre-wrap break-words border border-orange-600">${c.nota}</div>
+                    <div class="absolute top-full right-0 mt-1.5 w-max max-w-[220px] bg-orange-500 text-white text-[10px] font-black rounded-lg px-2.5 py-1.5 shadow-lg opacity-0 group-hover/note:opacity-100 transition-opacity pointer-events-none z-[100] whitespace-pre-wrap break-words border border-orange-600">${c.nota}</div>
                 </div>
             `;
         } else {
