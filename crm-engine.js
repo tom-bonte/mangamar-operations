@@ -123,6 +123,7 @@ window.isTripOrGuestCancelled = function (docId, data, dni) {
 };
 
 window.switchTodayTab = async function (tabId) {
+    window.activeTodayTab = tabId;
     const btnToday = document.getElementById('tab-primary-today');
     const btnGlobal = document.getElementById('tab-primary-global');
     const listEl = document.getElementById('today-divers-list');
@@ -750,7 +751,10 @@ window.openTodayDiversModal = function (isNavBackForward = false) {
         guideSelect.innerHTML = opts;
     }
 
-    switchTodayTab('today');
+    if (!isNavBackForward) {
+        window.activeTodayTab = 'today';
+    }
+    switchTodayTab(window.activeTodayTab || 'today');
 
     document.getElementById('today-divers-modal').classList.remove('hidden');
     if (isNavBackForward) window.hideAllNavModals('today-divers-modal');

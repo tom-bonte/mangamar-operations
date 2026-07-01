@@ -126,6 +126,9 @@
                         <button onclick="openSettingsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Ajustes
                         </button>
+                        <button onclick="openContactsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-teal-600 flex items-center gap-3 transition-colors">
+                            <svg class="w-5 h-5 text-slate-400 group-hover:text-teal-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg> Contactos Importantes
+                        </button>
                         <div class="group/admin relative">
                             <button class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-red-600 flex items-center gap-3 transition-colors justify-between">
                                 <span class="flex items-center gap-3"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Herramientas (Admin)</span>
@@ -167,7 +170,6 @@
                         <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     <div id="auth-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-20">
-                        <button onclick="openSettingsModal(); toggleAuthDropdown();" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 whitespace-nowrap auth-hide"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Ajustes</button>
                         <button onclick="changeAdminPassword()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 whitespace-nowrap auth-hide"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg> Cambiar contraseña</button>
                         <button onclick="logout()" class="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 whitespace-nowrap"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Cerrar sesión</button>
                     </div>
@@ -198,7 +200,6 @@
                     Mangamar ▾
                 </button>
                 <div id="m-auth-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-[60] divide-y divide-slate-100">
-                    <button onclick="openSettingsModal(); toggleMobileAuthDropdown();" class="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 auth-hide"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Ajustes</button>
                     <button onclick="changeAdminPassword(); toggleMobileAuthDropdown();" class="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 auth-hide"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg> Cambiar clave</button>
                     <button onclick="logout(); toggleMobileAuthDropdown();" class="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Salir</button>
                 </div>
@@ -2752,6 +2753,160 @@
     <script src="group-manager.js?v=3"></script>
     <script src="course-manager.js?v=2"></script>
     <script src="staff-schedule.js?v=2"></script>
+    <script src="contacts-manager.js"></script>
+
+    <!-- Contacts Modal -->
+    <div id="contacts-modal" onclick="if(event.target===this) closeContactsModal()" class="fixed inset-0 z-[60] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer">
+        <div class="bg-white rounded-2xl w-[96vw] max-w-[1600px] h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-scale-up border border-slate-200 cursor-auto">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-200 bg-white shrink-0">
+                <div class="flex justify-between items-center w-full gap-4">
+                    <h2 class="text-lg sm:text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                        <svg class="w-5 h-5 sm:w-6 h-6 text-teal-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                        Contactos Importantes
+                    </h2>
+                    
+                    <button onclick="closeContactsModal()" class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                
+                <!-- Controls: Search, Category Filter, Sort Filter, and Add Button -->
+                <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mt-4">
+                    <div class="flex flex-wrap items-center gap-3 flex-1">
+                        <!-- Search input -->
+                        <input type="text" id="contacts-search-input" oninput="window.handleContactsSearch(this.value)" placeholder="Buscar contacto..." class="w-full sm:w-64 px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-shadow shadow-sm">
+                        
+                        <!-- Category Filter -->
+                        <select id="contacts-category-select" onchange="window.handleContactsCategoryFilter(this.value)" class="w-full sm:w-auto px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-shadow shadow-sm cursor-pointer hover:bg-white">
+                            <option value="">Todas las Categorías</option>
+                            <option value="Mecánicos">Mecánicos</option>
+                            <option value="Puerto Cabo de Palos">Puerto Cabo de Palos</option>
+                            <option value="Capitanía">Capitanía</option>
+                        </select>
+
+                        <!-- Sort Button with Transparent Select Overlay -->
+                        <div class="relative inline-block w-10 h-10">
+                            <button class="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors shadow-sm cursor-pointer" title="Ordenar contactos">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
+                            </button>
+                            <select id="contacts-sort-select" onchange="window.handleContactsSort(this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                                <option value="name_asc">Ordenar por Nombre (A-Z)</option>
+                                <option value="name_desc">Ordenar por Nombre (Z-A)</option>
+                                <option value="date_desc">Más recientes primero</option>
+                                <option value="date_asc">Más antiguos primero</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Button -->
+                    <button onclick="window.openContactWizard()" class="px-5 py-2.5 bg-gradient-to-br from-teal-500 to-teal-700 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition-all hover:scale-102 active:scale-95 whitespace-nowrap hover:shadow-teal-500/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        Nuevo Contacto
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Body -->
+            <div class="flex-1 overflow-auto bg-slate-50 p-6">
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <table class="w-full border-collapse text-left">
+                        <thead>
+                            <tr class="bg-slate-800 text-white border-b border-slate-700 text-[11px] font-black uppercase tracking-wider">
+                                <th class="px-4 py-3">Categoría</th>
+                                <th class="px-4 py-3">Nombre (Copiar)</th>
+                                <th class="px-4 py-3">Teléfono (Copiar)</th>
+                                <th class="px-4 py-3">Email (Copiar)</th>
+                                <th class="px-4 py-3">Fecha Alta</th>
+                                <th class="px-4 py-3 text-center">Nota</th>
+                                <th class="px-4 py-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contacts-table-body" class="divide-y divide-slate-100">
+                            <!-- Rendered by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Wizard Modal (Add/Edit Contact) -->
+    <div id="contact-wizard-modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target===this) window.closeContactWizard()">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden flex flex-col animate-scale-up">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 id="wizard-title" class="text-lg font-black text-slate-800">Nuevo Contacto</h3>
+                <button onclick="window.closeContactWizard()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            
+            <div class="p-6 space-y-4 bg-slate-50/50">
+                <input type="hidden" id="wizard-contact-id">
+                
+                <div>
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Nombre <span class="text-red-500">*</span></label>
+                    <input type="text" id="wizard-contact-nombre" placeholder="Nombre completo" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Teléfono</label>
+                    <input type="text" id="wizard-contact-telefono" placeholder="Número de teléfono" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Email</label>
+                    <input type="email" id="wizard-contact-email" placeholder="Dirección de correo" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Categoría</label>
+                        <select id="wizard-contact-categoria" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm cursor-pointer">
+                            <option value="Mecánicos">Mecánicos</option>
+                            <option value="Puerto Cabo de Palos">Puerto Cabo de Palos</option>
+                            <option value="Capitanía">Capitanía</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Fecha Alta</label>
+                        <input type="date" id="wizard-contact-date-added" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Nota</label>
+                    <textarea id="wizard-contact-nota" placeholder="Añadir nota o detalles..." rows="3" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm resize-none"></textarea>
+                </div>
+            </div>
+            
+            <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                <button onclick="window.closeContactWizard()" class="px-5 py-2.5 border border-slate-300 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors active:scale-95">Cancelar</button>
+                <button onclick="window.saveContact()" class="px-6 py-2.5 bg-teal-600 text-white font-black text-xs rounded-xl hover:bg-teal-700 shadow-md shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition-all uppercase tracking-widest">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Note Modal (Only note editing) -->
+    <div id="contact-note-modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target===this) window.closeContactNoteOnlyModal()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200 border-t-4 border-t-orange-500 p-6 animate-scale-up">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-slate-800">Nota para <span id="contact-note-name" class="text-orange-600"></span></h3>
+                    <p class="text-xs text-slate-400 font-medium">Deja vacío para borrar la nota</p>
+                </div>
+            </div>
+            
+            <textarea id="contact-note-input" rows="3" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none placeholder:text-slate-300 mb-4" placeholder="Escribe una nota..."></textarea>
+            
+            <div class="flex gap-3">
+                <button onclick="window.closeContactNoteOnlyModal()" class="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Cancelar</button>
+                <button onclick="window.saveContactNoteOnly()" class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm">Guardar</button>
+            </div>
+        </div>
+    </div>
 
     <div id="whatsapp-export-modal" onclick="if(event.target===this) document.getElementById('whatsapp-export-modal').classList.add('hidden')" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 cursor-pointer">
         <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[85vh]">
@@ -3302,6 +3457,13 @@
                 <button onclick="openContabilidadView(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-rose-50 hover:border-rose-200 transition-all text-center gap-2 group auth-hide">
                     <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg></div>
                     <span class="text-xs font-black text-slate-700">Contabilidad</span>
+                </button>
+                <!-- Contactos Importantes -->
+                <button onclick="openContactsModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-teal-50 hover:border-teal-200 transition-all text-center gap-2 group auth-hide">
+                    <div class="w-10 h-10 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                    </div>
+                    <span class="text-xs font-black text-slate-700">Contactos</span>
                 </button>
                 <!-- Día de Hoy -->
                 <button onclick="openTodayDiversModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-emerald-50 hover:border-emerald-200 transition-all text-center gap-2 group auth-hide">
