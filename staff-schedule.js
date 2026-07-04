@@ -5,6 +5,7 @@
 
 window.activeStaffSchedule = null;
 window.activeStaffScheduleMonthKey = null;
+window.unsubscribePrevStaffSchedule = null;
 window.staffScheduleRoleFilter = 'all';
 
 window.scrollStaffSchedule = function(direction) {
@@ -141,6 +142,41 @@ window.handleStaffScheduleMonthChange = function(monthKey) {
 window.subscribeToStaffSchedule = function(monthKey) {
     if (window.unsubscribeStaffSchedule) {
         window.unsubscribeStaffSchedule();
+    }
+    if (window.unsubscribePrevStaffSchedule) {
+        window.unsubscribePrevStaffSchedule();
+        window.unsubscribePrevStaffSchedule = null;
+    }
+    
+    const [yearStr, monthStr] = monthKey.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr);
+    
+    const firstDayDate = new Date(year, month - 1, 1);
+    const firstDayWeekday = firstDayDate.getDay(); // 0 is Sunday, 1 is Monday, etc.
+    const needsPrevMonth = firstDayWeekday !== 1;
+    
+    if (needsPrevMonth) {
+        const prevMonth = month === 1 ? 12 : month - 1;
+        const prevYear = month === 1 ? year - 1 : year;
+        const prevMonthKey = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+        
+        window.unsubscribePrevStaffSchedule = db.collection('mangamar_staff_schedule').doc(prevMonthKey).onSnapshot((doc) => {
+            if (doc.exists) {
+                window.staffSchedulesData.set(prevMonthKey, doc.data());
+            } else {
+                window.staffSchedulesData.set(prevMonthKey, {
+                    monthKey: prevMonthKey,
+                    columns: [],
+                    daysOff: {}
+                });
+            }
+            if (window.activeStaffSchedule && window.activeStaffSchedule.monthKey === monthKey) {
+                window.renderStaffScheduleGrid();
+            }
+        }, (err) => {
+            console.error("Error subscribing to previous staff schedule:", err);
+        });
     }
     
     window.unsubscribeStaffSchedule = db.collection('mangamar_staff_schedule').doc(monthKey).onSnapshot((doc) => {
@@ -1029,8 +1065,43 @@ window.renderStaffScheduleGrid = function() {
             </tr>
         `;
 
-        const isLastDay = (day === totalDays);
-        if ((isSunday || isLastDay) && daysInWeekAccumulated > 0) {
+        if (isSunday && daysInWeekAccumulated > 0) {
+            // Add previous month's days of the same week if Sunday is less than 7
+            if (day < 7) {
+                const prevMonth = month === 1 ? 12 : month - 1;
+                const prevYear = month === 1 ? year - 1 : year;
+                const prevMonthKey = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+                const totalDaysPrevMonth = new Date(prevYear, prevMonth, 0).getDate();
+                const prevSched = window.staffSchedulesData.get(prevMonthKey);
+
+                if (prevSched) {
+                    for (let offset = 6; offset >= 1; offset--) {
+                        const d = day - offset;
+                        if (d <= 0) {
+                            const prevMonthDay = totalDaysPrevMonth + d;
+                            const prevDateStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(prevMonthDay).padStart(2, '0')}`;
+                            
+                            columns.forEach(staff => {
+                                const isDayOff = (prevSched.daysOff?.[staff] || []).includes(prevDateStr);
+                                if (!isDayOff) {
+                                    const hoursData = prevSched.workedHours?.[staff]?.[prevDateStr];
+                                    const hasHours = hoursData && ((hoursData.frames && hoursData.frames.length > 0) || (hoursData.salidas && hoursData.salidas > 0));
+                                    if (hasHours) {
+                                        const hrs = calculateDailyHours(hoursData.frames);
+                                        weeklyHours[staff] += hrs;
+                                        const isCap = (window.staffDatabase.capitanes || []).some(c => c.nombre === staff);
+                                        const sals = isCap ? (hoursData.salidas || 0) : 0;
+                                        if (isCap) {
+                                            weeklySalidas[staff] += sals;
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
             tableHtml += `
                 <tr class="week-summary-row transition-colors select-none">
                     <td class="p-2 text-center border-r border-slate-200 sticky left-0 z-15" style="background-color: #f8fafc; border-right: 2px solid #cbd5e1;">
