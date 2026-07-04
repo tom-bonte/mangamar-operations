@@ -65,30 +65,83 @@
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden font-sans">
-    <!-- Full-Screen Premium Staff Login Gate -->
+    <!-- Full-Screen Premium Login Gate -->
     <div id="login-gate" class="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/95 backdrop-blur-md overflow-hidden hidden transition-all duration-500">
-        <div class="relative w-full max-w-sm p-8 bg-slate-900/40 border border-slate-800 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl flex flex-col items-center">
+        <div class="relative w-full max-w-md p-8 bg-slate-900/40 border border-slate-800 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl flex flex-col items-center">
+            <!-- Help PWA Button -->
+            <div class="absolute top-4 right-4 group">
+                <button onclick="document.getElementById('pwa-modal').classList.remove('hidden')" class="w-6 h-6 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors text-xs font-black flex items-center justify-center border border-slate-750">
+                    ?
+                </button>
+                <div class="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-250 absolute right-0 top-8 bg-slate-950 border border-slate-800 text-slate-200 text-[10px] font-bold py-1.5 px-3 rounded-lg whitespace-nowrap z-50 shadow-xl">
+                    Instalar en el móvil / Install on phone
+                </div>
+            </div>
+
             <!-- Sleek glow effects behind the login card -->
             <div class="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-orange-600/20 blur-[80px] pointer-events-none"></div>
             <div class="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-blue-600/20 blur-[80px] pointer-events-none"></div>
 
+            <!-- Logo (Shared) -->
             <img src="favicon_mangamar.webp" class="w-20 h-20 object-contain mb-4 animate-pulse" alt="Mangamar Logo">
             <h2 class="text-2xl font-black text-white tracking-tight leading-none mb-1">MANGAMAR</h2>
             <p class="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-6">Operations Portal</p>
 
-            <div class="w-full space-y-4 text-left">
+            <!-- 1. SELECTION VIEW -->
+            <div id="gate-selection-view" class="w-full space-y-4">
+                <p class="text-center text-xs font-bold text-slate-400 mb-6">Selecciona el tipo de acceso para continuar:</p>
+                
+                <button onclick="showGateView('staff')" class="w-full p-5 bg-slate-950/60 hover:bg-slate-900 border border-slate-800 hover:border-orange-500/50 rounded-2xl transition-all group flex items-center gap-4 text-left">
+                    <div class="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </div>
+                    <div>
+                        <div class="text-sm font-black text-white">Personal / Staff</div>
+                        <div class="text-[10px] text-slate-500 font-bold mt-0.5">Acceso a la gestión operativa del centro</div>
+                    </div>
+                </button>
+
+                <button onclick="showGateView('client')" class="w-full p-5 bg-slate-950/60 hover:bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-2xl transition-all group flex items-center gap-4 text-left">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                    </div>
+                    <div>
+                        <div class="text-sm font-black text-white">Clientes / Buceadores</div>
+                        <div class="text-[10px] text-slate-500 font-bold mt-0.5">Consulta tus próximas inmersiones programadas</div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- 2. STAFF LOGIN VIEW -->
+            <div id="gate-staff-view" class="w-full space-y-4 text-left hidden">
+                <div class="flex items-center gap-2 mb-2">
+                    <button onclick="showGateView('selection')" class="p-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    </button>
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-wider">Volver</span>
+                </div>
+
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Usuario / Rol</label>
-                    <div class="relative">
-                        <select id="gate-role-select" class="w-full px-4 py-3.5 bg-slate-950/60 border border-slate-800 rounded-2xl text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none cursor-pointer">
-                            <option value="staff" class="bg-slate-900 text-white font-bold">Personal (Staff)</option>
-                            <option value="admin" class="bg-slate-900 text-white font-bold">Administración (Mangamar)</option>
-                        </select>
-                        <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <div class="relative" id="gate-role-dropdown-container">
+                        <button onclick="toggleGateRoleDropdown(event)" id="gate-role-dropdown-btn" class="w-full px-4 py-3.5 bg-slate-950/60 border border-slate-800 rounded-2xl text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-left flex justify-between items-center cursor-pointer">
+                            <span id="gate-role-selected-label">Personal (Staff)</span>
+                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" id="gate-role-dropdown-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="gate-role-dropdown-menu" class="absolute left-0 right-0 mt-1.5 hidden bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-850/50">
+                            <button onclick="selectGateRole('staff', 'Personal (Staff)', event)" class="w-full text-left px-4 py-3.5 hover:bg-slate-900 text-white font-bold text-sm transition-colors flex items-center justify-between">
+                                <span>Personal (Staff)</span>
+                                <svg class="w-4 h-4 text-orange-500 hidden gate-role-check" id="gate-role-check-staff" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            </button>
+                            <button onclick="selectGateRole('admin', 'Administración (Mangamar)', event)" class="w-full text-left px-4 py-3.5 hover:bg-slate-900 text-white font-bold text-sm transition-colors flex items-center justify-between">
+                                <span>Administración (Mangamar)</span>
+                                <svg class="w-4 h-4 text-orange-500 hidden gate-role-check" id="gate-role-check-admin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            </button>
                         </div>
+                        <input type="hidden" id="gate-role-select" value="staff">
                     </div>
                 </div>
+                
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Contraseña</label>
                     <div class="relative">
@@ -98,10 +151,65 @@
                         </button>
                     </div>
                 </div>
+                
                 <button onclick="attemptGateLogin()" class="w-full py-4 bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 active:scale-[0.98] text-white font-black text-xs rounded-2xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all flex justify-center items-center gap-2 uppercase tracking-widest">
                     Iniciar Sesión
                 </button>
             </div>
+
+            <!-- 3. CLIENT LOGIN VIEW -->
+            <div id="gate-client-view" class="w-full space-y-4 text-left hidden">
+                <div class="flex items-center gap-2 mb-2">
+                    <button onclick="showGateView('selection')" class="p-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    </button>
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-wider">Volver</span>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Fecha de Nacimiento</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <!-- Day Input -->
+                        <div>
+                            <input type="text" id="client-dob-day" placeholder="Día (DD)" maxlength="2" inputmode="numeric" class="w-full px-3 py-3 bg-slate-950/60 border border-slate-800 rounded-2xl text-xs font-bold text-white placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center">
+                        </div>
+                        <!-- Month Input -->
+                        <div>
+                            <input type="text" id="client-dob-month" placeholder="Mes (MM)" maxlength="2" inputmode="numeric" class="w-full px-3 py-3 bg-slate-950/60 border border-slate-800 rounded-2xl text-xs font-bold text-white placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center">
+                        </div>
+                        <!-- Year Input -->
+                        <div>
+                            <input type="text" id="client-dob-year" placeholder="Año (AAAA)" maxlength="4" inputmode="numeric" class="w-full px-3 py-3 bg-slate-950/60 border border-slate-800 rounded-2xl text-xs font-bold text-white placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">DNI / NIE / Pasaporte</label>
+                    <input type="text" id="client-dni-input" placeholder="" class="w-full px-4 py-3.5 bg-slate-950/60 border border-slate-800 rounded-2xl text-sm font-black text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-slate-700 uppercase" onkeydown="if(event.key === 'Enter') attemptClientLogin()">
+                </div>
+
+                <button id="btn-client-login" onclick="attemptClientLogin()" class="w-full py-4 bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 active:scale-[0.98] text-white font-black text-xs rounded-2xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all flex justify-center items-center gap-2 uppercase tracking-widest">
+                    Comprobar Inmersiones
+                </button>
+            </div>
+
+            <!-- 4. CLIENT OVERVIEW VIEW -->
+            <div id="gate-client-overview" class="w-full space-y-4 text-left hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-wider">Mis Inmersiones</span>
+                    <button onclick="logoutClient()" class="px-3 py-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-900 border border-slate-800 text-red-400 hover:text-red-300 text-[10px] font-black uppercase tracking-wider transition-colors">
+                        Salir
+                    </button>
+                </div>
+                
+                <h3 id="client-overview-name" class="text-base font-black text-white truncate leading-tight"></h3>
+                
+                <div class="relative w-full" style="height: 35vh;">
+                    <textarea id="client-overview-text" class="w-full h-full p-4 bg-slate-900 border border-slate-800 rounded-2xl font-mono text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner resize-none leading-relaxed" readonly></textarea>
+                </div>
+            </div>
+
         </div>
     </div>
     <header id="desktop-header" class="hidden md:flex bg-orange-100/90 backdrop-blur-md text-slate-800 px-3 md:px-6 py-3 shadow-sm border-b border-orange-100 flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-0 z-50 shrink-0 sticky top-0">
@@ -931,6 +1039,120 @@
         </div>
     </div>
 
+    <!-- PWA Install Modal -->
+    <div id="pwa-modal" class="fixed inset-0 z-[999999] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) this.classList.add('hidden')">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center gap-4">
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        <span id="pwa-title">Instalar en tu móvil / Install on Phone</span>
+                    </h3>
+                    <div class="flex gap-2 bg-white p-1 rounded-full border border-slate-200 shadow-sm">
+                        <button onclick="togglePwaLanguage('es')" id="pwa-flag-es" class="w-5 h-5 rounded-full overflow-hidden focus:outline-none transition-opacity"><img src="https://flagcdn.com/w40/es.png" alt="ES" class="w-full h-full object-cover"></button>
+                        <button onclick="togglePwaLanguage('en')" id="pwa-flag-en" class="w-5 h-5 rounded-full overflow-hidden opacity-40 hover:opacity-100 focus:outline-none transition-opacity"><img src="https://flagcdn.com/w40/gb.png" alt="EN" class="w-full h-full object-cover"></button>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('pwa-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            
+            <div class="flex border-b border-slate-200 bg-slate-50 px-2" id="pwa-tabs-container">
+                <button onclick="switchPwaTab('ios')" id="pwa-tab-btn-ios" class="px-4 py-3 text-sm font-black border-b-2 border-blue-600 text-blue-600 transition-colors flex items-center gap-1.5"> iOS (iPhone)</button>
+                <button onclick="switchPwaTab('android')" id="pwa-tab-btn-android" class="px-4 py-3 text-sm font-black border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1.5">🤖 Android</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-6 text-sm text-slate-600 flex-1">
+                <!-- SPANISH CONTENT CONTAINER -->
+                <div id="pwa-content-es" class="block">
+                    <!-- iOS Content -->
+                    <div id="pwa-tab-ios-es" class="space-y-4 pwa-tab-content block">
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">1</div>
+                            <p class="leading-relaxed">Abre el navegador <strong>Safari</strong> en tu iPhone y accede a esta web.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">2</div>
+                            <p class="leading-relaxed">En la barra inferior del navegador, pulsa el botón <strong>Compartir</strong> (el icono de un cuadrado con una flecha hacia arriba).</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">3</div>
+                            <p class="leading-relaxed">En la lista de opciones, baja y pulsa en <strong>"Añadir a la pantalla de inicio"</strong> (Add to Home Screen).</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">4</div>
+                            <p class="leading-relaxed">Pulsa <strong>"Añadir"</strong> en la esquina superior derecha. Verás el icono de Mangamar con el caballito de mar blanco en tu pantalla principal.</p>
+                        </div>
+                    </div>
+                    <!-- Android Content -->
+                    <div id="pwa-tab-android-es" class="space-y-4 pwa-tab-content hidden">
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">1</div>
+                            <p class="leading-relaxed">Abre el navegador <strong>Google Chrome</strong> en tu móvil Android.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">2</div>
+                            <p class="leading-relaxed">Pulsa el botón de los <strong>tres puntos (⋮)</strong> en la esquina superior derecha del navegador.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">3</div>
+                            <p class="leading-relaxed">Selecciona la opción <strong>"Instalar aplicación"</strong> o <strong>"Añadir a la pantalla de inicio"</strong>.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">4</div>
+                            <p class="leading-relaxed">Confirma pulsando en <strong>"Instalar"</strong> o <strong>"Añadir"</strong>. El acceso se creará en tu pantalla de inicio.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ENGLISH CONTENT CONTAINER -->
+                <div id="pwa-content-en" class="hidden">
+                    <!-- iOS Content -->
+                    <div id="pwa-tab-ios-en" class="space-y-4 pwa-tab-content block">
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">1</div>
+                            <p class="leading-relaxed">Open the <strong>Safari</strong> browser on your iPhone and visit this website.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">2</div>
+                            <p class="leading-relaxed">In the bottom bar of Safari, tap the <strong>Share</strong> button (the square icon with an arrow pointing up).</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">3</div>
+                            <p class="leading-relaxed">Scroll down the list of options and tap <strong>"Add to Home Screen"</strong>.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">4</div>
+                            <p class="leading-relaxed">Tap <strong>"Add"</strong> in the top-right corner. The Mangamar icon will appear on your home screen like a native app.</p>
+                        </div>
+                    </div>
+                    <!-- Android Content -->
+                    <div id="pwa-tab-android-en" class="space-y-4 pwa-tab-content hidden">
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">1</div>
+                            <p class="leading-relaxed">Open <strong>Google Chrome</strong> on your Android device.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">2</div>
+                            <p class="leading-relaxed">Tap the <strong>three dots (⋮)</strong> menu in Chrome's top-right corner.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">3</div>
+                            <p class="leading-relaxed">Select <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong>.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">4</div>
+                            <p class="leading-relaxed">Confirm by tapping <strong>"Install"</strong> or <strong>"Add"</strong>. The app shortcut will be added to your home screen.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="document.getElementById('pwa-modal').classList.add('hidden')" class="px-8 py-2 bg-blue-600 text-white font-black uppercase text-sm rounded-xl hover:bg-blue-700 shadow-sm transition-all focus:outline-none">OK, Entendido</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ============================================ -->
     <!-- EXPORT CSV DATE RANGE MODAL                  -->
     <!-- ============================================ -->
@@ -1040,7 +1262,7 @@
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full font-bold text-sm shadow-2xl transition-all duration-300 translate-y-24 opacity-0 z-[9999]">
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full font-bold text-sm shadow-2xl transition-all duration-300 translate-y-24 opacity-0 z-[999999]">
         Mensaje copiado
     </div>
 
@@ -2568,7 +2790,7 @@
         </div>
     </div>
 
-    <div id="custom-confirm-modal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onclick="if(event.target === this) closeAppConfirm()">
+    <div id="custom-confirm-modal" class="fixed inset-0 z-[999999] hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onclick="if(event.target === this) closeAppConfirm()">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 overflow-hidden flex flex-col">
             <div class="p-6">
                 <h3 id="custom-confirm-msg" class="text-sm font-bold text-slate-800 whitespace-pre-wrap leading-relaxed">Mensaje</h3>
@@ -3328,14 +3550,22 @@
             <div class="space-y-4 text-left">
                 <div>
                     <label class="block text-xs font-black text-slate-700 mb-1">Usuario / Rol</label>
-                    <div class="relative">
-                        <select id="login-role-select" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer">
-                            <option value="staff">Personal (Staff)</option>
-                            <option value="admin">Administración (Mangamar)</option>
-                        </select>
-                        <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <div class="relative" id="modal-role-dropdown-container">
+                        <button onclick="toggleModalRoleDropdown(event)" id="modal-role-dropdown-btn" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-left flex justify-between items-center cursor-pointer">
+                            <span id="modal-role-selected-label">Personal (Staff)</span>
+                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" id="modal-role-dropdown-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="modal-role-dropdown-menu" class="absolute left-0 right-0 mt-1 hidden bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100">
+                            <button onclick="selectModalRole('staff', 'Personal (Staff)', event)" class="w-full text-left px-4 py-3 hover:bg-slate-50 text-slate-800 font-bold text-sm transition-colors flex items-center justify-between">
+                                <span>Personal (Staff)</span>
+                                <svg class="w-4 h-4 text-blue-600 hidden modal-role-check" id="modal-role-check-staff" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            </button>
+                            <button onclick="selectModalRole('admin', 'Administración (Mangamar)', event)" class="w-full text-left px-4 py-3 hover:bg-slate-50 text-slate-800 font-bold text-sm transition-colors flex items-center justify-between">
+                                <span>Administración (Mangamar)</span>
+                                <svg class="w-4 h-4 text-blue-600 hidden modal-role-check" id="modal-role-check-admin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            </button>
                         </div>
+                        <input type="hidden" id="login-role-select" value="staff">
                     </div>
                 </div>
                 <div>

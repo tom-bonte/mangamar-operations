@@ -1063,6 +1063,9 @@ window.checkSessionOnLoad = function() {
     const token = localStorage.getItem('mangaToken');
     const role = localStorage.getItem('mangaRole');
     
+    // Set up client birthday input sanitization
+    window.initClientDobInputs();
+    
     if (token === 'true') {
         window.isLoggedIn = true;
         document.body.classList.add('logged-in');
@@ -1080,7 +1083,10 @@ window.checkSessionOnLoad = function() {
         window.isStaffLoggedIn = false;
         document.body.classList.remove('logged-in');
         document.body.classList.remove('staff-logged-in');
-        if (gate) gate.classList.remove('hidden');
+        if (gate) {
+            gate.classList.remove('hidden');
+            window.showGateView('selection');
+        }
         
         const tvModal = document.getElementById('tv-view-modal');
         if (tvModal) tvModal.classList.add('hidden');
@@ -2043,5 +2049,352 @@ window.downloadCsvExport = async function() {
     } catch (e) {
         console.error("Export error:", e);
         showToast("❌ Error al exportar los datos", "error");
+    }
+};
+
+// ==========================================
+// CLIENT LANDING GATE AND CUSTOM SELECTS
+// ==========================================
+
+window.showGateView = function(view) {
+    const sel = document.getElementById('gate-selection-view');
+    const staff = document.getElementById('gate-staff-view');
+    const client = document.getElementById('gate-client-view');
+    const overview = document.getElementById('gate-client-overview');
+
+    if (sel) sel.classList.add('hidden');
+    if (staff) staff.classList.add('hidden');
+    if (client) client.classList.add('hidden');
+    if (overview) overview.classList.add('hidden');
+
+    if (view === 'selection') {
+        if (sel) sel.classList.remove('hidden');
+    } else if (view === 'staff') {
+        if (staff) staff.classList.remove('hidden');
+        window.selectGateRole('staff', 'Personal (Staff)');
+    } else if (view === 'client') {
+        if (client) client.classList.remove('hidden');
+        if (typeof window.loadCrmDatabase === 'function') {
+            window.loadCrmDatabase();
+        }
+    } else if (view === 'overview') {
+        if (overview) overview.classList.remove('hidden');
+    }
+};
+
+window.toggleGateRoleDropdown = function(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('gate-role-dropdown-menu');
+    const arrow = document.getElementById('gate-role-dropdown-arrow');
+    if (!menu) return;
+    const isHidden = menu.classList.contains('hidden');
+    
+    closeAllRoleDropdowns();
+    
+    if (isHidden) {
+        menu.classList.remove('hidden');
+        if (arrow) arrow.classList.add('rotate-180');
+    } else {
+        menu.classList.add('hidden');
+        if (arrow) arrow.classList.remove('rotate-180');
+    }
+};
+
+window.selectGateRole = function(value, label, event) {
+    if (event) event.stopPropagation();
+    const hiddenInput = document.getElementById('gate-role-select');
+    const labelSpan = document.getElementById('gate-role-selected-label');
+    const menu = document.getElementById('gate-role-dropdown-menu');
+    const arrow = document.getElementById('gate-role-dropdown-arrow');
+    
+    if (hiddenInput) hiddenInput.value = value;
+    if (labelSpan) labelSpan.innerText = label;
+    if (menu) menu.classList.add('hidden');
+    if (arrow) arrow.classList.remove('rotate-180');
+    
+    document.querySelectorAll('.gate-role-check').forEach(el => el.classList.add('hidden'));
+    const check = document.getElementById(`gate-role-check-${value}`);
+    if (check) check.classList.remove('hidden');
+};
+
+window.toggleModalRoleDropdown = function(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('modal-role-dropdown-menu');
+    const arrow = document.getElementById('modal-role-dropdown-arrow');
+    if (!menu) return;
+    const isHidden = menu.classList.contains('hidden');
+    
+    closeAllRoleDropdowns();
+    
+    if (isHidden) {
+        menu.classList.remove('hidden');
+        if (arrow) arrow.classList.add('rotate-180');
+    } else {
+        menu.classList.add('hidden');
+        if (arrow) arrow.classList.remove('rotate-180');
+    }
+};
+
+window.selectModalRole = function(value, label, event) {
+    if (event) event.stopPropagation();
+    const hiddenInput = document.getElementById('login-role-select');
+    const labelSpan = document.getElementById('modal-role-selected-label');
+    const menu = document.getElementById('modal-role-dropdown-menu');
+    const arrow = document.getElementById('modal-role-dropdown-arrow');
+    
+    if (hiddenInput) hiddenInput.value = value;
+    if (labelSpan) labelSpan.innerText = label;
+    if (menu) menu.classList.add('hidden');
+    if (arrow) arrow.classList.remove('rotate-180');
+    
+    document.querySelectorAll('.modal-role-check').forEach(el => el.classList.add('hidden'));
+    const check = document.getElementById(`modal-role-check-${value}`);
+    if (check) check.classList.remove('hidden');
+};
+
+function closeAllRoleDropdowns() {
+    const gateMenu = document.getElementById('gate-role-dropdown-menu');
+    const gateArrow = document.getElementById('gate-role-dropdown-arrow');
+    if (gateMenu) gateMenu.classList.add('hidden');
+    if (gateArrow) gateArrow.classList.remove('rotate-180');
+
+    const modalMenu = document.getElementById('modal-role-dropdown-menu');
+    const modalArrow = document.getElementById('modal-role-dropdown-arrow');
+    if (modalMenu) modalMenu.classList.add('hidden');
+    if (modalArrow) modalArrow.classList.remove('rotate-180');
+}
+
+window.addEventListener('click', function() {
+    closeAllRoleDropdowns();
+});
+
+window.initClientDobInputs = function() {
+    const day = document.getElementById('client-dob-day');
+    const month = document.getElementById('client-dob-month');
+    const year = document.getElementById('client-dob-year');
+
+    const setupInput = (el, name) => {
+        if (!el) return;
+        
+        // Remove duplicate handlers if called again
+        if (el._hasListener) return;
+        el._hasListener = true;
+
+        el.addEventListener('input', function() {
+            const originalVal = el.value;
+            const cleaned = originalVal.replace(/\D/g, '');
+            if (originalVal !== cleaned) {
+                el.value = cleaned;
+                showToast(`⚠️ Solo se permiten números en el campo de ${name}`, "warning");
+            }
+        });
+    };
+
+    setupInput(day, "Día");
+    setupInput(month, "Mes");
+    setupInput(year, "Año");
+};
+
+window.attemptClientLogin = async function() {
+    const day = document.getElementById('client-dob-day') ? document.getElementById('client-dob-day').value.trim() : '';
+    const month = document.getElementById('client-dob-month') ? document.getElementById('client-dob-month').value.trim() : '';
+    const year = document.getElementById('client-dob-year') ? document.getElementById('client-dob-year').value.trim() : '';
+    const dniInput = document.getElementById('client-dni-input') ? document.getElementById('client-dni-input').value.trim() : '';
+    const btn = document.getElementById('btn-client-login');
+
+    if (!day || !month || !year) {
+        showToast("⚠️ Introduce tu fecha de nacimiento completa", "error");
+        return;
+    }
+    if (!dniInput) {
+        showToast("⚠️ Introduce tu DNI / NIE / Pasaporte", "error");
+        return;
+    }
+
+    // Pad inputs to standardize matching (e.g. Day 6 -> "06", Month 2 -> "02")
+    const paddedDay = day.padStart(2, '0');
+    const paddedMonth = month.padStart(2, '0');
+    const selectedDob = `${year}-${paddedMonth}-${paddedDay}`;
+    const normDniInput = window.normalizeSearchString(dniInput);
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Comprobando...";
+    }
+
+    if (!window.crmLoaded) {
+        if (typeof window.loadCrmDatabase === 'function') {
+            window.loadCrmDatabase();
+        }
+        let checks = 0;
+        while (!window.crmLoaded && checks < 20) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+            checks++;
+        }
+    }
+
+    if (!window.crmLoaded) {
+        showToast("⚠️ La base de datos no se ha cargado a tiempo. Por favor, reinténtalo.", "error");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Comprobar Inmersiones";
+        }
+        return;
+    }
+
+    const client = (window.customerDatabase || []).find(c => {
+        if (!c.dni || !c.dob) return false;
+        const normDbDni = window.normalizeSearchString(c.dni);
+        const normDbDob = window.normalizeDateStr(c.dob);
+        return normDbDni === normDniInput && normDbDob === selectedDob;
+    });
+
+    if (!client) {
+        showToast("❌ No se ha encontrado ningún buceador con esos datos.", "error");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Comprobar Inmersiones";
+        }
+        return;
+    }
+
+    try {
+        const snapshot = await db.collection('mangamar_customers').doc(client.dni).collection('history').get();
+        const rawDocs = [];
+        snapshot.forEach(doc => rawDocs.push(doc));
+
+        const dObj = new Date();
+        const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
+
+        const groupedDives = {};
+        let count = 0;
+
+        rawDocs.forEach(doc => {
+            const data = doc.data();
+            const dateStr = data.date;
+
+            if (!dateStr || dateStr < todayStr) return;
+            if (data.type) return;
+
+            if (!groupedDives[dateStr]) {
+                groupedDives[dateStr] = [];
+            }
+            groupedDives[dateStr].push(data);
+            count++;
+        });
+
+        const clientName = window.getFullName ? window.getFullName(client) : (client.nombre || 'Cliente');
+        document.getElementById('client-overview-name').innerText = clientName;
+
+        let summaryText = `Resumen de Inmersiones — ${clientName}\n`;
+        summaryText += `Desde hoy, ${dObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
+        summaryText += `========================================\n\n`;
+
+        if (count === 0) {
+            summaryText += `No tienes próximas inmersiones programadas.\n`;
+        } else {
+            Object.keys(groupedDives).sort().forEach(dateStr => {
+                const parts = dateStr.split('-');
+                if (parts.length < 3) return;
+                const y = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10) - 1;
+                const d = parseInt(parts[2], 10);
+                const dDate = new Date(y, m, d);
+
+                const weekday = dDate.toLocaleDateString('es-ES', { weekday: 'long' });
+                const monthName = dDate.toLocaleDateString('es-ES', { month: 'long' });
+                const formattedDay = `${weekday}, ${d} ${monthName} ${y}`;
+
+                summaryText += `${formattedDay}:\n`;
+
+                groupedDives[dateStr].sort((a, b) => {
+                    const timeA = a.time || '00:00';
+                    const timeB = b.time || '00:00';
+                    return timeA.localeCompare(timeB);
+                });
+
+                groupedDives[dateStr].forEach(dive => {
+                    let timeStr = dive.time || '';
+                    if (timeStr && timeStr.includes(':')) {
+                        const timeParts = timeStr.split(':');
+                        let hours = parseInt(timeParts[0], 10);
+                        let minutes = parseInt(timeParts[1], 10);
+                        
+                        hours = (hours - 1 + 24) % 24;
+                        
+                        const minStr = String(minutes).padStart(2, '0');
+                        timeStr = `${hours}:${minStr}`;
+                    }
+
+                    let gasSuffix = "";
+                    if (dive.gas) {
+                        const gasLower = dive.gas.toLowerCase();
+                        if (!gasLower.includes('aire')) {
+                            let cleanGas = dive.gas.replace('15L ', '').replace('12L ', '').trim();
+                            cleanGas = cleanGas.replace(/ean/i, 'Nitrox');
+                            gasSuffix = ` (${cleanGas})`;
+                        }
+                    }
+
+                    summaryText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}\n`;
+                });
+                summaryText += `\n`;
+            });
+        }
+
+        document.getElementById('client-overview-text').value = summaryText;
+        window.showGateView('overview');
+        showToast("✅ Inmersiones cargadas con éxito.");
+
+    } catch (e) {
+        console.error(e);
+        showToast("❌ Error al obtener tu historial: " + e.message, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Comprobar Inmersiones";
+        }
+    }
+};
+
+window.logoutClient = function() {
+    document.getElementById('client-dni-input').value = "";
+    document.getElementById('client-dob-day').value = "";
+    document.getElementById('client-dob-month').value = "";
+    document.getElementById('client-dob-year').value = "";
+    window.showGateView('selection');
+};
+
+window.togglePwaLanguage = function(lang) {
+    document.getElementById('pwa-content-es').classList.toggle('hidden', lang !== 'es');
+    document.getElementById('pwa-content-en').classList.toggle('hidden', lang !== 'en');
+    document.getElementById('pwa-flag-es').classList.toggle('opacity-40', lang !== 'es');
+    document.getElementById('pwa-flag-en').classList.toggle('opacity-40', lang !== 'en');
+    
+    // Switch active tab view under new language scope
+    const currentTab = document.getElementById('pwa-tab-btn-ios').classList.contains('text-blue-600') ? 'ios' : 'android';
+    window.switchPwaTab(currentTab);
+};
+
+window.switchPwaTab = function(tabId) {
+    ['ios', 'android'].forEach(t => {
+        const btn = document.getElementById(`pwa-tab-btn-${t}`);
+        if (t === tabId) {
+            btn.className = "px-4 py-3 text-sm font-black border-b-2 border-blue-600 text-blue-600 transition-colors flex items-center gap-1.5 focus:outline-none";
+        } else {
+            btn.className = "px-4 py-3 text-sm font-black border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1.5 focus:outline-none";
+        }
+    });
+
+    document.querySelectorAll('.pwa-tab-content').forEach(el => {
+        el.classList.add('hidden');
+        el.classList.remove('block');
+    });
+
+    const currentLang = document.getElementById('pwa-content-es').classList.contains('hidden') ? 'en' : 'es';
+    const activeContent = document.getElementById(`pwa-tab-${tabId}-${currentLang}`);
+    if (activeContent) {
+        activeContent.classList.remove('hidden');
+        activeContent.classList.add('block');
     }
 };
