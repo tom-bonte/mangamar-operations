@@ -63,6 +63,8 @@ function executeNavState(state) {
         if (typeof generateJointFactura === 'function') generateJointFactura(state.args[0], state.args[1], state.args[2], true);
     } else if (state.type === 'group') {
         if (typeof openGroupLinkModal === 'function') openGroupLinkModal(state.args[0], true);
+    } else if (state.type === 'web-access-logs') {
+        if (typeof openWebAccessLogsModal === 'function') openWebAccessLogsModal(true);
     }
 }
 
@@ -87,6 +89,7 @@ window.hideAllNavModals = function(exceptId = null) {
     if (exceptId !== 'staff-views-modal') document.getElementById('staff-views-modal')?.classList.add('hidden');
     if (exceptId !== 'contabilidad-modal') document.getElementById('contabilidad-modal')?.classList.add('hidden');
     if (exceptId !== 'group-link-modal') document.getElementById('group-link-modal')?.classList.add('hidden');
+    if (exceptId !== 'web-access-logs-modal') document.getElementById('web-access-logs-modal')?.classList.add('hidden');
     
     if (exceptId !== 'tab-content-factura') {
         const targetTab = document.getElementById('tab-content-factura');

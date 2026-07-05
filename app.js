@@ -2258,6 +2258,39 @@ window.attemptClientLogin = async function() {
         return;
     }
 
+    // Update tracking stats
+    try {
+        const nowIso = new Date().toISOString();
+        
+        // Update local memory in CRM database immediately
+        client.portalLoginCount = (client.portalLoginCount || 0) + 1;
+        client.lastPortalLogin = nowIso;
+        
+        // 1. Update individual client document
+        const clientRef = db.collection('mangamar_customers').doc(client.dni);
+        clientRef.set({
+            portalLoginCount: firebase.firestore.FieldValue.increment(1),
+            lastPortalLogin: nowIso
+        }, { merge: true }).catch(err => console.error("Error updating customer portal logs:", err));
+        
+        // 2. Update master_list directory doc to propagate updates to other admins
+        const masterDocRef = db.collection('mangamar_directory').doc('master_list');
+        masterDocRef.get().then(doc => {
+            if (doc.exists) {
+                let clients = doc.data().clients || [];
+                let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(client.dni));
+                if (idx > -1) {
+                    const currentCount = clients[idx].portalLoginCount || 0;
+                    clients[idx].portalLoginCount = currentCount + 1;
+                    clients[idx].lastPortalLogin = nowIso;
+                    masterDocRef.set({ clients }, { merge: true });
+                }
+            }
+        }).catch(err => console.error("Error updating master list portal logs:", err));
+    } catch (e) {
+        console.error("Error tracking portal login:", e);
+    }
+
     try {
         const snapshot = await db.collection('mangamar_customers').doc(client.dni).collection('history').get();
         const rawDocs = [];
@@ -2397,4 +2430,106 @@ window.switchPwaTab = function(tabId) {
         activeContent.classList.remove('hidden');
         activeContent.classList.add('block');
     }
+};
+window.accessLogsSortField = 'count';
+window.accessLogsSortAsc = false; // default show most active first
+
+window.openWebAccessLogsModal = function(isNavBackForward = false) {
+    if (typeof isNavBackForward !== 'boolean') isNavBackForward = false;
+    if (!isNavBackForward && typeof recordModalHistory === 'function') {
+        window.hideAllNavModals();
+        recordModalHistory({ type: 'web-access-logs', isNavBackForward });
+    }
+    document.getElementById('web-access-logs-modal').classList.remove('hidden');
+    if (isNavBackForward) window.hideAllNavModals('web-access-logs-modal');
+    window.renderWebAccessLogsTable();
+};
+
+window.sortAccessLogs = function(field) {
+    if (window.accessLogsSortField === field) {
+        window.accessLogsSortAsc = !window.accessLogsSortAsc;
+    } else {
+        window.accessLogsSortField = field;
+        window.accessLogsSortAsc = field === 'name'; // default ascending for name, descending for others
+    }
+    window.renderWebAccessLogsTable();
+};
+
+window.renderWebAccessLogsTable = function() {
+    const tbody = document.getElementById('web-access-logs-table-body');
+    if (!tbody) return;
+    
+    // Filter clients who have logged in at least once
+    let loggedInClients = (window.customerDatabase || []).filter(c => c.portalLoginCount > 0 || c.lastPortalLogin);
+    
+    // Sort logic
+    loggedInClients.sort((a, b) => {
+        let valA, valB;
+        if (window.accessLogsSortField === 'name') {
+            valA = window.getFullName(a).toLowerCase();
+            valB = window.getFullName(b).toLowerCase();
+        } else if (window.accessLogsSortField === 'count') {
+            valA = a.portalLoginCount || 0;
+            valB = b.portalLoginCount || 0;
+        } else if (window.accessLogsSortField === 'last') {
+            valA = a.lastPortalLogin || '';
+            valB = b.lastPortalLogin || '';
+        }
+        
+        if (valA < valB) return window.accessLogsSortAsc ? -1 : 1;
+        if (valA > valB) return window.accessLogsSortAsc ? 1 : -1;
+        return 0;
+    });
+    
+    // Update sorting indicators on headers
+    ['name', 'count', 'last'].forEach(f => {
+        const icon = document.getElementById(`sort-icon-${f}`);
+        if (icon) {
+            if (window.accessLogsSortField === f) {
+                icon.innerText = window.accessLogsSortAsc ? '▲' : '▼';
+                icon.className = "text-[9px] text-blue-600 font-bold inline-block ml-1";
+            } else {
+                icon.innerText = '⇅';
+                icon.className = "text-[9px] text-slate-400 font-medium inline-block ml-1";
+            }
+        }
+    });
+    
+    if (loggedInClients.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="p-8 text-center text-slate-400 font-bold text-xs">
+                    Ningún cliente ha accedido al portal web todavía.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    loggedInClients.forEach(c => {
+        const count = c.portalLoginCount || 0;
+        let dateStr = 'Nunca';
+        if (c.lastPortalLogin) {
+            try {
+                const d = new Date(c.lastPortalLogin);
+                dateStr = d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                dateStr = c.lastPortalLogin;
+            }
+        }
+        
+        const fullName = window.getFullName(c);
+        const escapedName = fullName.replace(/'/g, "\\'");
+        
+        html += `
+            <tr class="hover:bg-slate-50 transition-colors cursor-pointer group" onclick="openCustomerProfile('${c.dni}', '${escapedName}')">
+                <td class="p-3 text-slate-800 font-bold group-hover:text-blue-600 transition-colors">${fullName}</td>
+                <td class="p-3 text-slate-500 font-mono">${c.dni || '-'}</td>
+                <td class="p-3 text-slate-700 font-black">${count}</td>
+                <td class="p-3 text-slate-600 font-medium">${dateStr}</td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
 };

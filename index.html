@@ -237,6 +237,9 @@
                         <button onclick="openContactsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-teal-600 flex items-center gap-3 transition-colors">
                             <svg class="w-5 h-5 text-slate-400 group-hover:text-teal-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg> Contactos Importantes
                         </button>
+                        <button onclick="openWebAccessLogsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                            <svg class="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg> Registro Accesos
+                        </button>
                         <div class="group/admin relative">
                             <button class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-red-600 flex items-center gap-3 transition-colors justify-between">
                                 <span class="flex items-center gap-3"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Herramientas (Admin)</span>
@@ -1149,6 +1152,61 @@
 
             <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
                 <button onclick="document.getElementById('pwa-modal').classList.add('hidden')" class="px-8 py-2 bg-blue-600 text-white font-black uppercase text-sm rounded-xl hover:bg-blue-700 shadow-sm transition-all focus:outline-none">OK, Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Web Access Logs Modal -->
+    <div id="web-access-logs-modal" class="fixed inset-0 z-[300] hidden flex flex-col md:flex-row items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) window.closeGlobalModal(this)">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] min-h-[600px] md:h-[90vh] relative">
+            <!-- Header -->
+            <div class="p-6 pb-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                <div class="flex gap-4 items-center">
+                    <div class="flex gap-1 nav-btn-grp">
+                        <button onclick="window.goModalBack()" class="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors nav-back-btn"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg></button>
+                        <button onclick="window.goModalForward()" class="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors nav-fwd-btn"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg></button>
+                    </div>
+                    <div class="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl flex items-center justify-center shadow-md">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-800 tracking-tight leading-none">Registro de Accesos Web</h3>
+                        <p class="text-xs font-bold text-slate-500 mt-1.5">Clientes que han consultado el portal</p>
+                    </div>
+                </div>
+                <button onclick="window.closeGlobalModal('web-access-logs-modal')" class="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full border border-slate-200 transition-colors hover:bg-slate-50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            
+            <!-- Table Container -->
+            <div class="p-6 overflow-y-auto flex-1 bg-white">
+                <div class="overflow-hidden border border-slate-150 rounded-2xl shadow-sm">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-150 select-none">
+                                <th onclick="sortAccessLogs('name')" class="p-3 font-black text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors gap-1 items-center">
+                                    Nombre <span id="sort-icon-name" class="text-[9px] text-slate-400 font-medium">⇅</span>
+                                </th>
+                                <th class="p-3 font-black text-slate-700">
+                                    DNI
+                                </th>
+                                <th onclick="sortAccessLogs('count')" class="p-3 font-black text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors gap-1 items-center">
+                                    Nº Accesos <span id="sort-icon-count" class="text-[9px] text-slate-400 font-medium">⇅</span>
+                                </th>
+                                <th onclick="sortAccessLogs('last')" class="p-3 font-black text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors gap-1 items-center">
+                                    Último Acceso <span id="sort-icon-last" class="text-[9px] text-slate-400 font-medium">⇅</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="web-access-logs-table-body" class="divide-y divide-slate-100">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
+                <button onclick="window.closeGlobalModal('web-access-logs-modal')" class="px-6 py-2 bg-blue-600 text-white font-black uppercase text-xs rounded-xl hover:bg-blue-700 shadow-sm transition-all focus:outline-none">Cerrar</button>
             </div>
         </div>
     </div>
