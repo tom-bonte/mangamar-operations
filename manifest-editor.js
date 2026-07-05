@@ -974,7 +974,8 @@ function _renderGroupsCore(skipAutoSave = false) {
                     if (isTemp) {
                         const isBought = insVal.includes(' ✔');
                         if (isBought) {
-                            let displayVal = `Seg ✓ (${cleanIns})`;
+                            const wasPurchasedToday = globalIns.purchaseDate === (activeBoatItem ? activeBoatItem.date : '');
+                            let displayVal = wasPurchasedToday ? `Seg ✓ (${cleanIns})` : `Seg ✓`;
                             insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Comprado)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
                         } else {
                             let displayVal = `Seg (${cleanIns})`;
@@ -1766,7 +1767,8 @@ window.updateGuestInsuranceButton = function(groupIndex, guestIndex) {
             if (isTemp) {
                 const isBought = insVal.includes(' ✔');
                 if (isBought) {
-                    displayVal = `Seg ✓ (${cleanIns})`;
+                    const wasPurchasedToday = globalIns.purchaseDate === (activeBoatItem ? activeBoatItem.date : '');
+                    displayVal = wasPurchasedToday ? `Seg ✓ (${cleanIns})` : `Seg ✓`;
                     btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap";
                     btn.innerText = displayVal;
                     btn.title = `Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Comprado)`;
@@ -2877,6 +2879,9 @@ function searchCustomers(groupIndex, query) {
 
 window.selectCustomer = function(groupIndex, encodedData) {
     try {
+        const input = document.getElementById(`search-${groupIndex}`);
+        if (input) input.value = '';
+
         const data = JSON.parse(decodeURIComponent(encodedData));
         const fullName = window.getFullName(data);
         
