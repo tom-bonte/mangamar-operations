@@ -2261,32 +2261,25 @@ window.attemptClientLogin = async function() {
     // Update tracking stats
     try {
         const nowIso = new Date().toISOString();
+        const fullName = window.getFullName ? window.getFullName(client) : (client.nombre || 'Cliente');
         
         // Update local memory in CRM database immediately
         client.portalLoginCount = (client.portalLoginCount || 0) + 1;
         client.lastPortalLogin = nowIso;
         
         // 1. Update individual client document
-        const clientRef = db.collection('mangamar_customers').doc(client.dni);
-        clientRef.set({
+        db.collection('mangamar_customers').doc(client.dni).set({
             portalLoginCount: firebase.firestore.FieldValue.increment(1),
             lastPortalLogin: nowIso
         }, { merge: true }).catch(err => console.error("Error updating customer portal logs:", err));
         
-        // 2. Update master_list directory doc to propagate updates to other admins
-        const masterDocRef = db.collection('mangamar_directory').doc('master_list');
-        masterDocRef.get().then(doc => {
-            if (doc.exists) {
-                let clients = doc.data().clients || [];
-                let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(client.dni));
-                if (idx > -1) {
-                    const currentCount = clients[idx].portalLoginCount || 0;
-                    clients[idx].portalLoginCount = currentCount + 1;
-                    clients[idx].lastPortalLogin = nowIso;
-                    masterDocRef.set({ clients }, { merge: true });
-                }
-            }
-        }).catch(err => console.error("Error updating master list portal logs:", err));
+        // 2. Update dedicated portal access logs collection (immune to master_list overwrites)
+        db.collection('mangamar_portal_logs').doc(client.dni).set({
+            dni: client.dni,
+            nombre: fullName,
+            portalLoginCount: firebase.firestore.FieldValue.increment(1),
+            lastPortalLogin: nowIso
+        }, { merge: true }).catch(err => console.error("Error updating portal logs collection:", err));
     } catch (e) {
         console.error("Error tracking portal login:", e);
     }
@@ -2434,6 +2427,8 @@ window.switchPwaTab = function(tabId) {
 window.accessLogsSortField = 'count';
 window.accessLogsSortAsc = false; // default show most active first
 
+window.portalLogsCache = [];
+
 window.openWebAccessLogsModal = function(isNavBackForward = false) {
     if (typeof isNavBackForward !== 'boolean') isNavBackForward = false;
     if (!isNavBackForward && typeof recordModalHistory === 'function') {
@@ -2442,7 +2437,55 @@ window.openWebAccessLogsModal = function(isNavBackForward = false) {
     }
     document.getElementById('web-access-logs-modal').classList.remove('hidden');
     if (isNavBackForward) window.hideAllNavModals('web-access-logs-modal');
-    window.renderWebAccessLogsTable();
+    
+    // Set table body to loading
+    const tbody = document.getElementById('web-access-logs-table-body');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="p-8 text-center text-slate-500 font-bold text-xs">
+                    Cargando registro de accesos...
+                </td>
+            </tr>
+        `;
+    }
+    
+    // Fetch logs from Firestore collection directly (immune to master_list overwrites)
+    db.collection('mangamar_portal_logs').get().then(snapshot => {
+        const logs = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            logs.push({
+                dni: data.dni,
+                nombre: data.nombre || 'Cliente',
+                portalLoginCount: data.portalLoginCount || 0,
+                lastPortalLogin: data.lastPortalLogin || ''
+            });
+            
+            // Sync this log back into the local memory window.customerDatabase 
+            // so clicking on their profile/ficha displays the correct count!
+            if (window.customerDatabase) {
+                const client = window.customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(data.dni));
+                if (client) {
+                    client.portalLoginCount = data.portalLoginCount || 0;
+                    client.lastPortalLogin = data.lastPortalLogin || '';
+                }
+            }
+        });
+        window.portalLogsCache = logs;
+        window.renderWebAccessLogsTable();
+    }).catch(err => {
+        console.error("Error fetching web portal logs:", err);
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="p-8 text-center text-red-500 font-bold text-xs">
+                        Error al cargar el registro de accesos: ${err.message}
+                    </td>
+                </tr>
+            `;
+        }
+    });
 };
 
 window.sortAccessLogs = function(field) {
@@ -2459,15 +2502,14 @@ window.renderWebAccessLogsTable = function() {
     const tbody = document.getElementById('web-access-logs-table-body');
     if (!tbody) return;
     
-    // Filter clients who have logged in at least once
-    let loggedInClients = (window.customerDatabase || []).filter(c => c.portalLoginCount > 0 || c.lastPortalLogin);
+    let loggedInClients = [...(window.portalLogsCache || [])];
     
     // Sort logic
     loggedInClients.sort((a, b) => {
         let valA, valB;
         if (window.accessLogsSortField === 'name') {
-            valA = window.getFullName(a).toLowerCase();
-            valB = window.getFullName(b).toLowerCase();
+            valA = (a.nombre || '').toLowerCase();
+            valB = (b.nombre || '').toLowerCase();
         } else if (window.accessLogsSortField === 'count') {
             valA = a.portalLoginCount || 0;
             valB = b.portalLoginCount || 0;
@@ -2519,7 +2561,7 @@ window.renderWebAccessLogsTable = function() {
             }
         }
         
-        const fullName = window.getFullName(c);
+        const fullName = c.nombre;
         const escapedName = fullName.replace(/'/g, "\\'");
         
         html += `
