@@ -27,7 +27,11 @@ const twToHex = {
 function getGroupColorClass(groupName) {
     let hex = null;
     if (window.globalGroups && groupName) {
-        const grp = window.globalGroups.find(g => g.name.toLowerCase() === groupName.toLowerCase());
+        const currentDate = (window.activeBoatItem && window.activeBoatItem.date) ? window.activeBoatItem.date : '';
+        const grp = (window.globalGroups || []).find(g => 
+            g.name.toLowerCase() === groupName.toLowerCase() &&
+            (!currentDate || (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate))
+        ) || (window.globalGroups || []).find(g => g.name.toLowerCase() === groupName.toLowerCase());
         if (grp && grp.color) hex = grp.color;
     }
     if (!hex) {
@@ -114,7 +118,7 @@ function findActiveTagForGuest(guestDni, guestName) {
     return foundTag;
 }
 
-window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = false, isBackgroundRefresh = false) {
+window.openGroupLinkModal = function(editGroupIdOrName = null, isNavBackForward = false, isBackgroundRefresh = false) {
     const modalEl = document.getElementById('group-link-modal');
     const isCurrentlyOpen = modalEl && !modalEl.classList.contains('hidden');
 
@@ -123,8 +127,35 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
     }
 
     if (typeof window.recordModalHistory === 'function' && !isNavBackForward && !isCurrentlyOpen) {
-        window.recordModalHistory({ type: 'group', args: [editGroupName], isNavBackForward: false });
+        window.recordModalHistory({ type: 'group', args: [editGroupIdOrName], isNavBackForward: false });
     }
+
+    let editGroupId = null;
+    let editGroupName = null;
+    let existingGlobal = null;
+
+    if (editGroupIdOrName) {
+        if (editGroupIdOrName.startsWith('grp_')) {
+            editGroupId = editGroupIdOrName;
+            existingGlobal = (window.globalGroups || []).find(g => g.id === editGroupId);
+            if (existingGlobal) {
+                editGroupName = existingGlobal.name;
+            }
+        } else {
+            editGroupName = editGroupIdOrName;
+            const currentDate = (window.activeBoatItem && window.activeBoatItem.date) ? window.activeBoatItem.date : '';
+            existingGlobal = (window.globalGroups || []).find(g => 
+                g.name.toLowerCase() === editGroupName.toLowerCase() &&
+                (!currentDate || (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate))
+            ) || (window.globalGroups || []).find(g => g.name.toLowerCase() === editGroupName.toLowerCase());
+            if (existingGlobal) {
+                editGroupId = existingGlobal.id;
+            }
+        }
+    }
+
+    window._editingGroupId = editGroupId;
+    window._editingGroupName = editGroupName;
 
     const nameInput = document.getElementById('group-name-input');
     if (nameInput && (!isBackgroundRefresh || document.activeElement !== nameInput)) {
@@ -132,7 +163,6 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
     }
     
     let defaultRange = activeBoatItem && activeBoatItem.date ? [activeBoatItem.date, activeBoatItem.date] : [];
-    let existingGlobal = null;
     
     // Check if we are creating/assigning or just managing
     const isCreationMode = window.selectedGuestsForGroup.length > 0;
@@ -165,13 +195,8 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
         return s;
     };
 
-    window._editingGroupName = editGroupName;
-
-    if (editGroupName) {
-        existingGlobal = (window.globalGroups || []).find(g => g.name.toLowerCase() === editGroupName.toLowerCase());
-        if (existingGlobal && existingGlobal.startDate && existingGlobal.endDate) {
-            defaultRange = [toDisplayDate(existingGlobal.startDate), toDisplayDate(existingGlobal.endDate)];
-        }
+    if (existingGlobal && existingGlobal.startDate && existingGlobal.endDate) {
+        defaultRange = [toDisplayDate(existingGlobal.startDate), toDisplayDate(existingGlobal.endDate)];
     } else {
         defaultRange = [toDisplayDate(activeBoatItem.date), toDisplayDate(activeBoatItem.date)];
     }
@@ -204,41 +229,43 @@ window.openGroupLinkModal = function(editGroupName = null, isNavBackForward = fa
 
 
     // 1. Render Suggested Groups (Left Side)
-    let suggestedTags = new Set();
-    (window.globalGroups || []).forEach(g => {
+    const activeGroups = (window.globalGroups || []).filter(g => {
         const currentDate = activeBoatItem.date;
-        if (currentDate >= g.startDate && currentDate <= g.endDate) suggestedTags.add(g.name);
+        return currentDate >= g.startDate && currentDate <= g.endDate;
     });
     
-    const listHtml = Array.from(suggestedTags).sort().map(tag => {
+    // Sort active groups by name
+    activeGroups.sort((a, b) => a.name.localeCompare(b.name));
+    
+    const listHtml = activeGroups.map(groupObj => {
+        const tag = groupObj.name;
         const bgColor = getGroupColorClass(tag);
         const textColor = getContrastYIQ(bgColor);
-        const isSelected = editGroupName && editGroupName.toLowerCase() === tag.toLowerCase();
+        const isSelected = window._editingGroupId 
+            ? window._editingGroupId === groupObj.id 
+            : (editGroupName && editGroupName.toLowerCase() === tag.toLowerCase());
         
         // Fetch group members names & DNIs for searching
-        const groupObj = (window.globalGroups || []).find(g => g.name.toLowerCase() === tag.toLowerCase());
         let memberNames = [];
         let memberDnis = [];
-        if (groupObj) {
-            (groupObj.members || []).forEach(mDni => {
-                memberDnis.push(mDni);
-                const cx = (customerDatabase || []).find(c => window.isSameDni(c.dni, mDni));
-                if (cx) {
-                    const fullName = getFullName(cx);
-                    if (fullName) memberNames.push(fullName);
-                }
-                const isTemp = String(mDni).toLowerCase().startsWith('temp_');
-                if (isTemp && groupObj.manualNames) {
-                    const matchedKey = Object.keys(groupObj.manualNames).find(k => k.toLowerCase() === String(mDni).toLowerCase());
-                    if (matchedKey) memberNames.push(groupObj.manualNames[matchedKey]);
-                }
-            });
-        }
+        (groupObj.members || []).forEach(mDni => {
+            memberDnis.push(mDni);
+            const cx = (customerDatabase || []).find(c => window.isSameDni(c.dni, mDni));
+            if (cx) {
+                const fullName = getFullName(cx);
+                if (fullName) memberNames.push(fullName);
+            }
+            const isTemp = String(mDni).toLowerCase().startsWith('temp_');
+            if (isTemp && groupObj.manualNames) {
+                const matchedKey = Object.keys(groupObj.manualNames).find(k => k.toLowerCase() === String(mDni).toLowerCase());
+                if (matchedKey) memberNames.push(groupObj.manualNames[matchedKey]);
+            }
+        });
         const dataGroupName = tag.replace(/"/g, '&quot;');
         const dataMemberNames = memberNames.join(' | ').replace(/"/g, '&quot;');
         const dataMemberDnis = memberDnis.join(' | ').replace(/"/g, '&quot;');
 
-        return `<button onclick="window.openGroupLinkModal('${tag}')" data-search-group-name="${dataGroupName}" data-search-member-names="${dataMemberNames}" data-search-member-dnis="${dataMemberDnis}" class="group-list-item-btn w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between group ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-300 bg-white shadow-xs'}" style="border-left: 6px solid ${bgColor}">
+        return `<button onclick="window.openGroupLinkModal('${groupObj.id}')" data-search-group-name="${dataGroupName}" data-search-member-names="${dataMemberNames}" data-search-member-dnis="${dataMemberDnis}" class="group-list-item-btn w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between group ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-300 bg-white shadow-xs'}" style="border-left: 6px solid ${bgColor}">
             <div>
                 <div class="text-sm font-black text-slate-800">${tag}</div>
                 <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Click para gestionar</div>
@@ -598,7 +625,7 @@ window.removeDiverFromBoatByDni = function(identifier) {
                 triggerAutoSave();
                 if (typeof updateModalSubtitle === 'function') updateModalSubtitle();
                 renderGroups();
-                window.openGroupLinkModal(window._editingGroupName);
+                window.openGroupLinkModal(window._editingGroupId || window._editingGroupName);
                 showToast("Buceador quitado del barco");
                 return;
             }
@@ -724,7 +751,7 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
         triggerAutoSave();
         showToast(`✅ ${addedCount} buceadores añadidos`);
         renderGroups();
-        window.openGroupLinkModal(grp.name);
+        window.openGroupLinkModal(grp.id);
     } else {
         showToast("ℹ️ Todos los miembros ya están en el barco");
     }
@@ -806,37 +833,44 @@ async function confirmGroupLink(groupName) {
     if (startDate && endDate) {
         let groupObj;
         
-        if (window._editingGroupName) {
+        if (window._editingGroupId) {
+            groupObj = window.globalGroups.find(g => g.id === window._editingGroupId);
+        } else if (window._editingGroupName) {
             groupObj = window.globalGroups.find(g => g.name.toLowerCase() === window._editingGroupName.toLowerCase());
-            if (groupObj) {
-                // If they changed the name, update it and update activeBoatItem
-                if (groupObj.name.toLowerCase() !== finalName.toLowerCase()) {
-                    activeBoatItem.groups.forEach(g => {
-                        g.guests.forEach(gst => {
-                            if (gst.bookingTag && gst.bookingTag.toLowerCase() === groupObj.name.toLowerCase()) {
-                                gst.bookingTag = finalName;
-                            }
-                        });
+        }
+        
+        if (groupObj) {
+            // If they changed the name, update it and update activeBoatItem
+            if (groupObj.name.toLowerCase() !== finalName.toLowerCase()) {
+                activeBoatItem.groups.forEach(g => {
+                    g.guests.forEach(gst => {
+                        if (gst.bookingTag && gst.bookingTag.toLowerCase() === groupObj.name.toLowerCase()) {
+                            gst.bookingTag = finalName;
+                        }
                     });
-                    groupObj.name = finalName;
-                }
+                });
+                groupObj.name = finalName;
             }
         }
         
         if (!groupObj) {
-            groupObj = window.globalGroups.find(g => g.name.toLowerCase() === finalName.toLowerCase());
+            // Only find an existing group with the same name if the dates overlap
+            groupObj = window.globalGroups.find(g => 
+                g.name.toLowerCase() === finalName.toLowerCase() &&
+                (g.startDate && g.endDate && startDate <= g.endDate && endDate >= g.startDate)
+            );
         }
         
         if (!groupObj) {
             groupObj = { id: 'grp_' + Date.now(), name: finalName, startDate: startDate, endDate: endDate, members: [] };
             if (window.globalGroups) window.globalGroups.push(groupObj);
         } else {
-            if (window._editingGroupName && window._editingGroupName.toLowerCase() === finalName.toLowerCase()) {
+            if (window._editingGroupId && groupObj.id === window._editingGroupId) {
                 // EXPLICIT EDIT MODE: Overwrite the dates with the exact selection from the picker
                 groupObj.startDate = startDate;
                 groupObj.endDate = endDate;
             } else {
-                // ASSIGNMENT MODE: Only expand dates, never shrink them accidentally
+                // ASSIGNMODE: Only expand dates, never shrink them accidentally
                 if (startDate < groupObj.startDate) groupObj.startDate = startDate;
                 if (endDate > groupObj.endDate) groupObj.endDate = endDate;
             }
@@ -870,17 +904,17 @@ async function confirmGroupLink(groupName) {
         });
         
         if (window.saveGlobalGroup) window.saveGlobalGroup(groupObj);
+        
+        window.selectedGuestsForGroup.forEach(s => {
+            activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag = finalName;
+        });
+        
+        window.selectedGuestsForGroup = []; 
+        renderGroups(); 
+        triggerAutoSave();
+        window.openGroupLinkModal(groupObj.id, true); // Keep the window open and reload it by ID
+        if (typeof showToast === 'function') showToast("✅ Grupo guardado");
     }
-    
-    window.selectedGuestsForGroup.forEach(s => {
-        activeBoatItem.groups[s.groupIndex].guests[s.guestIndex].bookingTag = finalName;
-    });
-    
-    window.selectedGuestsForGroup = []; 
-    renderGroups(); 
-    triggerAutoSave();
-    window.openGroupLinkModal(finalName, true); // Keep the window open and reload it
-    if (typeof showToast === 'function') showToast("✅ Grupo guardado");
 }
 
 window.unlinkSelected = async function() {
@@ -890,7 +924,12 @@ window.unlinkSelected = async function() {
         const guest = activeBoatItem.groups[s.groupIndex].guests[s.guestIndex];
         if (guest.bookingTag) {
             tagsToCheck.add(guest.bookingTag);
-            const globalGroup = (window.globalGroups || []).find(g => g.name.toLowerCase() === guest.bookingTag.toLowerCase());
+            const currentDate = activeBoatItem.date;
+            const globalGroup = (window.globalGroups || []).find(g => 
+                g.name.toLowerCase() === guest.bookingTag.toLowerCase() &&
+                (!currentDate || (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate))
+            ) || (window.globalGroups || []).find(g => g.name.toLowerCase() === guest.bookingTag.toLowerCase());
+            
             if (globalGroup && guest.dni) {
                 globalGroup.members = globalGroup.members.filter(m => !window.isSameDni(m, guest.dni));
             }
@@ -899,7 +938,12 @@ window.unlinkSelected = async function() {
     }
 
     for (let tagName of tagsToCheck) {
-        const globalGroup = (window.globalGroups || []).find(g => g.name.toLowerCase() === tagName.toLowerCase());
+        const currentDate = activeBoatItem.date;
+        const globalGroup = (window.globalGroups || []).find(g => 
+            g.name.toLowerCase() === tagName.toLowerCase() &&
+            (!currentDate || (g.startDate && g.endDate && currentDate >= g.startDate && currentDate <= g.endDate))
+        ) || (window.globalGroups || []).find(g => g.name.toLowerCase() === tagName.toLowerCase());
+        
         if (globalGroup) {
             if (globalGroup.members.length === 0) {
                 if (window.deleteGlobalGroup) await window.deleteGlobalGroup(globalGroup.id);
@@ -954,8 +998,9 @@ window.selectGroupCustomer = async function(encodedData) {
     if (input) input.value = getFullName(data);
     if (typeof getGlobalDropdown === 'function') getGlobalDropdown().classList.add('hidden');
     
-    if (!window._editingGroupName) return;
-    const grp = (window.globalGroups || []).find(g => g.name.toLowerCase() === window._editingGroupName.toLowerCase());
+    if (!window._editingGroupId && !window._editingGroupName) return;
+    const grp = (window.globalGroups || []).find(g => g.id === window._editingGroupId) ||
+                (window.globalGroups || []).find(g => g.name.toLowerCase() === (window._editingGroupName || '').toLowerCase());
     if (!grp) return;
     
     // Normalize DNI if present, otherwise fallback to name
@@ -988,20 +1033,21 @@ window.selectGroupCustomer = async function(encodedData) {
         }
 
         if (input) input.value = '';
-        window.openGroupLinkModal(grp.name);
+        window.openGroupLinkModal(grp.id);
     } else {
         if (typeof showToast === 'function') showToast("ℹ️ Ya está en el grupo");
     }
 };
 
 window.addMemberToGlobalGroup = async function() {
-    if (!window._editingGroupName) return;
+    if (!window._editingGroupId && !window._editingGroupName) return;
     const input = document.getElementById('group-add-member-input');
     if (!input) return;
     const val = input.value.trim();
     if (!val) return;
     
-    const grp = (window.globalGroups || []).find(g => g.name.toLowerCase() === window._editingGroupName.toLowerCase());
+    const grp = (window.globalGroups || []).find(g => g.id === window._editingGroupId) ||
+                (window.globalGroups || []).find(g => g.name.toLowerCase() === (window._editingGroupName || '').toLowerCase());
     if (!grp) return;
     
     let matchedId = val;
@@ -1047,15 +1093,16 @@ window.addMemberToGlobalGroup = async function() {
         }
 
         input.value = '';
-        window.openGroupLinkModal(grp.name);
+        window.openGroupLinkModal(grp.id);
     } else {
         if (typeof showToast === 'function') showToast("ℹ️ Ya está en el grupo");
     }
 }
 
 window.openDeleteGroupModal = function() {
-    if (!window._editingGroupName) return;
-    const grp = (window.globalGroups || []).find(g => g.name.toLowerCase() === window._editingGroupName.toLowerCase());
+    if (!window._editingGroupId && !window._editingGroupName) return;
+    const grp = (window.globalGroups || []).find(g => g.id === window._editingGroupId) ||
+                (window.globalGroups || []).find(g => g.name.toLowerCase() === (window._editingGroupName || '').toLowerCase());
     if (!grp) return;
     
     const nameSpan = document.getElementById('delete-group-name');
@@ -1072,8 +1119,9 @@ window.openDeleteGroupModal = function() {
 }
 
 window.executeDeleteGlobalGroup = async function() {
-    if (!window._editingGroupName) return;
-    const grp = (window.globalGroups || []).find(g => g.name.toLowerCase() === window._editingGroupName.toLowerCase());
+    if (!window._editingGroupId && !window._editingGroupName) return;
+    const grp = (window.globalGroups || []).find(g => g.id === window._editingGroupId) ||
+                (window.globalGroups || []).find(g => g.name.toLowerCase() === (window._editingGroupName || '').toLowerCase());
     if (!grp) return;
     
     // Disband: remove bookingTag from guests on the boat
