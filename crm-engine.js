@@ -1581,10 +1581,19 @@ window.syncJotformCustomers = async function() {
         let mergedCount = 0;
 
         data.clients.forEach(sheetClient => {
-            const rawDni = (sheetClient.dni || '').trim().toUpperCase();
+            let rawDni = (sheetClient.dni || '').trim().toUpperCase();
             if (!rawDni) return;
 
-            const normDni = window.normalizeSearchString(rawDni);
+            let normDni = window.normalizeSearchString(rawDni);
+            
+            // Translate DNI if a redirection mapping exists (from CRM edits)
+            const normDniForRedirect = window.normalizeDni(rawDni);
+            if (window.dniRedirects && window.dniRedirects[normDniForRedirect]) {
+                const redirectedDni = window.dniRedirects[normDniForRedirect];
+                console.log(`🔀 [Jotform Sync] Redirecting client DNI ${rawDni} -> ${redirectedDni} based on CRM edits`);
+                rawDni = redirectedDni;
+                normDni = window.normalizeSearchString(redirectedDni);
+            }
 
             // Find if this DNI already exists in the CRM
             const existing = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === normDni);

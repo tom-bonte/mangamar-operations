@@ -29,6 +29,7 @@ window.getClientKey = function(c) {
 window.crmLoaded = false;
 window.crmLoadedClientCount = 0; // Track how many clients were in the last successful full load
 window.loadedDnis = new Set(); // Tracks client keys present when this tab loaded/synced to prevent overwriting new additions
+window.dniRedirects = {}; // Global dictionary mapping wrong/old DNI -> correct/new DNI
 
 /**
  * Safe wrapper for ALL master_list writes.
@@ -574,6 +575,7 @@ function startFirestoreListeners() {
             if (doc.exists) {
                 const data = doc.data();
                 window.adminPassword = data.adminPassword || "manga321";
+                window.dniRedirects = data.dniRedirects || {};
                 
                 if (data.showTVRadioTimes !== undefined) {
                     const checked = data.showTVRadioTimes !== false;
@@ -825,7 +827,13 @@ window.mergeAndRender = function mergeAndRender() {
         const resolveGuestName = (g) => {
             if (g.nombre) g.nombre = fixNameCaps(g.nombre);
             if (g.dni) {
-                const normDni = window.normalizeDni(g.dni);
+                let normDni = window.normalizeDni(g.dni);
+                if (window.dniRedirects && window.dniRedirects[normDni]) {
+                    const redirectedDni = window.dniRedirects[normDni];
+                    console.log(`🔀 [Visor Render] Redirecting manifest guest DNI ${g.dni} -> ${redirectedDni}`);
+                    g.dni = redirectedDni;
+                    normDni = redirectedDni;
+                }
                 if (customerMap) {
                     const profile = customerMap.get(normDni);
                     if (profile) {

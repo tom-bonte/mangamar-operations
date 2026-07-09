@@ -1129,6 +1129,22 @@ window.saveCustomerEdits = async function () {
             if (oldDni !== newDni) {
                 db.collection('mangamar_customers').doc(oldDni).delete().catch(e => console.error("Error deleting old DNI:", e));
                 window.migrateCustomerHistory(oldDni, newDni).catch(e => console.error("Error migrating history:", e));
+
+                // Add DNI redirect to settings document in Firestore to prevent sync/heal duplications
+                const settingsRef = db.collection("mangamar_directory").doc("settings");
+                settingsRef.get().then(doc => {
+                    const currentRedirects = doc.exists ? (doc.data().dniRedirects || {}) : {};
+                    const normOld = window.normalizeDni(oldDni);
+                    const normNew = window.normalizeDni(newDni);
+                    currentRedirects[normOld] = normNew;
+                    for (let k in currentRedirects) {
+                        if (currentRedirects[k] === normOld) {
+                            currentRedirects[k] = normNew;
+                        }
+                    }
+                    settingsRef.set({ dniRedirects: currentRedirects }, { merge: true })
+                        .catch(e => console.error("Error saving DNI redirects:", e));
+                }).catch(e => console.error("Error fetching settings for DNI redirects:", e));
             }
         }
 
