@@ -67,7 +67,7 @@
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden font-sans">
     <!-- Full-Screen Premium Login Gate -->
     <div id="login-gate" class="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/95 backdrop-blur-md overflow-hidden hidden transition-all duration-500">
-        <div class="relative w-full max-w-md p-8 bg-slate-900/40 border border-slate-800 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl flex flex-col items-center">
+        <div id="login-gate-card" class="relative w-full max-w-md p-8 bg-slate-900/40 border border-slate-800 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl flex flex-col items-center transition-all duration-300">
             <!-- Help PWA Button -->
             <div class="absolute top-4 right-4 group">
                 <button onclick="document.getElementById('pwa-modal').classList.remove('hidden')" class="w-6 h-6 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors text-xs font-black flex items-center justify-center border border-slate-750">
@@ -205,7 +205,7 @@
                 
                 <h3 id="client-overview-name" class="text-base font-black text-white truncate leading-tight"></h3>
                 
-                <div class="relative w-full" style="height: 35vh;">
+                <div id="client-overview-container" class="relative w-full" style="height: 35vh;">
                     <textarea id="client-overview-text" class="w-full h-full p-4 bg-slate-900 border border-slate-800 rounded-2xl font-mono text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner resize-none leading-relaxed" readonly></textarea>
                 </div>
             </div>
@@ -1700,7 +1700,13 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">DNI/Pasaporte</label>
-                    <input type="text" id="edit-f-dni" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-500 cursor-not-allowed">
+                    <div class="flex gap-2">
+                        <input type="text" id="edit-f-dni" readonly class="flex-1 min-w-0 px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-500 cursor-not-allowed">
+                        <button type="button" id="edit-dni-unlock-btn" onclick="window.promptUnlockDni()" class="px-3 py-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 hover:text-red-700 text-xs font-black rounded-lg transition-colors flex items-center justify-center gap-1.5 hidden shadow-sm uppercase shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Editar DNI
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Fecha de Nacimiento</label>

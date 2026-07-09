@@ -2061,11 +2061,29 @@ window.showGateView = function(view) {
     const staff = document.getElementById('gate-staff-view');
     const client = document.getElementById('gate-client-view');
     const overview = document.getElementById('gate-client-overview');
+    const gateCard = document.getElementById('login-gate-card');
+    const overviewContainer = document.getElementById('client-overview-container');
 
     if (sel) sel.classList.add('hidden');
     if (staff) staff.classList.add('hidden');
     if (client) client.classList.add('hidden');
     if (overview) overview.classList.add('hidden');
+
+    if (gateCard) {
+        if (view === 'overview') {
+            gateCard.classList.replace('max-w-md', 'md:max-w-4xl');
+        } else {
+            gateCard.classList.replace('md:max-w-4xl', 'max-w-md');
+        }
+    }
+    
+    if (overviewContainer) {
+        if (view === 'overview') {
+            overviewContainer.style.height = "55vh";
+        } else {
+            overviewContainer.style.height = "35vh";
+        }
+    }
 
     if (view === 'selection') {
         if (sel) sel.classList.remove('hidden');

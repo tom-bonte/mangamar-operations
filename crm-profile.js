@@ -958,6 +958,20 @@ window.renderFichaFromCache = function(dni, targetTab) {
     switchFichaTab(targetTab);
 };
 
+window.promptUnlockDni = function() {
+    const msg = `⚠️ ADVERTENCIA: Modificar el DNI cambiará el identificador único de este cliente en toda la base de datos, incluyendo su historial, grupos y todas las salidas en las que esté asignado.\n\n¿Estás seguro de que deseas desbloquear y editar el DNI?`;
+    window.showAppConfirm(msg, () => {
+        const dniInput = document.getElementById('edit-f-dni');
+        if (dniInput) {
+            dniInput.removeAttribute('readonly');
+            dniInput.className = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all";
+            dniInput.focus();
+        }
+        const unlockBtn = document.getElementById('edit-dni-unlock-btn');
+        if (unlockBtn) unlockBtn.classList.add('hidden');
+    });
+};
+
 window.promptEditCustomer = function () {
     if (!window.activeFichaDni) return;
     const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, window.activeFichaDni)) || {};
@@ -967,12 +981,15 @@ window.promptEditCustomer = function () {
     
     // If it's a temporary DNI (or empty), allow editing it to link/create a proper customer!
     const isTemp = window.activeFichaDni.toLowerCase().startsWith('temp_') || !window.activeFichaDni;
+    const unlockBtn = document.getElementById('edit-dni-unlock-btn');
     if (isTemp) {
         dniInput.removeAttribute('readonly');
         dniInput.className = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all";
+        if (unlockBtn) unlockBtn.classList.add('hidden');
     } else {
         dniInput.setAttribute('readonly', 'true');
         dniInput.className = "w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-500 cursor-not-allowed";
+        if (unlockBtn) unlockBtn.classList.remove('hidden');
     }
 
     document.getElementById('edit-f-nombre').value = window.getFullName(customerInfo, false);
