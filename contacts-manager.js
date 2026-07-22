@@ -32,6 +32,10 @@ window.initContactsListener = function() {
         contacts.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
         window.contactsDatabase = contacts;
 
+        if (typeof window.repopulateContactCategories === 'function') {
+            window.repopulateContactCategories();
+        }
+
         // Redraw list if open
         const modal = document.getElementById('contacts-modal');
         if (modal && !modal.classList.contains('hidden')) {
@@ -60,6 +64,9 @@ window.openContactsModal = function() {
     document.getElementById('contacts-search-input').value = '';
     document.getElementById('contacts-category-select').value = '';
 
+    if (typeof window.repopulateContactCategories === 'function') {
+        window.repopulateContactCategories();
+    }
     window.renderContactsList();
 };
 
@@ -211,6 +218,12 @@ window.openContactWizard = function(contactId = null) {
     document.getElementById('wizard-contact-categoria').value = 'Mecánicos';
     document.getElementById('wizard-contact-nota').value = '';
     document.getElementById('wizard-contact-date-added').value = new Date().toISOString().split('T')[0];
+    
+    const newCatInput = document.getElementById('wizard-contact-new-categoria');
+    if (newCatInput) {
+        newCatInput.classList.add('hidden');
+        newCatInput.value = '';
+    }
 
     document.getElementById('wizard-title').textContent = contactId ? 'Editar Contacto' : 'Nuevo Contacto';
 
@@ -240,13 +253,21 @@ window.saveContact = async function() {
     const nombre = document.getElementById('wizard-contact-nombre').value.trim();
     const telefono = document.getElementById('wizard-contact-telefono').value.trim();
     const email = document.getElementById('wizard-contact-email').value.trim();
-    const categoria = document.getElementById('wizard-contact-categoria').value;
+    let categoria = document.getElementById('wizard-contact-categoria').value;
     const nota = document.getElementById('wizard-contact-nota').value.trim();
     const dateAdded = document.getElementById('wizard-contact-date-added').value;
 
     if (!nombre) {
         showAppAlert("El nombre es obligatorio.");
         return;
+    }
+
+    if (categoria === '__NEW__') {
+        categoria = document.getElementById('wizard-contact-new-categoria').value.trim();
+        if (!categoria) {
+            showAppAlert("Por favor, introduce el nombre de la nueva categoría.");
+            return;
+        }
     }
 
     const payload = {
@@ -360,3 +381,46 @@ if (!window.isStaffLoggedIn) {
         }
     }, 1000);
 }
+
+// Repopulates categories in filter dropdown and wizard dropdown based on DB values
+window.repopulateContactCategories = function() {
+    const defaultCategories = ["Mecánicos", "Puerto Cabo de Palos", "Capitanía"];
+    const dbCategories = (window.contactsDatabase || []).map(c => c.categoria).filter(Boolean);
+    const allCategories = Array.from(new Set([...defaultCategories, ...dbCategories])).sort();
+
+    // 1. Repopulate Filter Dropdown
+    const filterSelect = document.getElementById('contacts-category-select');
+    if (filterSelect) {
+        const currentValue = window.contactsCategoryFilter;
+        let html = '<option value="">Todas las Categorías</option>';
+        allCategories.forEach(cat => {
+            html += `<option value="${cat}" ${cat === currentValue ? 'selected' : ''}>${cat}</option>`;
+        });
+        filterSelect.innerHTML = html;
+    }
+
+    // 2. Repopulate Wizard Dropdown
+    const wizardSelect = document.getElementById('wizard-contact-categoria');
+    if (wizardSelect) {
+        const currentValue = wizardSelect.value;
+        let html = '';
+        allCategories.forEach(cat => {
+            html += `<option value="${cat}" ${cat === currentValue ? 'selected' : ''}>${cat}</option>`;
+        });
+        html += `<option value="__NEW__">+ Nueva categoría...</option>`;
+        wizardSelect.innerHTML = html;
+    }
+};
+
+window.handleWizardCategoryChange = function(value) {
+    const newCatInput = document.getElementById('wizard-contact-new-categoria');
+    if (newCatInput) {
+        if (value === '__NEW__') {
+            newCatInput.classList.remove('hidden');
+            newCatInput.focus();
+        } else {
+            newCatInput.classList.add('hidden');
+            newCatInput.value = '';
+        }
+    }
+};

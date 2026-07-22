@@ -3243,11 +3243,13 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Categoría</label>
-                        <select id="wizard-contact-categoria" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm cursor-pointer">
+                        <select id="wizard-contact-categoria" onchange="window.handleWizardCategoryChange(this.value)" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm cursor-pointer">
                             <option value="Mecánicos">Mecánicos</option>
                             <option value="Puerto Cabo de Palos">Puerto Cabo de Palos</option>
                             <option value="Capitanía">Capitanía</option>
+                            <option value="__NEW__">+ Nueva categoría...</option>
                         </select>
+                        <input type="text" id="wizard-contact-new-categoria" placeholder="Nombre de categoría" class="w-full mt-2 px-4 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm hidden">
                     </div>
                     
                     <div>
