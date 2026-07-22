@@ -169,8 +169,11 @@ window._buildTVContent = function() {
 
                 let groupsHtml = '';
                 (trip.groups || []).forEach(group => {
-                    const guideFirst = (group.guide || 'POR ASIGNAR').split(' ')[0];
-                    const guideLabel = guideFirst.charAt(0).toUpperCase() + guideFirst.slice(1);
+                    let guideLabel = 'Sin Guía';
+                    if (group.guide && group.guide.trim() && group.guide.trim().toUpperCase() !== 'POR ASIGNAR' && group.guide.trim().toUpperCase() !== 'POR') {
+                        const guideFirst = group.guide.trim().split(' ')[0];
+                        guideLabel = guideFirst.charAt(0).toUpperCase() + guideFirst.slice(1).toLowerCase();
+                    }
                     const supportFirst = (group.apoyo || '').split(' ')[0];
                     const supportLabel = supportFirst ? supportFirst.charAt(0).toUpperCase() + supportFirst.slice(1) : '';
                     const groupGuests = (group.guests || []).filter(g => !g.cancelled);
