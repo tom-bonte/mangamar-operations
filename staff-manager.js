@@ -65,19 +65,24 @@ function renderStaffView() {
                     roleBadge = `<span class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${badgeColor}">${person.role}</span>`;
                 }
                 return `
-                <div class="flex items-center gap-3 pl-1 flex-1 min-w-0">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black ${avatarColor} shadow-inner shrink-0">
+                <div class="flex items-start gap-3 pl-1 flex-1 min-w-0">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black ${avatarColor} shadow-inner shrink-0 mt-0.5">
                         ${getInitials(person.nombre)}
                     </div>
-                    <div class="flex flex-col justify-center min-w-0 flex-1">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <div class="font-bold text-slate-800 text-sm leading-tight truncate">${person.nombre}</div>
-                            <div class="text-[10px] text-slate-400 font-mono tracking-widest uppercase flex items-center gap-1 shrink-0">
-                                <svg class="w-3 h-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
+                    <div class="flex flex-col min-w-0 flex-1">
+                        <div class="font-black text-slate-800 text-sm leading-snug break-words pr-1">${person.nombre}</div>
+                        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mt-1.5">
+                            <div class="text-[10px] text-slate-400 font-mono tracking-wide uppercase flex items-center gap-1 shrink-0">
+                                <svg class="w-3 h-3 text-slate-350" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
                                 ${person.dni}
                             </div>
+                            ${person.padi ? `
+                                <div class="text-[9px] font-black text-sky-700 bg-sky-50 border border-sky-150 rounded px-1.5 py-0.5 flex items-center gap-0.5 leading-none h-4 uppercase tracking-wider shrink-0">
+                                    <span>PADI ${person.padi}</span>
+                                </div>
+                            ` : ''}
+                            ${roleBadge ? `<div class="flex shrink-0">${roleBadge}</div>` : ''}
                         </div>
-                        ${roleBadge ? `<div class="mt-1 flex items-start">${roleBadge}</div>` : ''}
                     </div>
                 </div>
                 `;
@@ -149,10 +154,15 @@ async function addStaff(type) {
     if (type === 'guias') {
         const roleInput = document.getElementById('new-guide-role');
         newPerson.role = roleInput ? roleInput.value : 'Guía';
+        const padiInput = document.getElementById('new-guide-padi');
+        newPerson.padi = padiInput ? padiInput.value.trim() : '';
     }
     
     staffDatabase[type].push(newPerson);
     nameInput.value = ''; dniInput.value = '';
+    const padiInput = document.getElementById('new-guide-padi');
+    if (padiInput) padiInput.value = '';
+
     await db.collection(INTERNAL_DB).doc('staff').set(staffDatabase);
 }
 async function removeStaff(type, index) {
@@ -171,11 +181,16 @@ function openEditStaffModal(type, index) {
     document.getElementById('edit-staff-dni').value = person.dni;
     
     const roleContainer = document.getElementById('edit-staff-role-container');
+    const padiContainer = document.getElementById('edit-staff-padi-container');
     if (type === 'guias') {
         roleContainer.classList.remove('hidden');
+        if (padiContainer) padiContainer.classList.remove('hidden');
         document.getElementById('edit-staff-role').value = person.role || 'Guía';
+        const padiInput = document.getElementById('edit-staff-padi');
+        if (padiInput) padiInput.value = person.padi || '';
     } else {
         roleContainer.classList.add('hidden');
+        if (padiContainer) padiContainer.classList.add('hidden');
     }
     
     document.getElementById('edit-staff-modal').classList.remove('hidden');
@@ -190,6 +205,8 @@ async function saveStaffEdit() {
     let updatedPerson = { nombre: newName, dni: newDni };
     if (type === 'guias') {
         updatedPerson.role = document.getElementById('edit-staff-role').value;
+        const padiInput = document.getElementById('edit-staff-padi');
+        updatedPerson.padi = padiInput ? padiInput.value.trim() : '';
     }
     
     staffDatabase[type][index] = updatedPerson;
