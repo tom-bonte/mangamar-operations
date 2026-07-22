@@ -1219,11 +1219,17 @@ window.renderCrmTable = function () {
 // Hook auto-refresh if CRM is open locally and modifications are made via Ficha
 const _crm_originalCloseProfile = window.closeGlobalModal;
 window.closeGlobalModal = function (id) {
-    _crm_originalCloseProfile(id);
+    if (typeof _crm_originalCloseProfile === 'function') {
+        _crm_originalCloseProfile(id);
+    }
     if (id === 'customer-profile-modal' || (id && id.id === 'customer-profile-modal')) {
         const crmModal = document.getElementById('crm-modal');
         if (crmModal && !crmModal.classList.contains('hidden')) {
             renderCrmTable();
+        }
+        const boatModal = document.getElementById('manage-boat-modal');
+        if (boatModal && !boatModal.classList.contains('hidden') && typeof renderGroups === 'function') {
+            renderGroups(true);
         }
     }
 };

@@ -671,6 +671,7 @@ window.clearCustomerDeposits = async function (dni) {
                 customerDatabase[custIndex].deposit = 0;
                 delete customerDatabase[custIndex].depositMethod;
                 delete customerDatabase[custIndex].depositContasimple;
+                customerDatabase[custIndex].deposits = [];
             }
 
             // 2. Update all pending history items in window.activeFichaDives (and window.activeFichaRawDocs)
@@ -717,7 +718,8 @@ window.clearCustomerDeposits = async function (dni) {
             await customerRef.set({
                 deposit: 0,
                 depositMethod: firebase.firestore.FieldValue.delete(),
-                depositContasimple: firebase.firestore.FieldValue.delete()
+                depositContasimple: firebase.firestore.FieldValue.delete(),
+                deposits: []
             }, { merge: true });
 
             // B. Write customerDatabase update to master_list

@@ -1027,21 +1027,64 @@ function _renderGroupsCore(skipAutoSave = false) {
                 tagHtml = `<div class="relative flex items-center justify-center"><button onclick="toggleGuestSelection(${groupIndex}, ${guestIndex})" class="w-6 h-6 rounded-full border text-[10px] shadow-sm font-black mx-auto flex items-center justify-center transition-all ${isSelectedForGroup ? 'ring-2 ring-offset-2 ring-blue-600 border-white' : 'border-white/30'}" style="background-color: ${bgColor}; color: ${textColor};">${guestIndex + 1}</button></div>`;
             }
 
-            let customerDeposit = guest.localDeposit || 0;
-            let depositContasimple = guest.localDepositC || false;
+            // Look up the customer's profile deposits in customerDatabase
+            const profile = window.customerDatabase ? window.customerDatabase.find(c => window.isSameDni(c.dni, guest.dni)) : null;
+            let totalProfileDeposit = 0;
+            let depositMethods = [];
+            let csDepositCount = 0;
+            let totalDepositCount = 0;
             
-            // Orange by default if there's any deposit, green if Contasimple (C) checked
-            let depositColor = depositContasimple ? 'text-emerald-600 font-black' : 'text-orange-500 font-black';
-            let depositFocusRing = depositContasimple ? 'focus:ring-emerald-500' : 'focus:ring-orange-500';
-            let cClass = depositContasimple ? 'bg-blue-600 text-white border-blue-700 font-bold' : 'bg-white text-blue-400 border-blue-200 hover:bg-blue-50';
+            if (profile && profile.deposits) {
+                profile.deposits.forEach(d => {
+                    totalProfileDeposit += parseFloat(d.amount) || 0;
+                    depositMethods.push(`${d.amount}€ (${d.method})`);
+                    totalDepositCount++;
+                    if (d.contasimple) csDepositCount++;
+                });
+            } else if (profile && profile.deposit && parseFloat(profile.deposit) > 0) {
+                // Legacy single-deposit field
+                totalProfileDeposit += parseFloat(profile.deposit);
+                depositMethods.push(`${profile.deposit}€ (${profile.depositMethod || 'Efectivo'})`);
+                totalDepositCount++;
+                if (profile.depositContasimple) csDepositCount++;
+            }
             
-            let senalHtml = 
-                `<div class="flex items-center justify-center gap-1">
-                    <input type="number" value="${customerDeposit}" onchange="updateGuestDeposit('${guest.dni || ''}', this.value, ${groupIndex}, ${guestIndex})" class="w-12 px-1 py-1 text-center bg-white border border-slate-200 rounded text-[10px] ${depositColor} focus:outline-none focus:ring-1 ${depositFocusRing} shadow-inner" style="-moz-appearance: textfield;" title="Depósito / Anticipo">
-                    <button onclick="toggleContasimple(${groupIndex}, ${guestIndex})" class="w-5 h-5 flex justify-center items-center rounded border transition-colors text-[9px] font-black shrink-0 ${cClass}" title="Contasimple (Contabilizado)">
-                        C
-                    </button>
-                </div>`;
+            let localDeposit = parseFloat(guest.localDeposit) || 0;
+            let localDepositMethod = guest.localDepositMethod || '';
+            let localDepositContasimple = guest.localDepositC || false;
+            
+            // Only count guest.localDeposit if the profile has NO deposits.
+            // Once a localDeposit is migrated into profile.deposits, it still sits on the
+            // trip/manifest document (async cleanup). Counting both would double the amount.
+            const profileHasDeposits = totalProfileDeposit > 0;
+            const useLocalDeposit = localDeposit > 0 && !profileHasDeposits;
+            
+            let totalDeposit = totalProfileDeposit + (useLocalDeposit ? localDeposit : 0);
+            
+            if (useLocalDeposit) {
+                depositMethods.push(`${localDeposit}€ (${localDepositMethod || 'Manifiesto'})`);
+                totalDepositCount++;
+                if (localDepositContasimple) csDepositCount++;
+            }
+            
+            // Blue only when ALL deposits are in Contasimple, orange otherwise
+            const allContasimple = totalDepositCount > 0 && csDepositCount === totalDepositCount;
+            let depositMethod = depositMethods.join(', ') || 'Efectivo';
+            
+            let senalHtml = '<span class="text-slate-350 select-none">—</span>';
+            if (totalDeposit > 0) {
+                const badgeClass = allContasimple
+                    ? 'bg-blue-50 border border-blue-200 text-blue-600 font-bold'
+                    : 'bg-orange-50 border border-orange-200 text-orange-600 font-bold';
+                const csStatus = allContasimple ? ' (Todo Contabilizado)' : csDepositCount > 0 ? ` (${csDepositCount}/${totalDepositCount} Contasimple)` : ' (Pendiente Contasimple)';
+                const tooltipText = `Depósitos: ${depositMethod}${csStatus}`;
+                
+                senalHtml = `
+                    <div class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-black cursor-help transition-all hover:scale-105 shadow-xs ${badgeClass}" title="${tooltipText}">
+                        ${totalDeposit.toFixed(2)}&nbsp;€
+                    </div>
+                `;
+            }
 
             html += `
                 <tr draggable="${window.isLoggedIn ? 'true' : 'false'}"

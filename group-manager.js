@@ -316,6 +316,10 @@ window.openGroupLinkModal = function(editGroupIdOrName = null, isNavBackForward 
                 
                 const isOnBoat = activeBoatItem.groups.some(grp => grp.guests.some(gst => (gst.dni && window.isSameDni(gst.dni, mDni)) || (!gst.dni && gst.tempId && gst.tempId.toLowerCase() === String(mDni).toLowerCase()) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === String(mDni).toLowerCase())));
 
+                const safeFullName = (fullName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeGroupName = (existingGlobal.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeDni = (mDni || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
                 return `
                 <div class="flex items-center justify-between bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-100 transition-all group/item shadow-sm">
                     <div class="flex-1 min-w-0 pr-6">
@@ -324,16 +328,16 @@ window.openGroupLinkModal = function(editGroupIdOrName = null, isNavBackForward 
                     </div>
                     <div class="flex items-center gap-3">
                         ${isOnBoat ? 
-                            `<button onclick="window.removeDiverFromBoatByDni('${mDni}')" class="px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700 hover:border-red-200 rounded-xl text-[10px] font-black uppercase shadow-sm border border-emerald-200 transition-all group/badge" title="Quitar del barco actual">
+                            `<button onclick="window.removeDiverFromBoatByDni('${safeDni}')" class="px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700 hover:border-red-200 rounded-xl text-[10px] font-black uppercase shadow-sm border border-emerald-200 transition-all group/badge" title="Quitar del barco actual">
                                 <span class="group-hover/badge:hidden">En Barco</span>
                                 <span class="hidden group-hover/badge:inline">Quitar</span>
                              </button>` :
-                            `<button onclick="window.addDiverToBoat('${mDni}', '${existingGlobal.name}')" class="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg active:scale-95" title="Añadir al barco">
+                            `<button onclick="window.addDiverToBoat('${safeDni}', '${safeGroupName}')" class="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg active:scale-95" title="Añadir al barco">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                              </button>`
                         }
                         <div class="w-px h-6 bg-slate-200 ml-1"></div>
-                        <button onclick="window.promptRemoveGlobalGroupMember('${existingGlobal.id}', '${mDni}', '${fullName}')" class="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Desvincular definitivamente del Grupo">
+                        <button onclick="window.promptRemoveGlobalGroupMember('${existingGlobal.id}', '${safeDni}', '${safeFullName}')" class="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Desvincular definitivamente del Grupo">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path></svg>
                         </button>
                     </div>
@@ -500,7 +504,11 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
     const strIdentifier = String(identifier);
     const searchVal = strIdentifier.toLowerCase();
 
-    const alreadyOn = activeBoatItem.groups.some(grp => grp.guests.some(gst => (gst.dni && window.isSameDni(gst.dni, strIdentifier)) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === searchVal)));
+    const alreadyOn = activeBoatItem.groups.some(grp => grp.guests.some(gst => 
+        (gst.dni && window.isSameDni(gst.dni, strIdentifier)) || 
+        (!gst.dni && gst.tempId && gst.tempId.toLowerCase() === searchVal) ||
+        (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === searchVal)
+    ));
     if (alreadyOn) return;
 
     let cx = (customerDatabase || []).find(c => c.dni && window.isSameDni(c.dni, strIdentifier));
@@ -620,7 +628,9 @@ window.removeDiverFromBoatByDni = function(identifier) {
     for (let i = 0; i < activeBoatItem.groups.length; i++) {
         for (let j = 0; j < activeBoatItem.groups[i].guests.length; j++) {
             const gst = activeBoatItem.groups[i].guests[j];
-            if ((gst.dni && window.isSameDni(gst.dni, identifier)) || (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === strIdentifier)) {
+            if ((gst.dni && window.isSameDni(gst.dni, identifier)) || 
+                (!gst.dni && gst.tempId && gst.tempId.toLowerCase() === strIdentifier) ||
+                (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === strIdentifier)) {
                 activeBoatItem.groups[i].guests.splice(j, 1);
                 triggerAutoSave();
                 if (typeof updateModalSubtitle === 'function') updateModalSubtitle();

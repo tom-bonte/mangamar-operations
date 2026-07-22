@@ -321,7 +321,17 @@ function syncActiveMonthListeners() {
                         const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
                         if (tripMonth && tripMonth !== doc.id) continue;
 
-                        internalData.push({ id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id });
+                        const trip = { id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id };
+                        if (trip.groups && Array.isArray(trip.groups)) {
+                            const flat = [];
+                            trip.groups.forEach(g => {
+                                if (g && Array.isArray(g.guests)) {
+                                    flat.push(...g.guests);
+                                }
+                            });
+                            trip.guests = flat;
+                        }
+                        internalData.push(trip);
                     }
                 }
                 internalMonthData.set(monthKey, internalData);
@@ -541,8 +551,14 @@ function startFirestoreListeners() {
                         window.safeMasterListWrite(cleanClients, 'auto-heal-on-load', true);
                     }
     
-                    // Trigger non-blocking database-wide auto-heal sweep to correct name formats in all historic/current boat sheets
-                    // Disabled automatically on startup to save Firebase reads/writes. Can be run manually from browser console: window.repairAllManifestNames()
+                    // Trigger one-time automatic manifest size repair on load to shrink DB documents
+                    if (!localStorage.getItem('manifest_size_repair_v2')) {
+                        localStorage.setItem('manifest_size_repair_v2', 'true');
+                        console.log("🚀 Running automatic one-time database manifest size repair...");
+                        setTimeout(() => {
+                            window.repairAllManifestNames();
+                        }, 2000);
+                    }
                     /*
                     setTimeout(() => {
                         if (typeof window.repairAllManifestNames === 'function') {
@@ -1054,6 +1070,17 @@ window.updateLocalTripCache = function(tripId, date, updatedTrip) {
  * @async
  */
 async function saveInternalBoatData(id, date, boatInfoPayload) {
+    if (!id) {
+        console.error("saveInternalBoatData: Trip ID is missing!");
+        showAppAlert("Error de guardado: ID de la salida ausente.");
+        return;
+    }
+    if (!date || typeof date !== 'string' || date.length < 7) {
+        console.error("saveInternalBoatData: Date is missing or invalid!", date);
+        showAppAlert("Error de guardado: Fecha de la salida ausente o inválida.");
+        return;
+    }
+    
     const monthKey = date.substring(0, 7); // Format: YYYY-MM
     
     // --- 🚨 AUTO-ALIGN FLAT GUESTS LIST ---
@@ -1068,6 +1095,16 @@ async function saveInternalBoatData(id, date, boatInfoPayload) {
         });
         boatInfoPayload.guests = flatGuests;
     }
+
+    // Clean up undefined properties recursively to avoid Firestore serialization errors
+    const cleanPayload = JSON.parse(JSON.stringify(boatInfoPayload));
+
+    // EXCLUDE guests array from database document to stay well below the 1MB document size limit.
+    // We dynamically reconstruct the flat guests array from the groups array when reading/loading.
+    if (cleanPayload && Array.isArray(cleanPayload.groups)) {
+        delete cleanPayload.guests;
+    }
+
     try {
         // 'merge: true' ensures we safely insert/update this specific trip ID 
         // without accidentally overwriting the rest of the month's schedule
@@ -1076,23 +1113,28 @@ async function saveInternalBoatData(id, date, boatInfoPayload) {
         // Converts the nested payload into dot-notation to PREVENT Firebase from entirely
         // replacing the allocation object, which inadvertently wipes the `_deleted` tombstone.
         const updatePayload = {};
-        for (const key in boatInfoPayload) {
-            updatePayload[`allocations.${id}.${key}`] = boatInfoPayload[key];
+        for (const key in cleanPayload) {
+            updatePayload[`allocations.${id}.${key}`] = cleanPayload[key];
+        }
+        
+        // Force-delete the redundant guests field in the database if groups are present
+        if (cleanPayload && Array.isArray(cleanPayload.groups)) {
+            updatePayload[`allocations.${id}.guests`] = firebase.firestore.FieldValue.delete();
         }
 
         await db.collection(INTERNAL_DB).doc(monthKey).update(updatePayload)
         .catch(err => {
             console.warn(`Doc missing, falling back to set for ${monthKey}`, err);
             return db.collection(INTERNAL_DB).doc(monthKey).set(
-                { allocations: { [id]: boatInfoPayload } }, 
+                { allocations: { [id]: cleanPayload } }, 
                 { merge: true }
             );
         });
         
         console.log("Datos guardados en Firestore correctamente.");
     } catch (e) {
-        console.error("Error al guardar:", e);
-        showAppAlert("Error de conexión con la base de datos.");
+        console.error("Error al guardar en saveInternalBoatData:", e);
+        showAppAlert("Error de conexión con la base de datos: " + e.message);
         throw e; // Stops the modal from closing if the save failed
     }
 }
@@ -1226,6 +1268,12 @@ window.repairAllManifestNames = async function() {
             for (const tripId in allocations) {
                 const trip = allocations[tripId];
                 let tripModified = false;
+
+                // --- OPTIMIZATION: Remove redundant guests array to shrink document sizes ---
+                if (trip.groups && Array.isArray(trip.groups) && trip.guests) {
+                    delete trip.guests;
+                    tripModified = true;
+                }
 
                 const checkAndFixGuest = (g) => {
                     if (g.dni) {

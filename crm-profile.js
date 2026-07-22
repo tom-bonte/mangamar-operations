@@ -36,6 +36,9 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
     recordModalHistory({ type: 'customer', args: [dni, nombre], targetTab, isNavBackForward });
 
     window.historialClearSelection(); // Clear multiple selection on newly opened profile
+    window.cajaUncheckedDocIds = new Set(); // Reset check status for Caja
+    window.cajaSelectedGroupMembers = new Set([window.normalizeDni(dni)]);
+    window.groupHistoryCache = {};
     if (window.closeFacturaView) window.closeFacturaView(); // Ensure details view is always closed
     if (!isNavBackForward) window.fichaDisplayLimit = 15; // Reset pagination for fresh loads
 
@@ -160,7 +163,11 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
         }
 
         window.activeFichaRawDocs = [];
-        snapshot.forEach(doc => window.activeFichaRawDocs.push(doc));
+        snapshot.forEach(doc => {
+            doc._ownerDni = window.normalizeDni(dni);
+            window.activeFichaRawDocs.push(doc);
+        });
+        window.groupHistoryCache[window.normalizeDni(dni)] = window.activeFichaRawDocs;
         // Sort explicitly by date & time ascending so chronological calculations (like deposits/insurance)
         // are applied correctly, and reversing later yields strict descending order.
         window.activeFichaRawDocs.sort((a, b) => {
@@ -248,8 +255,8 @@ setTimeout(() => {
 }, 4000); // Give database time to load internalTrips
 // ==========================================
     const processedDives = [];
-    let billedCourses = new Set();
-    let activeInsExpiry = null;
+    const billedCoursesMap = {};
+    const activeInsExpiryMap = {};
 
     // Helper: check both flat guests[] AND groups[].guests[] for a DNI match
     const isGuestOnTrip = (trip, targetDni) => {
@@ -268,6 +275,14 @@ setTimeout(() => {
         // Handle mock documents from optimistic rendering or real Firestore documents
         let data = typeof item.data === 'function' ? item.data() : item.data;
         
+        const itemDni = item._ownerDni || window.normalizeDni(dni);
+        const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, itemDni)) || { telefono: '', email: '', discount: 0 };
+        
+        if (!billedCoursesMap[itemDni]) billedCoursesMap[itemDni] = new Set();
+        const billedCourses = billedCoursesMap[itemDni];
+        
+        let activeInsExpiry = activeInsExpiryMap[itemDni] || null;
+
         // 🚨 AUTO-PRUNE GHOST BILLS 🚨
         // Detects orphaned history documents (from the old race condition) and deletes them automatically.
         if (item.id && !item.id.startsWith('temp_') && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio') {
@@ -277,10 +292,10 @@ setTimeout(() => {
             if (realTrip) {
                 // Trip is currently in RAM. Verify the guest is actually on the manifest.
                 // Must check BOTH flat guests[] AND groups[].guests[] (internal trips use the grouped structure)
-                const isActuallyOnBoat = isGuestOnTrip(realTrip, dni);
+                const isActuallyOnBoat = isGuestOnTrip(realTrip, itemDni);
                 if (!isActuallyOnBoat) {
-                    console.warn(`🧹 Auto-Pruning ghost bill: ${dni} is no longer on trip ${item.id}. Deleting...`);
-                    db.collection('mangamar_customers').doc(dni).collection('history').doc(item.id).delete().catch(e => console.error(e));
+                    console.warn(`🧹 Auto-Pruning ghost bill: ${itemDni} is no longer on trip ${item.id}. Deleting...`);
+                    db.collection('mangamar_customers').doc(itemDni).collection('history').doc(item.id).delete().catch(e => console.error(e));
                     return; // Skip rendering this bill
                 }
             } else {
@@ -336,6 +351,7 @@ setTimeout(() => {
                 if (cleanIns === '1M') dateObj.setMonth(dateObj.getMonth() + 1);
                 if (cleanIns === '1Y') dateObj.setFullYear(dateObj.getFullYear() + 1);
                 activeInsExpiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+                activeInsExpiryMap[itemDni] = activeInsExpiry;
             }
         } else if (cleanIns !== '0' && cleanIns !== 0) {
             isCovered = true;
@@ -370,7 +386,7 @@ setTimeout(() => {
                 let isGuestOnBoat = false;
                 
                 for (let t of allTripsOnDate) {
-                    if (isGuestOnTrip(t, dni)) {
+                    if (isGuestOnTrip(t, itemDni)) {
                         isGuestOnBoat = true;
                         break;
                     }
@@ -378,10 +394,10 @@ setTimeout(() => {
 
                 if (!isGuestOnBoat) {
                     safeToRender = false;
-                    console.warn(`🚨 SILENT GHOST BILL BLOCK: ${dni} is NOT on any trip on ${data.date}. Blocking UI...`);
+                    console.warn(`🚨 SILENT GHOST BLOCK: ${itemDni} is NOT on any trip on ${data.date}. Blocking UI...`);
                     // We only background delete if we are 100% sure they are not on ANY boat that day to avoid auto-migration conflicts
                     if (typeof db !== 'undefined') {
-                        db.collection('mangamar_customers').doc(dni).collection('history').doc(item.id).delete().catch(e=>console.error("Silent delete fail", e));
+                        db.collection('mangamar_customers').doc(itemDni).collection('history').doc(item.id).delete().catch(e=>console.error("Silent delete fail", e));
                     }
                 }
             } else {
@@ -393,7 +409,7 @@ setTimeout(() => {
 
         // item can be either a real doc or a mock doc
         if (safeToRender) {
-            processedDives.push({ doc: item.doc || item, data, p, cleanIns, isCovered, isCourseCovered });
+            processedDives.push({ doc: item.doc || item, data, p, cleanIns, isCovered, isCourseCovered, _ownerDni: itemDni });
         }
     });
 
@@ -468,6 +484,16 @@ window.renderFichaFromCache = function(dni, targetTab) {
     const dObj = new Date();
     const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
 
+    const formatCajaDate = (dateStr) => {
+        if (!dateStr) return '—';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        const weekday = days[d.getDay()];
+        return `<div class="flex items-center gap-1.5"><span class="text-[9px] font-black text-slate-400 bg-slate-100 px-1 py-0.5 rounded tracking-wide select-none">${weekday}</span><span class="font-bold text-slate-700 whitespace-nowrap">${parts[2]}-${parts[1]}-${parts[0]}</span></div>`;
+    };
+
     let html = '';
     let pagosHtml = '';
     let pendingServiciosHTML = '';
@@ -478,6 +504,28 @@ window.renderFichaFromCache = function(dni, targetTab) {
     let pagosTotalSum = 0;
 
     const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
+    
+    // BACKWARDS COMPATIBILITY: Migrate single deposit to deposits array format
+    if (customerInfo && !customerInfo.deposits) {
+        customerInfo.deposits = [];
+        if (customerInfo.deposit > 0) {
+            customerInfo.deposits.push({
+                id: 'legacy_' + Date.now(),
+                amount: parseFloat(customerInfo.deposit) || 0,
+                method: customerInfo.depositMethod || 'Efectivo',
+                contasimple: customerInfo.depositContasimple || false,
+                date: todayStr
+            });
+            // Clear legacy fields to prevent duplicate migration
+            delete customerInfo.deposit;
+            delete customerInfo.depositMethod;
+            delete customerInfo.depositContasimple;
+            // Background sync database to persist conversion
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            window.safeMasterListWrite(cleanDatabase, 'legacy-deposit-migration-heal')
+                .catch(e => console.error("Error legacy-deposit-migration-heal sync:", e));
+        }
+    }
     
     let fixedDiscountAmount = 0;
     if (customerInfo.discount > 0 && customerInfo.discountType === 'fixed') {
@@ -528,52 +576,6 @@ window.renderFichaFromCache = function(dni, targetTab) {
             const extrasTotal = p.gas + p.rental + p.insurance;
             if (extrasTotal > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-slate-400">${extrasTotal.toFixed(2)}€ Ext.</span>`;
             if (p.computer > 0) breakdownHtml += `<span class="text-slate-300 mx-1.5">+</span><span class="text-cyan-600 font-bold">${p.computer.toFixed(2)}€ <span style="font-variant:small-caps">Comp</span></span>`;
-        }
-
-        if (!isPaid) {
-            let conceptName = '';
-            let conceptBadge = '';
-            if (data.type === 'producto' || data.type === 'servicio') {
-                conceptName = data.description;
-                const isProd = data.type === 'producto';
-                conceptBadge = `<span class="px-1 ${isProd ? 'bg-indigo-100 text-indigo-700' : 'bg-fuchsia-100 text-fuchsia-700'} rounded text-[8px] uppercase font-black mr-2">${isProd ? 'PROD' : 'SERV'}</span>`;
-            } else if (data.type === 'pago') {
-                conceptName = data.description;
-                conceptBadge = `<span class="px-1 bg-emerald-100 text-emerald-700 rounded text-[8px] uppercase font-black mr-2">PAGO</span>`;
-            } else {
-                conceptName = `${data.site || 'Inmersión'}`;
-                conceptBadge = `<span class="px-1 bg-sky-100 text-sky-700 rounded text-[8px] uppercase font-black mr-2">BUCEO</span>`;
-            }
-
-            const pendingRow = `
-            <tr class="group border-b border-slate-50 hover:bg-slate-50 transition-colors h-10">
-                <td class="py-2 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider align-middle whitespace-nowrap">${data.date}</td>
-                <td class="py-2 px-3 align-middle w-full">
-                    <div class="font-bold text-slate-700 text-xs flex items-center leading-tight">
-                        ${conceptBadge}${conceptName}
-                    </div>
-                    <div class="text-[9px] text-slate-400 mt-0.5 truncate max-w-[200px] sm:max-w-xs">${breakdownHtml.replace(/font-black/g, 'font-bold')}</div>
-                </td>
-                <td class="py-2 px-3 align-middle text-right whitespace-nowrap">
-                    <div class="font-black ${data.type === 'pago' ? 'text-emerald-500' : 'text-amber-600'} text-sm cursor-pointer hover:scale-110 transition-all px-2 py-1 rounded hover:bg-white hover:shadow-sm border border-transparent hover:border-amber-200" 
-                         title="Click para editar precio" 
-                         onclick="window.inlineEditPrice(event, this, '${dni}', '${doc.id}', ${p.total})">${p.total.toFixed(2)} €</div>
-                </td>
-                <td class="py-2 px-3 align-middle w-8 text-center shrink-0">
-                    <button onclick="togglePaymentStatus('${dni}', '${doc.id}', 'paid')" class="p-1.5 text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 rounded transition-colors" title="Marcar Pagado"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></button>
-                </td>
-            </tr>`;
-
-            if (data.type === 'producto') {
-                pendingProductosHTML += pendingRow;
-                positivePendingTotal += p.total;
-            } else if (data.type === 'pago') {
-                pendingPagosHTML += pendingRow;
-                negativePendingTotal += p.total;
-            } else {
-                pendingServiciosHTML += pendingRow;
-                positivePendingTotal += p.total;
-            }
         }
 
         let matchesFilter = true;
@@ -720,94 +722,491 @@ window.renderFichaFromCache = function(dni, targetTab) {
 
     let totalLocalDeposits = 0;
     let oldestPendingTrip = null;
+    let localDepositMethod = '';
+    
+    // BACKWARDS COMPATIBILITY: Migrate localDeposit fields on dive records into customerInfo.deposits
     if (window.activeFichaDives) {
+        const divesMigratedThisSession = [];
+        
         window.activeFichaDives.forEach(item => {
-            const { data } = item;
-            let isPaid = data.paymentStatus === 'paid';
-            if (data.type === 'pago' && data.isPartialAbono) {
-                isPaid = false;
-            } else if (data.type === 'pago' && data.paymentStatus === 'pending') {
-                isPaid = false;
-            }
+            const { data, doc } = item;
+            const itemDni = item._ownerDni || dni;
+            const memberProfile = customerDatabase.find(c => window.isSameDni(c.dni, itemDni));
+            if (!memberProfile) return;
+            if (!memberProfile.deposits) memberProfile.deposits = [];
             
+            let isPaid = data.paymentStatus === 'paid';
+            if (data.type === 'pago' && data.isPartialAbono) isPaid = false;
+            else if (data.type === 'pago' && data.paymentStatus === 'pending') isPaid = false;
             if (data.type === 'pago' || data.type === 'producto' || data.type === 'servicio') return;
 
-            if (!isPaid && data.localDeposit) {
-                totalLocalDeposits += parseFloat(data.localDeposit) || 0;
+            const localDepAmt = parseFloat(data.localDeposit) || 0;
+            if (!isPaid && localDepAmt > 0) {
+                // Migrate into memberProfile.deposits
+                const migratedId = 'migrated_manifest_' + doc.id;
+                const alreadyMigrated = memberProfile.deposits.some(d => d.id === migratedId);
+                if (!alreadyMigrated) {
+                    memberProfile.deposits.push({
+                        id: migratedId,
+                        amount: localDepAmt,
+                        method: data.localDepositMethod || 'Efectivo',
+                        contasimple: data.localDepositC || false,
+                        date: data.date || todayStr,
+                        _migratedFromDiveId: doc.id
+                    });
+                    divesMigratedThisSession.push({ docId: doc.id, localDepAmt, ownerDni: itemDni });
+                }
+                // Still count for the legacy table row (will still show if not yet saved)
+                totalLocalDeposits += localDepAmt;
+                if (data.localDepositMethod) localDepositMethod = data.localDepositMethod;
             }
         });
-
-        oldestPendingTrip = [...window.activeFichaDives].reverse().find(d => {
-            if (d.data.paymentStatus !== 'pending') return false;
-            if (d.data.type === 'pago' || d.data.type === 'producto' || d.data.type === 'servicio') return false;
-            return true;
-        });
+        
+        // Persist migration to master list & clear localDeposit from dive docs in background
+        if (divesMigratedThisSession.length > 0) {
+            (async () => {
+                try {
+                    const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+                    await window.safeMasterListWrite(cleanDatabase, 'migrate-local-deposit-to-profile');
+                    for (const { docId, ownerDni } of divesMigratedThisSession) {
+                        db.collection('mangamar_customers').doc(ownerDni).collection('history').doc(docId)
+                            .update({ localDeposit: firebase.firestore.FieldValue.delete(), localDepositMethod: firebase.firestore.FieldValue.delete(), localDepositC: firebase.firestore.FieldValue.delete() })
+                            .catch(e => console.warn('Could not clear localDeposit from dive:', e));
+                    }
+                    window.renderFichaFromCache(dni);
+                } catch (e) {
+                    console.error('Error migrating localDeposit to profile:', e);
+                }
+            })();
+        }
     }
 
-    const globalDeposit = customerInfo.deposit || 0;
-    const depositCaja = totalLocalDeposits + globalDeposit;
-    
-    let displayedDeposit = 0;
-    let displayedDepositMethod = '';
-    if (oldestPendingTrip && oldestPendingTrip.data.localDeposit) {
-        displayedDeposit = parseFloat(oldestPendingTrip.data.localDeposit) || 0;
-        displayedDepositMethod = oldestPendingTrip.data.localDepositMethod || '';
-    } else {
-        displayedDeposit = globalDeposit;
-        displayedDepositMethod = customerInfo.depositMethod || '';
-    }
+    oldestPendingTrip = window.activeFichaDives ? [...window.activeFichaDives].reverse().find(d => {
+        if (d.data.paymentStatus !== 'pending') return false;
+        if (d.data.type === 'pago' || d.data.type === 'producto' || d.data.type === 'servicio') return false;
+        return true;
+    }) : null;
+
+    // Merge active profile deposits of all selected group members
+    const activeDeps = [];
+    const selectedDnis = window.cajaSelectedGroupMembers || new Set([window.normalizeDni(dni)]);
+    selectedDnis.forEach(mDni => {
+        const memberProfile = customerDatabase.find(c => window.isSameDni(c.dni, mDni));
+        if (memberProfile && memberProfile.deposits) {
+            memberProfile.deposits.forEach(d => {
+                activeDeps.push({ ...d, _ownerDni: mDni });
+            });
+        }
+    });
+
+    // Also include pending history payment items (legacy deposits) in activeDeps
+    (window.activeFichaDives || []).forEach(item => {
+        const { doc, data, p, _ownerDni } = item;
+        if (data && data.type === 'pago' && data.paymentStatus === 'pending') {
+            const isMigrated = activeDeps.some(d => d.id === 'migrated_manifest_' + doc.id || d._migratedFromDiveId === doc.id);
+            if (!isMigrated && !activeDeps.some(d => d.id === doc.id)) {
+                const amt = Math.abs(parseFloat(data.amount) || parseFloat(data.total) || parseFloat(p.total) || 0);
+                if (amt > 0) {
+                    activeDeps.push({
+                        id: doc.id,
+                        amount: amt,
+                        method: data.paymentMethod || data.method || 'Efectivo',
+                        contasimple: data.contasimple || false,
+                        date: data.date,
+                        _ownerDni: _ownerDni,
+                        _isHistoryPagoDoc: true
+                    });
+                }
+            }
+        }
+    });
+
+    const profileDepositsSum = activeDeps.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+    const depositCaja = totalLocalDeposits + profileDepositsSum;
 
     const cajaListEl = document.getElementById('caja-pending-list');
     if (cajaListEl) {
+        // Group Selector Pill Badges (Dropdown selection format)
+        const groupSelEl = document.getElementById('caja-group-selector-container');
+        if (groupSelEl) {
+            const myGroups = (window.globalGroups || []).filter(g => (g.members || []).some(m => window.isSameDni(m, dni)));
+            if (myGroups.length === 0) {
+                groupSelEl.innerHTML = '';
+            } else {
+                const grp = myGroups[0];
+                const members = grp.members || [];
+                const selectedCount = members.filter(m => window.cajaSelectedGroupMembers.has(window.normalizeDni(m))).length;
+                groupSelEl.innerHTML = `
+                    <div class="relative inline-block text-left">
+                        <button id="caja-group-dropdown-trigger" onclick="window.toggleCajaGroupDropdown(this)" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-black text-[9px] rounded-lg shadow-sm flex items-center gap-1 transition-all select-none active:scale-95 uppercase tracking-wider">
+                            <span>👥 Grupo (${selectedCount}/${members.length})</span>
+                            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        const showAll = false; // "Ver todo el historial" removed
+        const thirtyDaysAgoObj = new Date();
+        thirtyDaysAgoObj.setDate(thirtyDaysAgoObj.getDate() - 30);
+        const thirtyDaysAgoStr = `${thirtyDaysAgoObj.getFullYear()}-${String(thirtyDaysAgoObj.getMonth() + 1).padStart(2, '0')}-${String(thirtyDaysAgoObj.getDate()).padStart(2, '0')}`;
+        
         let finalCajaHTML = '';
         let totalPendingCount = 0;
-        if (pendingServiciosHTML) {
-            finalCajaHTML += `<tr class="bg-slate-50 border-y border-slate-100"><td colspan="4" class="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Servicios / Buceos</td></tr>` + pendingServiciosHTML;
-            totalPendingCount += (pendingServiciosHTML.match(/<tr class="group/g) || []).length;
+        let positivePendingTotal = 0;
+        let negativePendingTotal = 0;
+        
+        const fixNameCaps = (str) => {
+            if (!str) return '';
+            return str.toLowerCase().split(' ').map(word =>
+                word.split('-').map(part => {
+                    if (/^(i{1,3}|iv|vi{1,3}|ix)$/i.test(part)) {
+                        return part.toUpperCase();
+                    }
+                    return part.charAt(0).toUpperCase() + part.slice(1);
+                }).join('-')
+            ).join(' ');
+        };
+
+        // Filter activeFichaDives items
+        const filteredDives = (window.activeFichaDives || []).filter(item => {
+            const isPaid = item.data.paymentStatus === 'paid';
+            const isPendingPago = item.data.type === 'pago' && item.data.paymentStatus === 'pending';
+            if (isPendingPago) return false; // Handled under activeDeps
+            return !isPaid || (showAll && item.data.date && item.data.date >= thirtyDaysAgoStr);
+        });
+
+        // Group dives with same doc.id
+        const groupedItems = [];
+        const groupsMap = {};
+
+        filteredDives.forEach(item => {
+            const { doc, data, p } = item;
+            const key = doc.id;
+            
+            const isDiveTrip = !data.type;
+            const groupKey = isDiveTrip ? key : `${key}_${Math.random()}`; // unique key to prevent grouping of separate manual bills
+            
+            if (!groupsMap[groupKey]) {
+                groupsMap[groupKey] = {
+                    doc: doc,
+                    data: { ...data },
+                    p: {
+                        dive: p.dive,
+                        tasa: p.tasa,
+                        gas: p.gas,
+                        rental: p.rental,
+                        insurance: p.insurance,
+                        computer: p.computer,
+                        course: p.course || 0,
+                        custom: p.custom || 0,
+                        total: p.total
+                    },
+                    items: [item]
+                };
+                groupedItems.push(groupsMap[groupKey]);
+            } else {
+                const grp = groupsMap[groupKey];
+                grp.items.push(item);
+                grp.p.dive += p.dive;
+                grp.p.tasa += p.tasa;
+                grp.p.gas += p.gas;
+                grp.p.rental += p.rental;
+                grp.p.insurance += p.insurance;
+                grp.p.computer += p.computer;
+                grp.p.course += (p.course || 0);
+                grp.p.custom += (p.custom || 0);
+                grp.p.total += p.total;
+            }
+        });
+
+        // 1. Render Profile Deposits (Show at the top!)
+        activeDeps.forEach(dep => {
+            const isChecked = !window.cajaUncheckedDocIds || !window.cajaUncheckedDocIds.has('deposit_profile_' + dep.id);
+            const conceptName = `Depósito Anticipado (${dep.method})`;
+            
+            const ownerProfile = customerDatabase.find(c => window.isSameDni(c.dni, dep._ownerDni));
+            const ownerName = ownerProfile ? `${ownerProfile.nombre} ${ownerProfile.apellido || ''}`.trim() : dep._ownerDni;
+            
+            const depAmount = parseFloat(dep.amount) || 0;
+
+            finalCajaHTML += `
+            <tr class="border-b border-slate-100 h-10 transition-colors bg-emerald-50/15 hover:bg-emerald-50/25" data-doc-id="deposit_profile_${dep.id}">
+                <td class="py-2 px-2 align-middle text-slate-400 font-medium whitespace-nowrap text-[10px] uppercase">${dep.date ? formatCajaDate(dep.date) : '—'}</td>
+                <td class="py-2 px-2 align-middle font-bold text-slate-700 max-w-[140px] truncate" title="${conceptName} - Propietario: ${ownerName}">
+                    <div class="flex items-center gap-1.5">
+                        <span class="px-1 bg-emerald-100 text-emerald-700 rounded text-[7px] font-black uppercase tracking-wider">Depósito</span>
+                        <span class="truncate">${conceptName} (${ownerName})</span>
+                    </div>
+                </td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="font-black text-emerald-600 text-right whitespace-nowrap"><span class="whitespace-nowrap">-${depAmount.toFixed(2)}&nbsp;€</span></div></td>
+                <td class="py-2 px-2 align-middle text-center">
+                    <div class="relative flex items-center justify-center h-5 w-full">
+                        <input type="checkbox" id="caja-checkbox-deposit_profile_${dep.id}" data-doc-id="deposit_profile_${dep.id}" data-owner-dni="${dep._ownerDni || dni}" data-amount="${depAmount}" class="caja-item-checkbox rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer" onchange="window.handleCheckboxChange(this, 'deposit_profile_${dep.id}')" ${isChecked ? 'checked' : ''}>
+                        <button onclick="window.deleteCustomerDepositFromCaja('${dep._ownerDni || dni}', '${dep.id}')" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-350 hover:text-red-500 p-0.5 rounded hover:bg-red-50 transition-colors" title="Eliminar depósito">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+        
+        // 2. Render Local Manifest Deposits (if any and NOT yet migrated into profile deposits)
+        const hasMigratedAll = totalLocalDeposits > 0 && activeDeps.some(d => d.id && d.id.startsWith('migrated_manifest_'));
+        if (totalLocalDeposits > 0 && !hasMigratedAll) {
+            const isChecked = !window.cajaUncheckedDocIds || !window.cajaUncheckedDocIds.has('deposit_local_manifest');
+            const conceptName = `Depósito en Manifiesto (${localDepositMethod || 'Efectivo'})`;
+            finalCajaHTML += `
+            <tr class="border-b border-slate-100 h-10 transition-colors bg-emerald-50/15 hover:bg-emerald-50/25" data-doc-id="deposit_local_manifest">
+                <td class="py-2 px-2 align-middle text-slate-400 font-medium whitespace-nowrap text-[10px] uppercase">—</td>
+                <td class="py-2 px-2 align-middle font-bold text-slate-700 max-w-[140px] truncate" title="${conceptName}">
+                    <div class="flex items-center gap-1.5">
+                        <span class="px-1 bg-emerald-100 text-emerald-700 rounded text-[7px] font-black uppercase tracking-wider">Depósito</span>
+                        <span class="truncate">${conceptName}</span>
+                    </div>
+                </td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="text-slate-400 text-center font-medium">—</div></td>
+                <td class="py-2 px-2 align-middle"><div class="font-black text-emerald-600 text-right whitespace-nowrap"><span class="whitespace-nowrap">-${totalLocalDeposits.toFixed(2)}&nbsp;€</span></div></td>
+                <td class="py-2 px-2 align-middle text-center">
+                    <div class="relative flex items-center justify-center h-5 w-full">
+                        <input type="checkbox" id="caja-checkbox-deposit_local_manifest" data-doc-id="deposit_local_manifest" data-amount="${totalLocalDeposits}" class="caja-item-checkbox rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer" onchange="window.handleCheckboxChange(this, 'deposit_local_manifest')" ${isChecked ? 'checked' : ''}>
+                    </div>
+                </td>
+            </tr>`;
         }
-        if (pendingProductosHTML) {
-            finalCajaHTML += `<tr class="bg-slate-50 border-y border-slate-100"><td colspan="4" class="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Productos</td></tr>` + pendingProductosHTML;
-            totalPendingCount += (pendingProductosHTML.match(/<tr class="group/g) || []).length;
+
+        // 3. Loop over grouped items (Show second!)
+        groupedItems.forEach(group => {
+            const { doc, data, p } = group;
+            const isPaid = data.paymentStatus === 'paid';
+            
+            if (!isPaid) {
+                totalPendingCount++;
+                if (data.type === 'pago') {
+                    negativePendingTotal += p.total;
+                } else {
+                    positivePendingTotal += p.total;
+                }
+            }
+            
+            let conceptName = '';
+            if (data.type === 'producto' || data.type === 'servicio' || data.type === 'pago') {
+                conceptName = data.description || '';
+            } else {
+                conceptName = data.site || 'Inmersión';
+            }
+            conceptName = fixNameCaps(conceptName);
+            
+            const isPago = data.type === 'pago';
+            const isProduct = data.type === 'producto';
+            const isService = data.type === 'servicio';
+            const isDive = !data.type;
+            
+            let cBuceo = isDive && !data.course ? p.dive : 0;
+            let cTasa = isDive && !data.course ? p.tasa : 0;
+            let cGas = isDive && !data.course ? p.gas : 0;
+            let cRental = isDive && !data.course ? p.rental : 0;
+            let cComputer = isDive && !data.course ? p.computer : 0;
+            let cInsurance = isDive && !data.course ? p.insurance : 0;
+            let cOtros = isDive && data.course ? p.course : (isDive ? 0 : p.total);
+            
+            // Build name list for fallback / column tooltip filtering
+            const names = group.items.map(it => {
+                const itDni = it._ownerDni || dni;
+                let name = '';
+                const profile = customerDatabase.find(c => window.isSameDni(c.dni, itDni));
+                if (profile) {
+                    name = `${profile.nombre} ${profile.apellido || ''}`.trim();
+                } else {
+                    if (typeof activeBoatItem !== 'undefined' && activeBoatItem && activeBoatItem.groups) {
+                        for (const g of activeBoatItem.groups) {
+                            const gst = (g.guests || []).find(gst => window.isSameDni(gst.dni, itDni));
+                            if (gst && gst.nombre) {
+                                name = gst.nombre;
+                                break;
+                            }
+                        }
+                    }
+                    if (!name) {
+                        for (const trip of (window.mergedAllocations || [])) {
+                            if (trip.groups) {
+                                for (const g of trip.groups) {
+                                    const gst = (g.guests || []).find(gst => window.isSameDni(gst.dni, itDni));
+                                    if (gst && gst.nombre) {
+                                        name = gst.nombre;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (name) break;
+                        }
+                    }
+                }
+                return name || itDni;
+            });
+            const uniqueNames = Array.from(new Set(names));
+            const namesTooltip = uniqueNames.map(name => `• ${name}`).join('\n');
+
+            const getFieldTooltip = (fieldName) => {
+                const contributors = group.items.filter(item => {
+                    const ip = item.p || {};
+                    if (fieldName === 'dive') return (ip.dive || 0) !== 0;
+                    if (fieldName === 'tasa') return (ip.tasa || 0) !== 0;
+                    if (fieldName === 'gas') return (ip.gas || 0) !== 0;
+                    if (fieldName === 'rental') return (ip.rental || 0) !== 0;
+                    if (fieldName === 'computer') return (ip.computer || 0) !== 0;
+                    if (fieldName === 'insurance') return (ip.insurance || 0) !== 0;
+                    if (fieldName === 'otros') {
+                        if (isDive) return (ip.course || 0) !== 0;
+                        return (ip.total || 0) !== 0;
+                    }
+                    if (fieldName === 'total') return (ip.total || 0) !== 0;
+                    return false;
+                });
+                
+                const cNames = contributors.map(it => {
+                    const itDni = it._ownerDni || dni;
+                    let name = '';
+                    const profile = customerDatabase.find(c => window.isSameDni(c.dni, itDni));
+                    if (profile) {
+                        name = `${profile.nombre} ${profile.apellido || ''}`.trim();
+                    } else {
+                        if (typeof activeBoatItem !== 'undefined' && activeBoatItem && activeBoatItem.groups) {
+                            for (const g of activeBoatItem.groups) {
+                                const gst = (g.guests || []).find(gst => window.isSameDni(gst.dni, itDni));
+                                if (gst && gst.nombre) {
+                                    name = gst.nombre;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!name) {
+                            for (const trip of (window.mergedAllocations || [])) {
+                                if (trip.groups) {
+                                    for (const g of trip.groups) {
+                                        const gst = (g.guests || []).find(gst => window.isSameDni(gst.dni, itDni));
+                                        if (gst && gst.nombre) {
+                                            name = gst.nombre;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (name) break;
+                            }
+                        }
+                    }
+                    return name || itDni;
+                });
+                
+                const uniqueCNames = Array.from(new Set(cNames));
+                if (uniqueCNames.length === 0) {
+                    return uniqueNames.map(name => `• ${name}`).join('\n');
+                }
+                return uniqueCNames.map(name => `• ${name}`).join('\n');
+            };
+
+            const formatCell = (val, fieldName) => {
+                const displayVal = val !== 0 ? `<span class="whitespace-nowrap">${val.toFixed(2)}&nbsp;€</span>` : '—';
+                if (isPaid) return `<div class="text-slate-400 text-center font-medium whitespace-nowrap">${displayVal}</div>`;
+                const targetDni = group.items[0]._ownerDni || dni;
+                return `<div class="text-slate-800 text-center font-bold hover:bg-blue-50 border border-transparent hover:border-blue-200 rounded px-1 py-0.5 cursor-pointer transition-all hover:scale-105 whitespace-nowrap" onclick="window.inlineEditCell(event, this, '${targetDni}', '${doc.id}', '${fieldName}', ${val})">${displayVal}</div>`;
+            };
+            
+            const formatTotalCell = (val) => {
+                const displayVal = `<span class="whitespace-nowrap">${val.toFixed(2)}&nbsp;€</span>`;
+                if (isPaid) return `<div class="text-slate-400 text-right font-medium whitespace-nowrap">${displayVal}</div>`;
+                const targetDni = group.items[0]._ownerDni || dni;
+                return `<div class="font-black ${isPago ? 'text-emerald-600' : 'text-amber-600'} text-right hover:bg-amber-50 border border-transparent hover:border-amber-200 rounded px-1 py-0.5 cursor-pointer transition-all hover:scale-105 whitespace-nowrap" onclick="window.inlineEditCell(event, this, '${targetDni}', '${doc.id}', 'total', ${val})">${displayVal}</div>`;
+            };
+            
+            let isChecked = !window.cajaUncheckedDocIds || !window.cajaUncheckedDocIds.has(doc.id);
+            let actionColHTML = '';
+            if (isPaid) {
+                actionColHTML = `<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[9px] uppercase font-black shadow-sm select-none">Pagado</span>`;
+            } else {
+                actionColHTML = `
+                    <div class="relative flex items-center justify-center h-5 w-full">
+                        <input type="checkbox" data-doc-id="${doc.id}" class="caja-item-checkbox rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer" onchange="window.handleCheckboxChange(this, '${doc.id}')" ${isChecked ? 'checked' : ''}>
+                        ${(isProduct || isService || isPago) ? `<button onclick="window.deleteHistoryItem('${group.items[0]._ownerDni || dni}', '${doc.id}', '${data.date.substring(0, 7)}', '${data.type || 'buceo'}')" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-350 hover:text-red-500 p-0.5 rounded hover:bg-red-50 transition-colors" title="Eliminar"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>` : ''}
+                    </div>
+                `;
+            }
+            
+            let rowClass = '';
+            if (isPaid) {
+                rowClass = 'bg-slate-50/50 opacity-70 hover:opacity-100';
+            } else {
+                rowClass = (totalPendingCount % 2 === 0) ? 'bg-orange-50 hover:bg-orange-100/70' : 'bg-white hover:bg-slate-50/80';
+            }
+            
+            finalCajaHTML += `
+            <tr class="border-b border-slate-100 h-10 transition-colors ${rowClass}" data-doc-id="${doc.id}">
+                <td class="py-2 px-2 align-middle text-slate-400 font-medium whitespace-nowrap text-[10px] uppercase">${formatCajaDate(data.date)}</td>
+                <td class="py-2 px-2 align-middle font-bold text-slate-700 max-w-[140px] truncate" title="${conceptName} (Diver: ${namesTooltip})">
+                    <div class="flex items-center gap-1.5" title="${namesTooltip}">
+                        ${isDive ? '<span class="px-1 bg-sky-100 text-sky-700 rounded text-[7px] font-black uppercase tracking-wider">Buceo</span>' : ''}
+                        ${isProduct ? '<span class="px-1 bg-indigo-100 text-indigo-700 rounded text-[7px] font-black uppercase tracking-wider">Prod</span>' : ''}
+                        ${isService ? '<span class="px-1 bg-fuchsia-100 text-fuchsia-700 rounded text-[7px] font-black uppercase tracking-wider">Serv</span>' : ''}
+                        ${isPago ? '<span class="px-1 bg-emerald-100 text-emerald-700 rounded text-[7px] font-black uppercase tracking-wider">Pago</span>' : ''}
+                        <span class="truncate">${conceptName}</span>
+                    </div>
+                </td>
+                <td class="py-2 px-2 align-middle" title="${getFieldTooltip('dive')}">${formatCell(cBuceo, 'dive')}</td>
+                <td class="py-2 px-2 align-middle" title="${getFieldTooltip('tasa')}">${formatCell(cTasa, 'tasa')}</td>
+                <td class="py-2 px-2 align-middle" title="${getFieldTooltip('gas')}">${formatCell(cGas, 'gas')}</td>
+                <td class="py-2 px-2 align-middle" title="${getFieldTooltip('rental')}">${formatCell(cRental, 'rental')}</td>
+                <td class="py-2 px-2 align-middle" title="${getFieldTooltip('computer')}">${formatCell(cComputer, 'computer')}</td>
+                <td class="py-2 px-2 align-middle" title="${getFieldTooltip('insurance')}">${formatCell(cInsurance, 'insurance')}</td>
+                <td class="py-2 px-2 align-middle" title="${getFieldTooltip('otros')}">${formatCell(cOtros, 'otros')}</td>
+                <td class="py-2 px-2 align-middle" title="${getFieldTooltip('total')}">${formatTotalCell(p.total)}</td>
+                <td class="py-2 px-2 align-middle text-center">${actionColHTML}</td>
+            </tr>`;
+        });
+        
+        if (positivePendingTotal > 0 || negativePendingTotal !== 0 || depositCaja > 0) {
+             finalCajaHTML += `
+             <tr class="bg-slate-50 border-y border-slate-150 font-bold">
+                 <td colspan="9" class="px-2 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Subtotal:</td>
+                 <td id="caja-footer-subtotal" class="px-2 py-2 text-slate-700 text-right font-bold text-sm whitespace-nowrap">0.00&nbsp;€</td>
+                 <td></td>
+             </tr>
+             <tr id="caja-footer-discount-row" class="bg-rose-50/50 border-t border-rose-100 font-bold hidden">
+                 <td colspan="9" class="px-2 py-1.5 text-[10px] font-black uppercase text-rose-500 tracking-widest text-right">Descuento Global:</td>
+                 <td id="caja-footer-discount" class="px-2 py-1.5 text-rose-600 text-right font-bold text-xs whitespace-nowrap">0.00&nbsp;€</td>
+                 <td></td>
+             </tr>
+             <tr class="bg-amber-50 border-t-2 border-amber-200 font-black">
+                 <td colspan="9" class="px-2 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td>
+                 <td id="caja-footer-total" class="px-2 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">0.00&nbsp;€</td>
+                 <td></td>
+             </tr>`;
         }
         
-        if (pendingPagosHTML || fixedDiscountAmount > 0 || depositCaja > 0) {
-             finalCajaHTML += `
-             <tr class="bg-slate-50 border-y border-slate-100"><td colspan="2" class="px-3 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Subtotal:</td><td class="px-3 py-2 text-slate-700 text-right font-bold text-sm whitespace-nowrap">${positivePendingTotal.toFixed(2)} €</td><td></td></tr>
-             ${pendingPagosHTML}`;
-             
-             if (fixedDiscountAmount > 0) {
-                finalCajaHTML += `<tr class="bg-rose-50/50 border-t border-rose-100"><td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-rose-500 tracking-widest text-right">Descuento Global:</td><td class="px-3 py-1.5 text-rose-600 text-right font-bold text-xs whitespace-nowrap">-${fixedDiscountAmount.toFixed(2)} €</td><td></td></tr>`;
-             }
-             
-             if (depositCaja > 0) {
-                 finalCajaHTML += `<tr class="bg-emerald-50/50 border-t border-emerald-100">
-                     <td colspan="2" class="px-3 py-1.5 text-[10px] font-black uppercase text-emerald-600 tracking-widest text-right">Depósito a Cuenta:</td>
-                     <td class="px-3 py-1.5 text-emerald-600 text-right font-bold text-xs whitespace-nowrap">-${depositCaja.toFixed(2)} €</td>
-                     <td class="px-3 py-1.5 text-center align-middle w-8 shrink-0">
-                         <button onclick="window.clearCustomerDeposits('${dni}')" class="text-slate-300 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50" title="Eliminar depósito">
-                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                             </svg>
-                         </button>
-                     </td>
-                 </tr>`;
-              }
-
-             const finalDebtObj = Math.max(0, positivePendingTotal + negativePendingTotal - depositCaja - fixedDiscountAmount);
-             
-             finalCajaHTML += `<tr class="bg-amber-50 border-t-2 border-amber-200"><td colspan="2" class="px-3 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td><td class="px-3 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">${finalDebtObj.toFixed(2)} €</td><td></td></tr>
-             `;
-        } else if (positivePendingTotal > 0) {
-             finalCajaHTML += `
-             <tr class="bg-amber-50 border-t-2 border-amber-200"><td colspan="2" class="px-3 py-3 text-right"><span class="text-[10px] font-black uppercase text-amber-800 tracking-widest mr-4">Total a Pagar:</span></td><td class="px-3 py-3 text-lg font-black text-amber-600 text-right whitespace-nowrap w-24">${positivePendingTotal.toFixed(2)} €</td><td></td></tr>
-             `;
-        }
-
         if (!finalCajaHTML) {
-            finalCajaHTML = `<tr><td colspan="4" class="p-8 text-center"><div class="text-3xl mb-2">🎉</div><div class="text-sm font-bold text-slate-400">Sin cargos pendientes</div></td></tr>`;
+            finalCajaHTML = `<tr><td colspan="11" class="p-8 text-center"><div class="text-3xl mb-2">🎉</div><div class="text-sm font-bold text-slate-400">Sin cargos pendientes</div></td></tr>`;
         }
         cajaListEl.innerHTML = finalCajaHTML;
         document.getElementById('caja-pending-count').innerText = `${totalPendingCount} items`;
+        
+        if (typeof window.recomputeCajaSelectedTotals === 'function') {
+            window.recomputeCajaSelectedTotals();
+        }
     }
 
     let totalAPagar = Math.max(0, pendingTotal - depositCaja - fixedDiscountAmount);
@@ -893,17 +1292,65 @@ window.renderFichaFromCache = function(dni, targetTab) {
     if (elDeuda) {
         elDeuda.innerText = pendingTotal.toFixed(2);
         
-        const senalInput = document.getElementById('ficha-caja-senal-input');
-        if (senalInput) senalInput.value = displayedDeposit;
-        
-        const methodSpan = document.getElementById('ficha-caja-senal-method');
-        if (methodSpan) {
-            if (displayedDeposit > 0 && displayedDepositMethod) {
-                methodSpan.innerText = displayedDepositMethod;
-                methodSpan.classList.remove('hidden');
-            } else {
-                methodSpan.classList.add('hidden');
+        const depListEl = document.getElementById('caja-deposits-list');
+        const depEmptyStateEl = document.getElementById('caja-deposits-empty-state');
+        if (depListEl) {
+            let depListHTML = '';
+            const methodIcons = {
+                'Efectivo': '💵',
+                'Tarjeta': '💳',
+                'Bizum': '📱',
+                'Transferencia': '🏦',
+                'PayPal': '🅿️',
+                'PADI': '🅿️'
+            };
+            
+            // Render profile deposits of all selected group members
+            activeDeps.forEach(dep => {
+                const icon = methodIcons[dep.method] || '💰';
+                const ownerProfile = customerDatabase.find(c => window.isSameDni(c.dni, dep._ownerDni));
+                const ownerName = ownerProfile ? `${ownerProfile.nombre} ${ownerProfile.apellido || ''}`.trim() : dep._ownerDni;
+                
+                const safeOwnerDni = (dep._ownerDni || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeDepId = (dep.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const depAmount = parseFloat(dep.amount) || 0;
+
+                depListHTML += `
+                    <div class="flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded px-1.5 py-0.5 text-[9px] font-black text-slate-700 gap-1.5" title="Propietario: ${ownerName}">
+                        <div class="flex items-center gap-1 min-w-0">
+                            <span>${icon}</span>
+                            <span class="font-black">${depAmount.toFixed(2)}&nbsp;€</span>
+                            <span class="text-[8px] font-normal text-slate-450 truncate">${dep.method} (${ownerName})</span>
+                            ${dep.date ? `<span class="text-[8px] font-normal text-slate-350 truncate hidden sm:inline">${formatCajaDate(dep.date)}</span>` : ''}
+                        </div>
+                        <div class="flex items-center gap-0.5 shrink-0">
+                            <div class="flex items-center gap-0.5" title="Contabilizado en Contasimple">
+                                <span class="w-3 h-3 rounded bg-blue-600 text-white font-black flex items-center justify-center text-[7px] select-none">C</span>
+                                <label class="relative inline-flex items-center cursor-pointer scale-[0.65] select-none origin-left" style="width:28px">
+                                    <input type="checkbox" onchange="window.toggleDepositContasimple('${safeOwnerDni}', '${safeDepId}', this.checked)" class="sr-only peer" ${dep.contasimple ? 'checked' : ''}>
+                                    <div class="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            <button onclick="window.deleteCustomerDepositFromCaja('${safeOwnerDni}', '${safeDepId}')" class="text-slate-350 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50" title="Eliminar depósito">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            depListEl.innerHTML = depListHTML;
+            if (depEmptyStateEl) {
+                if (activeDeps.length === 0) depEmptyStateEl.classList.remove('hidden');
+                else depEmptyStateEl.classList.add('hidden');
             }
+        }
+        
+        // Pre-fill date input with today
+        const depDateEl = document.getElementById('caja-new-dep-date');
+        if (depDateEl && !depDateEl.value) {
+            const dNow = new Date();
+            depDateEl.value = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, '0')}-${String(dNow.getDate()).padStart(2, '0')}`;
         }
         
         document.getElementById('ficha-caja-total').innerText = totalAPagar.toFixed(2);
@@ -942,15 +1389,15 @@ window.renderFichaFromCache = function(dni, targetTab) {
 
         if (totalAPagar <= 0 && pendingTotal === 0) {
             totalEl.innerText = "0.00";
-            totalEl.className = "text-3xl font-black text-slate-300 tracking-tight";
+            totalEl.className = "text-2xl font-black text-slate-300 tracking-tight";
             btnLiq.classList.add('opacity-50', 'pointer-events-none');
         } else if (totalAPagar <= 0 && pendingTotal > 0) {
             totalEl.innerText = "0.00 (Pagado)";
-            totalEl.className = "text-3xl font-black text-emerald-500 tracking-tight";
+            totalEl.className = "text-2xl font-black text-emerald-500 tracking-tight";
             btnLiq.classList.remove('opacity-50', 'pointer-events-none');
         } else {
             totalEl.innerText = totalAPagar.toFixed(2);
-            totalEl.className = "text-3xl font-black text-slate-900 tracking-tight";
+            totalEl.className = "text-2xl font-black text-amber-600 tracking-tight";
             btnLiq.classList.remove('opacity-50', 'pointer-events-none');
         }
     }
@@ -1680,4 +2127,571 @@ window.openHistorialExportModal = function() {
     
     document.getElementById('historial-export-text').value = text;
     document.getElementById('historial-export-modal').classList.remove('hidden');
+};
+
+window.handleCheckboxChange = function(el, docId) {
+    if (!window.cajaUncheckedDocIds) {
+        window.cajaUncheckedDocIds = new Set();
+    }
+    if (el.checked) {
+        window.cajaUncheckedDocIds.delete(docId);
+    } else {
+        window.cajaUncheckedDocIds.add(docId);
+    }
+    
+    const checkboxes = document.querySelectorAll('.caja-item-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    const selectAllCheckbox = document.getElementById('caja-select-all-checkbox');
+    if (selectAllCheckbox) selectAllCheckbox.checked = allChecked;
+    
+    window.recomputeCajaSelectedTotals();
+};
+
+window.toggleCajaSelectAll = function(isChecked) {
+    if (!window.cajaUncheckedDocIds) {
+        window.cajaUncheckedDocIds = new Set();
+    }
+    const checkboxes = document.querySelectorAll('.caja-item-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = isChecked;
+        const docId = cb.getAttribute('data-doc-id');
+        if (isChecked) {
+            window.cajaUncheckedDocIds.delete(docId);
+        } else {
+            window.cajaUncheckedDocIds.add(docId);
+        }
+    });
+    window.recomputeCajaSelectedTotals();
+};
+
+window.recomputeCajaSelectedTotals = function() {
+    let subtotal = 0;
+    let deposit = 0;
+    
+    const checkboxes = document.querySelectorAll('.caja-item-checkbox');
+    checkboxes.forEach(cb => {
+        if (!cb.checked) return;
+        const docId = cb.getAttribute('data-doc-id');
+        if (docId && docId.startsWith('deposit_')) {
+            deposit += parseFloat(cb.getAttribute('data-amount')) || 0;
+        } else {
+            const items = window.activeFichaDives.filter(d => d.doc.id === docId);
+            items.forEach(item => {
+                subtotal += item.p.total;
+            });
+        }
+    });
+    
+    const discountInput = document.getElementById('ficha-caja-discount');
+    const discountVal = discountInput ? (parseFloat(discountInput.value) || 0) : 0;
+    const discountType = window.activeDiscountType || 'percent';
+    
+    let discountAmount = 0;
+    if (discountType === 'percent' || discountType === 'pct') {
+        discountAmount = subtotal * (discountVal / 100);
+    } else {
+        discountAmount = discountVal;
+    }
+    
+    const finalTotal = Math.max(0, subtotal - deposit - discountAmount);
+    
+    const deudaEl = document.getElementById('ficha-caja-deuda');
+    if (deudaEl) deudaEl.innerText = subtotal.toFixed(2);
+    
+    const totalEl = document.getElementById('ficha-caja-total');
+    if (totalEl) totalEl.innerText = finalTotal.toFixed(2);
+    
+    const footerSubtotal = document.getElementById('caja-footer-subtotal');
+    if (footerSubtotal) footerSubtotal.innerHTML = `${subtotal.toFixed(2)}&nbsp;€`;
+    
+    const footerDiscountRow = document.getElementById('caja-footer-discount-row');
+    const footerDiscount = document.getElementById('caja-footer-discount');
+    if (footerDiscountRow && footerDiscount) {
+        if (discountAmount > 0) {
+            footerDiscountRow.classList.remove('hidden');
+            footerDiscount.innerHTML = `-${discountAmount.toFixed(2)}&nbsp;€`;
+        } else {
+            footerDiscountRow.classList.add('hidden');
+        }
+    }
+    
+    const footerTotal = document.getElementById('caja-footer-total');
+    if (footerTotal) footerTotal.innerHTML = `${finalTotal.toFixed(2)}&nbsp;€`;
+    
+    window.activeFichaPendingDocs = [];
+    checkboxes.forEach(cb => {
+        const docId = cb.getAttribute('data-doc-id');
+        if (cb.checked && docId && !docId.startsWith('deposit_')) {
+            const items = window.activeFichaDives.filter(d => d.doc.id === docId);
+            items.forEach(item => {
+                window.activeFichaPendingDocs.push({
+                    dni: item._ownerDni || window.activeFichaDni,
+                    docId: item.doc.id
+                });
+            });
+        }
+    });
+    
+    window.cajaSelectedUseDeposit = Array.from(checkboxes).some(cb => {
+        const docId = cb.getAttribute('data-doc-id');
+        return cb.checked && docId && docId.startsWith('deposit_');
+    });
+};
+
+window.addCustomerDepositFromCaja = async function() {
+    const dni = window.activeFichaDni;
+    if (!dni) return;
+    
+    const amtEl = document.getElementById('caja-new-dep-amount');
+    const methodEl = document.getElementById('caja-new-dep-method-val') || document.getElementById('caja-new-dep-method');
+    const csEl = document.getElementById('caja-new-dep-cs');
+    const dateEl = document.getElementById('caja-new-dep-date');
+    
+    const amount = parseFloat(amtEl ? amtEl.value : 0) || 0;
+    const method = methodEl ? methodEl.value : 'Efectivo';
+    const contasimple = csEl ? csEl.checked : false;
+    
+    const dObj = new Date();
+    const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
+    const depositDate = (dateEl && dateEl.value) ? dateEl.value : todayStr;
+    
+    if (amount <= 0) {
+        showAppAlert("Por favor introduce un importe de depósito válido.");
+        return;
+    }
+    
+    const profile = customerDatabase.find(c => window.isSameDni(c.dni, dni));
+    if (!profile) return;
+    
+    profile.deposits = profile.deposits || [];
+    const originalDeposits = [...profile.deposits];
+    
+    profile.deposits.push({
+        id: 'dep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        amount: amount,
+        method: method,
+        contasimple: contasimple,
+        date: depositDate
+    });
+    
+    // Clear inputs in form
+    if (amtEl) amtEl.value = '';
+    if (csEl) csEl.checked = false;
+    if (dateEl) dateEl.value = '';
+    
+    // 1. Refresh Caja view instantly (Optimistic UI)
+    window.renderFichaFromCache(dni);
+    
+    // 2. Perform background write async without awaiting it
+    (async () => {
+        try {
+            if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                await window.updateCustomerOutstandingDebt(dni, true /* skipMasterListWrite */);
+            }
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            await window.safeMasterListWrite(cleanDatabase, 'add-deposit');
+        } catch (e) {
+            console.error("Error background saving deposit:", e);
+            profile.deposits = originalDeposits;
+            window.renderFichaFromCache(dni);
+            showToast("⚠️ Error al sincronizar el depósito en el servidor.");
+        }
+    })();
+};
+
+window.deleteCustomerDepositFromCaja = function(dni, depositId) {
+    if (!dni || !depositId) return;
+    
+    const profile = customerDatabase.find(c => window.isSameDni(c.dni, dni));
+    const isProfileDep = profile && profile.deposits && profile.deposits.some(d => d.id === depositId);
+    
+    if (!isProfileDep) {
+        const found = (window.activeFichaDives || []).find(item => item.doc.id === depositId);
+        if (found && found.data && found.data.date) {
+            window.deleteHistoryItem(dni, depositId, found.data.date.substring(0, 7), 'pago');
+            return;
+        }
+    }
+    
+    if (!profile || !profile.deposits) return;
+    
+    window.showAppConfirm("¿Estás seguro de que deseas eliminar este depósito?", async () => {
+        const originalDeposits = [...profile.deposits];
+        
+        let tripIdToClear = null;
+        if (depositId.startsWith('migrated_manifest_')) {
+            tripIdToClear = depositId.replace('migrated_manifest_', '');
+        } else {
+            const targetDep = profile.deposits.find(d => d.id === depositId);
+            if (targetDep && targetDep._migratedFromDiveId) {
+                tripIdToClear = targetDep._migratedFromDiveId;
+            }
+        }
+        
+        profile.deposits = profile.deposits.filter(d => d.id !== depositId);
+        
+        // 1. Refresh Caja view instantly (Optimistic UI)
+        window.renderFichaFromCache(window.activeFichaDni);
+        
+        // Clear from manifest in RAM and background sync
+        if (tripIdToClear) {
+            if (typeof activeBoatItem !== 'undefined' && activeBoatItem && activeBoatItem.id === tripIdToClear && activeBoatItem.groups) {
+                activeBoatItem.groups.forEach(g => {
+                    (g.guests || []).forEach(gst => {
+                        if (window.isSameDni(gst.dni, dni)) {
+                            gst.localDeposit = 0;
+                            gst.localDepositMethod = '';
+                            delete gst.localDepositC;
+                        }
+                    });
+                });
+                if (typeof renderGroups === 'function') renderGroups();
+            }
+            window.syncPaymentToManifest(dni, tripIdToClear, 'pending', '', '', 0, '');
+        }
+        
+        // 2. Perform background write async without awaiting it
+        (async () => {
+            try {
+                if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                    await window.updateCustomerOutstandingDebt(dni, true /* skipMasterListWrite */);
+                }
+                const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+                await window.safeMasterListWrite(cleanDatabase, 'delete-deposit');
+            } catch (e) {
+                console.error("Error background deleting deposit:", e);
+                profile.deposits = originalDeposits;
+                window.renderFichaFromCache(window.activeFichaDni);
+                showToast("⚠️ Error al sincronizar la eliminación en el servidor.");
+            }
+        })();
+    });
+};
+
+window.toggleDepositContasimple = async function(dni, depositId, isChecked) {
+    if (!dni || !depositId) return;
+    
+    const profile = customerDatabase.find(c => window.isSameDni(c.dni, dni));
+    const dep = profile && profile.deposits ? profile.deposits.find(d => d.id === depositId) : null;
+    
+    if (dep) {
+        dep.contasimple = isChecked;
+        try {
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            await window.safeMasterListWrite(cleanDatabase, 'toggle-deposit-contasimple');
+        } catch (e) {
+            console.error("Error toggling deposit contasimple:", e);
+        }
+    } else {
+        // It's a history pago document!
+        try {
+            await db.collection('mangamar_customers').doc(dni).collection('history').doc(depositId).update({ contasimple: isChecked });
+            
+            // Update in-memory cache to reflect immediately
+            const found = (window.activeFichaRawDocs || []).find(item => item.id === depositId);
+            if (found) {
+                if (found.data) found.data.contasimple = isChecked;
+                else found.contasimple = isChecked;
+            }
+            const processedFound = (window.activeFichaDives || []).find(item => item.doc.id === depositId);
+            if (processedFound) {
+                if (processedFound.data) processedFound.data.contasimple = isChecked;
+            }
+            window.renderFichaFromCache(window.activeFichaDni);
+        } catch (e) {
+            console.error("Error toggling history deposit contasimple:", e);
+            showToast("⚠️ Error al actualizar Contasimple en el servidor.");
+        }
+    }
+};
+
+window.toggleCajaDepositMethodDropdown = function(event, buttonEl) {
+    event.stopPropagation();
+    
+    // If already exists, remove it
+    const existing = document.getElementById('caja-dep-method-custom-dropdown');
+    if (existing) {
+        existing.remove();
+        return;
+    }
+    
+    const dropdown = document.createElement('div');
+    dropdown.id = 'caja-dep-method-custom-dropdown';
+    dropdown.className = 'absolute bg-white border border-slate-200 rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 min-w-[130px] z-[999999]';
+    
+    const methods = [
+        { value: 'Efectivo', label: 'Efectivo', type: 'efectivo', activeClass: 'bg-emerald-600 text-white border-emerald-700 shadow-sm', normalClass: 'bg-emerald-50/70 border border-emerald-200/40 text-emerald-700 hover:bg-emerald-100/80' },
+        { value: 'Tarjeta', label: 'Tarjeta', type: 'tarjeta', activeClass: 'bg-blue-600 text-white border-blue-700 shadow-sm', normalClass: 'bg-blue-50/70 border border-blue-200/40 text-blue-700 hover:bg-blue-100/80' },
+        { value: 'Bizum', label: 'Bizum', type: 'bizum', activeClass: 'bg-teal-600 text-white border-teal-700 shadow-sm', normalClass: 'bg-teal-50/70 border border-teal-200/40 text-teal-700 hover:bg-teal-100/80' },
+        { value: 'Transferencia', label: 'Transferencia', type: 'transferencia', activeClass: 'bg-purple-600 text-white border-purple-700 shadow-sm', normalClass: 'bg-purple-50/70 border border-purple-200/40 text-purple-700 hover:bg-purple-100/80' },
+        { value: 'PayPal', label: 'PayPal', type: 'paypal', activeClass: 'bg-indigo-600 text-white border-indigo-700 shadow-sm', normalClass: 'bg-indigo-50/70 border border-indigo-200/40 text-indigo-750 hover:bg-indigo-100/80' },
+        { value: 'PADI', label: 'PADI', type: 'padi', activeClass: 'bg-rose-600 text-white border-rose-700 shadow-sm', normalClass: 'bg-rose-50/70 border border-rose-200/40 text-rose-700 hover:bg-rose-100/80' }
+    ];
+    
+    const emojiMap = {
+        'Efectivo': '💵',
+        'Tarjeta': '💳',
+        'Bizum': '📱',
+        'Transferencia': '🏦',
+        'PayPal': '🅿️',
+        'PADI': '🅿️'
+    };
+    
+    const currentVal = document.getElementById('caja-new-dep-method-val').value;
+    
+    methods.forEach(opt => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        const isCurrent = opt.value === currentVal;
+        
+        item.className = `w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-between gap-2 border border-transparent ${isCurrent ? opt.activeClass : opt.normalClass}`;
+        
+        const emoji = emojiMap[opt.value] || '💰';
+        item.innerHTML = `<span>${emoji} ${opt.label}</span>` + 
+            (isCurrent ? `<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>` : '');
+            
+        item.onclick = function() {
+            document.getElementById('caja-new-dep-method-label').innerHTML = `${emoji} ${opt.label}`;
+            document.getElementById('caja-new-dep-method-val').value = opt.value;
+            dropdown.remove();
+        };
+        
+        dropdown.appendChild(item);
+    });
+    
+    document.body.appendChild(dropdown);
+    
+    // Position dropdown exactly below buttonEl
+    const rect = buttonEl.getBoundingClientRect();
+    const scrollY = window.scrollY || window.pageYOffset;
+    const scrollX = window.scrollX || window.pageXOffset;
+    dropdown.style.top = `${rect.bottom + scrollY + 4}px`;
+    dropdown.style.left = `${rect.left + scrollX}px`;
+    
+    // Close dropdown on click outside
+    const outsideClickListener = function(e) {
+        if (!dropdown.contains(e.target) && e.target !== buttonEl && !buttonEl.contains(e.target)) {
+            dropdown.remove();
+            document.removeEventListener('click', outsideClickListener);
+        }
+    };
+    document.addEventListener('click', outsideClickListener);
+};
+
+window.toggleCajaGroupDropdown = function(buttonEl) {
+    const existing = document.getElementById('caja-group-dropdown');
+    if (existing) {
+        existing.remove();
+        return;
+    }
+    
+    const dni = window.activeFichaDni;
+    if (!dni) return;
+    
+    const myGroups = (window.globalGroups || []).filter(g => (g.members || []).some(m => window.isSameDni(m, dni)));
+    if (myGroups.length === 0) return;
+    
+    const groupMembers = new Set();
+    myGroups.forEach(g => {
+        (g.members || []).forEach(m => groupMembers.add(window.normalizeDni(m)));
+    });
+    
+    const memberList = Array.from(groupMembers);
+    
+    const dropdown = document.createElement('div');
+    dropdown.id = 'caja-group-dropdown';
+    dropdown.className = 'fixed bg-white border border-slate-200/80 rounded-xl shadow-xl p-2.5 flex flex-col gap-1 min-w-[220px] z-[400] select-none';
+    
+    const renderDropdownContent = () => {
+        let html = '';
+        
+        // Select All / Deselect All options
+        html += `
+            <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1 px-1 text-[9px] font-black uppercase text-slate-400 gap-4">
+                <span>Selección</span>
+                <div class="flex gap-2">
+                    <button onclick="window.handleSelectAllGroupCaja(true)" class="text-blue-600 hover:underline">Todos</button>
+                    <span>•</span>
+                    <button onclick="window.handleSelectAllGroupCaja(false)" class="text-slate-500 hover:underline">Ninguno</button>
+                </div>
+            </div>
+        `;
+        
+        memberList.forEach(mDni => {
+            let name = '';
+            const profile = customerDatabase.find(c => window.isSameDni(c.dni, mDni));
+            if (profile) {
+                name = profile.nombre;
+            } else {
+                if (typeof activeBoatItem !== 'undefined' && activeBoatItem && activeBoatItem.groups) {
+                    for (const g of activeBoatItem.groups) {
+                        const gst = (g.guests || []).find(gst => window.isSameDni(gst.dni, mDni));
+                        if (gst && gst.nombre) {
+                            name = gst.nombre;
+                            break;
+                        }
+                    }
+                }
+                if (!name) {
+                    for (const trip of (window.mergedAllocations || [])) {
+                        if (trip.groups) {
+                            for (const g of trip.groups) {
+                                const gst = (g.guests || []).find(gst => window.isSameDni(gst.dni, mDni));
+                                if (gst && gst.nombre) {
+                                    name = gst.nombre;
+                                    break;
+                                }
+                            }
+                        }
+                        if (name) break;
+                    }
+                }
+            }
+            if (!name) name = mDni;
+            
+            const isMain = window.isSameDni(dni, mDni);
+            const isSelected = window.cajaSelectedGroupMembers.has(mDni);
+            
+            html += `
+                <label class="flex items-center justify-between gap-3 px-2 py-1 rounded-lg text-xs font-black text-slate-700 hover:bg-slate-50 transition-all cursor-pointer ${isMain ? 'opacity-85' : ''}">
+                    <span class="truncate">${name}</span>
+                    <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                           ${isSelected ? 'checked' : ''} 
+                           ${isMain ? 'disabled' : ''} 
+                           onchange="window.handleToggleGroupMemberCheckboxCaja('${mDni}', this.checked)">
+                </label>
+            `;
+        });
+        
+        dropdown.innerHTML = html;
+        
+        // Update the count on the main button
+        const selectedCount = memberList.filter(m => window.cajaSelectedGroupMembers.has(m)).length;
+        const trigger = document.getElementById('caja-group-dropdown-trigger');
+        if (trigger) {
+            const countSpan = trigger.querySelector('span');
+            if (countSpan) {
+                countSpan.innerText = `👥 Grupo: ${myGroups[0].name} (${selectedCount}/${memberList.length})`;
+            }
+        }
+    };
+    
+    renderDropdownContent();
+    window.refreshCajaGroupDropdown = renderDropdownContent;
+    
+    document.body.appendChild(dropdown);
+    
+    // Position dropdown exactly below buttonEl
+    const rect = buttonEl.getBoundingClientRect();
+    const scrollY = window.scrollY || window.pageYOffset;
+    const scrollX = window.scrollX || window.pageXOffset;
+    dropdown.style.top = `${rect.bottom + scrollY + 4}px`;
+    dropdown.style.left = `${rect.left + scrollX}px`;
+    
+    // Close dropdown on click outside
+    const outsideClickListener = function(e) {
+        if (!dropdown.contains(e.target) && e.target !== buttonEl && !buttonEl.contains(e.target)) {
+            dropdown.remove();
+            document.removeEventListener('click', outsideClickListener);
+            delete window.refreshCajaGroupDropdown;
+        }
+    };
+    document.addEventListener('click', outsideClickListener);
+};
+
+window.handleToggleGroupMemberCheckboxCaja = async function(memberDni, checked) {
+    if (checked) {
+        window.cajaSelectedGroupMembers.add(window.normalizeDni(memberDni));
+    } else {
+        window.cajaSelectedGroupMembers.delete(window.normalizeDni(memberDni));
+    }
+    
+    // Trigger history load/recalculation
+    await window.ensureGroupMembersHistoryLoadedAndRender(window.activeFichaDni);
+    
+    // Re-render dropdown items to reflect new state
+    if (typeof window.refreshCajaGroupDropdown === 'function') {
+        window.refreshCajaGroupDropdown();
+    }
+};
+
+window.handleSelectAllGroupCaja = async function(selectAll) {
+    const mainDni = window.normalizeDni(window.activeFichaDni);
+    if (!mainDni) return;
+    
+    const myGroups = (window.globalGroups || []).filter(g => (g.members || []).some(m => window.isSameDni(m, mainDni)));
+    if (myGroups.length === 0) return;
+    
+    const groupMembers = new Set();
+    myGroups.forEach(g => {
+        (g.members || []).forEach(m => groupMembers.add(window.normalizeDni(m)));
+    });
+    
+    if (selectAll) {
+        groupMembers.forEach(m => window.cajaSelectedGroupMembers.add(m));
+    } else {
+        window.cajaSelectedGroupMembers = new Set([mainDni]);
+    }
+    
+    await window.ensureGroupMembersHistoryLoadedAndRender(window.activeFichaDni);
+    
+    if (typeof window.refreshCajaGroupDropdown === 'function') {
+        window.refreshCajaGroupDropdown();
+    }
+};
+
+window.ensureGroupMembersHistoryLoadedAndRender = async function(mainDni) {
+    if (!window.groupHistoryCache) window.groupHistoryCache = {};
+    if (!window.cajaSelectedGroupMembers) {
+        window.cajaSelectedGroupMembers = new Set([window.normalizeDni(mainDni)]);
+    }
+    
+    const unloadedDnis = Array.from(window.cajaSelectedGroupMembers).filter(mDni => !window.groupHistoryCache[mDni]);
+    
+    if (unloadedDnis.length > 0) {
+        const cajaListEl = document.getElementById('caja-pending-list');
+        if (cajaListEl) {
+            cajaListEl.innerHTML = `<tr><td colspan="11" class="p-8 text-center"><svg class="animate-spin h-6 w-6 text-blue-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Cargando miembros...</td></tr>`;
+        }
+        
+        try {
+            await Promise.all(unloadedDnis.map(async (mDni) => {
+                const snap = await db.collection('mangamar_customers').doc(mDni).collection('history').get();
+                const docs = [];
+                snap.forEach(doc => {
+                    doc._ownerDni = mDni;
+                    docs.push(doc);
+                });
+                window.groupHistoryCache[mDni] = docs;
+            }));
+        } catch (e) {
+            console.error("Error loading group history:", e);
+            showAppAlert("Error de red al cargar el historial del grupo.");
+            return;
+        }
+    }
+    
+    const combinedRawDocs = [];
+    const mainNormDni = window.normalizeDni(mainDni);
+    
+    if (!window.groupHistoryCache[mainNormDni]) {
+        window.groupHistoryCache[mainNormDni] = window.activeFichaRawDocs || [];
+    }
+    
+    Array.from(window.cajaSelectedGroupMembers).forEach(mDni => {
+        const docs = window.groupHistoryCache[mDni] || [];
+        combinedRawDocs.push(...docs);
+    });
+    
+    combinedRawDocs.sort((a, b) => {
+        const dataA = typeof a.data === 'function' ? a.data() : a.data;
+        const dataB = typeof b.data === 'function' ? b.data() : b.data;
+        const dateTimeA = `${dataA.date || ''}T${dataA.time || '00:00'}`;
+        const dateTimeB = `${dataB.date || ''}T${dataB.time || '00:00'}`;
+        return dateTimeA.localeCompare(dateTimeB);
+    });
+    
+    window.activeFichaRawDocs = combinedRawDocs;
+    window.recalculateFichaHistory(mainDni);
+    window.renderFichaFromCache(mainDni, 'caja');
 };

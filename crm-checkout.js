@@ -103,12 +103,38 @@ function calculateDivePrice(historyItem) {
         }
     }
 
+    if (historyItem.customDivePrice !== undefined && historyItem.customDivePrice !== null) {
+        dive = parseFloat(historyItem.customDivePrice) || 0;
+    }
+    if (historyItem.customTasaPrice !== undefined && historyItem.customTasaPrice !== null) {
+        tasa = parseFloat(historyItem.customTasaPrice) || 0;
+    }
+    if (historyItem.customGasPrice !== undefined && historyItem.customGasPrice !== null) {
+        gas = parseFloat(historyItem.customGasPrice) || 0;
+    }
+    if (historyItem.customRentalPrice !== undefined && historyItem.customRentalPrice !== null) {
+        rental = parseFloat(historyItem.customRentalPrice) || 0;
+    }
+    if (historyItem.customComputerPrice !== undefined && historyItem.customComputerPrice !== null) {
+        computer = parseFloat(historyItem.customComputerPrice) || 0;
+    }
+    if (historyItem.customInsurancePrice !== undefined && historyItem.customInsurancePrice !== null) {
+        insurance = parseFloat(historyItem.customInsurancePrice) || 0;
+    }
+    if (historyItem.customOtrosPrice !== undefined && historyItem.customOtrosPrice !== null) {
+        if (historyItem.course) {
+            course = parseFloat(historyItem.customOtrosPrice) || 0;
+        } else {
+            custom = parseFloat(historyItem.customOtrosPrice) || 0;
+        }
+    }
+
     let total = dive + tasa + gas + rental + insurance + computer + course + custom;
     
     // Override if a customPrice is manually set on ANY record (including dives)
     if (historyItem.customPrice !== undefined && historyItem.customPrice !== null) {
         total = parseFloat(historyItem.customPrice) || 0;
-        // Adjust components so the breakdown UI (small grey text) matches the manual total
+        // Adjust components so the breakdown UI matches the manual total
         dive = total;
         tasa = 0; gas = 0; rental = 0; insurance = 0; computer = 0; course = 0; custom = 0;
     }
@@ -221,158 +247,61 @@ window.toggleCustomCollectorField = function() {
 window.promptPaymentGateway = function(dni, totalDebt, docIds, mode, forceDepositOverride = null, forceDepositMethod = null, includedFutureTripIds = []) {
     let originalDeposit = 0;
     let originalDepositMethod = 'Efectivo';
+    let selectedDepositIds = [];
 
     if (forceDepositOverride !== null) {
         originalDeposit = forceDepositOverride;
-        originalDepositMethod = forceDepositMethod;
+        originalDepositMethod = forceDepositMethod || 'Efectivo';
     } else {
-        let totalLocalDeposits = 0;
-        let localDepositMethod = 'Efectivo';
-        if (window.activeFichaDives && docIds) {
-            docIds.forEach(id => {
-                const dive = window.activeFichaDives.find(d => d.doc.id === id);
-                if (dive && dive.data && dive.data.localDeposit) {
-                    totalLocalDeposits += parseFloat(dive.data.localDeposit) || 0;
-                    if (dive.data.localDepositMethod) {
-                        localDepositMethod = dive.data.localDepositMethod;
-                    }
+        const profile = customerDatabase.find(c => c.dni === dni) || customerDatabase.find(c => window.isSameDni(c.dni, dni));
+
+        if (mode === 'bulk') {
+            // In bulk mode, read which deposit checkboxes are checked
+            const checkedBoxes = document.querySelectorAll('#caja-pending-list .caja-item-checkbox:checked');
+            checkedBoxes.forEach(cb => {
+                const docId = cb.getAttribute('data-doc-id');
+                if (docId && docId.startsWith('deposit_')) {
+                    selectedDepositIds.push({
+                        id: docId,
+                        ownerDni: cb.getAttribute('data-owner-dni') || dni,
+                        amount: parseFloat(cb.getAttribute('data-amount')) || 0
+                    });
+                    originalDeposit += parseFloat(cb.getAttribute('data-amount')) || 0;
                 }
             });
+            if (profile && profile.deposits && profile.deposits.length > 0) {
+                originalDepositMethod = profile.deposits[0].method || 'Efectivo';
+            }
+        } else {
+            // Single mode: collect all profile deposits
+            if (profile && profile.deposits) {
+                profile.deposits.forEach(dep => {
+                    selectedDepositIds.push({
+                        id: `deposit_profile_${dep.id}`,
+                        ownerDni: dni,
+                        amount: parseFloat(dep.amount) || 0
+                    });
+                    originalDeposit += parseFloat(dep.amount) || 0;
+                });
+                if (profile.deposits.length > 0) {
+                    originalDepositMethod = profile.deposits[0].method || 'Efectivo';
+                }
+            }
         }
 
-        const profile = customerDatabase.find(c => c.dni === dni);
-        originalDeposit = totalLocalDeposits;
-        originalDepositMethod = localDepositMethod;
-        if (profile && profile.deposit) {
-            originalDeposit += profile.deposit;
-            originalDepositMethod = profile.depositMethod || originalDepositMethod || 'Efectivo';
+        // Respect the "use deposit" toggle if user has turned it off
+        if (window.cajaSelectedUseDeposit === false) {
+            originalDeposit = 0;
         }
 
         if (mode === 'single') {
             totalDebt = Math.max(0, totalDebt - originalDeposit);
         }
-
-        // --- FUTURE DEPOSITS CHECK ---
-        const dObj = new Date();
-        const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
-        const futureDepositsInCheckout = [];
-        const futureDepositsOutsideCheckout = [];
-        if (window.activeFichaDives && docIds) {
-            window.activeFichaDives.forEach(item => {
-                const { doc, data } = item;
-                if (data.type === 'pago' || data.type === 'producto' || data.type === 'servicio') return;
-                if (data.paymentStatus === 'paid') return;
-                
-                if (data.localDeposit > 0 && data.date > todayStr) {
-                    const fd = {
-                        id: doc.id,
-                        date: data.date,
-                        amount: parseFloat(data.localDeposit) || 0,
-                        site: data.site || 'Inmersión',
-                        totalPrice: item.p ? item.p.total : 0
-                    };
-                    if (docIds.includes(doc.id)) {
-                        futureDepositsInCheckout.push(fd);
-                    } else {
-                        futureDepositsOutsideCheckout.push(fd);
-                    }
-                }
-            });
-        }
-
-        const futureDeposits = [...futureDepositsInCheckout, ...futureDepositsOutsideCheckout];
-
-        if (futureDeposits.length > 0) {
-            const totalFutureAmt = futureDeposits.reduce((sum, d) => sum + d.amount, 0);
-            
-            const overlay = document.createElement('div');
-            overlay.className = 'fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9999] flex items-center justify-center opacity-0 transition-opacity';
-            overlay.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 transform scale-95 transition-transform duration-300 border border-slate-100 flex flex-col">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-500 flex items-center justify-center shrink-0">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-black text-slate-800">Señal Futura Detectada</h3>
-                            <p class="text-[11px] font-bold text-slate-400">El cliente tiene señales registradas para salidas posteriores.</p>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-5 space-y-1.5 max-h-36 overflow-y-auto">
-                        ${futureDeposits.map(d => `
-                            <div class="flex items-center justify-between text-[11px] font-bold">
-                                <div class="text-slate-500 flex items-center gap-1.5">
-                                    <span class="text-slate-700 bg-slate-200/60 border border-slate-300/60 px-1 py-0.5 rounded text-[9px] font-black">${d.date}</span>
-                                    <span>${d.site}</span>
-                                </div>
-                                <span class="text-emerald-600 font-black">${d.amount} €</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <p class="text-xs text-slate-600 mb-5 font-semibold leading-relaxed">
-                        ¿Quieres <strong class="text-emerald-600">incluir</strong> estas señales (un total de <span class="font-black text-emerald-600">${totalFutureAmt}€</span>) para reducir el pago de hoy, o prefieres <strong class="text-slate-700">mantenerlas pendientes</strong> para sus respectivas salidas?
-                    </p>
-                    
-                    <div class="flex flex-col gap-2">
-                        <button id="btn-include-deposits" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md shadow-emerald-500/20">
-                            ✅ Sí, incluir en el pago de hoy
-                        </button>
-                        <button id="btn-keep-pending" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-widest rounded-xl transition-all active:scale-[0.98]">
-                            ⏳ No, mantener pendientes
-                        </button>
-                        <button id="btn-cancel-checkout" class="w-full py-2 text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all mt-1">
-                            Cancelar cobro
-                        </button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            
-            // Animate in
-            setTimeout(() => {
-                overlay.classList.remove('opacity-0');
-                overlay.querySelector('div').classList.replace('scale-95', 'scale-100');
-            }, 10);
-            
-            const closeOverlay = () => {
-                overlay.classList.add('opacity-0');
-                overlay.querySelector('div').classList.replace('scale-100', 'scale-95');
-                setTimeout(() => overlay.remove(), 300);
-            };
-            
-            overlay.querySelector('#btn-include-deposits').onclick = () => {
-                closeOverlay();
-                const addedDepositAmt = futureDepositsOutsideCheckout.reduce((sum, d) => sum + d.amount, 0);
-                const newTotalDebt = Math.max(0, totalDebt - addedDepositAmt);
-                const newOriginalDeposit = originalDeposit + addedDepositAmt;
-                const includedFutureTripIds = futureDeposits.map(d => d.id);
-                window.promptPaymentGateway(dni, newTotalDebt, docIds, mode, newOriginalDeposit, originalDepositMethod, includedFutureTripIds);
-            };
-            
-            overlay.querySelector('#btn-keep-pending').onclick = () => {
-                closeOverlay();
-                const newDocIds = docIds.filter(id => !futureDepositsInCheckout.some(fd => fd.id === id));
-                const depositToSubtract = futureDepositsInCheckout.reduce((sum, d) => sum + d.amount, 0);
-                const newOriginalDeposit = Math.max(0, originalDeposit - depositToSubtract);
-                const debtToSubtract = futureDepositsInCheckout.reduce((sum, d) => sum + (d.totalPrice - d.amount), 0);
-                const newTotalDebt = Math.max(0, totalDebt - debtToSubtract);
-                window.promptPaymentGateway(dni, newTotalDebt, newDocIds, mode, newOriginalDeposit, originalDepositMethod, []);
-            };
-            
-            overlay.querySelector('#btn-cancel-checkout').onclick = () => {
-                closeOverlay();
-            };
-            
-            return;
-        }
     }
 
     window.activePaymentContext = {
-        dni, totalDebt, docIds, mode, originalDeposit, originalDepositMethod, includedFutureTripIds
+        dni, totalDebt, docIds, mode, originalDeposit, originalDepositMethod, includedFutureTripIds,
+        selectedDepositIds: selectedDepositIds || []
     };
 
     document.getElementById('payment-engine-amount').value = totalDebt;
@@ -455,8 +384,9 @@ window.executePaymentGateway = async function() {
             });
         } else {
             // Mark all items as paid locally
-            ctx.docIds.forEach(id => {
-                let dive = window.activeFichaDives.find(i => i.doc.id === id);
+            ctx.docIds.forEach(target => {
+                const { dni: targetDni, docId: targetDocId } = target;
+                let dive = window.activeFichaDives.find(i => i.doc.id === targetDocId && window.isSameDni(i._ownerDni || ctx.dni, targetDni));
                 if (dive) {
                     dive.data.paymentStatus = 'paid';
                     dive.data.paymentMethod = method;
@@ -497,8 +427,9 @@ window.executePaymentGateway = async function() {
             // Inject deposit record locally
             if (ctx.originalDeposit > 0) {
                 let grossPrice = 0;
-                ctx.docIds.forEach(id => {
-                    const dive = window.activeFichaDives.find(d => d.doc.id === id);
+                ctx.docIds.forEach(target => {
+                    const { dni: targetDni, docId: targetDocId } = target;
+                    const dive = window.activeFichaDives.find(d => d.doc.id === targetDocId && window.isSameDni(d._ownerDni || ctx.dni, targetDni));
                     if (dive && dive.p) {
                         grossPrice += dive.p.total;
                     }
@@ -518,13 +449,17 @@ window.executePaymentGateway = async function() {
                     p: { dive:0, tasa:0, gas:0, rental:0, insurance:0, computer:0, course:0, custom: -depAmt, total: -depAmt },
                     cleanIns: 0, isCovered: false, isCourseCovered: false
                 });
-                // Clear/update deposit locally
-                const profileIdx = customerDatabase.findIndex(c => c.dni === ctx.dni);
-                if (profileIdx !== -1) {
-                    customerDatabase[profileIdx].deposit = newGlobalDeposit;
-                    if (newGlobalDeposit === 0) {
-                        delete customerDatabase[profileIdx].depositMethod;
-                    }
+                
+                // Clear selected deposits from memory
+                if (ctx.selectedDepositIds && ctx.selectedDepositIds.length > 0) {
+                    ctx.selectedDepositIds.forEach(depObj => {
+                        const { id, ownerDni } = depObj;
+                        const memberProfile = customerDatabase.find(c => window.isSameDni(c.dni, ownerDni));
+                        if (memberProfile && memberProfile.deposits) {
+                            const rawId = id.replace('deposit_profile_', '');
+                            memberProfile.deposits = memberProfile.deposits.filter(d => d.id !== rawId);
+                        }
+                    });
                 }
             }
         }
@@ -542,7 +477,7 @@ window.executePaymentGateway = async function() {
         if (window.activeBoatItem && window.activeBoatItem.groups) {
             window.activeBoatItem.groups.forEach(g => {
                 (g.guests || []).forEach(gst => {
-                    if (gst.dni === ctx.dni && ctx.docIds.includes(window.activeBoatItem.id)) {
+                    if (gst.dni === ctx.dni && ctx.docIds.some(target => target.docId === window.activeBoatItem.id)) {
                         gst.paymentStatus = 'paid';
                         gst.paymentMethod = method;
                         gst.paidBy = collector;
@@ -599,8 +534,11 @@ window.executePaymentGateway = async function() {
                     paidAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             } else {
-                ctx.docIds.forEach(docId => {
-                    const diveObj = window.activeFichaDives ? window.activeFichaDives.find(d => d.doc.id === docId) : null;
+                ctx.docIds.forEach(target => {
+                    const { dni: targetDni, docId: targetDocId } = target;
+                    const memberHistoryRef = db.collection('mangamar_customers').doc(targetDni).collection('history');
+                    
+                    const diveObj = window.activeFichaDives ? window.activeFichaDives.find(d => d.doc.id === targetDocId && window.isSameDni(d._ownerDni || ctx.dni, targetDni)) : null;
                     const isPagoItem = diveObj && diveObj.data && diveObj.data.type === 'pago';
                     
                     let updatePayload = {
@@ -609,67 +547,61 @@ window.executePaymentGateway = async function() {
                         paidBy: collector
                     };
                     
-                    // ONLY overwrite the payment method if it's a dive/product.
-                    // Legacy Abonos correctly retain their original payment methods (Efectivo/Tarjeta)
                     if (isPagoItem) {
                         updatePayload.isPartialAbono = false;
                     } else {
                         updatePayload.paymentMethod = method;
                     }
                     
-                    batch.update(historyRef.doc(docId), updatePayload);
+                    batch.update(memberHistoryRef.doc(targetDocId), updatePayload);
                 });
                 
-                // ADDITION: Always create a tracking token for the actual liquidation cash flow
-                // This guarantees the accounting dashboard only ever sees exact payments.
+                // Track liquidation under main client
                 const liquidacionRef = historyRef.doc();
                 batch.set(liquidacionRef, {
                     type: 'pago',
                     description: `Liquidación de Cuenta (${method})`,
                     customPrice: -Math.abs(amountPaid),
-                    paymentStatus: 'paid', // Immediately settled since it balanced the account
+                    paymentStatus: 'paid',
                     paymentMethod: method,
                     paidBy: collector,
                     date: dateStr,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     paidAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    settledDocIds: ctx.docIds
+                    settledDocIds: ctx.docIds.map(t => t.docId)
                 });
-
-                let newGlobalDeposit = 0;
-                let appliedDepositAmt = ctx.originalDeposit;
 
                 let grossPrice = 0;
                 if (window.activeFichaDives) {
-                    ctx.docIds.forEach(id => {
-                        const dive = window.activeFichaDives.find(d => d.doc.id === id);
+                    ctx.docIds.forEach(target => {
+                        const { dni: targetDni, docId: targetDocId } = target;
+                        const dive = window.activeFichaDives.find(d => d.doc.id === targetDocId && window.isSameDni(d._ownerDni || ctx.dni, targetDni));
                         if (dive && dive.p) {
                             grossPrice += dive.p.total;
                         }
                     });
                 }
 
-                if (ctx.originalDeposit > 0) {
+                if (ctx.selectedDepositIds && ctx.selectedDepositIds.length > 0) {
                     shouldClearDeposit = true;
-                    if (grossPrice > 0 && ctx.originalDeposit > grossPrice) {
-                        appliedDepositAmt = grossPrice;
-                        newGlobalDeposit = ctx.originalDeposit - grossPrice;
-                    } else {
-                        appliedDepositAmt = ctx.originalDeposit;
-                        newGlobalDeposit = 0;
-                    }
-
-                    const depositRef = historyRef.doc();
-                    batch.set(depositRef, {
-                        type: 'pago',
-                        description: `Aplicación de Depósito a Cuenta`,
-                        customPrice: -Math.abs(appliedDepositAmt),
-                        paymentStatus: 'paid',
-                        paymentMethod: ctx.originalDepositMethod || 'Efectivo',
-                        paidBy: collector,
-                        date: dateStr,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                        paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                    
+                    ctx.selectedDepositIds.forEach(depObj => {
+                        const { id, ownerDni, amount } = depObj;
+                        const depAmt = Math.abs(amount);
+                        const memberHistoryRef = db.collection('mangamar_customers').doc(ownerDni).collection('history');
+                        
+                        const depositRef = memberHistoryRef.doc();
+                        batch.set(depositRef, {
+                            type: 'pago',
+                            description: `Aplicación de Depósito a Cuenta`,
+                            customPrice: -depAmt,
+                            paymentStatus: 'paid',
+                            paymentMethod: ctx.originalDepositMethod || 'Efectivo',
+                            paidBy: collector,
+                            date: dateStr,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
                     });
                 }
 
@@ -689,11 +621,12 @@ window.executePaymentGateway = async function() {
 
             // Sync to Firestore manifest allocations
             if (!isPartial) {
-                ctx.docIds.forEach(docId => {
-                    const diveObj = window.activeFichaDives ? window.activeFichaDives.find(d => d.doc.id === docId) : null;
+                ctx.docIds.forEach(target => {
+                    const { dni: targetDni, docId: targetDocId } = target;
+                    const diveObj = window.activeFichaDives ? window.activeFichaDives.find(d => d.doc.id === targetDocId && window.isSameDni(d._ownerDni || ctx.dni, targetDni)) : null;
                     const isPagoItem = diveObj && diveObj.data && diveObj.data.type === 'pago';
                     if (!isPagoItem) {
-                        window.syncPaymentToManifest(ctx.dni, docId, 'paid', method, collector);
+                        window.syncPaymentToManifest(targetDni, targetDocId, 'paid', method, collector);
                     }
                 });
 
@@ -718,21 +651,43 @@ window.executePaymentGateway = async function() {
             }
 
             if (shouldClearDeposit) {
-                const custIndex = customerDatabase.findIndex(c => c.dni === ctx.dni);
-                if (custIndex !== -1) {
-                    customerDatabase[custIndex].deposit = newGlobalDeposit;
-                    if (newGlobalDeposit === 0) {
-                        delete customerDatabase[custIndex].depositMethod;
+                let remainingCharge = grossPrice;
+                ctx.selectedDepositIds.forEach(depObj => {
+                    const { id, ownerDni } = depObj;
+                    const memberProfile = customerDatabase.find(c => window.isSameDni(c.dni, ownerDni));
+                    if (memberProfile && memberProfile.deposits) {
+                        const rawId = id.replace('deposit_profile_', '');
+                        memberProfile.deposits.forEach(dep => {
+                            if (dep.id === rawId) {
+                                if (remainingCharge > 0) {
+                                    if (dep.amount <= remainingCharge) {
+                                        remainingCharge -= dep.amount;
+                                        dep.amount = 0; // Fully consumed
+                                    } else {
+                                        dep.amount -= remainingCharge;
+                                        remainingCharge = 0; // Partially consumed
+                                    }
+                                }
+                            }
+                        });
+                        // Remove fully consumed deposits from the array
+                        memberProfile.deposits = memberProfile.deposits.filter(dep => dep.amount > 0);
                     }
-                    const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
-                    await window.safeMasterListWrite(cleanDatabase, 'clear-deposit-after-checkout');
-                }
+                });
+                
+                const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+                await window.safeMasterListWrite(cleanDatabase, 'clear-deposit-after-checkout-batch');
             }
 
-            // Recalculate outstanding debt in the background
-            if (typeof window.updateCustomerOutstandingDebt === 'function') {
-                await window.updateCustomerOutstandingDebt(ctx.dni);
+            // Sequential recalculate outstanding debt for all selected members, then write once
+            const dnisToUpdate = Array.from(window.cajaSelectedGroupMembers || [ctx.dni]);
+            for (const memberDni of dnisToUpdate) {
+                if (typeof window.updateCustomerOutstandingDebt === 'function') {
+                    await window.updateCustomerOutstandingDebt(memberDni, true /* skipMasterListWrite */);
+                }
             }
+            const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
+            await window.safeMasterListWrite(cleanDatabase, 'clear-deposit-after-checkout-batch');
 
         } catch (e) {
             console.error("Background payment sync failed:", e);
@@ -883,6 +838,8 @@ window.addCustomCajaConcept = async function() {
                 window.renderFichaFromCache(window.activeFichaDni, 'caja');
             }
         }
+        const modal = document.getElementById('caja-add-concepto-modal');
+        if (modal) modal.classList.add('hidden');
     } catch (e) {
         console.error(e);
         showAppAlert("Error al añadir concepto.");
@@ -1182,14 +1139,17 @@ window.setDiscountType = function(type, skipSave = false) {
     if (!btnPct || !btnEur) return;
 
     if (type === 'percent' || type === 'pct') {
-        btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
-        btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
+        btnPct.className = 'px-2 py-0.5 text-[9px] font-black rounded-md bg-white text-blue-600 shadow-xs transition-all';
+        btnEur.className = 'px-2 py-0.5 text-[9px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
         document.getElementById('ficha-caja-discount').max = 100;
     } else {
-        btnEur.className = 'px-2 py-0.5 text-[10px] font-black rounded-md bg-white text-rose-500 shadow-sm transition-all';
-        btnPct.className = 'px-2 py-0.5 text-[10px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
+        btnEur.className = 'px-2 py-0.5 text-[9px] font-black rounded-md bg-white text-blue-600 shadow-xs transition-all';
+        btnPct.className = 'px-2 py-0.5 text-[9px] font-black rounded-md text-slate-400 hover:text-slate-600 transition-all';
         document.getElementById('ficha-caja-discount').removeAttribute('max');
     }
+    // Update unit label in the compact input
+    const unitLabel = document.getElementById('disc-unit-label');
+    if (unitLabel) unitLabel.textContent = (type === 'percent' || type === 'pct') ? '%' : '€';
     // User manually toggled type — save immediately if there's a value (and skipSave is false)
     if (!skipSave) {
         const val = document.getElementById('ficha-caja-discount').value;
@@ -1674,4 +1634,105 @@ window.liquidarFacturaActual = async function () {
             }
         })();
     });
+};
+
+window.inlineEditCell = function(event, el, dni, docId, fieldName, currentVal) {
+    event.stopPropagation();
+    if (el.querySelector('input')) return;
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = '0.01';
+    input.value = currentVal;
+    input.className = 'w-14 px-0.5 py-0.5 border border-blue-500 rounded font-black text-center outline-none text-slate-800 shadow-sm bg-white';
+    input.style.fontSize = 'inherit';
+
+    const originalHTML = el.innerHTML;
+    el.innerHTML = '';
+    el.appendChild(input);
+    input.focus();
+    input.select();
+
+    let isSaving = false;
+    const save = async () => {
+        if (isSaving) return;
+        const val = parseFloat(input.value);
+        
+        // If invalid or unchanged, just revert
+        if (isNaN(val) || val === currentVal) {
+            el.innerHTML = originalHTML;
+            return;
+        }
+
+        isSaving = true;
+        input.disabled = true;
+        input.classList.replace('border-blue-500', 'border-slate-200');
+        input.classList.add('opacity-50');
+
+        try {
+            const updatePayload = {};
+            
+            if (fieldName === 'dive') {
+                updatePayload.customDivePrice = val;
+            } else if (fieldName === 'tasa') {
+                updatePayload.customTasaPrice = val;
+            } else if (fieldName === 'gas') {
+                updatePayload.customGasPrice = val;
+            } else if (fieldName === 'rental') {
+                updatePayload.customRentalPrice = val;
+            } else if (fieldName === 'computer') {
+                updatePayload.customComputerPrice = val;
+            } else if (fieldName === 'insurance') {
+                updatePayload.customInsurancePrice = val;
+            } else if (fieldName === 'otros') {
+                updatePayload.customOtrosPrice = val;
+            } else if (fieldName === 'total') {
+                updatePayload.customPrice = val;
+            }
+            
+            if (fieldName !== 'total') {
+                updatePayload.customPrice = firebase.firestore.FieldValue.delete();
+            } else {
+                updatePayload.customDivePrice = firebase.firestore.FieldValue.delete();
+                updatePayload.customTasaPrice = firebase.firestore.FieldValue.delete();
+                updatePayload.customGasPrice = firebase.firestore.FieldValue.delete();
+                updatePayload.customRentalPrice = firebase.firestore.FieldValue.delete();
+                updatePayload.customComputerPrice = firebase.firestore.FieldValue.delete();
+                updatePayload.customInsurancePrice = firebase.firestore.FieldValue.delete();
+                updatePayload.customOtrosPrice = firebase.firestore.FieldValue.delete();
+            }
+
+            await db.collection('mangamar_customers').doc(dni).collection('history').doc(docId).update(updatePayload);
+            showToast("✅ Componente guardado");
+            
+            if (window.activeFichaRawDocs) {
+                const match = window.activeFichaRawDocs.find(d => d.id === docId);
+                if (match) {
+                    const dData = typeof match.data === 'function' ? match.data() : match.data;
+                    Object.keys(updatePayload).forEach(k => {
+                        if (updatePayload[k] === firebase.firestore.FieldValue.delete()) {
+                            delete dData[k];
+                        } else {
+                            dData[k] = updatePayload[k];
+                        }
+                    });
+                }
+            }
+            
+            if (typeof window.recalculateFichaHistory === 'function') {
+                window.recalculateFichaHistory(dni);
+                window.renderFichaFromCache(dni, 'caja');
+            }
+        } catch (err) {
+            console.error("Error updating cell:", err);
+            showToast("No se pudo guardar.", "error");
+            el.innerHTML = originalHTML;
+        }
+    };
+
+    input.onblur = save;
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); save(); }
+        if (e.key === 'Escape') { e.preventDefault(); el.innerHTML = originalHTML; }
+    };
 };
