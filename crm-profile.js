@@ -755,9 +755,8 @@ window.renderFichaFromCache = function(dni, targetTab) {
                         _migratedFromDiveId: doc.id
                     });
                     divesMigratedThisSession.push({ docId: doc.id, localDepAmt, ownerDni: itemDni });
+                    totalLocalDeposits += localDepAmt;
                 }
-                // Still count for the legacy table row (will still show if not yet saved)
-                totalLocalDeposits += localDepAmt;
                 if (data.localDepositMethod) localDepositMethod = data.localDepositMethod;
             }
         });
@@ -1959,7 +1958,11 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
                     pendingTotal += p.total;
                 }
                 if (data.localDeposit && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio') {
-                    totalLocalDeposits += parseFloat(data.localDeposit) || 0;
+                    const migratedId = 'migrated_manifest_' + item.id;
+                    const alreadyMigrated = (customerInfo.deposits || []).some(d => d.id === migratedId);
+                    if (!alreadyMigrated) {
+                        totalLocalDeposits += parseFloat(data.localDeposit) || 0;
+                    }
                 }
             }
         });
