@@ -554,7 +554,7 @@ window.renderFichaFromCache = function(dni, targetTab) {
             isPaid = false; // Legacy fallback
         }
 
-        if (!isPaid) {
+        if (!isPaid && data.type !== 'pago') {
             pendingTotal += p.total;
         }
 
@@ -1955,14 +1955,30 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
             }
 
             if (!isPaid) {
-                pendingTotal += p.total;
+                if (data.type !== 'pago') {
+                    pendingTotal += p.total;
+                }
                 if (data.localDeposit && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio') {
                     totalLocalDeposits += parseFloat(data.localDeposit) || 0;
                 }
             }
         });
 
-        const deposit = (customerInfo.deposit || 0) + totalLocalDeposits;
+        // Sum modern profile deposits
+        const profileDepositsSum = (customerInfo.deposits || []).reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+        // Sum legacy / history pending payment documents
+        let historyDepositsSum = 0;
+        safeDocs.forEach(item => {
+            const data = item.data();
+            const isPaid = data.paymentStatus === 'paid';
+            if (!isPaid && data.type === 'pago') {
+                const amt = Math.abs(parseFloat(data.amount) || parseFloat(data.total) || 0);
+                historyDepositsSum += amt;
+            }
+        });
+
+        const deposit = profileDepositsSum + historyDepositsSum + totalLocalDeposits;
         let fixedDiscountAmount = 0;
         if (customerInfo.discount > 0 && customerInfo.discountType === 'fixed') {
             fixedDiscountAmount = customerInfo.discount;
