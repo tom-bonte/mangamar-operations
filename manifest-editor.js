@@ -1687,7 +1687,7 @@ window.setIns = async function(type) {
     if (type === 'Remove') {
         guest.insurance = 0; 
         if (guest.dni) {
-            db.collection('mangamar_customers').doc(guest.dni).update({ insurance: firebase.firestore.FieldValue.delete() }).catch(e=>{});
+            db.collection('mangamar_customers').doc(guest.dni).update({ insurance: firebase.firestore.FieldValue.delete(), insuranceEdited: true }).catch(e=>{});
             const masterDocRef = db.collection('mangamar_directory').doc('master_list');
             masterDocRef.get().then(doc => {
                 if (doc.exists) {
@@ -1695,21 +1695,28 @@ window.setIns = async function(type) {
                     let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         delete clients[idx].insurance;
+                        clients[idx].insuranceEdited = true;
                         masterDocRef.set({ clients }, { merge: true });
                     }
                 }
             });
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-            if (profile) delete profile.insurance;
+            if (profile) {
+                delete profile.insurance;
+                profile.insuranceEdited = true;
+            }
         }
     } else if (type === 'Propio') {
         guest.insurance = 'Propio ✔'; 
         if (guest.dni) {
             const newIns = { type: 'Propio ✔', expiry: '2099-12-31', purchaseDate: activeBoatItem.date };
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-            if (profile) profile.insurance = newIns;
+            if (profile) {
+                profile.insurance = newIns;
+                profile.insuranceEdited = true;
+            }
             
-            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns }, { merge: true });
+            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true }, { merge: true });
             
             const masterDocRef = db.collection('mangamar_directory').doc('master_list');
             masterDocRef.get().then(doc => {
@@ -1718,6 +1725,7 @@ window.setIns = async function(type) {
                     let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         clients[idx].insurance = newIns;
+                        clients[idx].insuranceEdited = true;
                         masterDocRef.set({ clients }, { merge: true });
                     }
                 }
@@ -1739,9 +1747,12 @@ window.setIns = async function(type) {
             const newIns = { type, expiry, purchaseDate: activeBoatItem.date };
             
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-            if (profile) profile.insurance = newIns;
+            if (profile) {
+                profile.insurance = newIns;
+                profile.insuranceEdited = true;
+            }
             
-            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns }, { merge: true });
+            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true }, { merge: true });
             
             const masterDocRef = db.collection('mangamar_directory').doc('master_list');
             masterDocRef.get().then(doc => {
@@ -1750,6 +1761,7 @@ window.setIns = async function(type) {
                     let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         clients[idx].insurance = newIns;
+                        clients[idx].insuranceEdited = true;
                         masterDocRef.set({ clients }, { merge: true });
                     }
                 }
@@ -1935,7 +1947,7 @@ window.saveSeguroPropioChanges = async function() {
         // If type is left blank, remove/clear insurance just like 'Remove' action
         guest.insurance = 0;
         if (guest.dni) {
-            db.collection('mangamar_customers').doc(guest.dni).update({ insurance: firebase.firestore.FieldValue.delete() }).catch(e=>{});
+            db.collection('mangamar_customers').doc(guest.dni).update({ insurance: firebase.firestore.FieldValue.delete(), insuranceEdited: true }).catch(e=>{});
             const masterDocRef = db.collection('mangamar_directory').doc('master_list');
             masterDocRef.get().then(doc => {
                 if (doc.exists) {
@@ -1943,12 +1955,16 @@ window.saveSeguroPropioChanges = async function() {
                     let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         delete clients[idx].insurance;
+                        clients[idx].insuranceEdited = true;
                         masterDocRef.set({ clients }, { merge: true }).catch(e => console.error("Error saving master list:", e));
                     }
                 }
             });
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-            if (profile) delete profile.insurance;
+            if (profile) {
+                delete profile.insurance;
+                profile.insuranceEdited = true;
+            }
         }
     } else {
         guest.insurance = type;
@@ -1957,10 +1973,13 @@ window.saveSeguroPropioChanges = async function() {
             
             // Update local memory database
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-            if (profile) profile.insurance = newIns;
+            if (profile) {
+                profile.insurance = newIns;
+                profile.insuranceEdited = true;
+            }
             
             // Save to Firestore for this customer
-            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns }, { merge: true }).catch(e => console.error("Error saving insurance to Firestore:", e));
+            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true }, { merge: true }).catch(e => console.error("Error saving insurance to Firestore:", e));
             
             // Update master_list
             const masterDocRef = db.collection('mangamar_directory').doc('master_list');
@@ -2041,10 +2060,12 @@ window.toggleTramitado = function() {
                 // Marked as purchased, set valid future expiry!
                 profile.insurance = { type: newInsVal, expiry, purchaseDate: activeBoatItem.date };
             }
+            profile.insuranceEdited = true;
             
             // Save to Firestore mangamar_customers
             db.collection('mangamar_customers').doc(guest.dni).set({
-                insurance: profile.insurance
+                insurance: profile.insurance,
+                insuranceEdited: true
             }, { merge: true }).catch(e => console.error("Error updating CRM insurance:", e));
             
             // Save to master_list directory
@@ -2055,6 +2076,7 @@ window.toggleTramitado = function() {
                     let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         clients[idx].insurance = profile.insurance;
+                        clients[idx].insuranceEdited = true;
                         masterDocRef.set({ clients }, { merge: true });
                     }
                 }
@@ -2454,6 +2476,7 @@ window.saveLocalGuestEdit = async function() {
             // SMART INHERITANCE: Prioritize rich existing database info but fill gaps if user entered something new
             if (modalName && (isEmptyValue(existingProfile.nombre) || existingProfile.nombre.toLowerCase().includes('sin nombre'))) {
                 existingProfile.nombre = modalName;
+                existingProfile.nameEdited = true;
             }
             if (modalTit && isEmptyValue(existingProfile.titulacion)) {
                 existingProfile.titulacion = modalTit;
@@ -2493,7 +2516,8 @@ window.saveLocalGuestEdit = async function() {
                 nombre: modalName || 'Sin Nombre',
                 titulacion: modalTit,
                 telefono: modalPhone,
-                email: modalEmail
+                email: modalEmail,
+                nameEdited: true
             };
             customerDatabase.push(existingProfile);
             

@@ -1611,21 +1611,23 @@ window.syncJotformCustomers = async function() {
                 const sheetFullName = [sheetClient.nombre, sheetClient.apellido].filter(Boolean).join(' ').trim();
                 const existingFullName = [existing.nombre, existing.apellido].filter(Boolean).join(' ').trim();
                 
-                if (!existing.nombre || existing.nombre === 'Sin Nombre' || existing.nombre.toLowerCase().includes('sin nombre')) {
-                    existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
-                    nameModified = true;
-                } else if (sheetFullName && (existingFullName.toLowerCase() === 'sin nombre' || existingFullName.length < sheetFullName.length || existingFullName.split(/\s+/).length < sheetFullName.split(/\s+/).length)) {
-                    // Update name to Jotform's full official details
-                    existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
-                    nameModified = true;
-                }
-                
-                if (nameModified) {
-                    if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
-                    modified = true;
-                } else if (!existing.apellido && sheetClient.apellido) {
-                    existing.apellido = fixNameCaps(sheetClient.apellido);
-                    modified = true;
+                if (!existing.nameEdited) {
+                    if (!existing.nombre || existing.nombre === 'Sin Nombre' || existing.nombre.toLowerCase().includes('sin nombre')) {
+                        existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
+                        nameModified = true;
+                    } else if (sheetFullName && (existingFullName.toLowerCase() === 'sin nombre' || existingFullName.length < sheetFullName.length || existingFullName.split(/\s+/).length < sheetFullName.split(/\s+/).length)) {
+                        // Update name to Jotform's full official details
+                        existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
+                        nameModified = true;
+                    }
+                    
+                    if (nameModified) {
+                        if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
+                        modified = true;
+                    } else if (!existing.apellido && sheetClient.apellido) {
+                        existing.apellido = fixNameCaps(sheetClient.apellido);
+                        modified = true;
+                    }
                 }
                 if (!existing.email && sheetClient.email) { existing.email = sheetClient.email; modified = true; }
                 if (!existing.telefono && sheetClient.telefono) { existing.telefono = sheetClient.telefono; modified = true; }
@@ -1633,17 +1635,19 @@ window.syncJotformCustomers = async function() {
                 if (!existing.dob && sheetClient.dob) { existing.dob = window.normalizeDateStr(sheetClient.dob); modified = true; }
                 if (!existing.dives && sheetClient.dives) { existing.dives = sheetClient.dives; modified = true; }
                 
-                // Force sync insurance if provided from Jotform, but only if it's newer than the CRM's current record
-                if (sheetClient.insurance && sheetClient.insurance.type) { 
-                    const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry);
-                    const existingExpiry = existing.insurance ? window.normalizeDateStr(existing.insurance.expiry) : '';
-                    
-                    if (!existing.insurance || sheetExpiry > existingExpiry) {
-                        existing.insurance = {
-                            type: sheetClient.insurance.type,
-                            expiry: sheetExpiry // Save normalized as YYYY-MM-DD
-                        };
-                        modified = true; 
+                if (!existing.insuranceEdited) {
+                    // Force sync insurance if provided from Jotform, but only if it's newer than the CRM's current record
+                    if (sheetClient.insurance && sheetClient.insurance.type) { 
+                        const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry);
+                        const existingExpiry = existing.insurance ? window.normalizeDateStr(existing.insurance.expiry) : '';
+                        
+                        if (!existing.insurance || sheetExpiry > existingExpiry) {
+                            existing.insurance = {
+                                type: sheetClient.insurance.type,
+                                expiry: sheetExpiry // Save normalized as YYYY-MM-DD
+                            };
+                            modified = true; 
+                        }
                     }
                 }
                 if (modified) mergedCount++;

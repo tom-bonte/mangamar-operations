@@ -1500,6 +1500,8 @@ window.saveCustomerEdits = async function () {
             customerDatabase[newIndex].telefono = telefono;
             customerDatabase[newIndex].email = email;
             customerDatabase[newIndex].titulacion = titulacion;
+            customerDatabase[newIndex].nameEdited = true;
+            customerDatabase[newIndex].insuranceEdited = true;
             if (apodo) customerDatabase[newIndex].apodo = apodo;
             else delete customerDatabase[newIndex].apodo;
             if (divesRaw) customerDatabase[newIndex].dives = parseInt(divesRaw);
@@ -1527,6 +1529,8 @@ window.saveCustomerEdits = async function () {
                 customerDatabase[oldIndex].telefono = telefono;
                 customerDatabase[oldIndex].email = email;
                 customerDatabase[oldIndex].titulacion = titulacion;
+                customerDatabase[oldIndex].nameEdited = true;
+                customerDatabase[oldIndex].insuranceEdited = true;
                 if (apodo) customerDatabase[oldIndex].apodo = apodo;
                 else delete customerDatabase[oldIndex].apodo;
                 if (divesRaw) customerDatabase[oldIndex].dives = parseInt(divesRaw);
@@ -1549,7 +1553,9 @@ window.saveCustomerEdits = async function () {
                     telefono: telefono,
                     email: email,
                     titulacion: titulacion,
-                    discount: 0
+                    discount: 0,
+                    nameEdited: true,
+                    insuranceEdited: true
                 };
                 if (apodo) newCustomer.apodo = apodo;
                 if (divesRaw) newCustomer.dives = parseInt(divesRaw);
