@@ -1579,15 +1579,24 @@ window.saveCustomerEdits = async function () {
             
             // If DNI changed, delete old one and migrate history
             if (oldDni !== newDni) {
+                // Update local in-memory redirects instantly to prevent race conditions during snapshot updates
+                window.dniRedirects = window.dniRedirects || {};
+                const normOld = window.normalizeDni(oldDni);
+                const normNew = window.normalizeDni(newDni);
+                window.dniRedirects[normOld] = normNew;
+                for (let k in window.dniRedirects) {
+                    if (window.dniRedirects[k] === normOld) {
+                        window.dniRedirects[k] = normNew;
+                    }
+                }
+
                 db.collection('mangamar_customers').doc(oldDni).delete().catch(e => console.error("Error deleting old DNI:", e));
-                window.migrateCustomerHistory(oldDni, newDni).catch(e => console.error("Error migrating history:", e));
+                await window.migrateCustomerHistory(oldDni, newDni).catch(e => console.error("Error migrating history:", e));
 
                 // Add DNI redirect to settings document in Firestore to prevent sync/heal duplications
                 const settingsRef = db.collection("mangamar_directory").doc("settings");
                 settingsRef.get().then(doc => {
                     const currentRedirects = doc.exists ? (doc.data().dniRedirects || {}) : {};
-                    const normOld = window.normalizeDni(oldDni);
-                    const normNew = window.normalizeDni(newDni);
                     currentRedirects[normOld] = normNew;
                     for (let k in currentRedirects) {
                         if (currentRedirects[k] === normOld) {
