@@ -38,7 +38,7 @@ async function generateYearCsv(year) {
                     if (monthData[id]._deleted) continue;
                     const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
                     if (tripMonth && tripMonth !== monthKey) continue;
-                    allVisorTrips.push({ id, ...monthData[id], isVisorTrip: true });
+                    allVisorTrips.push({ ...monthData[id], id, isVisorTrip: true });
                 }
             }
         }
@@ -54,7 +54,7 @@ async function generateYearCsv(year) {
                 }
                 const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
                 if (tripMonth && tripMonth !== monthKey) continue;
-                allInternalTrips.push({ id, ...monthData[id], isInternalTrip: true });
+                allInternalTrips.push({ ...monthData[id], id, isInternalTrip: true });
             }
         }
     });

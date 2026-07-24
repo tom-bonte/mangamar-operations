@@ -2255,7 +2255,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                             const monthData = doc.data().allocations;
                             tripsToCheck = [];
                             for (const tripId in monthData) {
-                                tripsToCheck.push({ id: tripId, ...monthData[tripId] });
+                                tripsToCheck.push({ ...monthData[tripId], id: tripId });
                             }
                         }
                     } catch (e) { console.error("[executeRelink] Failed to fetch month", monthStr, e); }
@@ -3734,6 +3734,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
     const targetAssignedBoat = savedSnapshot.assignedBoat;
 
     const payload = {
+        id: targetTripId,
         date: targetDate, time: targetTime, assignedBoat: targetAssignedBoat,
         site: targetSite, captain: savedSnapshot.captain, groups: savedSnapshot.groups, guests: flatGuests,
         waitlist: savedSnapshot.waitlist || [],

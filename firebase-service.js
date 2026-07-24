@@ -297,7 +297,7 @@ function syncActiveMonthListeners() {
                             const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
                             if (tripMonth && tripMonth !== doc.id) continue;
 
-                            visorData.push({ id, ...monthData[id], isVisorTrip: true, _sourceDocId: doc.id });
+                            visorData.push({ ...monthData[id], id, isVisorTrip: true, _sourceDocId: doc.id });
                         }
                     }
                 }
@@ -321,7 +321,7 @@ function syncActiveMonthListeners() {
                         const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
                         if (tripMonth && tripMonth !== doc.id) continue;
 
-                        const trip = { id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id };
+                        const trip = { ...monthData[id], id, isInternalTrip: true, _sourceDocId: doc.id };
                         if (trip.groups && Array.isArray(trip.groups)) {
                             const flat = [];
                             trip.groups.forEach(g => {
@@ -771,13 +771,21 @@ window.mergeAndRender = function mergeAndRender() {
             const monthKey = orphan.date.substring(0, 7);
             const ref = db.collection(INTERNAL_DB).doc(monthKey);
 
-            // Inherit the new site from the Visor
-            const updatedPayload = { ...orphan };
-            updatedPayload.site = renamedVisorTrip.site;
+            // Inherit the new site and ID from the Visor to prevent internal ID property mismatch
+            const updatedPayload = { ...orphan, id: renamedVisorTrip.id, site: renamedVisorTrip.site };
+
+            // Clean up runtime fields and redundant guests array for Firestore storage
+            const dbPayload = { ...updatedPayload };
+            delete dbPayload.isInternalTrip;
+            delete dbPayload._sourceDocId;
+            delete dbPayload._migrated;
+            if (dbPayload.groups && Array.isArray(dbPayload.groups)) {
+                delete dbPayload.guests;
+            }
 
             // Swift database rewrite: Delete old ID, Save to new ID
             ref.update({
-                [`allocations.${renamedVisorTrip.id}`]: updatedPayload,
+                [`allocations.${renamedVisorTrip.id}`]: dbPayload,
                 [`allocations.${orphan.id}`]: firebase.firestore.FieldValue.delete()
             }).catch(e => console.error("Auto-migration failed:", e));
 
@@ -882,42 +890,61 @@ window.mergeAndRender = function mergeAndRender() {
     if (missingDnis.length > 0 && typeof db !== 'undefined' && window.crmLoaded) {
         window._healingDnis = window._healingDnis || new Set();
 
+        const uniqueMissing = [];
         missingDnis.forEach(item => {
-            if (window._healingDnis.has(item.dni)) return;
-            window._healingDnis.add(item.dni);
-
-            console.log(`🔍 [CRM Auto-Heal] Scheduled guest '${item.nombre}' (${item.dni}) is missing from CRM database. Fetching...`);
-            db.collection('mangamar_customers').doc(item.dni).get().then(snap => {
-                if (snap.exists) {
-                    const profileData = snap.data();
-                    const stillExists = customerDatabase.some(c => window.isSameDni(c.dni, item.dni));
-                    if (!stillExists) {
-                        console.log(`📥 [CRM Auto-Heal] Restoring missing client ${profileData.nombre || item.nombre} to CRM database.`);
-                        customerDatabase.push(profileData);
-                        window.safeMasterListWrite(customerDatabase, 'auto-heal-restore-guest');
-                    }
-                } else {
-                    // Profile does not exist in mangamar_customers either. Create a skeleton.
-                    const stillExists = customerDatabase.some(c => window.isSameDni(c.dni, item.dni));
-                    if (!stillExists) {
-                        console.log(`📥 [CRM Auto-Heal] Creating skeleton profile for manual diver ${item.nombre} (${item.dni}) in CRM.`);
-                        const newProfile = {
-                            dni: item.dni,
-                            nombre: item.nombre || 'Sin Nombre',
-                            titulacion: item.trip.plazas === '-' ? 'Shore/Aula' : '',
-                            telefono: '',
-                            email: ''
-                        };
-                        customerDatabase.push(newProfile);
-                        db.collection('mangamar_customers').doc(item.dni).set(newProfile, { merge: true }).catch(() => {});
-                        window.safeMasterListWrite(customerDatabase, 'auto-heal-create-guest');
-                    }
-                }
-            }).catch(err => {
-                console.error("Error auto-healing missing guest:", err);
-                window._healingDnis.delete(item.dni);
-            });
+            if (!window._healingDnis.has(item.dni)) {
+                window._healingDnis.add(item.dni);
+                uniqueMissing.push(item);
+            }
         });
+
+        if (uniqueMissing.length > 0) {
+            console.log(`🔍 [CRM Auto-Heal] Scanning ${uniqueMissing.length} missing guest profiles...`);
+            
+            Promise.all(uniqueMissing.map(async (item) => {
+                try {
+                    const snap = await db.collection('mangamar_customers').doc(item.dni).get();
+                    if (snap.exists) {
+                        const profileData = snap.data();
+                        const stillExists = customerDatabase.some(c => window.isSameDni(c.dni, item.dni));
+                        if (!stillExists) {
+                            console.log(`📥 [CRM Auto-Heal] Found profile for ${profileData.nombre || item.nombre} (${item.dni}) in customer collection.`);
+                            return { type: 'restore', data: profileData, dni: item.dni };
+                        }
+                    } else {
+                        const stillExists = customerDatabase.some(c => window.isSameDni(c.dni, item.dni));
+                        if (!stillExists) {
+                            console.log(`📥 [CRM Auto-Heal] Creating skeleton profile for manual diver ${item.nombre} (${item.dni}) in CRM.`);
+                            const newProfile = {
+                                dni: item.dni,
+                                nombre: item.nombre || 'Sin Nombre',
+                                titulacion: item.trip.plazas === '-' ? 'Shore/Aula' : '',
+                                telefono: '',
+                                email: ''
+                            };
+                            await db.collection('mangamar_customers').doc(item.dni).set(newProfile, { merge: true }).catch(() => {});
+                            return { type: 'create', data: newProfile, dni: item.dni };
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error auto-healing missing guest:", err);
+                    window._healingDnis.delete(item.dni);
+                }
+                return null;
+            })).then(results => {
+                const profilesToAdd = results.filter(Boolean);
+                if (profilesToAdd.length > 0) {
+                    let updatedDb = [...customerDatabase];
+                    profilesToAdd.forEach(p => {
+                        if (!updatedDb.some(c => window.isSameDni(c.dni, p.dni))) {
+                            updatedDb.push(p.data);
+                        }
+                    });
+                    console.log(`✅ [CRM Auto-Heal] Batch writing ${profilesToAdd.length} missing profiles to master_list.`);
+                    window.safeMasterListWrite(updatedDb, 'auto-heal-batch-sync');
+                }
+            });
+        }
     }
 
     // --- DYNAMIC MULTIPLAYER REAL-TIME SYNC ---

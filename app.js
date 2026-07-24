@@ -1810,7 +1810,7 @@ async function fetchTripsForDateRange(startDateStr, endDateStr) {
                             if (monthData[id]._deleted) continue;
                             const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
                             if (tripMonth && tripMonth !== doc.id) continue;
-                            allVisorTrips.push({ id, ...monthData[id], isVisorTrip: true, _sourceDocId: doc.id });
+                            allVisorTrips.push({ ...monthData[id], id, isVisorTrip: true, _sourceDocId: doc.id });
                         }
                     }
                 }
@@ -1828,7 +1828,7 @@ async function fetchTripsForDateRange(startDateStr, endDateStr) {
                         }
                         const tripMonth = monthData[id].date ? monthData[id].date.substring(0, 7) : "";
                         if (tripMonth && tripMonth !== doc.id) continue;
-                        allInternalTrips.push({ id, ...monthData[id], isInternalTrip: true, _sourceDocId: doc.id });
+                        allInternalTrips.push({ ...monthData[id], id, isInternalTrip: true, _sourceDocId: doc.id });
                     }
                 }
             })
