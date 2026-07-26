@@ -635,14 +635,47 @@ window.renderNitroxForecast = function() {
         return;
     }
 
-    // 2. Aggregate Nitrox Tanks chronologically across ALL boats
+    // 2. Aggregate Nitrox Tanks chronologically across ALL boats & track Bibotellas
     let timeGroups = {}; // e.g. { "08:00": { "15L 32%": 2, "12L 28%": 1 } }
+    let bibotellaMap = {}; // Keyed by diver identifier to prevent duplicate rows per day
     
     dayTrips.forEach(trip => {
         if (trip.groups) {
             trip.groups.forEach(group => {
                 if (group.guests) {
                     group.guests.forEach(guest => {
+                        // Check if guest has a Bibotella / Botella Propia saved in customer profile
+                        const gDni = guest.dni || guest.customerDni;
+                        const gName = (guest.name || '').trim().toLowerCase();
+                        const customer = (window.customerDatabase || []).find(c => {
+                            if (gDni && c.dni && window.isSameDni(c.dni, gDni)) return true;
+                            if (c.nombre && c.nombre.trim().toLowerCase() === gName) return true;
+                            if (c.apodo && c.apodo.trim().toLowerCase() === gName) return true;
+                            return false;
+                        });
+
+                        if (customer && customer.bibotella) {
+                            const diverKey = (customer.dni || customer.nombre || guest.name).toLowerCase();
+                            const rawGas = guest.gas || 'Aire';
+                            let gasLabel = 'Aire';
+                            if (rawGas.includes('32')) gasLabel = '32%';
+                            else if (rawGas.includes('28')) gasLabel = '28%';
+
+                            const displayName = window.getFullName(customer, true) || guest.name;
+                            const typeLabel = customer.bibotella === 'propia' ? 'Botella Propia' : 'Bibotella';
+
+                            if (!bibotellaMap[diverKey]) {
+                                bibotellaMap[diverKey] = {
+                                    name: displayName,
+                                    type: typeLabel,
+                                    gas: gasLabel
+                                };
+                            } else if (gasLabel !== 'Aire') {
+                                bibotellaMap[diverKey].gas = gasLabel;
+                            }
+                        }
+
+                        // Aggregate standard Nitrox tanks
                         const gas = guest.gas || '15L Aire';
                         if (gas.includes('EAN')) {
                             let shortGas = gas.replace('EAN', '') + '%';
@@ -659,12 +692,14 @@ window.renderNitroxForecast = function() {
         }
     });
 
-    if (Object.keys(timeGroups).length === 0) {
+    const bibotellaList = Object.values(bibotellaMap);
+
+    if (Object.keys(timeGroups).length === 0 && bibotellaList.length === 0) {
         container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full text-emerald-400 mt-12 mb-12 bg-emerald-50 rounded-3xl p-8 border border-emerald-100 max-w-lg mx-auto">
             <svg class="w-20 h-20 mb-6 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
             <p class="font-black text-2xl text-emerald-700 mb-2">¡Todo es Aire!</p>
-            <p class="text-sm font-bold text-emerald-600/70 text-center">No hay ninguna botella de Nitrox programada para este día.</p>
+            <p class="text-sm font-bold text-emerald-600/70 text-center">No hay ninguna botella de Nitrox ni Bibotella programada para este día.</p>
         </div>`;
         return;
     }
@@ -675,8 +710,17 @@ window.renderNitroxForecast = function() {
     titleDate = titleDate.charAt(0).toUpperCase() + titleDate.slice(1);
     
     let textOutput = `Previsión Nitrox - ${titleDate}\n\n`;
+
+    if (bibotellaList.length > 0) {
+        textOutput += `BIBOTELLA / BOTELLA PROPIA:\n`;
+        bibotellaList.forEach(item => {
+            textOutput += `- ${item.name}: ${item.type} (${item.gas})\n`;
+        });
+        textOutput += `\n`;
+    }
+
     Object.keys(timeGroups).sort((a,b) => a.localeCompare(b)).forEach((time, index) => {
-        if (index > 0) textOutput += `\n`; // Add single newline before subsequent time blocks, removing double empty lines.
+        if (index > 0) textOutput += `\n`; // Add single newline before subsequent time blocks
         textOutput += `${time}\n`;
         Object.keys(timeGroups[time]).sort().forEach(gas => {
             textOutput += `- ${timeGroups[time][gas]}x ${gas}\n`;

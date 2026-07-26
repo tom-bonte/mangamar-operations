@@ -1,0 +1,5 @@
+# Ignore temporary scratch directory
+scratch/
+
+# OS generated files
+.DS_Store

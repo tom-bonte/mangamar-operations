@@ -64,6 +64,14 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
             document.getElementById('ficha-tab-telefono').innerText = customerInfo.telefono || '---';
             document.getElementById('ficha-tab-email').innerText = customerInfo.email || '---';
             document.getElementById('ficha-tab-titulacion').innerText = customerInfo.titulacion || '---';
+            if (document.getElementById('ficha-tab-bibotella')) {
+                if (customerInfo.bibotella) {
+                    const typeLabel = customerInfo.bibotella === 'propia' ? 'Sí (Botella Propia)' : 'Sí (Bibotella)';
+                    document.getElementById('ficha-tab-bibotella').innerText = typeLabel;
+                } else {
+                    document.getElementById('ficha-tab-bibotella').innerText = 'No';
+                }
+            }
             let insObj = customerInfo.insurance;
             let typeStr = "";
             let expiryStr = "";
@@ -1445,6 +1453,9 @@ window.promptEditCustomer = function () {
     document.getElementById('edit-f-email').value = customerInfo.email || '';
     document.getElementById('edit-f-titulacion').value = customerInfo.titulacion || '';
     document.getElementById('edit-f-dives').value = customerInfo.dives || '';
+    if (document.getElementById('edit-f-bibotella')) {
+        document.getElementById('edit-f-bibotella').value = customerInfo.bibotella || '';
+    }
 
     if (customerInfo.insurance) {
         document.getElementById('edit-f-insurance-type').value = customerInfo.insurance.type || '';
@@ -1483,6 +1494,7 @@ window.saveCustomerEdits = async function () {
         const email = document.getElementById('edit-f-email').value.trim();
         const titulacion = document.getElementById('edit-f-titulacion').value.trim();
         const divesRaw = document.getElementById('edit-f-dives').value;
+        const bibotella = document.getElementById('edit-f-bibotella') ? document.getElementById('edit-f-bibotella').value : '';
         const insType = document.getElementById('edit-f-insurance-type').value;
         const insExp = document.getElementById('edit-f-insurance-exp').value;
 
@@ -1504,6 +1516,8 @@ window.saveCustomerEdits = async function () {
             customerDatabase[newIndex].insuranceEdited = true;
             if (apodo) customerDatabase[newIndex].apodo = apodo;
             else delete customerDatabase[newIndex].apodo;
+            if (bibotella) customerDatabase[newIndex].bibotella = bibotella;
+            else delete customerDatabase[newIndex].bibotella;
             if (divesRaw) customerDatabase[newIndex].dives = parseInt(divesRaw);
             else delete customerDatabase[newIndex].dives;
             if (insType) {
@@ -1533,6 +1547,8 @@ window.saveCustomerEdits = async function () {
                 customerDatabase[oldIndex].insuranceEdited = true;
                 if (apodo) customerDatabase[oldIndex].apodo = apodo;
                 else delete customerDatabase[oldIndex].apodo;
+                if (bibotella) customerDatabase[oldIndex].bibotella = bibotella;
+                else delete customerDatabase[oldIndex].bibotella;
                 if (divesRaw) customerDatabase[oldIndex].dives = parseInt(divesRaw);
                 else delete customerDatabase[oldIndex].dives;
                 if (insType) {
@@ -1558,6 +1574,7 @@ window.saveCustomerEdits = async function () {
                     insuranceEdited: true
                 };
                 if (apodo) newCustomer.apodo = apodo;
+                if (bibotella) newCustomer.bibotella = bibotella;
                 if (divesRaw) newCustomer.dives = parseInt(divesRaw);
                 if (insType) {
                     newCustomer.insurance = {

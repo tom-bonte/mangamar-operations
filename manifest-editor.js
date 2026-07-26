@@ -928,9 +928,25 @@ function _renderGroupsCore(skipAutoSave = false) {
 
             const gasStates = ['15L Aire', '12L Aire', '15L EAN28', '12L EAN28', '15L EAN32', '12L EAN32'];
             const gasCurrent = guest.gas || '15L Aire';
-            const isNitrox = gasCurrent.includes('EAN');
+            const isNitrox = gasCurrent.includes('EAN') || gasCurrent.includes('32') || gasCurrent.includes('28');
             const gasColor = isNitrox ? 'bg-green-500 text-white border-green-600 font-black' : 'bg-blue-50 text-blue-600 border-blue-200';
-            const gasShortText = gasCurrent.replace(' Aire', '').replace(/EAN\s*(\d+)/i, '$1%');
+            
+            const gProfile = (window.customerDatabase || []).find(c => {
+                if (guest.dni && c.dni && window.isSameDni(c.dni, guest.dni)) return true;
+                if (c.nombre && c.nombre.trim().toLowerCase() === (guest.name || '').trim().toLowerCase()) return true;
+                if (c.apodo && c.apodo.trim().toLowerCase() === (guest.name || '').trim().toLowerCase()) return true;
+                return false;
+            });
+            const isBibotellaGuest = gProfile && gProfile.bibotella;
+
+            let gasShortText = '';
+            if (isBibotellaGuest) {
+                if (gasCurrent.includes('32')) gasShortText = '32%';
+                else if (gasCurrent.includes('28')) gasShortText = '28%';
+                else gasShortText = 'Aire';
+            } else {
+                gasShortText = gasCurrent.replace(' Aire', '').replace(/EAN\s*(\d+)/i, '$1%');
+            }
 
             const rentalCurrent = guest.rental || 0;
             let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
@@ -1362,14 +1378,22 @@ function removeGuest(groupIndex, guestIndex) {
 
 window.changeGas = function(groupIndex, guestIndex, value, buttonEl) {
     if (!window.isLoggedIn) return;
-    activeBoatItem.groups[groupIndex].guests[guestIndex].gas = value;
+    const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    guest.gas = value;
     
     // Targeted DOM Update (Instant!)
     if (buttonEl) {
-        const isNitrox = value.includes('EAN');
+        const isNitrox = value.includes('EAN') || value.includes('32') || value.includes('28');
         const gasColor = isNitrox ? 'bg-green-500 text-white border-green-600 font-black' : 'bg-blue-50 text-blue-600 border-blue-200';
         buttonEl.className = `w-14 h-7 flex justify-center items-center rounded border text-[10px] font-black transition-colors shrink-0 ${gasColor}`;
-        buttonEl.innerText = value.replace(' Aire', '').replace(/EAN\s*(\d+)/i, '$1%');
+        
+        let labelText = '';
+        if (value.includes('32')) labelText = '32%';
+        else if (value.includes('28')) labelText = '28%';
+        else if (value === 'Aire') labelText = 'Aire';
+        else labelText = value.replace(' Aire', '').replace(/EAN\s*(\d+)/i, '$1%');
+
+        buttonEl.innerText = labelText;
     }
     
     triggerAutoSave();
@@ -1378,6 +1402,17 @@ window.changeGas = function(groupIndex, guestIndex, value, buttonEl) {
 window.showGasDropdown = function(groupIndex, guestIndex, buttonEl, event) {
     event.stopPropagation();
     if (!window.isLoggedIn) return;
+
+    const targetGuest = activeBoatItem.groups[groupIndex].guests[guestIndex];
+    const gDni = targetGuest.dni || targetGuest.customerDni;
+    const gName = (targetGuest.name || '').trim().toLowerCase();
+    const profile = (window.customerDatabase || []).find(c => {
+        if (gDni && c.dni && window.isSameDni(c.dni, gDni)) return true;
+        if (c.nombre && c.nombre.trim().toLowerCase() === gName) return true;
+        if (c.apodo && c.apodo.trim().toLowerCase() === gName) return true;
+        return false;
+    });
+    const isBibotella = profile && profile.bibotella;
 
     // Remove any existing gas dropdown first
     const existing = document.getElementById('gas-custom-dropdown');
@@ -1388,22 +1423,31 @@ window.showGasDropdown = function(groupIndex, guestIndex, buttonEl, event) {
     dropdown.id = 'gas-custom-dropdown';
     dropdown.className = 'absolute bg-white border border-slate-200 rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 min-w-[95px] z-[999999]';
 
-    const gasOptions = [
-        { value: '15L Aire', label: '15L', type: 'air' },
-        { value: '12L Aire', label: '12L', type: 'air' },
-        { value: '15L EAN32', label: '15L 32%', type: 'ean32' },
-        { value: '12L EAN32', label: '12L 32%', type: 'ean32' },
-        { value: '15L EAN28', label: '15L 28%', type: 'ean28' },
-        { value: '12L EAN28', label: '12L 28%', type: 'ean28' }
-    ];
+    let gasOptions;
+    if (isBibotella) {
+        gasOptions = [
+            { value: 'Aire', label: 'Aire', type: 'air' },
+            { value: '15L EAN32', label: '32%', type: 'ean32' },
+            { value: '15L EAN28', label: '28%', type: 'ean28' }
+        ];
+    } else {
+        gasOptions = [
+            { value: '15L Aire', label: '15L', type: 'air' },
+            { value: '12L Aire', label: '12L', type: 'air' },
+            { value: '15L EAN32', label: '15L 32%', type: 'ean32' },
+            { value: '12L EAN32', label: '12L 32%', type: 'ean32' },
+            { value: '15L EAN28', label: '15L 28%', type: 'ean28' },
+            { value: '12L EAN28', label: '12L 28%', type: 'ean28' }
+        ];
+    }
 
-    const currentGas = activeBoatItem.groups[groupIndex].guests[guestIndex].gas || '15L Aire';
+    const currentGas = targetGuest.gas || (isBibotella ? 'Aire' : '15L Aire');
 
     gasOptions.forEach(opt => {
         const item = document.createElement('button');
         item.type = 'button';
-        const isCurrent = opt.value === currentGas;
-        
+        const isCurrent = opt.value === currentGas || (isBibotella && ((opt.value === 'Aire' && (currentGas.includes('Aire') || currentGas === 'Aire')) || (opt.value.includes('32') && currentGas.includes('32')) || (opt.value.includes('28') && currentGas.includes('28'))));
+
         let itemClass = '';
         if (isCurrent) {
             if (opt.type === 'air') itemClass = 'bg-blue-600 text-white shadow-sm';
