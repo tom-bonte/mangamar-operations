@@ -102,11 +102,60 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
 
 window.normalizeDateStr = function(dateStr) {
     if (!dateStr) return '';
-    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(dateStr)) {
-        const parts = dateStr.split(/[\/\-]/);
+    const trimmed = String(dateStr).trim();
+    if (!trimmed) return '';
+    
+    // Check YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+    }
+
+    // Check DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+    if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/.test(trimmed)) {
+        const parts = trimmed.split(/[\/\-\.]/);
         return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
     }
-    return dateStr;
+
+    // Check YYYY/MM/DD or YYYY.MM.DD
+    if (/^\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}$/.test(trimmed)) {
+        const parts = trimmed.split(/[\/\-\.]/);
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+
+    // Check DD/MMM/YYYY or DD-MMM-YYYY or DD MMM YYYY (e.g. 10/Oct/1980 or 10-Oct-1980)
+    const monthNames = {
+        ene: '01', jan: '01', enero: '01', january: '01',
+        feb: '02', febrero: '02', february: '02',
+        mar: '03', marzo: '03', march: '03',
+        abr: '04', apr: '04', abril: '04', april: '04',
+        may: '05', mayo: '05',
+        jun: '06', junio: '06', june: '06',
+        jul: '07', julio: '07', july: '07',
+        ago: '08', aug: '08', agosto: '08', august: '08',
+        sep: '09', set: '09', septiembre: '09', september: '09',
+        oct: '10', octubre: '10', october: '10',
+        nov: '11', noviembre: '11', november: '11',
+        dic: '12', dec: '12', diciembre: '12', december: '12'
+    };
+
+    const parts = trimmed.split(/[\/\-\.\s]+/);
+    if (parts.length === 3) {
+        let day, month, year;
+        if (/^\d{4}$/.test(parts[2])) {
+            day = parts[0];
+            month = parts[1].toLowerCase();
+            year = parts[2];
+        } else if (/^\d{4}$/.test(parts[0])) {
+            year = parts[0];
+            month = parts[1].toLowerCase();
+            day = parts[2];
+        }
+        if (year && monthNames[month] && /^\d{1,2}$/.test(day)) {
+            return `${year}-${monthNames[month]}-${day.padStart(2, '0')}`;
+        }
+    }
+
+    return trimmed;
 };
 
 window.normalizeSearchString = function(str) {

@@ -1632,7 +1632,7 @@ window.syncJotformCustomers = async function() {
                 if (!existing.email && sheetClient.email) { existing.email = sheetClient.email; modified = true; }
                 if (!existing.telefono && sheetClient.telefono) { existing.telefono = sheetClient.telefono; modified = true; }
                 if (!existing.titulacion && sheetClient.titulacion) { existing.titulacion = sheetClient.titulacion; modified = true; }
-                if (!existing.dob && sheetClient.dob) { existing.dob = window.normalizeDateStr(sheetClient.dob); modified = true; }
+                if (!existing.dobEdited && !existing.dob && sheetClient.dob) { existing.dob = window.normalizeDateStr(sheetClient.dob); modified = true; }
                 if (!existing.dives && sheetClient.dives) { existing.dives = sheetClient.dives; modified = true; }
                 
                 if (!existing.insuranceEdited) {

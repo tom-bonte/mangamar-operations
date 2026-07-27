@@ -1514,6 +1514,7 @@ window.saveCustomerEdits = async function () {
             customerDatabase[newIndex].titulacion = titulacion;
             customerDatabase[newIndex].nameEdited = true;
             customerDatabase[newIndex].insuranceEdited = true;
+            customerDatabase[newIndex].dobEdited = true;
             if (apodo) customerDatabase[newIndex].apodo = apodo;
             else delete customerDatabase[newIndex].apodo;
             if (bibotella) customerDatabase[newIndex].bibotella = bibotella;
@@ -1545,6 +1546,7 @@ window.saveCustomerEdits = async function () {
                 customerDatabase[oldIndex].titulacion = titulacion;
                 customerDatabase[oldIndex].nameEdited = true;
                 customerDatabase[oldIndex].insuranceEdited = true;
+                customerDatabase[oldIndex].dobEdited = true;
                 if (apodo) customerDatabase[oldIndex].apodo = apodo;
                 else delete customerDatabase[oldIndex].apodo;
                 if (bibotella) customerDatabase[oldIndex].bibotella = bibotella;
@@ -1571,7 +1573,8 @@ window.saveCustomerEdits = async function () {
                     titulacion: titulacion,
                     discount: 0,
                     nameEdited: true,
-                    insuranceEdited: true
+                    insuranceEdited: true,
+                    dobEdited: true
                 };
                 if (apodo) newCustomer.apodo = apodo;
                 if (bibotella) newCustomer.bibotella = bibotella;
@@ -1587,12 +1590,12 @@ window.saveCustomerEdits = async function () {
             }
         }
 
-        // 2. Auto-sync Master List and Individual Customer Profile (ASYNC NON-BLOCKING)
-        window.safeMasterListWrite(customerDatabase, 'save-customer-profile').catch(e => console.error("Error bg master sync:", e));
+        // 2. Auto-sync Master List and Individual Customer Profile (AWAITED to guarantee Firestore commit)
+        await window.safeMasterListWrite(customerDatabase, 'save-customer-profile').catch(e => console.error("Error master sync:", e));
         
         if (typeof db !== 'undefined') {
             // Save new profile
-            db.collection('mangamar_customers').doc(newDni).set(customerDatabase[finalIndex], { merge: true }).catch(e => console.error("Error bg customer sync:", e));
+            await db.collection('mangamar_customers').doc(newDni).set(customerDatabase[finalIndex], { merge: true }).catch(e => console.error("Error customer sync:", e));
             
             // If DNI changed, delete old one and migrate history
             if (oldDni !== newDni) {

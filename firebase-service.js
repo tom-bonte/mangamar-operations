@@ -506,14 +506,34 @@ function startFirestoreListeners() {
                                                     merged[prop] = valC.length >= valE.length ? valC : valE;
                                                 }
                                             } else if (prop === 'nombre' || prop === 'apellido') {
-                                                merged[prop] = valC.length >= valE.length ? valC : valE;
-                                            } else if (prop === 'insurance') {
-                                                const expC = typeof valC === 'object' ? valC.expiry : '';
-                                                const expE = typeof valE === 'object' ? valE.expiry : '';
-                                                if (expC && expE) {
-                                                    merged[prop] = expC >= expE ? valC : valE;
-                                                } else if (valC && !valE) {
+                                                if (c.nameEdited && !existing.nameEdited) {
                                                     merged[prop] = valC;
+                                                } else if (!c.nameEdited && existing.nameEdited) {
+                                                    merged[prop] = valE;
+                                                } else {
+                                                    merged[prop] = valC.length >= valE.length ? valC : valE;
+                                                }
+                                            } else if (prop === 'dob') {
+                                                if (c.dobEdited && !existing.dobEdited) {
+                                                    merged[prop] = valC;
+                                                } else if (!c.dobEdited && existing.dobEdited) {
+                                                    merged[prop] = valE;
+                                                } else {
+                                                    merged[prop] = valE || valC;
+                                                }
+                                            } else if (prop === 'insurance') {
+                                                if (c.insuranceEdited && !existing.insuranceEdited) {
+                                                    merged[prop] = valC;
+                                                } else if (!c.insuranceEdited && existing.insuranceEdited) {
+                                                    merged[prop] = valE;
+                                                } else {
+                                                    const expC = typeof valC === 'object' ? valC.expiry : '';
+                                                    const expE = typeof valE === 'object' ? valE.expiry : '';
+                                                    if (expC && expE) {
+                                                        merged[prop] = expC >= expE ? valC : valE;
+                                                    } else if (valC && !valE) {
+                                                        merged[prop] = valC;
+                                                    }
                                                 }
                                             } else {
                                                 merged[prop] = String(valC).length >= String(valE).length ? valC : valE;
@@ -521,6 +541,9 @@ function startFirestoreListeners() {
                                         }
                                     }
                                 }
+                                if (existing.dobEdited || c.dobEdited) merged.dobEdited = true;
+                                if (existing.nameEdited || c.nameEdited) merged.nameEdited = true;
+                                if (existing.insuranceEdited || c.insuranceEdited) merged.insuranceEdited = true;
                                 dedupMap.set(key, merged);
                             } else {
                                 dedupMap.set(key, c);
