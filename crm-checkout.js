@@ -91,9 +91,7 @@ function calculateDivePrice(historyItem) {
         // 6. Course Price Calculation
         if (historyItem.course) {
             const baseCourse = historyItem.baseCourse || historyItem.course.split(' | ')[0].trim();
-            course = (historyItem.coursePrice !== undefined && historyItem.coursePrice !== null && historyItem.coursePrice !== 0)
-                ? parseFloat(historyItem.coursePrice)
-                : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+            course = window.getResolvedCoursePrice(baseCourse, historyItem.coursePrice, historyItem.assignedBoat, historyItem.site);
             
             dive = 0;
             tasa = 0;
@@ -1436,7 +1434,7 @@ window.generateJointFactura = async function (repName, repDni, groupDiscount = 0
                     }
                 }
                 if (!alreadyBilled) {
-                    p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+                    p.course = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                     billedCourses.add(baseCourse);
                 } else { p.course = 0; }
                 p.dive = 0; p.tasa = 0;

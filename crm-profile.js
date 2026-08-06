@@ -329,7 +329,7 @@ setTimeout(() => {
             }
 
             if (!alreadyBilled) {
-                courseRate = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+                courseRate = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                 billedCourses.add(baseCourse);
                 p.course = courseRate;
             } else {
@@ -1942,7 +1942,7 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
                     }
                 }
                 if (!alreadyBilled) {
-                    p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+                    p.course = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                     billedCourses.add(baseCourse);
                 } else {
                     p.course = 0;

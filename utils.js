@@ -816,6 +816,31 @@ window.formatInsuranceDate = function(dateStr) {
     return `${dayStr}/${monthStr}/${year}`;
 };
 
+window.getResolvedCoursePrice = function(baseCourse, savedPrice, assignedBoat, site) {
+    if (!baseCourse) return 0;
+    const lower = baseCourse.toLowerCase().trim();
+    const isDsd = lower.includes('dsd') || lower.includes('bautismo');
+    const isDoble = lower.includes('doble') || lower.includes('double');
+    const isShore = (assignedBoat === 'shore' || site === 'Shore' || site === 'Aula');
+
+    if (isDsd && !isDoble) {
+        if (!isShore) {
+            const boatDsdPrice = (window.PRICES && window.PRICES["DSD (Bautismo) desde Barco"]) || 85;
+            if (!savedPrice || savedPrice === 75) {
+                return boatDsdPrice;
+            }
+        } else {
+            const shoreDsdPrice = (window.PRICES && window.PRICES["DSD (Bautismo) desde Playa"]) || 75;
+            if (!savedPrice || savedPrice === 85) {
+                return shoreDsdPrice;
+            }
+        }
+    }
+
+    if (savedPrice) return savedPrice;
+    return (window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0;
+};
+
 window.matchCourseNames = function(a, b) {
     if (!a || !b) return false;
     const cleanA = a.trim().toLowerCase();
@@ -823,6 +848,18 @@ window.matchCourseNames = function(a, b) {
     
     if (cleanA === cleanB) return true;
     
+    // Disallow matching distinct DSD variants (Barco vs Playa vs Doble)
+    const isShoreA = cleanA.includes('playa') || cleanA.includes('shore');
+    const isShoreB = cleanB.includes('playa') || cleanB.includes('shore');
+    const isBoatA = cleanA.includes('barco') || cleanA.includes('boat');
+    const isBoatB = cleanB.includes('barco') || cleanB.includes('boat');
+    const isDobleA = cleanA.includes('doble') || cleanA.includes('double');
+    const isDobleB = cleanB.includes('doble') || cleanB.includes('double');
+
+    if (isShoreA && isBoatB) return false;
+    if (isBoatA && isShoreB) return false;
+    if (isDobleA !== isDobleB) return false;
+
     const getNormalizedNames = (name) => {
         const lower = name.toLowerCase().trim();
         const names = [lower];
@@ -835,8 +872,16 @@ window.matchCourseNames = function(a, b) {
             names.push('rescate', 'resc', 'rescue');
         } else if (lower === 'snorkeling' || lower === 'snorkel') {
             names.push('snorkeling', 'snorkel');
-        } else if (lower.includes('dsd') || lower === 'dsd') {
-            names.push('dsd', 'dsd (bautismo) desde playa', 'dsd (bautismo) desde barco');
+        } else if (lower.includes('dsd') || lower === 'dsd' || lower.includes('bautismo')) {
+            if (lower.includes('doble') || lower.includes('double')) {
+                names.push('dsd (doble)', 'dsd (bautismo) doble inmersión', 'dsd doble');
+            } else if (lower.includes('barco') || lower.includes('boat')) {
+                names.push('dsd', 'dsd (bautismo) desde barco', 'dsd barco');
+            } else if (lower.includes('playa') || lower.includes('shore')) {
+                names.push('dsd', 'dsd (bautismo) desde playa', 'dsd playa');
+            } else {
+                names.push('dsd', 'dsd (bautismo) desde playa', 'dsd (bautismo) desde barco');
+            }
         }
         return names;
     };

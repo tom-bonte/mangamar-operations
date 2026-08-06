@@ -481,7 +481,7 @@ function findExistingDiverData(dniOrName) {
                 baseCourse: cleanCourse,
                 course: cleanCourse,
                 courseBadge: displayBadge,
-                coursePrice: (window.PRICES && window.PRICES[cleanCourse]) ? window.PRICES[cleanCourse] : 0,
+                coursePrice: window.getResolvedCoursePrice(cleanCourse, null, activeBoatItem ? activeBoatItem.assignedBoat : null, activeBoatItem ? activeBoatItem.site : null),
                 localDeposit: 0,
                 hasPaid: false,
                 insurance: 'INC',

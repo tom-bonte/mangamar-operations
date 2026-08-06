@@ -194,7 +194,7 @@ window.switchTodayTab = async function (tabId) {
                                     }
                                 }
                                 if (!alreadyBilled) {
-                                    p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+                                    p.course = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                                     billedCourses.add(baseCourse);
                                 } else { p.course = 0; }
                                 p.dive = 0; p.tasa = 0;
@@ -345,7 +345,7 @@ window.switchTodayTab = async function (tabId) {
                                 }
                             }
                             if (!alreadyBilled) {
-                                p.course = data.coursePrice ? data.coursePrice : ((window.PRICES && window.PRICES[baseCourse]) ? window.PRICES[baseCourse] : 0);
+                                p.course = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                                 billedCourses.add(baseCourse);
                             } else {
                                 p.course = 0;
