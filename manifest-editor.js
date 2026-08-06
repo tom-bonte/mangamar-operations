@@ -254,19 +254,49 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     if (dnis.length > 0) {
         const promises = dnis.map(async (dni) => {
             try {
-                const [tripHistSnap, customerSnap] = await Promise.all([
+                const [tripHistSnap, customerSnap, fullHistSnap] = await Promise.all([
                     db.collection('mangamar_customers').doc(dni).collection('history').doc(activeBoatItem.id).get(),
-                    db.collection('mangamar_customers').doc(dni).get()
+                    db.collection('mangamar_customers').doc(dni).get(),
+                    db.collection('mangamar_customers').doc(dni).collection('history').get()
                 ]);
-                return { dni, tripHistSnap, customerSnap };
+                return { dni, tripHistSnap, customerSnap, fullHistSnap };
             } catch (e) {
                 console.error(`Error loading payment and customer data for ${dni}:`, e);
-                return { dni, tripHistSnap: null, customerSnap: null };
+                return { dni, tripHistSnap: null, customerSnap: null, fullHistSnap: null };
             }
         });
         Promise.all(promises).then(results => {
             let needsReRender = false;
-            results.forEach(({ dni, tripHistSnap, customerSnap }) => {
+            results.forEach(({ dni, tripHistSnap, customerSnap, fullHistSnap }) => {
+                // Auto-heal 2nd Refresh dives if guest has a prior Refresh dive in history
+                if (fullHistSnap && !fullHistSnap.empty) {
+                    let hasPriorRefresh = false;
+                    fullHistSnap.forEach(hDoc => {
+                        const hData = hDoc.data();
+                        if (hData.date < activeBoatItem.date && hData.course && typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(hData.course)) {
+                            hasPriorRefresh = true;
+                        }
+                    });
+                    if (hasPriorRefresh) {
+                        activeBoatItem.groups.forEach(g => {
+                            (g.guests || []).forEach(gst => {
+                                if (gst.dni && window.normalizeDni(gst.dni) === window.normalizeDni(dni)) {
+                                    if (gst.course && typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(gst.course)) {
+                                        delete gst.course;
+                                        delete gst.baseCourse;
+                                        delete gst.courseBadge;
+                                        delete gst.coursePrice;
+                                        if (gst.rental === 'INC') gst.rental = 0;
+                                        if (gst.insurance === 'INC') gst.insurance = 0;
+                                        if (gst.computer === 'INC') { gst.computer = 0; gst.computerPrice = 0; }
+                                        needsReRender = true;
+                                    }
+                                }
+                            });
+                        });
+                    }
+                }
+
                 let outstandingDebt = undefined;
                 if (customerSnap && customerSnap.exists) {
                     const customerDocData = customerSnap.data();
@@ -826,11 +856,19 @@ function _renderGroupsCore(skipAutoSave = false) {
         `;
 
         group.guests.forEach((guest, guestIndex) => {
-            // Courses always include rental, computer, and insurance
+            // Multi-dive courses always include rental, computer, and insurance
             if (guest.course) {
-                guest.rental = 'INC';
-                guest.insurance = 'INC';
-                guest.computer = 'INC';
+                const isSingle = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(guest.course);
+                if (!isSingle) {
+                    guest.rental = 'INC';
+                    guest.insurance = 'INC';
+                    guest.computer = 'INC';
+                }
+            } else {
+                // Non-course guests cannot have INC extras
+                if (guest.rental === 'INC') guest.rental = 0;
+                if (guest.computer === 'INC') { guest.computer = 0; guest.computerPrice = 0; }
+                if (guest.insurance === 'INC') guest.insurance = 0;
             }
             // Live-heal isManual based on the CRM database profile status
             if (window.crmLoaded && guest.dni && typeof customerDatabase !== 'undefined') {
@@ -878,7 +916,9 @@ function _renderGroupsCore(skipAutoSave = false) {
             }
 
             let titHtml = '';
-            if (guest.course) {
+            const isSingleDiveCourse = guest.course && typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(guest.course);
+            const showCourseBadge = guest.course && (!isSingleDiveCourse || !guest._isSecondRefresh);
+            if (showCourseBadge) {
                 let badgeText = guest.courseBadge || guest.course;
                 const lowerCourse = (guest.course || '').toLowerCase();
                 const lowerBadge = (guest.courseBadge || '').toLowerCase();
@@ -4017,7 +4057,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                         localDepositMethod: gst.localDepositMethod || '',
                         localDepositC: gst.localDepositC || false,
                         paymentStatus: persistentState,
-                        certStatus: (gst.course || gst.baseCourse) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
+                        certStatus: ((gst.course || gst.baseCourse) && !((gst.course || gst.baseCourse).toLowerCase().includes('refresh') || (gst.course || gst.baseCourse).toLowerCase().includes('snorkel') || (gst.course || gst.baseCourse).toLowerCase().includes('pax'))) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
                         timestamp: firebase.firestore.FieldValue.serverTimestamp() 
                     }, { merge: true });
                     historyWrites++;

@@ -312,35 +312,46 @@ setTimeout(() => {
             }
         }
 
-        let p = window.calculateDivePrice(data);
-
-        let isCourseCovered = false;
-        let courseRate = 0;
-
-        if (data.course) {
-            let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
-
-            let alreadyBilled = false;
+        let baseCourse = data.course ? (data.baseCourse || data.course.split(' | ')[0].trim()) : null;
+        let alreadyBilled = false;
+        if (baseCourse) {
             for (let bc of billedCourses) {
                 if (window.matchCourseNames(bc, baseCourse)) {
                     alreadyBilled = true;
                     break;
                 }
             }
+        }
+        data._alreadyBilled = alreadyBilled;
+
+        let p = window.calculateDivePrice(data);
+
+        let isCourseCovered = false;
+        let courseRate = 0;
+
+        if (data.course) {
+            const isSingleDive = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(baseCourse);
 
             if (!alreadyBilled) {
                 courseRate = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                 billedCourses.add(baseCourse);
                 p.course = courseRate;
+
+                p.dive = 0;
+                p.tasa = 0;
+                if (data.rental === 'INC') p.rental = 0;
+                p.insurance = 0; // First dive of course includes insurance & rental
+            } else if (isSingleDive) {
+                p.course = 0;
+                isCourseCovered = false;
             } else {
                 p.course = 0;
                 isCourseCovered = true;
+                p.dive = 0;
+                p.tasa = 0;
+                if (data.rental === 'INC') p.rental = 0;
+                p.insurance = 0;
             }
-
-            p.dive = 0;
-            p.tasa = 0;
-            if (data.rental === 'INC') p.rental = 0;
-            p.insurance = 0; // Course always includes insurance
         }
 
         let isCovered = false;
@@ -597,33 +608,40 @@ window.renderFichaFromCache = function(dni, targetTab) {
             const gasColor = isNitrox ? 'bg-green-100 text-green-700 border-green-300' : 'bg-blue-50 text-blue-600 border-blue-200';
             const gasShortText = (data.gas || '15L Aire').replace('Aire', 'Aire').replace(/EAN\s*(\d+)/i, '$1%');
 
+            const isSecondSingleDive = data.course && data._alreadyBilled && typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(data.course);
+            const hasNoCourse = !data.course || isSecondSingleDive;
+
+            let dispRental = (hasNoCourse && data.rental === 'INC') ? 0 : data.rental;
+            let dispComp = (hasNoCourse && data.computer === 'INC') ? 0 : data.computer;
+            let dispIns = (hasNoCourse && cleanIns === 'INC') ? '0' : cleanIns;
+
             let rentalClass = 'bg-diagonal-yellow text-slate-300 border-yellow-200';
             let rentalText = 'Eq';
-            if (data.rental === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; }
-            else if (data.rental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
-            else if (data.rental === 'INC') {
+            if (dispRental === 1) { rentalClass = 'bg-half-yellow border-yellow-400 text-yellow-800'; }
+            else if (dispRental === 2) { rentalClass = 'bg-full-yellow border-yellow-500 text-yellow-900'; }
+            else if (dispRental === 'INC') {
                 rentalClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
                 rentalText = 'INC';
             }
 
             let compHistClass = 'bg-slate-50 text-slate-200 border-slate-100';
             let compHistText = 'Comp';
-            if (data.computer === 1) { compHistClass = 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner'; }
-            else if (data.computer === 'INC') { compHistClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner'; compHistText = 'INC'; }
+            if (dispComp === 1) { compHistClass = 'bg-cyan-500 text-white border-cyan-600 font-black shadow-inner'; }
+            else if (dispComp === 'INC') { compHistClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner'; compHistText = 'INC'; }
             let bonoClass = data.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200';
 
             let insClass = 'px-1.5 min-w-[36px] bg-red-500 text-white border-red-600';
             let insText = 'Seg 🛑';
-            if (cleanIns === 'INC') {
+            if (dispIns === 'INC') {
                 insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
                 insText = 'INC';
-            } else if (cleanIns !== '0' && cleanIns !== 0) {
+            } else if (dispIns !== '0' && dispIns !== 0) {
                 if (isCovered) {
                     insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
-                    insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg ✔ (${cleanIns})` : 'Seg ✔';
+                    insText = ['1D', '1W', '1M', '1Y'].includes(dispIns) ? `Seg ✔ (${dispIns})` : 'Seg ✔';
                 } else {
                     insClass = 'px-1.5 min-w-[36px] bg-blue-500 text-white border-blue-600 font-bold shadow-sm';
-                    insText = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? `Seg 💳 (${cleanIns})` : 'Seg 💳';
+                    insText = ['1D', '1W', '1M', '1Y'].includes(dispIns) ? `Seg 💳 (${dispIns})` : 'Seg 💳';
                 }
             }
 
@@ -1930,27 +1948,39 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
 
         safeDocs.forEach(item => {
             let data = item.data();
-            let p = window.calculateDivePrice(data);
-
-            if (data.course) {
-                let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
-                let alreadyBilled = false;
+            let baseCourse = data.course ? (data.baseCourse || data.course.split(' | ')[0].trim()) : null;
+            let alreadyBilled = false;
+            if (baseCourse) {
                 for (let bc of billedCourses) {
                     if (window.matchCourseNames(bc, baseCourse)) {
                         alreadyBilled = true;
                         break;
                     }
                 }
+            }
+            data._alreadyBilled = alreadyBilled;
+
+            let p = window.calculateDivePrice(data);
+
+            if (data.course) {
+                const isSingleDive = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(baseCourse);
+
                 if (!alreadyBilled) {
                     p.course = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                     billedCourses.add(baseCourse);
+                    p.dive = 0;
+                    p.tasa = 0;
+                    if (data.rental === 'INC') p.rental = 0;
+                    p.insurance = 0; // First dive of course includes insurance & rental
+                } else if (isSingleDive) {
+                    p.course = 0;
                 } else {
                     p.course = 0;
+                    p.dive = 0;
+                    p.tasa = 0;
+                    if (data.rental === 'INC') p.rental = 0;
+                    p.insurance = 0;
                 }
-                p.dive = 0;
-                p.tasa = 0;
-                if (data.rental === 'INC') p.rental = 0;
-                p.insurance = 0; // Course always includes insurance
             }
 
             let cleanIns = (data.insurance || 0).toString().replace(' ✔', '');

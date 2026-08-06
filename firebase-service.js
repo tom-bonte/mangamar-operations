@@ -663,7 +663,8 @@ function startFirestoreListeners() {
                 const data = doc.data();
                 let rawCourse = data.course || data.baseCourse || '';
                 let cleanCourse = rawCourse.split(' | ')[0].trim();
-                if (cleanCourse) {
+                const lowerC = cleanCourse.toLowerCase();
+                if (cleanCourse && !lowerC.includes('snorkel') && !lowerC.includes('refresh') && !lowerC.includes('pax')) {
                     if (!certMap.has(dni)) certMap.set(dni, []);
                     if (!certMap.get(dni).includes(cleanCourse)) {
                         certMap.get(dni).push(cleanCourse);

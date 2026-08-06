@@ -816,6 +816,12 @@ window.formatInsuranceDate = function(dateStr) {
     return `${dayStr}/${monthStr}/${year}`;
 };
 
+window.isSingleDiveCourse = function(courseName) {
+    if (!courseName) return false;
+    const lower = courseName.toLowerCase().trim();
+    return lower.includes('refresh');
+};
+
 window.getResolvedCoursePrice = function(baseCourse, savedPrice, assignedBoat, site) {
     if (!baseCourse) return 0;
     const lower = baseCourse.toLowerCase().trim();

@@ -590,11 +590,14 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
     }
 
     if (existingData && existingData.course) {
-        guest.baseCourse = existingData.baseCourse || existingData.course;
-        guest.course = existingData.course;
-        guest.courseBadge = existingData.courseBadge;
-        guest.coursePrice = existingData.coursePrice;
-        guest.insurance = 'INC';
+        const isSingle = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(existingData.course);
+        if (!isSingle) {
+            guest.baseCourse = existingData.baseCourse || existingData.course;
+            guest.course = existingData.course;
+            guest.courseBadge = existingData.courseBadge;
+            guest.coursePrice = existingData.coursePrice;
+            guest.insurance = 'INC';
+        }
     }
     // NOTE: localDeposit is intentionally NOT copied — it is per-booking, not a per-day preference.
     if (existingData && existingData.note) guest.note = existingData.note;

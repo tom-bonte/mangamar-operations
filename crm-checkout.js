@@ -91,13 +91,26 @@ function calculateDivePrice(historyItem) {
         // 6. Course Price Calculation
         if (historyItem.course) {
             const baseCourse = historyItem.baseCourse || historyItem.course.split(' | ')[0].trim();
-            course = window.getResolvedCoursePrice(baseCourse, historyItem.coursePrice, historyItem.assignedBoat, historyItem.site);
-            
-            dive = 0;
-            tasa = 0;
-            rental = 0; // Course always includes rental
-            insurance = 0; // Course always includes insurance
-            computer = 0; // Course always includes computer
+            const isSingle = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(baseCourse);
+
+            if (!historyItem._alreadyBilled && !historyItem._isSecondSingleDive) {
+                course = window.getResolvedCoursePrice(baseCourse, historyItem.coursePrice, historyItem.assignedBoat, historyItem.site);
+                dive = 0;
+                tasa = 0;
+                rental = 0;
+                insurance = 0;
+                computer = 0;
+            } else if (isSingle) {
+                course = 0;
+                // dive and tasa remain as calculated above at normal dive site rates
+            } else {
+                course = 0;
+                dive = 0;
+                tasa = 0;
+                rental = 0;
+                insurance = 0;
+                computer = 0;
+            }
         }
     }
 
@@ -1422,25 +1435,37 @@ window.generateJointFactura = async function (repName, repDni, groupDiscount = 0
 
             if (data.paymentStatus === 'pending') window.currentJointFacturaRefs.push(doc.ref);
 
-            let p = window.calculateDivePrice(data);
-
-            if (data.course) {
-                let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
-                let alreadyBilled = false;
+            let baseCourse = data.course ? (data.baseCourse || data.course.split(' | ')[0].trim()) : null;
+            let alreadyBilled = false;
+            if (baseCourse) {
                 for (let bc of billedCourses) {
                     if (window.matchCourseNames(bc, baseCourse)) {
                         alreadyBilled = true;
                         break;
                     }
                 }
+            }
+            data._alreadyBilled = alreadyBilled;
+
+            let p = window.calculateDivePrice(data);
+
+            if (data.course) {
+                const isSingleDive = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(baseCourse);
+
                 if (!alreadyBilled) {
                     p.course = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                     billedCourses.add(baseCourse);
-                } else { p.course = 0; }
-                p.dive = 0; p.tasa = 0;
-                p.rental = 0; // Course always includes rental
-                p.computer = 0; // Course always includes computer
-                p.insurance = 0; // Course always includes insurance
+                    p.dive = 0; p.tasa = 0;
+                    if (data.rental === 'INC') p.rental = 0;
+                    p.insurance = 0; // First dive of course includes insurance & rental
+                } else if (isSingleDive) {
+                    p.course = 0;
+                } else {
+                    p.course = 0;
+                    p.dive = 0; p.tasa = 0;
+                    if (data.rental === 'INC') p.rental = 0;
+                    p.insurance = 0;
+                }
             }
 
             let cleanIns = (data.insurance || 0).toString().replace(' ✔', '');

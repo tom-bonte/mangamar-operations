@@ -182,24 +182,37 @@ window.switchTodayTab = async function (tabId) {
                         docsArray.forEach(doc => {
                             let data = doc.data();
                             if (window.isTripOrGuestCancelled && window.isTripOrGuestCancelled(doc.id, data, dni)) return;
-                            let p = window.calculateDivePrice(data);
-
-                            if (data.course) {
-                                let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
-                                let alreadyBilled = false;
+                            let baseCourse = data.course ? (data.baseCourse || data.course.split(' | ')[0].trim()) : null;
+                            let alreadyBilled = false;
+                            if (baseCourse) {
                                 for (let bc of billedCourses) {
                                     if (window.matchCourseNames(bc, baseCourse)) {
                                         alreadyBilled = true;
                                         break;
                                     }
                                 }
+                            }
+                            data._alreadyBilled = alreadyBilled;
+
+                            let p = window.calculateDivePrice(data);
+
+                            if (data.course) {
+                                const isSingleDive = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(baseCourse);
+
                                 if (!alreadyBilled) {
                                     p.course = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                                     billedCourses.add(baseCourse);
-                                } else { p.course = 0; }
-                                p.dive = 0; p.tasa = 0;
-                                if (data.rental === 'INC') p.rental = 0;
-                                p.insurance = 0;
+                                    p.dive = 0; p.tasa = 0;
+                                    if (data.rental === 'INC') p.rental = 0;
+                                    p.insurance = 0;
+                                } else if (isSingleDive) {
+                                    p.course = 0;
+                                } else {
+                                    p.course = 0;
+                                    p.dive = 0; p.tasa = 0;
+                                    if (data.rental === 'INC') p.rental = 0;
+                                    p.insurance = 0;
+                                }
                             }
 
                             let cleanIns = (data.insurance || 0).toString().replace(' ✔', '');
@@ -332,28 +345,40 @@ window.switchTodayTab = async function (tabId) {
                     docsArray.forEach(doc => {
                         let data = doc.data();
                         if (window.isTripOrGuestCancelled && window.isTripOrGuestCancelled(doc.id, data, dni)) return;
-                        let p = window.calculateDivePrice(data);
-
-                        // Engine 1: Course Deduplication
-                        if (data.course) {
-                            let baseCourse = data.baseCourse || data.course.split(' | ')[0].trim();
-                            let alreadyBilled = false;
+                        let baseCourse = data.course ? (data.baseCourse || data.course.split(' | ')[0].trim()) : null;
+                        let alreadyBilled = false;
+                        if (baseCourse) {
                             for (let bc of billedCourses) {
                                 if (window.matchCourseNames(bc, baseCourse)) {
                                     alreadyBilled = true;
                                     break;
                                 }
                             }
+                        }
+                        data._alreadyBilled = alreadyBilled;
+
+                        let p = window.calculateDivePrice(data);
+
+                        // Engine 1: Course Deduplication
+                        if (data.course) {
+                            const isSingleDive = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(baseCourse);
+
                             if (!alreadyBilled) {
                                 p.course = window.getResolvedCoursePrice(baseCourse, data.coursePrice, data.assignedBoat, data.site);
                                 billedCourses.add(baseCourse);
+                                p.dive = 0;
+                                p.tasa = 0;
+                                if (data.rental === 'INC') p.rental = 0;
+                                p.insurance = 0;
+                            } else if (isSingleDive) {
+                                p.course = 0;
                             } else {
                                 p.course = 0;
+                                p.dive = 0;
+                                p.tasa = 0;
+                                if (data.rental === 'INC') p.rental = 0;
+                                p.insurance = 0; // Course always includes insurance
                             }
-                            p.dive = 0;
-                            p.tasa = 0;
-                            if (data.rental === 'INC') p.rental = 0;
-                            p.insurance = 0; // Course always includes insurance
                         }
 
                         // Engine 2: Insurance Deduplication
@@ -474,8 +499,9 @@ window.renderTodayCerts = async function (forceFetch = false) {
                 let rawCourse = data.course || data.baseCourse || 'Curso Desconocido';
                 let cleanCourse = rawCourse.split(' | ')[0].trim();
                 
-                // Skip snorkelers as they don't need to be certified
-                if (cleanCourse.toLowerCase().includes('snorkel')) return;
+                // Skip snorkelers, refresh, and pax as they don't need to be certified
+                const lowerCourse = cleanCourse.toLowerCase();
+                if (lowerCourse.includes('snorkel') || lowerCourse.includes('refresh') || lowerCourse.includes('pax') || lowerCourse === 'pax') return;
 
                 let uniqKey = dni + '_' + cleanCourse;
 
