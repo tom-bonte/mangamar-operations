@@ -628,12 +628,9 @@ function renderDailyGrid() {
             } else {
                 const getIsConflict = (trip, isIndexConflict) => {
                     if (trip.cancelled) return false;
+                    if (boatId === 'shore') return false; // Shore / Aula can host multiple concurrent groups without conflict
                     const activeTripsInSlot = allTripsInSlot.filter(t => !t.cancelled);
-                    if (boatId !== 'shore') {
-                        return activeTripsInSlot.length > 1;
-                    }
-                    const countSameSite = activeTripsInSlot.filter(t => t.site === trip.site).length;
-                    return countSameSite > 1;
+                    return activeTripsInSlot.length > 1;
                 };
 
                 if (mainTrip) {
