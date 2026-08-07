@@ -1054,26 +1054,33 @@ let crmSearchStr = '';
 let crmSortKey = 'fullName';
 let crmSortDesc = false;
 
-window.openCrmModal = function (isNavBackForward = false) {
+function openCrmModal(isNavBackForward = false) {
     if (!isNavBackForward && typeof window.recordModalHistory === 'function') {
         window.hideAllNavModals();
         window.recordModalHistory({ type: 'crm', isNavBackForward });
     }
 
     crmSearchStr = '';
-    document.getElementById('crm-search-input').value = '';
-    document.getElementById('crm-search-input-mobile').value = '';
-    document.getElementById('crm-modal').classList.remove('hidden');
+    const searchInp = document.getElementById('crm-search-input');
+    if (searchInp) searchInp.value = '';
+    const searchInpMob = document.getElementById('crm-search-input-mobile');
+    if (searchInpMob) searchInpMob.value = '';
+    const crmModalEl = document.getElementById('crm-modal');
+    if (crmModalEl) crmModalEl.classList.remove('hidden');
     if (isNavBackForward) window.hideAllNavModals('crm-modal');
 
     // Animate in
     setTimeout(() => {
-        document.getElementById('crm-modal-content').classList.remove('scale-95', 'opacity-0');
-        document.getElementById('crm-modal-content').classList.add('scale-100', 'opacity-100');
+        const crmModalContent = document.getElementById('crm-modal-content');
+        if (crmModalContent) {
+            crmModalContent.classList.remove('scale-95', 'opacity-0');
+            crmModalContent.classList.add('scale-100', 'opacity-100');
+        }
     }, 10);
 
     renderCrmTable();
-};
+}
+window.openCrmModal = openCrmModal;
 
 window.crmDisplayLimit = 30;
 
@@ -1096,7 +1103,7 @@ window.c_sortCrm = function (key) {
     renderCrmTable();
 };
 
-window.renderCrmTable = function () {
+function renderCrmTable() {
     const listEl = document.getElementById('crm-list');
     const countEl = document.getElementById('crm-total-count');
     if (!listEl || !customerDatabase) return;
@@ -1240,7 +1247,8 @@ window.renderCrmTable = function () {
     }
 
     listEl.innerHTML = html;
-};
+}
+window.renderCrmTable = renderCrmTable;
 
 // Hook auto-refresh if CRM is open locally and modifications are made via Ficha
 const _crm_originalCloseProfile = window.closeGlobalModal;
@@ -1584,24 +1592,304 @@ window.selectContabilidadMethod = function(method) {
     
     document.getElementById('conta-table-body').innerHTML = html;
 };
-// ==========================================
-// 17. JOTFORM CRM SYNC (Smart Merge)
-// ==========================================
-window.syncJotformCustomers = async function() {
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxPxNj7SC42YeCXBJ1jg-qxY5b94e0ZCHstGokj8006DVm-12C-GejERSI5jVZLSqzw/exec';
-    const TOKEN = 'mangamar2026';
 
-    showToast("Sincronizando y completando perfiles incompletos...");
 
+// Helper to instantly update open customer profile DOM fields without modal reset or flickering
+window.updateFichaProfileTabDOM = function(customerInfo) {
+    if (!customerInfo) return;
+    const nombre = window.getFullName(customerInfo);
+    const dni = customerInfo.dni;
+    const contactStr = [customerInfo.telefono, customerInfo.email].filter(Boolean).join(' • ');
+
+    const nameEl = document.getElementById('profile-modal-name');
+    if (nameEl) nameEl.innerText = nombre;
+    const dniEl = document.getElementById('profile-modal-dni');
+    if (dniEl) dniEl.innerText = contactStr ? `${dni}  —  ${contactStr}` : dni;
+
+    if (document.getElementById('ficha-tab-nombre')) {
+        document.getElementById('ficha-tab-nombre').innerText = nombre || '---';
+        document.getElementById('ficha-tab-dni').innerText = dni || '---';
+        document.getElementById('ficha-tab-dob').innerText = window.formatInsuranceDate ? window.formatInsuranceDate(customerInfo.dob) : (customerInfo.dob || '---');
+        document.getElementById('ficha-tab-telefono').innerText = customerInfo.telefono || '---';
+        document.getElementById('ficha-tab-email').innerText = customerInfo.email || '---';
+        document.getElementById('ficha-tab-titulacion').innerText = customerInfo.titulacion || '---';
+        if (document.getElementById('ficha-tab-bibotella')) {
+            if (customerInfo.bibotella) {
+                const typeLabel = customerInfo.bibotella === 'propia' ? 'Sí (Botella Propia)' : 'Sí (Bibotella)';
+                document.getElementById('ficha-tab-bibotella').innerText = typeLabel;
+            } else {
+                document.getElementById('ficha-tab-bibotella').innerText = 'No';
+            }
+        }
+
+        let insObj = customerInfo.insurance;
+        let typeStr = "";
+        let expiryStr = "";
+        let isRed = false;
+        let displaySeg = "";
+
+        if (!insObj) {
+            isRed = true;
+            displaySeg = 'Sin seguro en vigor';
+        } else if (typeof insObj === 'string') {
+            typeStr = insObj;
+        } else {
+            typeStr = insObj.type || 'S/N';
+            expiryStr = insObj.expiry || '';
+        }
+
+        if (!isRed && (!typeStr || typeStr === '0' || typeStr === '---' || typeStr.toLowerCase() === 'no' || typeStr.toLowerCase() === 'none' || typeStr.toLowerCase() === 's/n')) {
+            isRed = true;
+            displaySeg = 'Sin seguro en vigor';
+        } else if (!isRed) {
+            displaySeg = typeStr;
+            let testDateStr = expiryStr;
+            if (!testDateStr) {
+                const match = typeStr.match(/\d{4}-\d{2}-\d{2}/);
+                if (match) testDateStr = match[0];
+            }
+            if (testDateStr) {
+                let dDate = new Date(window.normalizeDateStr(testDateStr));
+                dDate.setHours(23, 59, 59, 999);
+                const formattedDate = window.formatInsuranceDate(testDateStr);
+                if (!isNaN(dDate.getTime()) && dDate.getTime() < new Date().getTime()) {
+                    isRed = true;
+                    displaySeg = `Sin seguro en vigor - ${typeStr} (Caducado el ${formattedDate})`;
+                } else {
+                    displaySeg += ` (Hasta ${formattedDate})`;
+                }
+            }
+        }
+
+        const segWrapper = document.getElementById('ficha-tab-seguro-wrapper');
+        if (segWrapper) {
+            if (isRed) {
+                segWrapper.className = 'inline-flex items-center px-3 py-1.5 rounded-lg border bg-red-50 border-red-200 text-red-700';
+                document.getElementById('ficha-tab-seguro').innerText = '🛑 ' + displaySeg;
+            } else {
+                segWrapper.className = 'inline-flex items-center px-3 py-1.5 rounded-lg border bg-emerald-50 border-emerald-200 text-emerald-700';
+                document.getElementById('ficha-tab-seguro').innerText = '✔ ' + displaySeg;
+            }
+        }
+
+        document.getElementById('ficha-tab-dives').innerText = customerInfo.dives ? String(customerInfo.dives) : '---';
+    }
+};
+
+// ==========================================
+// 17. JOTFORM CRM SYNC (Multi-Tier Lightning Cache)
+// ==========================================
+const JOTFORM_CACHE_KEY = 'mangamar_jotform_clients_cache';
+const JOTFORM_CACHE_TTL = 30 * 60 * 1000; // 30 mins TTL
+
+window.getJotformClientsFromCache = function() {
     try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?token=${TOKEN}`);
-        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-        const data = await response.json();
+        if (window._jotformClientsCache && Array.isArray(window._jotformClientsCache.clients)) {
+            return window._jotformClientsCache.clients;
+        }
+        if (typeof localStorage !== 'undefined') {
+            const stored = localStorage.getItem(JOTFORM_CACHE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed && Array.isArray(parsed.clients)) {
+                    window._jotformClientsCache = parsed;
+                    return parsed.clients;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("Error reading Jotform cache:", e);
+    }
+    return null;
+};
 
-        if (data.error) throw new Error(data.error);
-        if (!data.clients || !Array.isArray(data.clients)) throw new Error('Respuesta inválida del servidor.');
+window.saveJotformClientsToCache = function(clients) {
+    try {
+        const cacheObj = { clients: clients, timestamp: Date.now() };
+        window._jotformClientsCache = cacheObj;
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(JOTFORM_CACHE_KEY, JSON.stringify(cacheObj));
+        }
 
-        // Helper to fix ALL CAPS or lowercase names
+        if (typeof db !== 'undefined') {
+            db.collection('mangamar_directory').doc('jotform_cache').set({
+                clients: clients,
+                timestamp: Date.now()
+            }, { merge: true }).catch(e => console.warn("Firestore jotform cache save error:", e));
+        }
+    } catch (e) {
+        console.warn("Error saving Jotform cache:", e);
+    }
+};
+
+window.setJotformScriptUrl = function(newUrl) {
+    if (!newUrl || !newUrl.startsWith('http')) {
+        if (typeof showAppAlert === 'function') {
+            showAppAlert("Por favor introduce una URL válida de Google Apps Script (ej: https://script.google.com/macros/s/.../exec)");
+        }
+        return;
+    }
+    const cleanUrl = newUrl.trim();
+    if (typeof localStorage !== 'undefined') localStorage.setItem('MANGAMAR_APPS_SCRIPT_URL', cleanUrl);
+    window.MANGAMAR_APPS_SCRIPT_URL = cleanUrl;
+    if (typeof showToast === 'function') showToast("✅ URL de Google Apps Script guardada correctamente.");
+};
+
+window.promptSetJotformUrl = function() {
+    const current = (typeof localStorage !== 'undefined' && localStorage.getItem('MANGAMAR_APPS_SCRIPT_URL'))
+        || 'https://script.google.com/macros/s/AKfycbzrnQF_rLD5hN-gCRNpoQEUB8btKAZxryirpzbbWSU-86xABvkWnqphtrzvlx3ro2J/exec';
+    
+    const input = prompt("Introduce la URL de tu despliegue de Web App en Google Apps Script (debe terminar en /exec):", current);
+    if (input !== null) {
+        if (!input.trim() || !input.trim().startsWith('http')) {
+            if (typeof showAppAlert === 'function') {
+                showAppAlert("Por favor introduce una URL válida que comience por https://script.google.com/...");
+            }
+            return;
+        }
+        window.setJotformScriptUrl(input.trim());
+    }
+};
+
+window.fetchJotformClientsData = async function(forceRefresh = false, targetDni = null) {
+    const normDni = targetDni ? window.normalizeDni(targetDni) : null;
+
+    const runFetch = async () => {
+        const APPS_SCRIPT_URL = (typeof window !== 'undefined' && window.MANGAMAR_APPS_SCRIPT_URL)
+            || (typeof localStorage !== 'undefined' && localStorage.getItem('MANGAMAR_APPS_SCRIPT_URL'))
+            || 'https://script.google.com/macros/s/AKfycbzrnQF_rLD5hN-gCRNpoQEUB8btKAZxryirpzbbWSU-86xABvkWnqphtrzvlx3ro2J/exec';
+        const TOKEN = 'mangamar2026';
+
+        if (!forceRefresh && !normDni) {
+            const cached = window.getJotformClientsFromCache();
+            if (cached && window._jotformClientsCache && (Date.now() - window._jotformClientsCache.timestamp < JOTFORM_CACHE_TTL)) {
+                return cached;
+            }
+
+            if (typeof db !== 'undefined') {
+                try {
+                    const snap = await db.collection('mangamar_directory').doc('jotform_cache').get();
+                    if (snap.exists && snap.data() && Array.isArray(snap.data().clients)) {
+                        const fsData = snap.data();
+                        window._jotformClientsCache = fsData;
+                        if (typeof localStorage !== 'undefined') localStorage.setItem(JOTFORM_CACHE_KEY, JSON.stringify(fsData));
+                        if (Date.now() - fsData.timestamp < JOTFORM_CACHE_TTL) {
+                            return fsData.clients;
+                        }
+                    }
+                } catch (errFs) {
+                    console.warn("Error reading Firestore Jotform cache:", errFs);
+                }
+            }
+        }
+
+        const fetchUrl = normDni 
+            ? `${APPS_SCRIPT_URL}?token=${TOKEN}&dni=${encodeURIComponent(normDni)}`
+            : `${APPS_SCRIPT_URL}?token=${TOKEN}`;
+
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timeoutId = controller ? setTimeout(() => controller.abort(), 20000) : null;
+
+        try {
+            const response = await fetch(fetchUrl, controller ? { signal: controller.signal } : {});
+            if (timeoutId) clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+            if (!data.clients || !Array.isArray(data.clients)) throw new Error('Respuesta inválida del servidor.');
+
+            if (normDni && data.clients.length > 0) {
+                const singleClient = data.clients[0];
+                const currentCache = window.getJotformClientsFromCache() || [];
+                const idx = currentCache.findIndex(c => c.dni && window.normalizeDni(c.dni) === normDni);
+                if (idx > -1) {
+                    currentCache[idx] = singleClient;
+                } else {
+                    currentCache.push(singleClient);
+                }
+                window.saveJotformClientsToCache(currentCache);
+            } else if (!normDni) {
+                window.saveJotformClientsToCache(data.clients);
+            }
+
+            return data.clients;
+        } catch (fetchErr) {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (fetchErr.name === 'AbortError') {
+                throw new Error('La consulta a Google Apps Script tardó demasiado (>20s) y se canceló.');
+            }
+            if (fetchErr.message && fetchErr.message.includes('Failed to fetch')) {
+                throw new Error('No se pudo conectar con Google Apps Script. Si modificaste permisos o código, asegúrate de hacer clic en el botón azul "Desplegar" (Deploy) en Google Apps Script.');
+            }
+            throw fetchErr;
+        }
+    };
+
+    if (!normDni) {
+        if (window._jotformFetchPromise) return window._jotformFetchPromise;
+        window._jotformFetchPromise = runFetch().finally(() => { window._jotformFetchPromise = null; });
+        return window._jotformFetchPromise;
+    } else {
+        return runFetch();
+    }
+};
+
+// Startup background fetch to warm cache immediately on boot
+try {
+    setTimeout(() => {
+        window.fetchJotformClientsData(true).then(clients => {
+            if (clients && clients.length > 0 && typeof window.syncJotformCustomers === 'function') {
+                // Background auto-sync into customerDatabase without opening modals or toasts
+                const fixNameCaps = (str) => {
+                    if (!str) return '';
+                    return str.toLowerCase().split(' ').map(word =>
+                        word.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-')
+                    ).join(' ');
+                };
+                clients.forEach(sheetClient => {
+                    let rawDni = (sheetClient.dni || '').trim().toUpperCase();
+                    if (!rawDni) return;
+                    let normDni = window.normalizeSearchString(rawDni);
+                    const existing = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === normDni);
+                    if (existing) {
+                        if (!existing.nameEdited && sheetClient.nombre) existing.nombre = fixNameCaps(sheetClient.nombre);
+                        if (sheetClient.email) existing.email = sheetClient.email;
+                        if (sheetClient.telefono) existing.telefono = sheetClient.telefono;
+                        if (sheetClient.titulacion) existing.titulacion = sheetClient.titulacion;
+                        if (!existing.dobEdited && sheetClient.dob) existing.dob = window.normalizeDateStr(sheetClient.dob);
+                        if (sheetClient.dives) existing.dives = sheetClient.dives;
+                        if (!existing.insuranceEdited && sheetClient.insurance && sheetClient.insurance.type) {
+                            existing.insurance = {
+                                type: sheetClient.insurance.type,
+                                expiry: window.normalizeDateStr(sheetClient.insurance.expiry)
+                            };
+                        }
+                    }
+                });
+            }
+        }).catch(() => {});
+    }, 1000);
+
+    // Auto-poll Google Sheet background cache every 2 minutes
+    setInterval(() => {
+        window.fetchJotformClientsData(true).catch(() => {});
+    }, 2 * 60 * 1000);
+} catch (e) {}
+
+window.syncJotformCustomers = async function() {
+    let btn = document.getElementById('btn-sync-jotform');
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Buscando...`;
+    }
+
+    showToast("Sincronizando y completando perfiles...");
+
+    const processClientsList = async (clients, isLiveUpdate = false) => {
+        if (!clients || !Array.isArray(clients) || clients.length === 0) return { newCount: 0, mergedCount: 0 };
         const fixNameCaps = (str) => {
             if (!str) return '';
             return str.toLowerCase().split(' ').map(word =>
@@ -1612,111 +1900,225 @@ window.syncJotformCustomers = async function() {
         let newCount = 0;
         let mergedCount = 0;
 
-        data.clients.forEach(sheetClient => {
+        clients.forEach(sheetClient => {
             let rawDni = (sheetClient.dni || '').trim().toUpperCase();
             if (!rawDni) return;
 
             let normDni = window.normalizeSearchString(rawDni);
             
-            // Translate DNI if a redirection mapping exists (from CRM edits)
             const normDniForRedirect = window.normalizeDni(rawDni);
             if (window.dniRedirects && window.dniRedirects[normDniForRedirect]) {
                 const redirectedDni = window.dniRedirects[normDniForRedirect];
-                console.log(`🔀 [Jotform Sync] Redirecting client DNI ${rawDni} -> ${redirectedDni} based on CRM edits`);
                 rawDni = redirectedDni;
                 normDni = window.normalizeSearchString(redirectedDni);
             }
 
-            // Find if this DNI already exists in the CRM
             const existing = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === normDni);
             
             if (existing) {
-                // SMART MERGE: If it's a blank shell (e.g. from boat manifest), fill it in!
                 let modified = false;
-                let nameModified = false;
-                const sheetFullName = [sheetClient.nombre, sheetClient.apellido].filter(Boolean).join(' ').trim();
-                const existingFullName = [existing.nombre, existing.apellido].filter(Boolean).join(' ').trim();
+                const sheetFullName = window.combineFirstAndLastName(sheetClient.nombre, sheetClient.apellido);
+                const existingFullName = window.combineFirstAndLastName(existing.nombre, existing.apellido);
                 
                 if (!existing.nameEdited) {
                     if (!existing.nombre || existing.nombre === 'Sin Nombre' || existing.nombre.toLowerCase().includes('sin nombre')) {
                         existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
-                        nameModified = true;
-                    } else if (sheetFullName && (existingFullName.toLowerCase() === 'sin nombre' || existingFullName.length < sheetFullName.length || existingFullName.split(/\s+/).length < sheetFullName.split(/\s+/).length)) {
-                        // Update name to Jotform's full official details
-                        existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
-                        nameModified = true;
-                    }
-                    
-                    if (nameModified) {
-                        if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
                         modified = true;
-                    } else if (!existing.apellido && sheetClient.apellido) {
+                    } else if (sheetFullName && (existingFullName.toLowerCase() === 'sin nombre' || existingFullName.length < sheetFullName.length)) {
+                        existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
+                        modified = true;
+                    }
+                    if (sheetClient.apellido && existing.apellido !== fixNameCaps(sheetClient.apellido)) {
                         existing.apellido = fixNameCaps(sheetClient.apellido);
                         modified = true;
                     }
                 }
-                if (!existing.email && sheetClient.email) { existing.email = sheetClient.email; modified = true; }
-                if (!existing.telefono && sheetClient.telefono) { existing.telefono = sheetClient.telefono; modified = true; }
-                if (!existing.titulacion && sheetClient.titulacion) { existing.titulacion = sheetClient.titulacion; modified = true; }
-                if (!existing.dobEdited && !existing.dob && sheetClient.dob) { existing.dob = window.normalizeDateStr(sheetClient.dob); modified = true; }
-                if (!existing.dives && sheetClient.dives) { existing.dives = sheetClient.dives; modified = true; }
-                
-                if (!existing.insuranceEdited) {
-                    // Force sync insurance if provided from Jotform, but only if it's newer than the CRM's current record
-                    if (sheetClient.insurance && sheetClient.insurance.type) { 
-                        const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry);
-                        const existingExpiry = existing.insurance ? window.normalizeDateStr(existing.insurance.expiry) : '';
-                        
-                        if (!existing.insurance || sheetExpiry > existingExpiry) {
-                            existing.insurance = {
-                                type: sheetClient.insurance.type,
-                                expiry: sheetExpiry // Save normalized as YYYY-MM-DD
-                            };
-                            modified = true; 
-                        }
-                    }
+
+                if (sheetClient.email && existing.email !== sheetClient.email) {
+                    existing.email = sheetClient.email;
+                    modified = true;
                 }
-                if (modified) mergedCount++;
-            } else {
-                // Completely new record
-                let normalizedInsurance = null;
-                if (sheetClient.insurance && sheetClient.insurance.type) {
-                    normalizedInsurance = {
-                        type: sheetClient.insurance.type,
-                        expiry: window.normalizeDateStr(sheetClient.insurance.expiry)
-                    };
+                if (sheetClient.telefono && existing.telefono !== sheetClient.telefono) {
+                    existing.telefono = sheetClient.telefono;
+                    modified = true;
+                }
+                if (sheetClient.titulacion && existing.titulacion !== sheetClient.titulacion) {
+                    existing.titulacion = sheetClient.titulacion;
+                    modified = true;
+                }
+                if (!existing.dobEdited && sheetClient.dob && existing.dob !== window.normalizeDateStr(sheetClient.dob)) {
+                    existing.dob = window.normalizeDateStr(sheetClient.dob);
+                    modified = true;
+                }
+                if (sheetClient.dives && existing.dives !== sheetClient.dives) {
+                    existing.dives = sheetClient.dives;
+                    modified = true;
                 }
 
-                customerDatabase.push({
-                    dni:        window.normalizeDni(rawDni),
-                    nombre:     fixNameCaps(sheetClient.nombre),
-                    apellido:   fixNameCaps(sheetClient.apellido),
-                    email:      sheetClient.email     || '',
-                    telefono:   sheetClient.telefono  || '',
-                    titulacion: sheetClient.titulacion || '',
-                    dob:        window.normalizeDateStr(sheetClient.dob) || '',
-                    dives:      sheetClient.dives || '',
-                    insurance:  normalizedInsurance
-                });
+                if (!existing.insuranceEdited && sheetClient.insurance && sheetClient.insurance.type) {
+                    const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry);
+                    const existingExpiry = existing.insurance ? window.normalizeDateStr(existing.insurance.expiry) : '';
+                    if (!existing.insurance || sheetExpiry > existingExpiry) {
+                        existing.insurance = {
+                            type: sheetClient.insurance.type,
+                            expiry: sheetExpiry
+                        };
+                        modified = true;
+                    }
+                }
+
+                if (modified) {
+                    mergedCount++;
+                }
+            } else {
+                const newClient = {
+                    dni: window.normalizeDni(rawDni),
+                    nombre: fixNameCaps(sheetClient.nombre) || 'Sin Nombre',
+                    apellido: fixNameCaps(sheetClient.apellido) || '',
+                    email: sheetClient.email || '',
+                    telefono: sheetClient.telefono || '',
+                    titulacion: sheetClient.titulacion || 'Sin Titulación',
+                    dob: sheetClient.dob ? window.normalizeDateStr(sheetClient.dob) : '',
+                    dives: sheetClient.dives || 0,
+                    insurance: (sheetClient.insurance && sheetClient.insurance.type) ? {
+                        type: sheetClient.insurance.type,
+                        expiry: window.normalizeDateStr(sheetClient.insurance.expiry)
+                    } : null
+                };
+                customerDatabase.push(newClient);
                 newCount++;
             }
         });
 
         if (newCount > 0 || mergedCount > 0) {
-            await window.safeMasterListWrite(customerDatabase, 'jotform-import');
+            window.safeMasterListWrite(customerDatabase, 'jotform-smart-sync').catch(e => console.error(e));
+            showToast(`🎉 ¡Sincronizado! ${newCount} nuevos clientes añadidos, ${mergedCount} perfiles completados.`);
             
-            // Sync all updated/created customer profiles to their individual Firestore documents as well
-            if (typeof db !== 'undefined') {
-                const syncPromises = customerDatabase.map(c => {
-                    if (c.dni) {
-                        return db.collection('mangamar_customers').doc(c.dni).set(c, { merge: true })
-                            .catch(err => console.error("Error syncing individual doc inside jotform:", err));
-                    }
-                });
-                await Promise.all(syncPromises);
+            if (!document.getElementById('crm-modal').classList.contains('hidden') && typeof window.renderCrmTable === 'function') {
+                window.renderCrmTable();
+            }
+        } else if (!isLiveUpdate) {
+            showToast("✓ Todos los perfiles locales están al día.");
+        }
+        return { newCount, mergedCount };
+    };
+
+    // Step 1: Process cached clients immediately
+    const cachedClients = window.getJotformClientsFromCache();
+    let hasUpdatedFromCache = false;
+    if (cachedClients && cachedClients.length > 0) {
+        await processClientsList(cachedClients, false);
+        hasUpdatedFromCache = true;
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+
+    // Step 2: Fetch fresh data in background
+    try {
+        const clients = await window.fetchJotformClientsData(true);
+        const { newCount, mergedCount } = await processClientsList(clients, true);
+        if (hasUpdatedFromCache && (newCount > 0 || mergedCount > 0)) {
+            showToast(`🎉 ¡Actualización en vivo! ${newCount} nuevos clientes, ${mergedCount} perfiles actualizados.`);
+        }
+    } catch(e) {
+        console.error('syncJotformCustomers error:', e);
+        if (!hasUpdatedFromCache) {
+            if (typeof showAppAlert === 'function') showAppAlert(`Error al importar: ${e.message}`);
+        }
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+};
+
+window.syncSingleJotformDiver = async function(targetDni) {
+    const activeDni = targetDni || window.activeFichaDni;
+    if (!activeDni) {
+        if (typeof showAppAlert === 'function') showAppAlert("No se encontró ningún DNI para consultar en Jotform.");
+        return;
+    }
+
+    const normTargetDni = window.normalizeDni(activeDni);
+    const btn = document.getElementById('btn-sync-single-jotform');
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-indigo-600 inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Actualizando...`;
+    }
+
+    try {
+        const findInClients = (list) => {
+            if (!list || !Array.isArray(list)) return null;
+            return list.find(sc => {
+                if (!sc.dni) return false;
+                let rawDni = (sc.dni || '').trim().toUpperCase();
+                let normDni = window.normalizeDni(rawDni);
+                if (window.dniRedirects && window.dniRedirects[normDni]) {
+                    normDni = window.normalizeDni(window.dniRedirects[normDni]);
+                }
+                return normDni === normTargetDni;
+            });
+        };
+
+        const applyClientToProfile = (sheetClient, isLiveUpdate = false, isExplicitSingleImport = true) => {
+            let existing = customerDatabase.find(c => window.normalizeDni(c.dni) === normTargetDni);
+            if (!existing) {
+                existing = { dni: normTargetDni };
+                customerDatabase.push(existing);
             }
 
-            // Propagate these updated details month-wide to all manifest sheets and waitlists
+            const fixNameCaps = (str) => {
+                if (!str) return '';
+                return str.toLowerCase().split(' ').map(word =>
+                    word.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-')
+                ).join(' ');
+            };
+
+            const sheetFullName = window.combineFirstAndLastName(sheetClient.nombre, sheetClient.apellido);
+            const existingFullName = window.combineFirstAndLastName(existing.nombre, existing.apellido);
+
+            if (isExplicitSingleImport || !existing.nameEdited) {
+                if (sheetClient.nombre) existing.nombre = fixNameCaps(sheetClient.nombre);
+                if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
+                if (isExplicitSingleImport) existing.nameEdited = false;
+            } else {
+                if (!existing.nombre || existing.nombre === 'Sin Nombre' || existing.nombre.toLowerCase().includes('sin nombre')) {
+                    existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
+                } else if (sheetFullName && (existingFullName.toLowerCase() === 'sin nombre' || existingFullName.length < sheetFullName.length)) {
+                    existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
+                }
+                if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
+            }
+
+            if (sheetClient.email) existing.email = sheetClient.email;
+            if (sheetClient.telefono) existing.telefono = sheetClient.telefono;
+            if (sheetClient.titulacion) existing.titulacion = sheetClient.titulacion;
+            
+            if (isExplicitSingleImport || (!existing.dobEdited && sheetClient.dob)) {
+                if (sheetClient.dob) existing.dob = window.normalizeDateStr(sheetClient.dob);
+                if (isExplicitSingleImport) existing.dobEdited = false;
+            }
+            
+            if (sheetClient.dives !== undefined && sheetClient.dives !== null && sheetClient.dives !== '') {
+                existing.dives = sheetClient.dives;
+            }
+
+            if (isExplicitSingleImport || !existing.insuranceEdited) {
+                if (sheetClient.insurance && sheetClient.insurance.type) {
+                    const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry);
+                    existing.insurance = {
+                        type: sheetClient.insurance.type,
+                        expiry: sheetExpiry
+                    };
+                }
+                if (isExplicitSingleImport) existing.insuranceEdited = false;
+            }
+
             if (typeof mergedAllocations !== 'undefined') {
                 const isEmptyValue = (val) => {
                     if (!val) return true;
@@ -1724,119 +2126,127 @@ window.syncJotformCustomers = async function() {
                     return s === '' || s === '-' || s === '---' || s.toLowerCase() === 'sin titulación' || s.toLowerCase() === 'sin titulacion';
                 };
                 
-                const modifiedTrips = [];
                 mergedAllocations.forEach(trip => {
                     let modified = false;
                     if (trip.groups) {
                         trip.groups.forEach(group => {
                             if (group.guests) {
                                 group.guests.forEach(gst => {
-                                    if (gst.dni) {
-                                        const normDni = window.normalizeDni(gst.dni);
-                                        const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === normDni);
-                                        if (profile) {
-                                            const dbFullName = window.getFullName(profile);
-                                            const profileName = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : gst.nombre;
-                                            const profileTit = !isEmptyValue(profile.titulacion) ? profile.titulacion : gst.titulacion;
-                                            const profilePhone = !isEmptyValue(profile.telefono) ? profile.telefono : gst.telefono;
-                                            const profileEmail = !isEmptyValue(profile.email) ? profile.email : gst.email;
-                                            
-                                            let profileIns = gst.insurance || 0;
-                                            if (profile.insurance) {
-                                                const insObj = profile.insurance;
-                                                const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
-                                                const activeDate = trip.date || '';
-                                                if (expiry && expiry >= activeDate) {
-                                                    profileIns = insObj.type || 0;
-                                                } else {
-                                                    profileIns = 0;
-                                                }
-                                            }
-                                            
-                                            if (gst.nombre !== profileName || gst.titulacion !== profileTit || gst.telefono !== profilePhone || gst.email !== profileEmail || gst.insurance !== profileIns) {
-                                                gst.nombre = profileName;
-                                                gst.titulacion = profileTit;
-                                                gst.telefono = profilePhone;
-                                                gst.email = profileEmail;
-                                                gst.insurance = profileIns;
-                                                modified = true;
+                                    if (gst.dni && window.normalizeDni(gst.dni) === normTargetDni) {
+                                        const dbFullName = window.getFullName(existing);
+                                        const profileName = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : gst.nombre;
+                                        const profileTit = !isEmptyValue(existing.titulacion) ? existing.titulacion : gst.titulacion;
+                                        const profilePhone = !isEmptyValue(existing.telefono) ? existing.telefono : gst.telefono;
+                                        const profileEmail = !isEmptyValue(existing.email) ? existing.email : gst.email;
+                                        
+                                        let profileIns = gst.insurance || 0;
+                                        if (existing.insurance) {
+                                            const insObj = existing.insurance;
+                                            const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
+                                            const activeDate = trip.date || '';
+                                            if (expiry && expiry >= activeDate) {
+                                                profileIns = insObj.type || 0;
+                                            } else {
+                                                profileIns = 0;
                                             }
                                         }
+                                        
+                                        gst.nombre = profileName;
+                                        gst.titulacion = profileTit;
+                                        gst.telefono = profilePhone;
+                                        gst.email = profileEmail;
+                                        gst.insurance = profileIns;
+                                        gst.isManual = !window.isProfileComplete(existing);
+                                        modified = true;
                                     }
                                 });
                             }
                         });
                     }
-                    if (trip.waitlist) {
-                        trip.waitlist.forEach(w => {
-                            if (w.dni) {
-                                const normDni = window.normalizeDni(w.dni);
-                                const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === normDni);
-                                if (profile) {
-                                    const dbFullName = window.getFullName(profile);
-                                    const profileName = !isEmptyValue(dbFullName) ? window.getFirstAndLastName(dbFullName) : w.nombre;
-                                    const profileTit = !isEmptyValue(profile.titulacion) ? profile.titulacion : w.titulacion;
-                                    const profilePhone = !isEmptyValue(profile.telefono) ? profile.telefono : w.telefono;
-                                    const profileEmail = !isEmptyValue(profile.email) ? profile.email : w.email;
-                                    
-                                    if (w.nombre !== profileName || w.titulacion !== profileTit || w.telefono !== profilePhone || w.email !== profileEmail) {
-                                        w.nombre = profileName;
-                                        w.titulacion = profileTit;
-                                        w.telefono = profilePhone;
-                                        w.email = profileEmail;
-                                        modified = true;
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    if (modified) {
-                        // Sync active boat UI in real-time
-                        if (window.activeBoatItem && window.activeBoatItem.id === trip.id) {
-                            window.activeBoatItem.groups = trip.groups;
-                            window.activeBoatItem.waitlist = trip.waitlist;
-                            
-                            // Align the active boat's lastSyncedTripState to match what we write to Firestore
-                            if (window.activeBoatItem.lastSyncedTripState) {
-                                window.activeBoatItem.lastSyncedTripState.groups = JSON.parse(JSON.stringify(window.activeBoatItem.groups));
-                                const flatG = [];
-                                window.activeBoatItem.groups.forEach(g => { if (g.guests) flatG.push(...g.guests); });
-                                window.activeBoatItem.lastSyncedTripState.guests = flatG;
-                                window.activeBoatItem.lastSyncedTripState.waitlist = JSON.parse(JSON.stringify(window.activeBoatItem.waitlist));
-                            }
-                            
-                            if (typeof window.renderGroups === 'function') window.renderGroups();
-                            if (typeof window.updateModalSubtitle === 'function') window.updateModalSubtitle();
-                            if (typeof window.renderWaitlist === 'function') window.renderWaitlist();
-                        }
-                        modifiedTrips.push(trip);
+                    if (modified && window.activeBoatItem && window.activeBoatItem.id === trip.id) {
+                        if (typeof window.renderGroups === 'function') window.renderGroups();
                     }
                 });
-                if (modifiedTrips.length > 0 && typeof window.saveMultipleTripsData === 'function') {
-                    await window.saveMultipleTripsData(modifiedTrips);
-                    if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
-                }
             }
 
-            let msg = '';
-            if (newCount > 0) msg += `${newCount} nuevos. `;
-            if (mergedCount > 0) msg += `${mergedCount} perfiles completados.`;
-            showToast(`¡Sincronización completada! ${msg}`);
-            if (!document.getElementById('crm-modal').classList.contains('hidden')) {
-                renderCrmTable();
+            if (!document.getElementById('customer-profile-modal').classList.contains('hidden')) {
+                window.updateFichaProfileTabDOM(existing);
             }
+            if (!document.getElementById('crm-modal').classList.contains('hidden') && typeof window.renderCrmTable === 'function') renderCrmTable();
+
+            if (isLiveUpdate && !updatedFromCache) {
+                showToast("✓ Ficha de Jotform actualizada con los datos más recientes.");
+            }
+
+            (async () => {
+                try {
+                    await window.safeMasterListWrite(customerDatabase, 'single-jotform-import');
+                    if (typeof db !== 'undefined') {
+                        await db.collection('mangamar_customers').doc(normTargetDni).set(existing, { merge: true });
+                    }
+                } catch (err) {
+                    console.error("Error persisting single Jotform import:", err);
+                }
+            })();
+
+            return existing;
+        };
+
+        // STEP 1: Fast instant local / cache check (< 0.01 seconds!)
+        const cachedList = window.getJotformClientsFromCache();
+        const cachedClient = findInClients(cachedList);
+        let updatedFromCache = false;
+
+        if (cachedClient) {
+            applyClientToProfile(cachedClient, false);
+            updatedFromCache = true;
+            showToast("✓ Ficha actualizada al instante desde copia guardada.");
         } else {
-            showToast(`✅ Todo al día. ${data.clients.length} entradas revisadas, sin cambios.`);
+            let existingInDb = customerDatabase.find(c => window.normalizeDni(c.dni) === normTargetDni);
+            if (existingInDb && (existingInDb.email || existingInDb.telefono || existingInDb.titulacion)) {
+                if (!document.getElementById('customer-profile-modal').classList.contains('hidden')) {
+                    window.updateFichaProfileTabDOM(existingInDb);
+                }
+                updatedFromCache = true;
+            }
         }
 
-    } catch(e) {
-        console.error('syncJotformCustomers error:', e);
-        if (typeof showAppAlert === 'function') showAppAlert(`Error al importar: ${e.message}`);
+        // Restore button immediately so user is NEVER blocked
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+
+        // STEP 2: Background / non-blocking live refresh
+        (async () => {
+            try {
+                const freshClients = await window.fetchJotformClientsData(true, normTargetDni);
+                const freshClient = findInClients(freshClients);
+
+                if (freshClient) {
+                    applyClientToProfile(freshClient, true);
+                    showToast("🎉 ¡Datos actualizados desde Jotform!");
+                } else if (!updatedFromCache) {
+                    showToast("ℹ No se encontró ninguna ficha en Jotform para el DNI " + normTargetDni + ".", 4000);
+                }
+            } catch (fetchErr) {
+                console.warn("Background fetchJotformClientsData error:", fetchErr);
+                if (!updatedFromCache) {
+                    if (typeof showAppAlert === 'function') {
+                        showAppAlert("Error al conectar con Google Apps Script: " + fetchErr.message);
+                    }
+                }
+            }
+        })();
+
+    } catch (err) {
+        console.error("Error en syncSingleJotformDiver:", err);
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
     }
 };
-
-
-
 
 // ==========================================
 // 18. INCIDENCIA RESERVA MARINA
@@ -2121,7 +2531,7 @@ window.incidenciaWizardLoadDivers = function() {
 
     // Store diver data by index to avoid HTML encoding issues
     window._incWizardDiverData = allGuests.map(g => ({
-        nombre: [g.nombre||g.firstName, g.apellido||g.lastName].filter(Boolean).join(' ') || g.name || '—',
+        nombre: window.combineFirstAndLastName(g.nombre||g.firstName||g.name, g.apellido||g.lastName) || '—',
         dni:    g.dni || g.passportId || '—'
     }));
 
@@ -2146,8 +2556,7 @@ window.incidenciaSearchDiver = function(query) {
     const norm = normalize(q);
 
     const matches = (customerDatabase || []).filter(c => {
-        // Build full name by combining nombre + apellido (in case they're separate)
-        const fullName = normalize([c.nombre, c.apellido, c.name].filter(Boolean).join(' '));
+        const fullName = normalize(window.combineFirstAndLastName(c.nombre || c.name, c.apellido));
         const dniStr   = normalize(c.dni || '');
         return fullName.includes(norm) || dniStr.includes(norm);
     }).slice(0, 8);
@@ -2162,7 +2571,7 @@ window.incidenciaSearchDiver = function(query) {
     window._incSearchResults = matches;
     resEl.classList.remove('hidden');
     resEl.innerHTML = matches.map((c, i) => {
-        const disp = [c.nombre, c.apellido].filter(Boolean).join(' ') || c.name || '—';
+        const disp = window.combineFirstAndLastName(c.nombre || c.name, c.apellido) || '—';
         const dni  = c.dni || '';
         return `<button onclick="incidenciaAddSearchResult(${i})" class="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 rounded-lg flex justify-between items-center gap-1"><span class="font-bold text-slate-700 truncate">${disp}</span><span class="text-slate-400 font-mono shrink-0">${dni}</span></button>`;
     }).join('');
@@ -2184,7 +2593,7 @@ window.incidenciaAddSearchResult = function(idx) {
     const results = window._incSearchResults || [];
     const c = results[idx];
     if (!c) return;
-    const nombre = [c.nombre, c.apellido].filter(Boolean).join(' ') || c.name || '—';
+    const nombre = window.combineFirstAndLastName(c.nombre || c.name, c.apellido) || '—';
     const dni    = c.dni || '';
     const nombreInputs = document.querySelectorAll('#inc-diver-rows .inc-diver-nombre');
     const dniInputs    = document.querySelectorAll('#inc-diver-rows .inc-diver-dni');
@@ -2562,7 +2971,7 @@ window.testFueraLoadDivers = function() {
     }
 
     window._testWizardDiverData = allGuests.map(g => ({
-        nombre: [g.nombre||g.firstName, g.apellido||g.lastName].filter(Boolean).join(' ') || g.name || '—',
+        nombre: window.combineFirstAndLastName(g.nombre||g.firstName||g.name, g.apellido||g.lastName) || '—',
         dni:    g.dni || g.passportId || '—'
     }));
 
@@ -2725,7 +3134,7 @@ window.testFueraSearchDiver = function(query) {
     const norm = normalize(q);
 
     const matches = (customerDatabase || []).filter(c => {
-        const fullName = normalize([c.nombre, c.apellido, c.name].filter(Boolean).join(' '));
+        const fullName = normalize(window.combineFirstAndLastName(c.nombre || c.name, c.apellido));
         const dniStr   = normalize(c.dni || '');
         return fullName.includes(norm) || dniStr.includes(norm);
     }).slice(0, 8);
@@ -2739,7 +3148,7 @@ window.testFueraSearchDiver = function(query) {
     window._testSearchResults = matches;
     resEl.classList.remove('hidden');
     resEl.innerHTML = matches.map((c, i) => {
-        const disp = [c.nombre, c.apellido].filter(Boolean).join(' ') || c.name || '—';
+        const disp = window.combineFirstAndLastName(c.nombre || c.name, c.apellido) || '—';
         const dni  = c.dni || '';
         return `<button onclick="testFueraAddSearchResult(${i})" class="w-full text-left px-2 py-1.5 text-xs hover:bg-cyan-50 rounded-lg flex justify-between items-center gap-1"><span class="font-bold text-slate-700 truncate">${disp}</span><span class="text-slate-400 font-mono shrink-0">${dni}</span></button>`;
     }).join('');
@@ -2766,7 +3175,7 @@ window.testFueraAddSearchResult = function(idx) {
     const results = window._testSearchResults || [];
     const c = results[idx];
     if (!c) return;
-    const nombre = [c.nombre, c.apellido].filter(Boolean).join(' ') || c.name || '—';
+    const nombre = window.combineFirstAndLastName(c.nombre || c.name, c.apellido) || '—';
     const dni    = c.dni || '';
     
     const globalDate = document.getElementById('test-global-date').value || '';

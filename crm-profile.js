@@ -43,6 +43,9 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
     if (!isNavBackForward) window.fichaDisplayLimit = 15; // Reset pagination for fresh loads
 
     window.activeFichaTab = targetTab;
+    if (typeof window.fetchJotformClientsData === 'function') {
+        window.fetchJotformClientsData(false).catch(() => {});
+    }
     const fromEl = document.getElementById('historial-filter-from');
     const toEl = document.getElementById('historial-filter-to');
     if (fromEl) fromEl.value = '';
@@ -952,7 +955,7 @@ window.renderFichaFromCache = function(dni, targetTab) {
             const conceptName = `Depósito Anticipado (${dep.method})`;
             
             const ownerProfile = customerDatabase.find(c => window.isSameDni(c.dni, dep._ownerDni));
-            const ownerName = ownerProfile ? `${ownerProfile.nombre} ${ownerProfile.apellido || ''}`.trim() : dep._ownerDni;
+            const ownerName = ownerProfile ? window.combineFirstAndLastName(ownerProfile.nombre, ownerProfile.apellido) : dep._ownerDni;
             
             const depAmount = parseFloat(dep.amount) || 0;
 
@@ -1057,7 +1060,7 @@ window.renderFichaFromCache = function(dni, targetTab) {
                 let name = '';
                 const profile = customerDatabase.find(c => window.isSameDni(c.dni, itDni));
                 if (profile) {
-                    name = `${profile.nombre} ${profile.apellido || ''}`.trim();
+                    name = window.combineFirstAndLastName(profile.nombre, profile.apellido);
                 } else {
                     if (typeof activeBoatItem !== 'undefined' && activeBoatItem && activeBoatItem.groups) {
                         for (const g of activeBoatItem.groups) {
@@ -1110,7 +1113,7 @@ window.renderFichaFromCache = function(dni, targetTab) {
                     let name = '';
                     const profile = customerDatabase.find(c => window.isSameDni(c.dni, itDni));
                     if (profile) {
-                        name = `${profile.nombre} ${profile.apellido || ''}`.trim();
+                        name = window.combineFirstAndLastName(profile.nombre, profile.apellido);
                     } else {
                         if (typeof activeBoatItem !== 'undefined' && activeBoatItem && activeBoatItem.groups) {
                             for (const g of activeBoatItem.groups) {
@@ -1334,7 +1337,7 @@ window.renderFichaFromCache = function(dni, targetTab) {
             activeDeps.forEach(dep => {
                 const icon = methodIcons[dep.method] || '💰';
                 const ownerProfile = customerDatabase.find(c => window.isSameDni(c.dni, dep._ownerDni));
-                const ownerName = ownerProfile ? `${ownerProfile.nombre} ${ownerProfile.apellido || ''}`.trim() : dep._ownerDni;
+                const ownerName = ownerProfile ? window.combineFirstAndLastName(ownerProfile.nombre, ownerProfile.apellido) : dep._ownerDni;
                 
                 const safeOwnerDni = (dep._ownerDni || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 const safeDepId = (dep.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -1608,46 +1611,77 @@ window.saveCustomerEdits = async function () {
             }
         }
 
-        // 2. Auto-sync Master List and Individual Customer Profile (AWAITED to guarantee Firestore commit)
-        await window.safeMasterListWrite(customerDatabase, 'save-customer-profile').catch(e => console.error("Error master sync:", e));
-        
-        if (typeof db !== 'undefined') {
-            // Save new profile
-            await db.collection('mangamar_customers').doc(newDni).set(customerDatabase[finalIndex], { merge: true }).catch(e => console.error("Error customer sync:", e));
-            
-            // If DNI changed, delete old one and migrate history
-            if (oldDni !== newDni) {
-                // Update local in-memory redirects instantly to prevent race conditions during snapshot updates
-                window.dniRedirects = window.dniRedirects || {};
-                const normOld = window.normalizeDni(oldDni);
-                const normNew = window.normalizeDni(newDni);
-                window.dniRedirects[normOld] = normNew;
-                for (let k in window.dniRedirects) {
-                    if (window.dniRedirects[k] === normOld) {
-                        window.dniRedirects[k] = normNew;
+        // 2. Auto-sync Master List and Individual Customer Profile (ASYNCHRONOUS BACKGROUND PERSISTENCE)
+        const currentCustomerData = customerDatabase[finalIndex];
+
+        // 3. Update active boat manifests via mergedAllocations natively in memory
+        const modifiedTrips = [];
+        mergedAllocations.forEach(trip => {
+            let modified = false;
+            if (trip.groups) {
+                trip.groups.forEach(group => {
+                    if (group.guests) {
+                        group.guests.forEach(guest => {
+                            const isOldDniMatch = guest.dni && window.normalizeDni(guest.dni) === window.normalizeDni(oldDni);
+                            const isTempIdMatch = !guest.dni && guest.tempId && guest.tempId === oldDni;
+                            
+                            if (isOldDniMatch || isTempIdMatch) {
+                                let newFullName = window.getFirstAndLastName(window.getFullName(currentCustomerData));
+                                let newTitulacion = currentCustomerData.titulacion || '';
+                                let newTelefono = currentCustomerData.telefono || '';
+                                let newEmail = currentCustomerData.email || '';
+                                
+                                guest.dni = newDni;
+                                guest.isManual = !window.isProfileComplete(currentCustomerData);
+                                if (guest.tempId) delete guest.tempId;
+
+                                if (guest.nombre !== newFullName || guest.titulacion !== newTitulacion || guest.telefono !== newTelefono || guest.email !== newEmail) {
+                                    guest.nombre = newFullName;
+                                    guest.titulacion = newTitulacion;
+                                    guest.telefono = newTelefono;
+                                    guest.email = newEmail;
+                                }
+                                modified = true;
+                            }
+                        });
+                    }
+                });
+            }
+            if (modified) {
+                if (window.activeBoatItem && window.activeBoatItem.id === trip.id) {
+                    if (window.activeBoatItem.groups) {
+                        window.activeBoatItem.groups.forEach(g => {
+                            if (g.guests) {
+                                g.guests.forEach(gst => {
+                                    const isOldDniMatch = gst.dni && window.normalizeDni(gst.dni) === window.normalizeDni(oldDni);
+                                    const isTempIdMatch = !gst.dni && gst.tempId && gst.tempId === oldDni;
+                                    if (isOldDniMatch || isTempIdMatch) {
+                                        gst.dni = newDni;
+                                        gst.nombre = window.getFirstAndLastName(window.getFullName(currentCustomerData));
+                                        gst.titulacion = currentCustomerData.titulacion || '';
+                                        gst.telefono = currentCustomerData.telefono || '';
+                                        gst.email = currentCustomerData.email || '';
+                                        gst.isManual = !window.isProfileComplete(currentCustomerData);
+                                        if (gst.tempId) delete gst.tempId;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    
+                    // Keep local manifest editor's base state in sync to prevent 3-way merge conflict
+                    if (window.activeBoatItem.lastSyncedTripState) {
+                        window.activeBoatItem.lastSyncedTripState.groups = JSON.parse(JSON.stringify(window.activeBoatItem.groups));
+                        const flatG = [];
+                        window.activeBoatItem.groups.forEach(g => { if (g.guests) flatG.push(...g.guests); });
+                        window.activeBoatItem.lastSyncedTripState.guests = flatG;
                     }
                 }
-
-                db.collection('mangamar_customers').doc(oldDni).delete().catch(e => console.error("Error deleting old DNI:", e));
-                await window.migrateCustomerHistory(oldDni, newDni).catch(e => console.error("Error migrating history:", e));
-
-                // Add DNI redirect to settings document in Firestore to prevent sync/heal duplications
-                const settingsRef = db.collection("mangamar_directory").doc("settings");
-                settingsRef.get().then(doc => {
-                    const currentRedirects = doc.exists ? (doc.data().dniRedirects || {}) : {};
-                    currentRedirects[normOld] = normNew;
-                    for (let k in currentRedirects) {
-                        if (currentRedirects[k] === normOld) {
-                            currentRedirects[k] = normNew;
-                        }
-                    }
-                    settingsRef.set({ dniRedirects: currentRedirects }, { merge: true })
-                        .catch(e => console.error("Error saving DNI redirects:", e));
-                }).catch(e => console.error("Error fetching settings for DNI redirects:", e));
+                modifiedTrips.push(trip);
             }
-        }
+        });
 
-        // 2.5 Update matching members in globalGroups if DNI changed or linked from tempId
+        // 4. Update matching members in globalGroups in memory
         if (oldDni !== newDni && window.globalGroups && Array.isArray(window.globalGroups)) {
             const normalizedOld = oldDni.toLowerCase();
             const normalizedNew = window.normalizeDni(newDni);
@@ -1691,76 +1725,10 @@ window.saveCustomerEdits = async function () {
             });
         }
 
-        // 3. Update active boat manifests via mergedAllocations natively
-        const modifiedTrips = [];
-        mergedAllocations.forEach(trip => {
-            let modified = false;
-            if (trip.groups) {
-                trip.groups.forEach(group => {
-                    if (group.guests) {
-                        group.guests.forEach(guest => {
-                            const isOldDniMatch = guest.dni && window.normalizeDni(guest.dni) === window.normalizeDni(oldDni);
-                            const isTempIdMatch = !guest.dni && guest.tempId && guest.tempId === oldDni;
-                            
-                            if (isOldDniMatch || isTempIdMatch) {
-                                let newFullName = window.getFirstAndLastName(window.getFullName(customerDatabase[finalIndex]));
-                                let newTitulacion = customerDatabase[finalIndex].titulacion || '';
-                                let newTelefono = customerDatabase[finalIndex].telefono || '';
-                                let newEmail = customerDatabase[finalIndex].email || '';
-                                
-                                guest.dni = newDni;
-                                guest.isManual = !window.isProfileComplete(customerDatabase[finalIndex]);
-                                if (guest.tempId) delete guest.tempId;
-
-                                if (guest.nombre !== newFullName || guest.titulacion !== newTitulacion || guest.telefono !== newTelefono || guest.email !== newEmail) {
-                                    guest.nombre = newFullName;
-                                    guest.titulacion = newTitulacion;
-                                    guest.telefono = newTelefono;
-                                    guest.email = newEmail;
-                                }
-                                modified = true;
-                            }
-                        });
-                    }
-                });
-            }
-            if (modified) {
-                if (window.activeBoatItem && window.activeBoatItem.id === trip.id) {
-                    if (window.activeBoatItem.groups) {
-                        window.activeBoatItem.groups.forEach(g => {
-                            if (g.guests) {
-                                g.guests.forEach(gst => {
-                                    const isOldDniMatch = gst.dni && window.normalizeDni(gst.dni) === window.normalizeDni(oldDni);
-                                    const isTempIdMatch = !gst.dni && gst.tempId && gst.tempId === oldDni;
-                                    if (isOldDniMatch || isTempIdMatch) {
-                                        gst.dni = newDni;
-                                        gst.nombre = window.getFirstAndLastName(window.getFullName(customerDatabase[finalIndex]));
-                                        gst.titulacion = customerDatabase[finalIndex].titulacion || '';
-                                        gst.telefono = customerDatabase[finalIndex].telefono || '';
-                                        gst.email = customerDatabase[finalIndex].email || '';
-                                        gst.isManual = !window.isProfileComplete(customerDatabase[finalIndex]);
-                                        if (gst.tempId) delete gst.tempId;
-                                    }
-                                });
-                            }
-                        });
-                    }
-                    
-                    // Keep local manifest editor's base state in sync to prevent 3-way merge conflict
-                    if (window.activeBoatItem.lastSyncedTripState) {
-                        window.activeBoatItem.lastSyncedTripState.groups = JSON.parse(JSON.stringify(window.activeBoatItem.groups));
-                        const flatG = [];
-                        window.activeBoatItem.groups.forEach(g => { if (g.guests) flatG.push(...g.guests); });
-                        window.activeBoatItem.lastSyncedTripState.guests = flatG;
-                    }
-                }
-                modifiedTrips.push(trip);
-            }
-        });
-
-        if (modifiedTrips.length > 0 && typeof window.saveMultipleTripsData === 'function') {
-            window.saveMultipleTripsData(modifiedTrips).catch(e => console.error("Error bg trips sync on saveCustomerEdits:", e));
-        }
+        // 5. INSTANT UI UPDATE & MODAL CLOSE (0-ms latency for user!)
+        window.activeFichaDni = newDni;
+        document.getElementById('edit-customer-modal-full').classList.add('hidden');
+        showToast("👍 Perfil actualizado correctamente.");
 
         // Redraw boats if manifest is active (unconditionally, instantly)
         if (typeof window.renderGroups === 'function' && document.getElementById('manage-boat-modal') && !document.getElementById('manage-boat-modal').classList.contains('hidden')) {
@@ -1772,16 +1740,59 @@ window.saveCustomerEdits = async function () {
             window.renderDailyGrid();
         }
 
-        window.activeFichaDni = newDni;
-        document.getElementById('edit-customer-modal-full').classList.add('hidden');
-        showToast("👍 Perfil actualizado correctamente.");
-
         // Soft refresh local visuals ONLY if Ficha is already open
         if (!document.getElementById('customer-profile-modal').classList.contains('hidden')) {
-            openCustomerProfile(newDni, window.getFullName(customerDatabase[finalIndex]), false, 'ficha');
+            openCustomerProfile(newDni, window.getFullName(currentCustomerData), false, 'ficha');
         }
 
-        if (!document.getElementById('crm-modal').classList.contains('hidden')) renderCrmTable();
+        if (!document.getElementById('crm-modal').classList.contains('hidden') && typeof window.renderCrmTable === 'function') window.renderCrmTable();
+
+        // 6. ASYNCHRONOUS BACKGROUND FIRESTORE PERSISTENCE (Non-blocking)
+        (async () => {
+            try {
+                await window.safeMasterListWrite(customerDatabase, 'save-customer-profile').catch(e => console.error("Error master sync:", e));
+                
+                if (typeof db !== 'undefined') {
+                    // Save new profile
+                    await db.collection('mangamar_customers').doc(newDni).set(currentCustomerData, { merge: true }).catch(e => console.error("Error customer sync:", e));
+                    
+                    // If DNI changed, delete old one and migrate history
+                    if (oldDni !== newDni) {
+                        window.dniRedirects = window.dniRedirects || {};
+                        const normOld = window.normalizeDni(oldDni);
+                        const normNew = window.normalizeDni(newDni);
+                        window.dniRedirects[normOld] = normNew;
+                        for (let k in window.dniRedirects) {
+                            if (window.dniRedirects[k] === normOld) {
+                                window.dniRedirects[k] = normNew;
+                            }
+                        }
+
+                        db.collection('mangamar_customers').doc(oldDni).delete().catch(e => console.error("Error deleting old DNI:", e));
+                        await window.migrateCustomerHistory(oldDni, newDni).catch(e => console.error("Error migrating history:", e));
+
+                        const settingsRef = db.collection("mangamar_directory").doc("settings");
+                        settingsRef.get().then(doc => {
+                            const currentRedirects = doc.exists ? (doc.data().dniRedirects || {}) : {};
+                            currentRedirects[normOld] = normNew;
+                            for (let k in currentRedirects) {
+                                if (currentRedirects[k] === normOld) {
+                                    currentRedirects[k] = normNew;
+                                }
+                            }
+                            settingsRef.set({ dniRedirects: currentRedirects }, { merge: true })
+                                .catch(e => console.error("Error saving DNI redirects:", e));
+                        }).catch(e => console.error("Error fetching settings for DNI redirects:", e));
+                    }
+                }
+
+                if (modifiedTrips.length > 0 && typeof window.saveMultipleTripsData === 'function') {
+                    await window.saveMultipleTripsData(modifiedTrips).catch(e => console.error("Error bg trips sync on saveCustomerEdits:", e));
+                }
+            } catch (bgErr) {
+                console.error("Error in background Firestore save for customer profile:", bgErr);
+            }
+        })();
 
     } catch (e) {
         console.error("Error al guardar perfil", e);

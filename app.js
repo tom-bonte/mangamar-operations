@@ -105,24 +105,30 @@ window.normalizeDateStr = function(dateStr) {
     const trimmed = String(dateStr).trim();
     if (!trimmed) return '';
     
-    // Check YYYY-MM-DD
+    // 1. Check YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
         return trimmed;
     }
 
-    // Check DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+    // 2. ISO string starting with YYYY-MM-DD (e.g. "1989-02-26T00:00:00.000Z") - extract date string directly
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+    if (isoMatch) {
+        return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+
+    // 3. European format DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (must check BEFORE Date.parse)
     if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/.test(trimmed)) {
         const parts = trimmed.split(/[\/\-\.]/);
         return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
     }
 
-    // Check YYYY/MM/DD or YYYY.MM.DD
+    // 4. Check YYYY/MM/DD or YYYY.MM.DD
     if (/^\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}$/.test(trimmed)) {
         const parts = trimmed.split(/[\/\-\.]/);
         return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
     }
 
-    // Check DD/MMM/YYYY or DD-MMM-YYYY or DD MMM YYYY (e.g. 10/Oct/1980 or 10-Oct-1980)
+    // 5. Check DD/MMM/YYYY or DD-MMM-YYYY or DD MMM YYYY (e.g. 26/Feb/1989 or 26-Feb-1989)
     const monthNames = {
         ene: '01', jan: '01', enero: '01', january: '01',
         feb: '02', febrero: '02', february: '02',
@@ -152,6 +158,17 @@ window.normalizeDateStr = function(dateStr) {
         }
         if (year && monthNames[month] && /^\d{1,2}$/.test(day)) {
             return `${year}-${monthNames[month]}-${day.padStart(2, '0')}`;
+        }
+    }
+
+    // 6. Fallback for JS Date strings (e.g. "Sun Feb 26 1989 00:00:00 GMT+0100")
+    if (trimmed.includes('GMT') || (isNaN(Number(trimmed)) && !isNaN(Date.parse(trimmed)))) {
+        const rawD = new Date(trimmed);
+        if (!isNaN(rawD.getTime())) {
+            const yyyy = rawD.getFullYear();
+            const mm = String(rawD.getMonth() + 1).padStart(2, '0');
+            const dd = String(rawD.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
         }
     }
 

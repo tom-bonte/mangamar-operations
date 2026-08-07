@@ -156,20 +156,99 @@ window.formatNameStr = function(str) {
     }).join(' ');
 };
 
-// Safely combine names without causing the "Double Apellido" duplication
-window.getFullName = function(c, includeApodo = true) {
-    let n = (c.nombre || '').trim();
-    let a = (c.apellido || '').trim();
-    let rawName = n;
-    if (a) {
-        const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const normN = normalize(n);
-        const normA = normalize(a);
-        if (!normN.endsWith(normA)) {
-            rawName = [n, a].filter(Boolean).join(' ');
+// Auto-heal/clean duplicated words or repeated surnames in a name string
+window.cleanDuplicatedName = function(name) {
+    if (!name) return '';
+    let str = name.trim();
+    
+    // Strip apodo suffix if present
+    let apodoMatch = str.match(/\s*\(([^)]+)\)\s*$/);
+    let apodoSuffix = apodoMatch ? ` (${apodoMatch[1].trim()})` : '';
+    let coreName = apodoMatch ? str.replace(/\s*\([^)]+\)\s*$/, '').trim() : str;
+
+    let words = coreName.split(/\s+/);
+    if (words.length < 2) return str;
+
+    const normalizeWord = w => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    let normWords = words.map(normalizeWord);
+
+    // Check for duplicated chunks of words (from floor(N/2) down to 1 word)
+    for (let len = Math.floor(words.length / 2); len >= 1; len--) {
+        for (let i = 0; i <= words.length - 2 * len; i++) {
+            let chunk1 = normWords.slice(i, i + len).join(' ');
+            let chunk2 = normWords.slice(i + len, i + 2 * len).join(' ');
+            if (chunk1 === chunk2) {
+                words.splice(i + len, len);
+                return window.formatNameStr(words.join(' ')) + apodoSuffix;
+            }
         }
     }
-    let formatted = window.formatNameStr(rawName);
+
+    return window.formatNameStr(coreName) + apodoSuffix;
+};
+
+// Safely combine first name and last name without causing duplicate surnames or words
+window.combineFirstAndLastName = function(nombre, apellido) {
+    let n = (nombre || '').trim();
+    let a = (apellido || '').trim();
+    if (!n) return window.cleanDuplicatedName(a);
+    if (!a) return window.cleanDuplicatedName(n);
+
+    const normalizeStr = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    let normN = normalizeStr(n);
+    let normA = normalizeStr(a);
+
+    // If 'nombre' already contains or ends with 'apellido' (accent-insensitive)
+    if (normN.includes(normA) || normN.endsWith(normA)) {
+        return window.cleanDuplicatedName(n);
+    }
+
+    // If 'apellido' already contains 'nombre'
+    if (normA.includes(normN) || normA.startsWith(normN)) {
+        return window.cleanDuplicatedName(a);
+    }
+
+    // Check for word overlap (e.g. n = "Juan Manuel Rodríguez", a = "Rodríguez Pertusa")
+    let wordsN = n.split(/\s+/);
+    let wordsA = a.split(/\s+/);
+
+    let normWordsN = wordsN.map(normalizeStr);
+    let normWordsA = wordsA.map(normalizeStr);
+
+    let overlapCount = 0;
+    for (let len = Math.min(normWordsN.length, normWordsA.length); len > 0; len--) {
+        let tailN = normWordsN.slice(normWordsN.length - len).join(' ');
+        let headA = normWordsA.slice(0, len).join(' ');
+        if (tailN === headA) {
+            overlapCount = len;
+            break;
+        }
+    }
+
+    let combined = '';
+    if (overlapCount > 0) {
+        let remainingA = wordsA.slice(overlapCount).join(' ');
+        combined = remainingA ? `${n} ${remainingA}` : n;
+    } else {
+        // Check if all words in 'a' are already present in 'n'
+        let allWordsInN = normWordsA.every(w => normWordsN.includes(w));
+        if (allWordsInN) {
+            combined = n;
+        } else {
+            combined = `${n} ${a}`;
+        }
+    }
+
+    return window.cleanDuplicatedName(combined);
+};
+
+// Safely combine names without causing the "Double Apellido" duplication
+window.getFullName = function(c, includeApodo = true) {
+    if (!c) return '';
+    let n = (c.nombre || c.name || '').trim();
+    let a = (c.apellido || c.lastName || '').trim();
+    let rawName = window.combineFirstAndLastName(n, a);
+    let formatted = window.cleanDuplicatedName(rawName);
     
     if (includeApodo && c.apodo && c.apodo.trim()) {
         formatted += ` (${c.apodo.trim()})`;
@@ -181,7 +260,8 @@ window.getFullName = function(c, includeApodo = true) {
 window.getFirstAndLastName = function(fullName) {
     if (!fullName) return '';
     // Strip apodo suffix if present, e.g. "Tom E Bonte (Tom)" -> "Tom E Bonte"
-    return fullName.split(' (')[0].trim();
+    let clean = fullName.split(' (')[0].trim();
+    return window.cleanDuplicatedName(clean);
 };
 
 window.isProfileComplete = function(p) {

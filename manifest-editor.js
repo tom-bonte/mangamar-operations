@@ -856,6 +856,9 @@ function _renderGroupsCore(skipAutoSave = false) {
         `;
 
         group.guests.forEach((guest, guestIndex) => {
+            if (guest.nombre) {
+                guest.nombre = window.cleanDuplicatedName(guest.nombre);
+            }
             // Multi-dive courses always include rental, computer, and insurance
             if (guest.course) {
                 const isSingle = typeof window.isSingleDiveCourse === 'function' && window.isSingleDiveCourse(guest.course);
@@ -2258,7 +2261,7 @@ function checkRelinkEnter(event, groupIndex, guestIndex) {
 window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
     try {
         const data = JSON.parse(decodeURIComponent(encodedData));
-        const fullName = [data.nombre, data.apellido].filter(Boolean).join(' ').trim();
+        const fullName = window.combineFirstAndLastName(data.nombre, data.apellido);
         const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
         
         // Save the old name and tempId to sync across other boats and groups
@@ -4187,7 +4190,7 @@ window.searchWaitlistCustomers = function(query) {
     const normQuery = window.normalizeSearchString ? window.normalizeSearchString(query) : query.toLowerCase().trim();
     if (normQuery.length < 2) { dd.classList.add('hidden'); return; }
 
-    const getFullName = c => [c.nombre, c.apellido].filter(Boolean).join(' ');
+    const getFullName = c => window.combineFirstAndLastName(c.nombre, c.apellido);
     const results = (customerDatabase || []).filter(c => {
         const full = (window.normalizeSearchString ? window.normalizeSearchString(getFullName(c)) : getFullName(c).toLowerCase());
         return full.includes(normQuery) || (c.dni || '').toLowerCase().includes(normQuery);
@@ -4216,7 +4219,7 @@ window.searchWaitlistCustomers = function(query) {
 
 window.selectWaitlistCustomer = function(encoded) {
     const c = JSON.parse(decodeURIComponent(encoded));
-    const getFullName = x => [x.nombre, x.apellido].filter(Boolean).join(' ');
+    const getFullName = x => window.combineFirstAndLastName(x.nombre, x.apellido);
     _waitlistPendingCustomer = { 
         name: getFullName(c), 
         phone: c.telefono || '', 
