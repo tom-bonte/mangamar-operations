@@ -520,15 +520,21 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
     if (cx) {
         const fullName = getFullName(cx);
         let localIns = 0;
-        if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
-            localIns = existingData.insurance;
-        } else if (cx.insurance) {
+        if (cx.insurance) {
             const insObj = cx.insurance;
             const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
             const activeDate = activeBoatItem ? activeBoatItem.date : '';
             if (expiry && expiry >= activeDate) {
-                localIns = insObj.type || 0;
+                if (insObj.purchaseDate && insObj.purchaseDate === activeDate) {
+                    localIns = insObj.type || 0;
+                } else {
+                    localIns = 'Propio';
+                }
+            } else if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+                localIns = existingData.insurance;
             }
+        } else if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+            localIns = existingData.insurance;
         }
 
         guest = {
@@ -669,15 +675,21 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
             if (cx) {
                 const fullName = getFullName(cx);
                 let localIns = 0;
-                if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
-                    localIns = existingData.insurance;
-                } else if (cx.insurance) {
+                if (cx.insurance) {
                     const insObj = cx.insurance;
                     const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
                     const activeDate = activeBoatItem ? activeBoatItem.date : '';
                     if (expiry && expiry >= activeDate) {
-                        localIns = insObj.type || 0;
+                        if (insObj.purchaseDate && insObj.purchaseDate === activeDate) {
+                            localIns = insObj.type || 0;
+                        } else {
+                            localIns = 'Propio';
+                        }
+                    } else if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+                        localIns = existingData.insurance;
                     }
+                } else if (existingData && existingData.insurance !== undefined && existingData.insurance !== null) {
+                    localIns = existingData.insurance;
                 }
                 guest = {
                     dni: cx.dni || '',
