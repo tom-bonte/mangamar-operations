@@ -265,17 +265,17 @@ window.generateWhatsAppText = function() {
 
     const txt = {
         es: {
-            header: "⚠️ *Información importante:*\nLas horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco). Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad.",
+            header: "⚠️ *Información importante:*\nLas horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco). Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.",
             spots: 'plazas libres',
             confirm: 'Por confirmar'
         },
         en: {
-            header: "⚠️ *Important notice:*\nPlease note that the times indicated are your arrival times at the dive center, not the boat departure times. Please be on time and remember to bring your DNI / Passport / ID card.",
+            header: "⚠️ *Important notice:*\nPlease note that the times indicated are your arrival times at the dive center, not the boat departure times. Please be on time and remember to bring your physical DNI / Passport / ID card.",
             spots: 'spots left',
             confirm: 'To be confirmed'
         },
         nl: {
-            header: "⚠️ *Belangrijke informatie:*\nHoud er rekening mee dat de aangegeven tijden de verwachte aankomsttijden in het duikcentrum zijn (niet de vertrektijd van de boot). Wees alstublieft op tijd en neem je DNI / paspoort / ID-kaart mee.",
+            header: "⚠️ *Belangrijke informatie:*\nHoud er rekening mee dat de aangegeven tijden de verwachte aankomsttijden in het duikcentrum zijn (niet de vertrektijd van de boot). Wees alstublieft op tijd en neem je fysieke DNI / paspoort / ID-kaart mee.",
             spots: 'plaatsen vrij',
             confirm: 'Nog te bevestigen'
         }
