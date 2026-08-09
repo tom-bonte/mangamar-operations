@@ -1835,12 +1835,61 @@ window.fetchJotformClientsData = async function(forceRefresh = false, targetDni 
     }
 };
 
+window.enrichCustomerFromJotform = function(c) {
+    if (!c) return c;
+    try {
+        const cached = window.getJotformClientsFromCache ? window.getJotformClientsFromCache() : [];
+        if (!cached || cached.length === 0) return c;
+
+        let match = null;
+        if (c.dni) {
+            const normDni = window.normalizeSearchString(c.dni);
+            match = cached.find(j => j.dni && window.normalizeSearchString(j.dni) === normDni);
+        }
+        if (!match && c.nombre) {
+            const normName = window.normalizeSearchString(c.nombre);
+            match = cached.find(j => {
+                const jFull = window.normalizeSearchString(window.combineFirstAndLastName(j.nombre, j.apellido));
+                const jFirst = window.normalizeSearchString(j.nombre || '');
+                return jFull === normName || jFirst === normName;
+            });
+        }
+
+        if (match) {
+            const fixNameCaps = (str) => {
+                if (!str) return '';
+                return str.toLowerCase().split(' ').map(word =>
+                    word.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-')
+                ).join(' ');
+            };
+
+            if (match.nombre && (!c.nombre || c.nombre === 'Sin Nombre')) c.nombre = fixNameCaps(match.nombre);
+            if (match.apellido && (!c.apellido || c.apellido.trim() === '')) c.apellido = fixNameCaps(match.apellido);
+            if (match.email && (!c.email || c.email === '-')) c.email = match.email;
+            if (match.telefono && (!c.telefono || c.telefono === '-')) c.telefono = match.telefono;
+            if (match.titulacion && (!c.titulacion || c.titulacion === 'Sin Titulación')) c.titulacion = match.titulacion;
+            if (match.dob && !c.dob) c.dob = window.normalizeDateStr(match.dob);
+            if (match.dni && !c.dni) c.dni = window.normalizeDni(match.dni);
+            if (match.dives && !c.dives) c.dives = match.dives;
+            if (match.insurance && match.insurance.type && !c.insurance) {
+                c.insurance = {
+                    type: match.insurance.type,
+                    expiry: window.normalizeDateStr(match.insurance.expiry)
+                };
+            }
+        }
+    } catch(e) {
+        console.error("enrichCustomerFromJotform error:", e);
+    }
+    return c;
+};
+
 // Startup background fetch to warm cache immediately on boot
 try {
     setTimeout(() => {
         window.fetchJotformClientsData(true).then(clients => {
             if (clients && clients.length > 0 && typeof window.syncJotformCustomers === 'function') {
-                // Background auto-sync into customerDatabase without opening modals or toasts
+                customerDatabase.forEach(c => window.enrichCustomerFromJotform(c));
                 const fixNameCaps = (str) => {
                     if (!str) return '';
                     return str.toLowerCase().split(' ').map(word =>
@@ -1853,21 +1902,7 @@ try {
                     let normDni = window.normalizeSearchString(rawDni);
                     const existing = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === normDni);
                     if (existing) {
-                        if (!existing.nameEdited || !existing.apellido) {
-                            if (sheetClient.nombre) existing.nombre = fixNameCaps(sheetClient.nombre);
-                            if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
-                        }
-                        if (sheetClient.email) existing.email = sheetClient.email;
-                        if (sheetClient.telefono) existing.telefono = sheetClient.telefono;
-                        if (sheetClient.titulacion) existing.titulacion = sheetClient.titulacion;
-                        if (!existing.dobEdited && sheetClient.dob) existing.dob = window.normalizeDateStr(sheetClient.dob);
-                        if (sheetClient.dives) existing.dives = sheetClient.dives;
-                        if (!existing.insuranceEdited && sheetClient.insurance && sheetClient.insurance.type) {
-                            existing.insurance = {
-                                type: sheetClient.insurance.type,
-                                expiry: window.normalizeDateStr(sheetClient.insurance.expiry)
-                            };
-                        }
+                        window.enrichCustomerFromJotform(existing);
                     }
                 });
             }

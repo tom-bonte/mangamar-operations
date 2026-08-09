@@ -2252,7 +2252,10 @@ function checkRelinkEnter(event, groupIndex, guestIndex) {
 
 window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
     try {
-        const data = JSON.parse(decodeURIComponent(encodedData));
+        let data = JSON.parse(decodeURIComponent(encodedData));
+        if (typeof window.enrichCustomerFromJotform === 'function') {
+            data = window.enrichCustomerFromJotform(data);
+        }
         const fullName = window.combineFirstAndLastName(data.nombre, data.apellido);
         const guest = activeBoatItem.groups[groupIndex].guests[guestIndex];
         
@@ -2956,6 +2959,10 @@ function searchCustomers(groupIndex, query) {
     const normQuery = window.normalizeSearchString(query);
     if (normQuery.length < 2) { dropdown.classList.add('hidden'); return; }
 
+    if (typeof window.enrichCustomerFromJotform === 'function') {
+        customerDatabase.forEach(c => window.enrichCustomerFromJotform(c));
+    }
+
     const results = customerDatabase.filter(c => {
         const fullName = window.normalizeSearchString(getFullName(c));
         const apodoMatch = c.apodo && window.normalizeSearchString(c.apodo).includes(normQuery);
@@ -3032,7 +3039,10 @@ window.selectCustomer = function(groupIndex, encodedData) {
         const input = document.getElementById(`search-${groupIndex}`);
         if (input) input.value = '';
 
-        const data = JSON.parse(decodeURIComponent(encodedData));
+        let data = JSON.parse(decodeURIComponent(encodedData));
+        if (typeof window.enrichCustomerFromJotform === 'function') {
+            data = window.enrichCustomerFromJotform(data);
+        }
         const fullName = window.getFullName(data);
         
         // --- SMART RELINK DETECTION ---
@@ -3139,13 +3149,29 @@ function checkEnter(event, groupIndex) {
         if (d) d.classList.add('hidden');
  
         const input = document.getElementById(`search-${groupIndex}`);
-        const fullName = window.formatNameStr(input.value.trim());
+        let rawName = input.value.trim();
+        let dummy = { nombre: rawName };
+        if (typeof window.enrichCustomerFromJotform === 'function') {
+            dummy = window.enrichCustomerFromJotform(dummy);
+        }
+        const fullName = window.getFullName(dummy) || window.formatNameStr(rawName);
         if (fullName !== '') {
-            const conflict = checkDiverConflict(null, fullName);
+            const conflict = checkDiverConflict(dummy.dni || null, fullName);
             if (conflict.conflict) { showAppAlert(`Imposible: Asignado en ${conflict.where}`); return; }
-            const tag = typeof findActiveTagForGuest === 'function' ? findActiveTagForGuest(null, fullName) : null;
+            const tag = typeof findActiveTagForGuest === 'function' ? findActiveTagForGuest(dummy.dni || null, fullName) : null;
             const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-            activeBoatItem.groups[groupIndex].guests.push({ nombre: fullName, titulacion: '', telefono: '', email: '', dni: '', gas: '15L Aire', isManual: true, bookingTag: tag, tempId: tempId });
+            activeBoatItem.groups[groupIndex].guests.push({
+                nombre: fullName,
+                titulacion: dummy.titulacion || '',
+                telefono: dummy.telefono || '',
+                email: dummy.email || '',
+                dni: dummy.dni || '',
+                gas: '15L Aire',
+                isManual: !window.isProfileComplete(dummy),
+                bookingTag: tag,
+                tempId: tempId,
+                insurance: dummy.insurance || 0
+            });
             input.value = '';
             updateModalSubtitle(); 
             renderGroups();
