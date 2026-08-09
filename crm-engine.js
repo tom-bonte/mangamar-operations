@@ -2025,7 +2025,7 @@ window.syncJotformCustomers = async function() {
     } catch(e) {
         console.error('syncJotformCustomers error:', e);
         if (!hasUpdatedFromCache) {
-            if (typeof showAppAlert === 'function') showAppAlert(`Error al importar: ${e.message}`);
+            showToast("⚠️ No se pudo conectar con Google Apps Script.", "error", 5000);
         }
     } finally {
         if (btn) {
@@ -2232,9 +2232,7 @@ window.syncSingleJotformDiver = async function(targetDni) {
             } catch (fetchErr) {
                 console.warn("Background fetchJotformClientsData error:", fetchErr);
                 if (!updatedFromCache) {
-                    if (typeof showAppAlert === 'function') {
-                        showAppAlert("Error al conectar con Google Apps Script: " + fetchErr.message);
-                    }
+                    showToast("⚠️ No se pudo conectar con Google Apps Script. Revisa el despliegue.", "error", 5000);
                 }
             }
         })();
