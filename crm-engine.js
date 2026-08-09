@@ -1703,9 +1703,29 @@ window.getJotformClientsFromCache = function() {
     return null;
 };
 
+window.deduplicateJotformClients = function(clients) {
+    if (!Array.isArray(clients) || clients.length === 0) return [];
+    
+    // Jotform appends new submissions at the bottom of the Google Sheet (row 1 ... row N).
+    // Iterating chronologically and keying by DNI / Full Name overwrites older entries so ONLY the latest submission is kept.
+    const map = new Map();
+    clients.forEach(c => {
+        if (!c) return;
+        let key = null;
+        if (c.dni) key = window.normalizeDni(c.dni);
+        else if (c.nombre || c.apellido) key = window.normalizeSearchString(`${c.nombre || ''} ${c.apellido || ''}`);
+        
+        if (key) {
+            map.set(key, c);
+        }
+    });
+    return Array.from(map.values());
+};
+
 window.saveJotformClientsToCache = function(clients) {
     try {
-        const cacheObj = { clients: clients, timestamp: Date.now() };
+        const deduplicated = window.deduplicateJotformClients(clients);
+        const cacheObj = { clients: deduplicated, timestamp: Date.now() };
         window._jotformClientsCache = cacheObj;
         if (typeof localStorage !== 'undefined') {
             localStorage.setItem(JOTFORM_CACHE_KEY, JSON.stringify(cacheObj));
@@ -1713,7 +1733,7 @@ window.saveJotformClientsToCache = function(clients) {
 
         if (typeof db !== 'undefined') {
             db.collection('mangamar_directory').doc('jotform_cache').set({
-                clients: clients,
+                clients: deduplicated,
                 timestamp: Date.now()
             }, { merge: true }).catch(e => console.warn("Firestore jotform cache save error:", e));
         }
@@ -1844,11 +1864,16 @@ window.enrichCustomerFromJotform = function(c) {
         let match = null;
         if (c.dni) {
             const normDni = window.normalizeSearchString(c.dni);
-            match = cached.find(j => j.dni && window.normalizeSearchString(j.dni) === normDni);
+            match = (cached.findLast ? cached.findLast(j => j.dni && window.normalizeSearchString(j.dni) === normDni) : null)
+                || [...cached].reverse().find(j => j.dni && window.normalizeSearchString(j.dni) === normDni);
         }
         if (!match && c.nombre) {
             const normName = window.normalizeSearchString(c.nombre);
-            match = cached.find(j => {
+            match = (cached.findLast ? cached.findLast(j => {
+                const jFull = window.normalizeSearchString(window.combineFirstAndLastName(j.nombre, j.apellido));
+                const jFirst = window.normalizeSearchString(j.nombre || '');
+                return jFull === normName || jFirst === normName;
+            }) : null) || [...cached].reverse().find(j => {
                 const jFull = window.normalizeSearchString(window.combineFirstAndLastName(j.nombre, j.apellido));
                 const jFirst = window.normalizeSearchString(j.nombre || '');
                 return jFull === normName || jFirst === normName;
@@ -1870,12 +1895,19 @@ window.enrichCustomerFromJotform = function(c) {
             if (match.titulacion && (!c.titulacion || c.titulacion === 'Sin Titulación')) c.titulacion = match.titulacion;
             if (match.dob && !c.dob) c.dob = window.normalizeDateStr(match.dob);
             if (match.dni && !c.dni) c.dni = window.normalizeDni(match.dni);
-            if (match.dives && !c.dives) c.dives = match.dives;
-            if (match.insurance && match.insurance.type && !c.insurance) {
-                c.insurance = {
-                    type: match.insurance.type,
-                    expiry: window.normalizeDateStr(match.insurance.expiry)
-                };
+            if (match.dives && (!c.dives || c.dives < match.dives)) c.dives = match.dives;
+
+            // --- 🛡️ INSURANCE AUTO-UPGRADE FIX ---
+            // If Jotform submission has insurance info, update profile if newer or if existing is missing/expired
+            if (match.insurance && match.insurance.type) {
+                const sheetExpiry = window.normalizeDateStr(match.insurance.expiry);
+                const currentExpiry = c.insurance ? window.normalizeDateStr(c.insurance.expiry) : '';
+                if (!c.insurance || !currentExpiry || sheetExpiry >= currentExpiry || !match.insurance.type.toLowerCase().includes('no')) {
+                    c.insurance = {
+                        type: match.insurance.type,
+                        expiry: sheetExpiry
+                    };
+                }
             }
         }
     } catch(e) {
