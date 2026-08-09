@@ -43,6 +43,9 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
     if (!isNavBackForward) window.fichaDisplayLimit = 15; // Reset pagination for fresh loads
 
     window.activeFichaTab = targetTab;
+    if (typeof window.switchFichaTab === 'function') {
+        window.switchFichaTab(targetTab);
+    }
     if (typeof window.fetchJotformClientsData === 'function') {
         window.fetchJotformClientsData(false).catch(() => {});
     }
