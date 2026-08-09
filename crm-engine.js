@@ -1853,7 +1853,10 @@ try {
                     let normDni = window.normalizeSearchString(rawDni);
                     const existing = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === normDni);
                     if (existing) {
-                        if (!existing.nameEdited && sheetClient.nombre) existing.nombre = fixNameCaps(sheetClient.nombre);
+                        if (!existing.nameEdited || !existing.apellido) {
+                            if (sheetClient.nombre) existing.nombre = fixNameCaps(sheetClient.nombre);
+                            if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
+                        }
                         if (sheetClient.email) existing.email = sheetClient.email;
                         if (sheetClient.telefono) existing.telefono = sheetClient.telefono;
                         if (sheetClient.titulacion) existing.titulacion = sheetClient.titulacion;
@@ -2082,7 +2085,7 @@ window.syncSingleJotformDiver = async function(targetDni) {
             const sheetFullName = window.combineFirstAndLastName(sheetClient.nombre, sheetClient.apellido);
             const existingFullName = window.combineFirstAndLastName(existing.nombre, existing.apellido);
 
-            if (isExplicitSingleImport || !existing.nameEdited) {
+            if (isExplicitSingleImport || !existing.nameEdited || !existing.apellido) {
                 if (sheetClient.nombre) existing.nombre = fixNameCaps(sheetClient.nombre);
                 if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
                 if (isExplicitSingleImport) existing.nameEdited = false;
