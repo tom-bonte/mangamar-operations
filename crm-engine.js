@@ -1737,7 +1737,7 @@ window.setJotformScriptUrl = function(newUrl) {
 
 window.promptSetJotformUrl = function() {
     const current = (typeof localStorage !== 'undefined' && localStorage.getItem('MANGAMAR_APPS_SCRIPT_URL'))
-        || 'https://script.google.com/macros/s/AKfycbzrnQF_rLD5hN-gCRNpoQEUB8btKAZxryirpzbbWSU-86xABvkWnqphtrzvlx3ro2J/exec';
+        || 'https://script.google.com/macros/s/AKfycbzBcJaCtxxC4IEnHQK0DxogifbIlkBp3guRohy0GcXLqquuEjEIc0Xkmr7Y8yiAwIAx6g/exec';
     
     const input = prompt("Introduce la URL de tu despliegue de Web App en Google Apps Script (debe terminar en /exec):", current);
     if (input !== null) {
@@ -1757,7 +1757,7 @@ window.fetchJotformClientsData = async function(forceRefresh = false, targetDni 
     const runFetch = async () => {
         const APPS_SCRIPT_URL = (typeof window !== 'undefined' && window.MANGAMAR_APPS_SCRIPT_URL)
             || (typeof localStorage !== 'undefined' && localStorage.getItem('MANGAMAR_APPS_SCRIPT_URL'))
-            || 'https://script.google.com/macros/s/AKfycbzrnQF_rLD5hN-gCRNpoQEUB8btKAZxryirpzbbWSU-86xABvkWnqphtrzvlx3ro2J/exec';
+            || 'https://script.google.com/macros/s/AKfycbzBcJaCtxxC4IEnHQK0DxogifbIlkBp3guRohy0GcXLqquuEjEIc0Xkmr7Y8yiAwIAx6g/exec';
         const TOKEN = 'mangamar2026';
 
         if (!forceRefresh && !normDni) {
