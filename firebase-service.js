@@ -1230,6 +1230,7 @@ window.saveMultipleTripsData = async function(trips) {
         updatesByMonth[monthKey][`${prefix}.groups`] = trip.groups || [];
         updatesByMonth[monthKey][`${prefix}.guests`] = flatGuests;
         updatesByMonth[monthKey][`${prefix}.waitlist`] = trip.waitlist || [];
+        updatesByMonth[monthKey][`${prefix}.note`] = trip.note || trip.comment || '';
         updatesByMonth[monthKey][`${prefix}.timeSaliendo`] = trip.timeSaliendo || '';
         updatesByMonth[monthKey][`${prefix}.timeBuzosAgua`] = trip.timeBuzosAgua || '';
         updatesByMonth[monthKey][`${prefix}.timeVolviendo`] = trip.timeVolviendo || '';

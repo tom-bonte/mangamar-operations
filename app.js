@@ -978,10 +978,8 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
     col.innerHTML = `
         ${hasNote ? `
-        <div class="absolute -top-2 -right-2 z-30 flex items-center justify-center w-6 h-6 rounded-full bg-red-600 text-white shadow-lg border-2 border-white text-[11px] font-black cursor-pointer transform hover:scale-110 transition-transform" title="Notas de la Salida: ${tripNote.replace(/"/g, '&quot;')}">
-            <svg class="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 20 20">
-                <path d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"/>
-            </svg>
+        <div class="absolute -top-1.5 -right-1.5 z-30 flex items-center justify-center w-5 h-5 rounded-full bg-[#ff3b30] text-white shadow-md border-2 border-white text-[10px] font-black leading-none cursor-pointer select-none" title="Notas de la Salida: ${tripNote.replace(/"/g, '&quot;')}">
+            1
         </div>
         ` : ''}
         <div class="w-full h-full flex flex-col overflow-hidden rounded-[15px]">

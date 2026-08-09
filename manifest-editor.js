@@ -3296,6 +3296,7 @@ window.mergeManifests = function(base, local, remote) {
 
     mergeField('captain', '');
     mergeField('site', '');
+    mergeField('note', '');
     mergeField('timeSaliendo', '');
     mergeField('timeBuzosAgua', '');
     mergeField('timeVolviendo', '');
@@ -3732,6 +3733,11 @@ function syncDOMToActiveBoatItem() {
         volEl.value = formatted;
         activeBoatItem.timeVolviendo = activeBoatItem.assignedBoat === 'shore' ? '' : (formatted || '');
     }
+    
+    const noteEl = document.getElementById('input-salida-comment');
+    if (noteEl) {
+        activeBoatItem.note = (noteEl.value || '').trim();
+    }
 }
 
 async function saveBoatData(itemToSave = activeBoatItem) {
@@ -3758,6 +3764,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
     itemToSave.waitlist = mergedTrip.waitlist;
     itemToSave.captain = mergedTrip.captain;
     itemToSave.site = mergedTrip.site;
+    itemToSave.note = mergedTrip.note || mergedTrip.comment || '';
     itemToSave.timeSaliendo = mergedTrip.timeSaliendo;
     itemToSave.timeBuzosAgua = mergedTrip.timeBuzosAgua;
     itemToSave.timeVolviendo = mergedTrip.timeVolviendo;
@@ -3851,6 +3858,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
         date: targetDate, time: targetTime, assignedBoat: targetAssignedBoat,
         site: targetSite, captain: savedSnapshot.captain, groups: savedSnapshot.groups, guests: flatGuests,
         waitlist: savedSnapshot.waitlist || [],
+        note: savedSnapshot.note || savedSnapshot.comment || '',
         timeSaliendo: savedSnapshot.timeSaliendo || '',
         timeBuzosAgua: savedSnapshot.timeBuzosAgua || '',
         timeVolviendo: savedSnapshot.timeVolviendo || '',
