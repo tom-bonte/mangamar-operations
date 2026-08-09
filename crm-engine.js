@@ -2026,15 +2026,12 @@ window.syncJotformCustomers = async function() {
                 }
 
                 if (!existing.insuranceEdited && sheetClient.insurance && sheetClient.insurance.type) {
-                    const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry);
-                    const existingExpiry = existing.insurance ? window.normalizeDateStr(existing.insurance.expiry) : '';
-                    if (!existing.insurance || sheetExpiry > existingExpiry) {
-                        existing.insurance = {
-                            type: sheetClient.insurance.type,
-                            expiry: sheetExpiry
-                        };
-                        modified = true;
-                    }
+                    const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry) || sheetClient.insurance.expiry || '';
+                    existing.insurance = {
+                        type: sheetClient.insurance.type,
+                        expiry: sheetExpiry
+                    };
+                    modified = true;
                 }
 
                 if (modified) {

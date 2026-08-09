@@ -484,66 +484,38 @@ function startFirestoreListeners() {
     
                             if (dedupMap.has(key)) {
                                 let existing = dedupMap.get(key);
-                                let merged = { ...existing };
                                 
-                                // Smart Merge: Merge fields prioritizing more complete data
-                                for (let prop in c) {
-                                    const valC = c[prop];
-                                    const valE = existing[prop];
-                                    if (valC !== undefined && valC !== null && valC !== '') {
-                                        if (valE === undefined || valE === null || valE === '') {
-                                            merged[prop] = valC;
-                                        } else {
-                                            // Both have values. Choose the best one!
-                                            if (prop === 'titulacion') {
-                                                const isCapC = valC === valC.toUpperCase();
-                                                const isCapE = valE === valE.toUpperCase();
-                                                if (isCapC && !isCapE) {
-                                                    merged[prop] = valC;
-                                                } else if (!isCapC && isCapE) {
-                                                    merged[prop] = valE;
-                                                } else {
-                                                    merged[prop] = valC.length >= valE.length ? valC : valE;
-                                                }
-                                            } else if (prop === 'nombre' || prop === 'apellido') {
-                                                if (c.nameEdited && !existing.nameEdited) {
-                                                    merged[prop] = valC;
-                                                } else if (!c.nameEdited && existing.nameEdited) {
-                                                    merged[prop] = valE;
-                                                } else {
-                                                    merged[prop] = valC.length >= valE.length ? valC : valE;
-                                                }
-                                            } else if (prop === 'dob') {
-                                                if (c.dobEdited && !existing.dobEdited) {
-                                                    merged[prop] = valC;
-                                                } else if (!c.dobEdited && existing.dobEdited) {
-                                                    merged[prop] = valE;
-                                                } else {
-                                                    merged[prop] = valE || valC;
-                                                }
-                                            } else if (prop === 'insurance') {
-                                                if (c.insuranceEdited && !existing.insuranceEdited) {
-                                                    merged[prop] = valC;
-                                                } else if (!c.insuranceEdited && existing.insuranceEdited) {
-                                                    merged[prop] = valE;
-                                                } else {
-                                                    const expC = typeof valC === 'object' ? valC.expiry : '';
-                                                    const expE = typeof valE === 'object' ? valE.expiry : '';
-                                                    if (expC && expE) {
-                                                        merged[prop] = expC >= expE ? valC : valE;
-                                                    } else if (valC && !valE) {
-                                                        merged[prop] = valC;
-                                                    }
-                                                }
-                                            } else {
-                                                merged[prop] = String(valC).length >= String(valE).length ? valC : valE;
-                                            }
-                                        }
-                                    }
+                                // UNCONDITIONAL NEWEST ENTRY OVERWRITE:
+                                // 'c' appears LATER in rawClients array than 'existing' (newer Make.com or Jotform submission),
+                                // so 'c' UNCONDITIONAL WINS for all fields!
+                                let merged = { ...existing, ...c };
+                                
+                                // Respect manual staff lock flags ONLY if existing had manual staff edits
+                                if (existing.nameEdited && !c.nameEdited) {
+                                    merged.nombre = existing.nombre;
+                                    merged.apellido = existing.apellido;
                                 }
-                                if (existing.dobEdited || c.dobEdited) merged.dobEdited = true;
-                                if (existing.nameEdited || c.nameEdited) merged.nameEdited = true;
-                                if (existing.insuranceEdited || c.insuranceEdited) merged.insuranceEdited = true;
+                                if (existing.dobEdited && !c.dobEdited) {
+                                    merged.dob = existing.dob;
+                                }
+                                if (existing.insuranceEdited && !c.insuranceEdited) {
+                                    merged.insurance = existing.insurance;
+                                }
+                                
+                                // Ensure clean standardized types & dates
+                                merged.dni = key;
+                                if (merged.dob) merged.dob = window.normalizeDateStr(merged.dob) || merged.dob;
+                                if (merged.insurance && typeof merged.insurance === 'object') {
+                                    merged.insurance = {
+                                        type: merged.insurance.type || 'S/N',
+                                        expiry: window.normalizeDateStr(merged.insurance.expiry) || merged.insurance.expiry || ''
+                                    };
+                                }
+                                if (merged.dives !== undefined && merged.dives !== null && merged.dives !== '') {
+                                    const numD = parseInt(merged.dives, 10);
+                                    merged.dives = !isNaN(numD) ? numD : merged.dives;
+                                }
+
                                 dedupMap.set(key, merged);
                             } else {
                                 dedupMap.set(key, c);
