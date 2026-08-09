@@ -940,6 +940,19 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         if (parts.length > 0) guideNames = parts.join(', ');
     } else if (trip.guide) { guideNames = window.getFirstName(trip.guide); }
 
+    const tripNote = (trip.note || trip.comment || '').trim();
+    const hasNote = tripNote.length > 0;
+
+    const noteCalloutHtml = hasNote ? `
+    <div class="mb-2.5 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs font-medium flex items-start gap-2 shadow-sm">
+        <span class="text-xs shrink-0 mt-0.5 select-none">💬</span>
+        <div class="flex-1 min-w-0">
+            <div class="text-[8.5px] font-black text-amber-400 uppercase tracking-widest mb-0.5">Notas de la Salida</div>
+            <div class="text-[10.5px] leading-snug whitespace-pre-wrap break-words text-amber-100">${tripNote}</div>
+        </div>
+    </div>
+    ` : '';
+
     const radioTimesHtml = `
     <div class="md:grid hidden grid-cols-3 gap-2 text-center mb-3">
         <div class="flex flex-col items-center justify-center p-1 rounded-lg border transition-all duration-200 ${trip.timeSaliendo ? 'bg-orange-500/10 border-orange-500/30 text-orange-400 font-black' : 'bg-slate-800/40 border-slate-700/50 text-slate-500 font-bold'}" title="Saliendo">
@@ -964,6 +977,13 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     `;
 
     col.innerHTML = `
+        ${hasNote ? `
+        <div class="absolute -top-2 -right-2 z-30 flex items-center justify-center w-6 h-6 rounded-full bg-red-600 text-white shadow-lg border-2 border-white text-[11px] font-black cursor-pointer transform hover:scale-110 transition-transform" title="Notas de la Salida: ${tripNote.replace(/"/g, '&quot;')}">
+            <svg class="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 20 20">
+                <path d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"/>
+            </svg>
+        </div>
+        ` : ''}
         <div class="w-full h-full flex flex-col overflow-hidden rounded-[15px]">
             ${(!trip.cancelled && isConflict) ? `<div class="bg-red-500 text-white text-[9px] font-black text-center uppercase py-0.5 shrink-0">⚠️ OVERBOOK</div>` : ''}
             <div class="h-1.5 w-full shrink-0 ${trip.cancelled ? 'bg-slate-300' : topBarColor}"></div> 
@@ -1006,6 +1026,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         </div>
         
         <div class="tooltip-content absolute z-[999] p-3 bg-slate-900 rounded-xl shadow-2xl w-64 border border-slate-700 pointer-events-auto" style="${boatId === 'shore' ? 'top: -5px; right: calc(100% + 2px);' : 'top: -5px; left: calc(100% + 2px);'}">
+            ${noteCalloutHtml}
             ${radioTimesHtml}
             <div class="max-h-none overflow-visible">${previewHtml}</div>
         </div>

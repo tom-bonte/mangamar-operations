@@ -377,6 +377,9 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     document.getElementById('input-time').value = activeBoatItem.time || '09:00';
     document.getElementById('input-time').disabled = activeBoatItem.isVisor;
 
+    const commentEl = document.getElementById('input-salida-comment');
+    if (commentEl) commentEl.value = activeBoatItem.note || activeBoatItem.comment || '';
+
     // Max Plazas field — only for internal trips
     const maxDivesContainer = document.getElementById('input-maxdives-container');
     const maxDivesInput = document.getElementById('input-maxdives');
@@ -2390,6 +2393,7 @@ window.executeRelink = async function(groupIndex, guestIndex, encodedData) {
                                 id: clonedTrip.id, date: clonedTrip.date, time: clonedTrip.time, assignedBoat: clonedTrip.assignedBoat,
                                 site: clonedTrip.site, captain: clonedTrip.captain, groups: clonedTrip.groups, guests: clonedTrip.guests,
                                 waitlist: clonedTrip.waitlist || [],
+                                note: clonedTrip.note || clonedTrip.comment || '',
                                 timeSaliendo: clonedTrip.timeSaliendo || '',
                                 timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
                                 timeVolviendo: clonedTrip.timeVolviendo || '',
@@ -3944,6 +3948,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                             groups: clonedTrip.groups, 
                             guests: clonedTrip.guests,
                             waitlist: clonedTrip.waitlist || [],
+                            note: clonedTrip.note || clonedTrip.comment || '',
                             timeSaliendo: clonedTrip.timeSaliendo || '',
                             timeBuzosAgua: clonedTrip.timeBuzosAgua || '',
                             timeVolviendo: clonedTrip.timeVolviendo || '',

@@ -759,6 +759,18 @@
                         <!-- Capitán Asignado (Inline) -->
                         <div id="captain-inline-container" class="flex items-center gap-2.5"></div>
                     </div>
+
+                    <!-- Fila 2: Comentarios / Notas de la Salida -->
+                    <div id="salida-comment-container" class="flex items-center gap-3 w-full border-t border-orange-200/90 pt-3 mt-3">
+                        <span class="text-xs font-black text-black uppercase tracking-wider shrink-0 flex items-center gap-1.5 select-none">
+                            💬 Notas de la Salida:
+                        </span>
+                        <input type="text" id="input-salida-comment" placeholder="Añadir comentarios o notas para esta salida..." 
+                               onchange="if(window.activeBoatItem) { window.activeBoatItem.note = this.value; window.triggerAutoSave(); }"
+                               oninput="if(window.activeBoatItem) { window.activeBoatItem.note = this.value; }"
+                               class="flex-1 px-3 py-1.5 bg-white border border-slate-300 focus:border-orange-500 rounded-lg text-xs font-bold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 h-[34px]">
+                    </div>
+                    </div>
                 </div>
 
                 <!-- Box 2: Tiempos de Radio -->
