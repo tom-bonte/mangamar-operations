@@ -2145,7 +2145,11 @@ window.syncSingleJotformDiver = async function(targetDni) {
                                             const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
                                             const activeDate = trip.date || '';
                                             if (expiry && expiry >= activeDate) {
-                                                profileIns = insObj.type || 0;
+                                                if (insObj.purchaseDate && insObj.purchaseDate === activeDate) {
+                                                    profileIns = insObj.type || 0;
+                                                } else {
+                                                    profileIns = 'Propio';
+                                                }
                                             } else {
                                                 profileIns = 0;
                                             }
