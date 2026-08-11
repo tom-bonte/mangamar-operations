@@ -3967,12 +3967,19 @@
     <!-- HISTORIAL EXPORT MODAL                       -->
     <!-- ============================================ -->
     <div id="historial-export-modal" class="fixed inset-0 z-[600] hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-scale-up" onclick="if(event.target === this) document.getElementById('historial-export-modal').classList.add('hidden')">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-slate-200 overflow-hidden flex flex-col" style="height: 75vh;">
+        <div class="bg-white rounded-2xl shadow-2xl w-[95vw] max-w-5xl border border-slate-200 overflow-hidden flex flex-col h-[85vh]">
             <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
-                <h3 class="text-md font-black text-slate-800 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 10.742l-2.777 1.388A1 1 0 005 13v6a1 1 0 001 1h12a1 1 0 001-1v-6a1 1 0 00-.907-.992l-2.777-1.388a2 2 0 00-1.72 0l-1.72.86a2 2 0 00-1.72 0zM12 3v8m0-8L9 6m3-3l3 3"></path></svg>
-                    Resumen del Historial
-                </h3>
+                <div class="flex items-center gap-4">
+                    <h3 class="text-md font-black text-slate-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 10.742l-2.777 1.388A1 1 0 005 13v6a1 1 0 001 1h12a1 1 0 001-1v-6a1 1 0 00-.907-.992l-2.777-1.388a2 2 0 00-1.72 0l-1.72.86a2 2 0 00-1.72 0zM12 3v8m0-8L9 6m3-3l3 3"></path></svg>
+                        Resumen del Historial
+                    </h3>
+                    <div class="flex bg-slate-50 rounded-lg border border-slate-200 p-1 shadow-sm gap-1">
+                        <button id="historial-lang-es" onclick="window.setHistorialLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-100 ring-2 ring-blue-500">🇪🇸</button>
+                        <button id="historial-lang-en" onclick="window.setHistorialLang('en')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50">🇬🇧</button>
+                        <button id="historial-lang-nl" onclick="window.setHistorialLang('nl')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50">🇳🇱</button>
+                    </div>
+                </div>
                 <button onclick="document.getElementById('historial-export-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>

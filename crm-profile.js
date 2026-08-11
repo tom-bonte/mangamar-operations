@@ -2134,11 +2134,45 @@ window.clearHistorialDateFilters = function() {
     window.renderFichaFromCache(window.activeFichaDni, 'historial');
 };
 
+window.historialCurrentLang = 'es';
+
+window.setHistorialLang = function(lang) {
+    window.historialCurrentLang = lang || 'es';
+    ['es', 'en', 'nl'].forEach(l => {
+        const btn = document.getElementById(`historial-lang-${l}`);
+        if (btn) {
+            if (l === window.historialCurrentLang) {
+                btn.className = "w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-100 ring-2 ring-blue-500";
+            } else {
+                btn.className = "w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50";
+            }
+        }
+    });
+    window.openHistorialExportModal();
+};
+
 window.openHistorialExportModal = function() {
     if (!window.activeFichaDni) return;
     const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, window.activeFichaDni)) || {};
     const clientName = document.getElementById('profile-modal-name') ? document.getElementById('profile-modal-name').innerText : (window.getFullName(customerInfo) || 'Cliente');
     
+    const lang = window.historialCurrentLang || 'es';
+    
+    const headers = {
+        es: "⚠️ *Información importante:*\nLas horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco). Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.",
+        en: "⚠️ *Important notice:*\nPlease note that the times indicated are your arrival times at the dive center, not the boat departure times. Please be on time and remember to bring your physical DNI / Passport / ID card.",
+        nl: "⚠️ *Belangrijke informatie:*\nHoud er rekening mee dat de aangegeven tijden de verwachte aankomsttijden in het duikcentrum zijn (niet de vertrektijd van de boot). Wees alstublieft op tijd en neem je fysieke DNI / paspoort / ID-kaart mee."
+    };
+
+    const labels = {
+        es: { summary: "Resumen de Inmersiones", range: "Rango", from: "Desde", to: "Hasta", all: "Todo el historial", noDives: "No se encontraron inmersiones en este rango." },
+        en: { summary: "Dive Summary", range: "Range", from: "From", to: "To", all: "All history", noDives: "No dives found in this date range." },
+        nl: { summary: "Duikoverzicht", range: "Bereik", from: "Vanaf", to: "Tot", all: "Volledige geschiedenis", noDives: "Geen duiken gevonden in deze periode." }
+    };
+
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+    const curLabels = labels[lang] || labels.es;
+
     const fromEl = document.getElementById('historial-filter-from');
     const toEl = document.getElementById('historial-filter-to');
     const fromVal = fromEl ? fromEl.value : '';
@@ -2146,16 +2180,19 @@ window.openHistorialExportModal = function() {
     
     let rangeStr = "";
     if (fromVal && toVal) {
-        rangeStr = `Rango: ${fromVal} a ${toVal}`;
+        if (lang === 'en') rangeStr = `${curLabels.range}: ${fromVal} to ${toVal}`;
+        else if (lang === 'nl') rangeStr = `${curLabels.range}: ${fromVal} tot ${toVal}`;
+        else rangeStr = `${curLabels.range}: ${fromVal} a ${toVal}`;
     } else if (fromVal) {
-        rangeStr = `Desde: ${fromVal}`;
+        rangeStr = `${curLabels.from}: ${fromVal}`;
     } else if (toVal) {
-        rangeStr = `Hasta: ${toVal}`;
+        rangeStr = `${curLabels.to}: ${toVal}`;
     } else {
-        rangeStr = `Todo el historial`;
+        rangeStr = curLabels.all;
     }
     
-    let text = `Resumen de Inmersiones — ${clientName}\n`;
+    let text = `${headers[lang] || headers.es}\n\n`;
+    text += `📅 *${curLabels.summary} — ${clientName}*\n`;
     text += `${rangeStr}\n`;
     text += `========================================\n\n`;
     
@@ -2188,8 +2225,8 @@ window.openHistorialExportModal = function() {
         const day = parseInt(parts[2], 10);
         const dObj = new Date(year, month, day);
 
-        const weekday = dObj.toLocaleDateString('es-ES', { weekday: 'long' });
-        const monthName = dObj.toLocaleDateString('es-ES', { month: 'long' });
+        const weekday = dObj.toLocaleDateString(dateLocales[lang] || 'es-ES', { weekday: 'long' });
+        const monthName = dObj.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'long' });
         const formattedDay = `${weekday}, ${day} ${monthName} ${year}`;
         
         servicesText += `${formattedDay}:\n`;
@@ -2231,7 +2268,7 @@ window.openHistorialExportModal = function() {
     if (servicesText) {
         text += servicesText.trim();
     } else {
-        text += `No se encontraron inmersiones en este rango.\n`;
+        text += `${curLabels.noDives}\n`;
     }
     
     document.getElementById('historial-export-text').value = text;
