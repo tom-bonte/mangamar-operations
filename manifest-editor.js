@@ -1031,15 +1031,15 @@ function _renderGroupsCore(skipAutoSave = false) {
                     insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro CADUCADO el ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-red-500 text-white border-red-600 hover:bg-red-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
                 } else {
                     const isPurchaseDay = globalIns.purchaseDate && globalIns.purchaseDate === (activeBoatItem ? activeBoatItem.date : '');
-                    const isUnboughtToday = isPurchaseDay && !insVal.includes(' ✔');
+                    const isBought = insVal.includes(' ✔') || (guest.insurance && guest.insurance.toString().includes(' ✔'));
 
-                    if (isUnboughtToday) {
+                    if (isPurchaseDay && !isBought) {
                         guest.insurance = cleanIns;
                         let displayVal = `Seg (${cleanIns})`;
                         insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns}) (Pendiente de comprar)" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner hover:bg-orange-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
                     } else {
-                        guest.insurance = isPurchaseDay ? insVal : 'Propio';
-                        const insTag = ['1D', '1W', '1M', '1Y'].includes(cleanIns) ? cleanIns : '';
+                        guest.insurance = isPurchaseDay ? (cleanIns + ' ✔') : 'Propio';
+                        const insTag = (isPurchaseDay && ['1D', '1W', '1M', '1Y'].includes(cleanIns)) ? cleanIns : '';
                         let displayVal = insTag ? `Seg ✓ (${insTag})` : 'Seg ✓';
                         insHtml = `<button id="btn-ins-${groupIndex}-${guestIndex}" onclick="openInsPopup(event, ${groupIndex}, ${guestIndex}, true)" title="Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${cleanIns})" class="px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap">${displayVal}</button>`;
                     }
@@ -1907,16 +1907,16 @@ window.updateGuestInsuranceButton = function(groupIndex, guestIndex) {
             btn.title = `Seguro CADUCADO el ${window.formatInsuranceDate(globalIns.expiry)} (${globalClean})`;
         } else {
             const isPurchaseDay = globalIns.purchaseDate && globalIns.purchaseDate === (activeBoatItem ? activeBoatItem.date : '');
-            const isUnboughtToday = isPurchaseDay && !insVal.includes(' ✔');
+            const isBought = globalVal.includes(' ✔') || (insVal && insVal.includes(' ✔'));
 
-            if (isUnboughtToday) {
+            if (isPurchaseDay && !isBought) {
                 guest.insurance = globalClean;
                 btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-orange-500 text-white border-orange-600 shadow-inner hover:bg-orange-600 cursor-pointer shrink-0 whitespace-nowrap";
                 btn.innerText = `Seg (${globalClean})`;
                 btn.title = `Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${globalClean}) (Pendiente de comprar)`;
             } else {
-                guest.insurance = isPurchaseDay ? insVal : 'Propio';
-                const insTag = ['1D', '1W', '1M', '1Y'].includes(globalClean) ? globalClean : '';
+                guest.insurance = isPurchaseDay ? (globalClean + ' ✔') : 'Propio';
+                const insTag = (isPurchaseDay && ['1D', '1W', '1M', '1Y'].includes(globalClean)) ? globalClean : '';
                 btn.className = "px-1.5 min-w-[32px] h-7 flex justify-center items-center rounded border transition-colors text-[10px] font-black bg-emerald-500 text-white border-emerald-600 shadow-inner hover:bg-emerald-600 cursor-pointer shrink-0 whitespace-nowrap";
                 btn.innerText = insTag ? `Seg ✓ (${insTag})` : 'Seg ✓';
                 btn.title = `Seguro Activo hasta ${window.formatInsuranceDate(globalIns.expiry)} (${globalClean || 'Propio'})`;
@@ -2106,11 +2106,17 @@ window.toggleTramitado = function() {
     
     const guest = activeBoatItem.groups[activeInsGroup].guests[activeInsGuest];
     let insRaw = guest.insurance || '';
+    if ((!insRaw || insRaw === '0' || insRaw === 0) && guest.dni) {
+        const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
+        if (profile && profile.insurance) {
+            insRaw = profile.insurance.type || profile.insurance || '';
+        }
+    }
     if (insRaw && typeof insRaw === 'object') {
         insRaw = insRaw.type || '';
     }
     let ins = insRaw.toString();
-    if (!ins) return;
+    if (!ins || ins === '0') return;
 
     let newInsVal = '';
     if (ins.includes('✔')) {
