@@ -889,7 +889,8 @@ window.renderStaffScheduleGrid = function() {
                         <th class="p-2 text-xs font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-200 sticky left-0 top-0 z-30" style="background-color: #f8fafc; border-right: 2px solid #cbd5e1;">Día</th>
                         ${columns.map((col, index) => {
                             const daysOffList = window.activeStaffSchedule.daysOff?.[col] || [];
-                            const daysOffCount = daysOffList.length;
+                            const categories = window.activeStaffSchedule.dayOffCategories?.[col] || {};
+                            const daysOffCount = daysOffList.filter(dStr => (categories[dStr] || 'libre') === 'libre').length;
                             const menuSanitizedId = `staff-menu-${col.replace(/[^a-zA-Z0-9-]/g, '_')}`;
                             return `
                             <th class="p-2 text-xs font-black text-slate-500 uppercase tracking-widest text-center border-r border-slate-200 last:border-r-0 relative"
