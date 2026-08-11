@@ -4161,7 +4161,10 @@ window.manualSaveBoatData = async function(andClose = false) {
     // Safety check: If activeBoatItem was cleared by auto-save or another event, but modal is still open, close it cleanly
     if (!activeBoatItem) {
         if (andClose && modal && !modal.classList.contains('hidden')) {
-            closeManageBoatModal();
+            modal.classList.add('hidden');
+            if (typeof window.hideManifestHoverPopup === 'function') window.hideManifestHoverPopup();
+            window.clearModalHistory();
+            if (typeof mergeAndRender === 'function') mergeAndRender();
         }
         return;
     }
@@ -4205,21 +4208,11 @@ window.manualSaveBoatData = async function(andClose = false) {
         if (success) {
             showToast("✅ Salida guardada con éxito");
             window.isManifestDirty = false;
-            if (typeof mergeAndRender === 'function') mergeAndRender();
-        } else {
-            if (andClose) {
-                // Restore active state and bring modal back if save failed due to conflict/validation
-                activeBoatItem = itemToSave;
-                if (modal) modal.classList.remove('hidden');
-            }
         }
+        if (typeof mergeAndRender === 'function') mergeAndRender();
     } catch (err) {
         console.error("Error in manualSaveBoatData:", err);
-        showAppAlert("No se pudo guardar la salida. Comprueba tu conexión o revisa los datos.");
-        if (andClose) {
-            activeBoatItem = itemToSave;
-            if (modal) modal.classList.remove('hidden');
-        }
+        showToast("⚠️ Ocurrió un error al guardar en segundo plano");
     } finally {
         if (btn) {
             btn.innerHTML = originalContent;
