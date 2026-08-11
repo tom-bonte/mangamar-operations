@@ -4156,46 +4156,69 @@ async function saveBoatData(itemToSave = activeBoatItem) {
 
 // Full manual save override with UI state management
 window.manualSaveBoatData = async function(andClose = false) {
-    if (!activeBoatItem) return;
-    const itemToSave = activeBoatItem; // Capture closure reference to prevent background race condition if user opens another manifest
+    const modal = document.getElementById('manage-boat-modal');
+    
+    // Safety check: If activeBoatItem was cleared by auto-save or another event, but modal is still open, close it cleanly
+    if (!activeBoatItem) {
+        if (andClose && modal && !modal.classList.contains('hidden')) {
+            closeManageBoatModal();
+        }
+        return;
+    }
+
+    const itemToSave = activeBoatItem;
     const btn = document.getElementById('btn-manual-save');
     const btnClose = document.getElementById('btn-manual-save-close');
     const originalContent = btn ? btn.innerHTML : '';
     const originalCloseContent = btnClose ? btnClose.innerHTML : '';
 
+    // 1. Sync DOM to RAM synchronously FIRST before disabling inputs or modifying state
+    syncDOMToActiveBoatItem();
+
     if (btn) btn.disabled = true;
     if (btnClose) btnClose.disabled = true;
     showToast("⏳ Guardando salida internamente...");
 
-    try {
-        // Sync DOM to RAM synchronously before yielding to prevent race conditions
-        syncDOMToActiveBoatItem();
-
-        if (andClose) {
-            // Instantly hide the modal visually to make the UI feel blazing fast!
-            document.getElementById('manage-boat-modal').classList.add('hidden');
-            // Clear active state immediately to prevent background race conditions (e.g. reopening same trip)
-            activeBoatItem = null;
-            window.clearModalHistory();
+    if (andClose) {
+        // Instantly hide modal and clean up active timers/frames
+        if (modal) modal.classList.add('hidden');
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = null;
+        if (_renderGroupsRAF) {
+            cancelAnimationFrame(_renderGroupsRAF);
+            _renderGroupsRAF = null;
+            _renderGroupsSavePending = false;
         }
+        if (window._gridRenderRAF) {
+            cancelAnimationFrame(window._gridRenderRAF);
+            window._gridRenderRAF = null;
+        }
+        if (typeof window.hideManifestHoverPopup === 'function') window.hideManifestHoverPopup();
+        activeBoatItem = null;
+        window.clearModalHistory();
+        if (typeof mergeAndRender === 'function') mergeAndRender();
+    }
 
+    try {
+        window.isManifestDirty = true;
         const success = await window.queueSaveForTrip(itemToSave);
         if (success) {
             showToast("✅ Salida guardada con éxito");
-            window.isManifestDirty = false; // Reset dirty state
+            window.isManifestDirty = false;
+            if (typeof mergeAndRender === 'function') mergeAndRender();
         } else {
-            // Validation or conflict failed! Bring the modal back so they can fix it
             if (andClose) {
-                activeBoatItem = itemToSave; // Restore active state
-                document.getElementById('manage-boat-modal').classList.remove('hidden');
+                // Restore active state and bring modal back if save failed due to conflict/validation
+                activeBoatItem = itemToSave;
+                if (modal) modal.classList.remove('hidden');
             }
         }
     } catch (err) {
         console.error("Error in manualSaveBoatData:", err);
         showAppAlert("No se pudo guardar la salida. Comprueba tu conexión o revisa los datos.");
         if (andClose) {
-            activeBoatItem = itemToSave; // Restore active state
-            document.getElementById('manage-boat-modal').classList.remove('hidden');
+            activeBoatItem = itemToSave;
+            if (modal) modal.classList.remove('hidden');
         }
     } finally {
         if (btn) {
@@ -4207,7 +4230,7 @@ window.manualSaveBoatData = async function(andClose = false) {
             btnClose.disabled = false;
         }
     }
-}
+};
 
 // ── WAITLIST ──────────────────────────────────────────────────────────
 
