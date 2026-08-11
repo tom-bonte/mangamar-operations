@@ -870,43 +870,6 @@ window.getFirstName = function(name) {
     }
     return trimmed.split(' ')[0];
 };
-window.getNormalizedInsurance = function(insInput, fallbackDate = null) {
-    if (!insInput) return null;
-    let type = '';
-    let expiry = '';
-    let purchaseDate = '';
-
-    if (typeof insInput === 'string') {
-        type = insInput.replace(' ✔', '').trim();
-    } else if (typeof insInput === 'object') {
-        type = (insInput.type || insInput.insurance || '').toString().replace(' ✔', '').trim();
-        expiry = insInput.expiry ? window.normalizeDateStr(insInput.expiry) : '';
-        purchaseDate = insInput.purchaseDate ? window.normalizeDateStr(insInput.purchaseDate) : '';
-    }
-
-    if (!type || type === '0' || type === 'S/N' || type === 'Ninguno' || type === '0 ✔') return null;
-
-    if (type === 'Propio' || type === 'Propio ✔' || type === 'INC') {
-        return { type, expiry: '2099-12-31', purchaseDate: purchaseDate || fallbackDate || '2000-01-01' };
-    }
-
-    // Auto-calculate expiry if missing for 1D, 1W, 1M, 1Y
-    if (!expiry && ['1D', '1W', '1M', '1Y'].includes(type)) {
-        const baseDateStr = purchaseDate || fallbackDate || (typeof activeBoatItem !== 'undefined' && activeBoatItem ? activeBoatItem.date : new Date().toISOString().split('T')[0]);
-        const parts = baseDateStr.split('-').map(Number);
-        if (parts.length === 3) {
-            let dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
-            if (type === '1D') dateObj.setDate(dateObj.getDate() + 0);
-            else if (type === '1W') dateObj.setDate(dateObj.getDate() + 6);
-            else if (type === '1M') dateObj.setMonth(dateObj.getMonth() + 1);
-            else if (type === '1Y') dateObj.setFullYear(dateObj.getFullYear() + 1);
-            
-            expiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-        }
-    }
-
-    return { type, expiry, purchaseDate };
-};
 
 window.formatInsuranceDate = function(dateStr) {
     if (!dateStr) return '---';

@@ -509,10 +509,11 @@ function startFirestoreListeners() {
                                 // Ensure clean standardized types & dates
                                 merged.dni = key;
                                 if (merged.dob) merged.dob = window.normalizeDateStr(merged.dob) || merged.dob;
-                                if (merged.insurance) {
-                                    merged.insurance = typeof window.getNormalizedInsurance === 'function'
-                                        ? window.getNormalizedInsurance(merged.insurance)
-                                        : merged.insurance;
+                                if (merged.insurance && typeof merged.insurance === 'object') {
+                                    merged.insurance = {
+                                        type: merged.insurance.type || 'S/N',
+                                        expiry: window.normalizeDateStr(merged.insurance.expiry) || merged.insurance.expiry || ''
+                                    };
                                 }
                                 if (merged.dives !== undefined && merged.dives !== null && merged.dives !== '') {
                                     const numD = parseInt(merged.dives, 10);

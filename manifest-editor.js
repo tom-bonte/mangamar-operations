@@ -1013,12 +1013,10 @@ function _renderGroupsCore(skipAutoSave = false) {
             if (guest.dni && !guest.course) {
                 const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                 if (profile && profile.insurance) {
-                    globalIns = window.getNormalizedInsurance(profile.insurance, activeBoatItem ? activeBoatItem.date : null);
-                    if (globalIns && globalIns.expiry) {
-                        const expiryStr = window.normalizeDateStr(globalIns.expiry);
-                        if (expiryStr && expiryStr < activeBoatItem.date) {
-                            isInsExpired = true;
-                        }
+                    globalIns = profile.insurance;
+                    const expiryStr = window.normalizeDateStr(globalIns.expiry);
+                    if (expiryStr < activeBoatItem.date) {
+                        isInsExpired = true;
                     }
                 }
             }
@@ -1672,12 +1670,14 @@ window.cleanOrphanedInsurance = async function(dni) {
         const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(dni));
         if (!profile || !profile.insurance) return;
 
-        const normProfileIns = typeof window.getNormalizedInsurance === 'function' 
-            ? window.getNormalizedInsurance(profile.insurance) 
-            : null;
-        if (!normProfileIns) return;
-
-        const insType = normProfileIns.type;
+        // ONLY clean up short-term daily (1D) or weekly (1W) insurances if orphaned
+        let insType = '';
+        if (typeof profile.insurance === 'string') {
+            insType = profile.insurance;
+        } else if (profile.insurance && profile.insurance.type) {
+            insType = profile.insurance.type;
+        }
+        insType = insType.toString().replace(' ✔', '');
         if (insType !== '1D' && insType !== '1W') return;
 
         const snap = await db.collection('mangamar_customers').doc(dni).collection('history').get();
@@ -1685,11 +1685,13 @@ window.cleanOrphanedInsurance = async function(dni) {
         snap.forEach(doc => {
             const d = doc.data();
             const cleanDIns = (d.insurance || '').toString().replace(' ✔', '');
-            if (cleanDIns === insType || cleanDIns === 'Propio' || cleanDIns === 'Propio ✔') {
-                if (normProfileIns.purchaseDate && normProfileIns.expiry) {
-                    if (d.date >= normProfileIns.purchaseDate && d.date <= normProfileIns.expiry) hasValidDive = true;
+            const cleanProfileIns = (profile.insurance.type || '').toString().replace(' ✔', '');
+            if (cleanDIns === cleanProfileIns) {
+                // Check if the dive falls inside the exact window of THIS specific purchase
+                if (profile.insurance.purchaseDate) {
+                    if (d.date >= profile.insurance.purchaseDate && d.date <= window.normalizeDateStr(profile.insurance.expiry)) hasValidDive = true;
                 } else {
-                    hasValidDive = true;
+                    hasValidDive = true; // Fallback for old purchases
                 }
             }
         });
