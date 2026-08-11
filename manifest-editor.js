@@ -1795,14 +1795,16 @@ window.setIns = async function(type) {
     } else if (type === 'Propio') {
         guest.insurance = 'Propio ✔'; 
         if (guest.dni) {
+            const now = Date.now();
             const newIns = { type: 'Propio ✔', expiry: '2099-12-31', purchaseDate: activeBoatItem.date };
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) {
                 profile.insurance = newIns;
                 profile.insuranceEdited = true;
+                profile.lastManualEditTimestamp = now;
             }
             
-            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true }, { merge: true });
+            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true, lastManualEditTimestamp: now }, { merge: true });
             
             const masterDocRef = db.collection('mangamar_directory').doc('master_list');
             masterDocRef.get().then(doc => {
@@ -1812,6 +1814,7 @@ window.setIns = async function(type) {
                     if (idx > -1) {
                         clients[idx].insurance = newIns;
                         clients[idx].insuranceEdited = true;
+                        clients[idx].lastManualEditTimestamp = now;
                         masterDocRef.set({ clients }, { merge: true });
                     }
                 }
@@ -1820,6 +1823,7 @@ window.setIns = async function(type) {
     } else {
         guest.insurance = type; 
         if (guest.dni) {
+            const now = Date.now();
             let [y, m, d] = activeBoatItem.date.split('-').map(Number);
             let dateObj = new Date(y, m - 1, d);
             
@@ -1829,16 +1833,16 @@ window.setIns = async function(type) {
             if (type === '1Y') dateObj.setFullYear(dateObj.getFullYear() + 1);
             
             const expiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
-            // Added purchaseDate to make the window strict!
             const newIns = { type, expiry, purchaseDate: activeBoatItem.date };
             
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) {
                 profile.insurance = newIns;
                 profile.insuranceEdited = true;
+                profile.lastManualEditTimestamp = now;
             }
             
-            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true }, { merge: true });
+            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true, lastManualEditTimestamp: now }, { merge: true });
             
             const masterDocRef = db.collection('mangamar_directory').doc('master_list');
             masterDocRef.get().then(doc => {
@@ -1848,6 +1852,7 @@ window.setIns = async function(type) {
                     if (idx > -1) {
                         clients[idx].insurance = newIns;
                         clients[idx].insuranceEdited = true;
+                        clients[idx].lastManualEditTimestamp = now;
                         masterDocRef.set({ clients }, { merge: true });
                     }
                 }
@@ -2051,6 +2056,7 @@ window.saveSeguroPropioChanges = async function() {
     } else {
         guest.insurance = type;
         if (guest.dni) {
+            const now = Date.now();
             const newIns = { type, expiry, purchaseDate: activeBoatItem.date };
             
             // Update local memory database
@@ -2058,10 +2064,11 @@ window.saveSeguroPropioChanges = async function() {
             if (profile) {
                 profile.insurance = newIns;
                 profile.insuranceEdited = true;
+                profile.lastManualEditTimestamp = now;
             }
             
             // Save to Firestore for this customer
-            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true }, { merge: true }).catch(e => console.error("Error saving insurance to Firestore:", e));
+            db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true, lastManualEditTimestamp: now }, { merge: true }).catch(e => console.error("Error saving insurance to Firestore:", e));
             
             // Update master_list
             const masterDocRef = db.collection('mangamar_directory').doc('master_list');
@@ -2071,6 +2078,8 @@ window.saveSeguroPropioChanges = async function() {
                     let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                     if (idx > -1) {
                         clients[idx].insurance = newIns;
+                        clients[idx].insuranceEdited = true;
+                        clients[idx].lastManualEditTimestamp = now;
                         masterDocRef.set({ clients }, { merge: true }).catch(e => console.error("Error saving master list:", e));
                     }
                 }
@@ -2141,6 +2150,7 @@ window.toggleTramitado = function() {
             
             const expiry = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
             
+            const now = Date.now();
             if (!newInsVal.includes('✔')) {
                 // If unmarked as purchased, set expiry to past to represent expired/unpurchased state
                 profile.insurance = { type: cleanType, expiry: '1970-01-01', purchaseDate: activeBoatItem.date };
@@ -2149,11 +2159,13 @@ window.toggleTramitado = function() {
                 profile.insurance = { type: newInsVal, expiry, purchaseDate: activeBoatItem.date };
             }
             profile.insuranceEdited = true;
+            profile.lastManualEditTimestamp = now;
             
             // Save to Firestore mangamar_customers
             db.collection('mangamar_customers').doc(guest.dni).set({
                 insurance: profile.insurance,
-                insuranceEdited: true
+                insuranceEdited: true,
+                lastManualEditTimestamp: now
             }, { merge: true }).catch(e => console.error("Error updating CRM insurance:", e));
             
             // Save to master_list directory
@@ -2165,6 +2177,7 @@ window.toggleTramitado = function() {
                     if (idx > -1) {
                         clients[idx].insurance = profile.insurance;
                         clients[idx].insuranceEdited = true;
+                        clients[idx].lastManualEditTimestamp = now;
                         masterDocRef.set({ clients }, { merge: true });
                     }
                 }

@@ -1868,13 +1868,15 @@ window.getJotformSubmissionTimestamp = function(sc) {
 };
 
 window.isJotformNewerThanManualEdit = function(existing, sheetClient) {
-    if (!existing || !existing.lastManualEditTimestamp) return true;
-    const jotformTs = window.getJotformSubmissionTimestamp(sheetClient);
-    if (!jotformTs) {
-        // If Jotform submission has no explicit timestamp, respect staff manual edit flags!
-        return false;
+    if (!existing) return true;
+    const hasManualEdits = existing.insuranceEdited || existing.lastManualEditTimestamp || existing.nameEdited || existing.dobEdited || existing.divesEdited || existing.titulacionEdited;
+    if (hasManualEdits) {
+        if (!existing.lastManualEditTimestamp) return false;
+        const jotformTs = window.getJotformSubmissionTimestamp(sheetClient);
+        if (!jotformTs) return false;
+        return jotformTs > existing.lastManualEditTimestamp;
     }
-    return jotformTs > existing.lastManualEditTimestamp;
+    return true;
 };
 
 window.enrichCustomerFromJotform = function(c) {
