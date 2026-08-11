@@ -2223,17 +2223,21 @@ window.syncSingleJotformDiver = async function(targetDni) {
                                         
                                         let profileIns = gst.insurance || 0;
                                         if (existing.insurance) {
-                                            const insObj = existing.insurance;
-                                            const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
-                                            const activeDate = trip.date || '';
-                                            if (expiry && expiry >= activeDate) {
-                                                if (insObj.purchaseDate && insObj.purchaseDate === activeDate) {
-                                                    profileIns = insObj.type || 0;
+                                            const normIns = typeof window.getNormalizedInsurance === 'function' 
+                                                ? window.getNormalizedInsurance(existing.insurance, trip.date) 
+                                                : null;
+                                            
+                                            if (normIns && normIns.expiry) {
+                                                const activeDate = trip.date || '';
+                                                if (normIns.expiry >= activeDate) {
+                                                    if (normIns.purchaseDate && normIns.purchaseDate === activeDate) {
+                                                        profileIns = normIns.type || 'Propio';
+                                                    } else {
+                                                        profileIns = 'Propio';
+                                                    }
                                                 } else {
-                                                    profileIns = 'Propio';
+                                                    profileIns = gst.insurance ? gst.insurance : 0;
                                                 }
-                                            } else {
-                                                profileIns = 0;
                                             }
                                         }
                                         
