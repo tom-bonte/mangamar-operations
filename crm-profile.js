@@ -1528,6 +1528,8 @@ window.saveCustomerEdits = async function () {
         
         let finalIndex = -1;
         
+        const currentNow = Date.now();
+
         if (newIndex > -1) {
             // Updating an existing customer record (or linking a temp guest to an existing customer)
             customerDatabase[newIndex].nombre = nombre;
@@ -1539,6 +1541,9 @@ window.saveCustomerEdits = async function () {
             customerDatabase[newIndex].nameEdited = true;
             customerDatabase[newIndex].insuranceEdited = true;
             customerDatabase[newIndex].dobEdited = true;
+            customerDatabase[newIndex].divesEdited = true;
+            customerDatabase[newIndex].titulacionEdited = true;
+            customerDatabase[newIndex].lastManualEditTimestamp = currentNow;
             if (apodo) customerDatabase[newIndex].apodo = apodo;
             else delete customerDatabase[newIndex].apodo;
             if (bibotella) customerDatabase[newIndex].bibotella = bibotella;
@@ -1571,6 +1576,9 @@ window.saveCustomerEdits = async function () {
                 customerDatabase[oldIndex].nameEdited = true;
                 customerDatabase[oldIndex].insuranceEdited = true;
                 customerDatabase[oldIndex].dobEdited = true;
+                customerDatabase[oldIndex].divesEdited = true;
+                customerDatabase[oldIndex].titulacionEdited = true;
+                customerDatabase[oldIndex].lastManualEditTimestamp = currentNow;
                 if (apodo) customerDatabase[oldIndex].apodo = apodo;
                 else delete customerDatabase[oldIndex].apodo;
                 if (bibotella) customerDatabase[oldIndex].bibotella = bibotella;
@@ -1598,7 +1606,10 @@ window.saveCustomerEdits = async function () {
                     discount: 0,
                     nameEdited: true,
                     insuranceEdited: true,
-                    dobEdited: true
+                    dobEdited: true,
+                    divesEdited: true,
+                    titulacionEdited: true,
+                    lastManualEditTimestamp: currentNow
                 };
                 if (apodo) newCustomer.apodo = apodo;
                 if (bibotella) newCustomer.bibotella = bibotella;

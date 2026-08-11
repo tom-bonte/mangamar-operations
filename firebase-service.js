@@ -490,16 +490,20 @@ function startFirestoreListeners() {
                                 // so 'c' UNCONDITIONAL WINS for all fields!
                                 let merged = { ...existing, ...c };
                                 
-                                // Respect manual staff lock flags ONLY if existing had manual staff edits
-                                if (existing.nameEdited && !c.nameEdited) {
-                                    merged.nombre = existing.nombre;
-                                    merged.apellido = existing.apellido;
-                                }
-                                if (existing.dobEdited && !c.dobEdited) {
-                                    merged.dob = existing.dob;
-                                }
-                                if (existing.insuranceEdited && !c.insuranceEdited) {
-                                    merged.insurance = existing.insurance;
+                                // Respect manual staff lock flags ONLY if existing had manual staff edits that are newer than 'c'
+                                const isNewer = typeof window.isJotformNewerThanManualEdit === 'function' 
+                                    ? window.isJotformNewerThanManualEdit(existing, c) 
+                                    : (!existing.lastManualEditTimestamp);
+
+                                if (!isNewer && existing.lastManualEditTimestamp) {
+                                    // Existing manual staff edit is NEWER than 'c' -> preserve staff-edited fields!
+                                    if (existing.nombre) merged.nombre = existing.nombre;
+                                    if (existing.apellido) merged.apellido = existing.apellido;
+                                    if (existing.dob) merged.dob = existing.dob;
+                                    if (existing.titulacion) merged.titulacion = existing.titulacion;
+                                    if (existing.dives !== undefined) merged.dives = existing.dives;
+                                    if (existing.insurance) merged.insurance = existing.insurance;
+                                    merged.lastManualEditTimestamp = existing.lastManualEditTimestamp;
                                 }
                                 
                                 // Ensure clean standardized types & dates

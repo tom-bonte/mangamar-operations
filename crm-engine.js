@@ -1855,6 +1855,28 @@ window.fetchJotformClientsData = async function(forceRefresh = false, targetDni 
     }
 };
 
+window.getJotformSubmissionTimestamp = function(sc) {
+    if (!sc) return 0;
+    if (sc.submissionTimestamp && typeof sc.submissionTimestamp === 'number') return sc.submissionTimestamp;
+    const rawDate = sc.submissionDate || sc.created_at || sc.timestamp || sc.fecha || sc.date;
+    if (rawDate) {
+        if (typeof rawDate === 'number') return rawDate;
+        const parsed = Date.parse(rawDate);
+        if (!isNaN(parsed)) return parsed;
+    }
+    return 0;
+};
+
+window.isJotformNewerThanManualEdit = function(existing, sheetClient) {
+    if (!existing || !existing.lastManualEditTimestamp) return true;
+    const jotformTs = window.getJotformSubmissionTimestamp(sheetClient);
+    if (!jotformTs) {
+        // If Jotform submission has no explicit timestamp, respect staff manual edit flags!
+        return false;
+    }
+    return jotformTs > existing.lastManualEditTimestamp;
+};
+
 window.enrichCustomerFromJotform = function(c) {
     if (!c) return c;
     try {
@@ -1881,6 +1903,7 @@ window.enrichCustomerFromJotform = function(c) {
         }
 
         if (match) {
+            const isNewer = window.isJotformNewerThanManualEdit(c, match);
             const fixNameCaps = (str) => {
                 if (!str) return '';
                 return str.toLowerCase().split(' ').map(word =>
@@ -1888,26 +1911,24 @@ window.enrichCustomerFromJotform = function(c) {
                 ).join(' ');
             };
 
-            if (match.nombre && (!c.nombre || c.nombre === 'Sin Nombre')) c.nombre = fixNameCaps(match.nombre);
-            if (match.apellido && (!c.apellido || c.apellido.trim() === '')) c.apellido = fixNameCaps(match.apellido);
-            if (match.email && (!c.email || c.email === '-')) c.email = match.email;
-            if (match.telefono && (!c.telefono || c.telefono === '-')) c.telefono = match.telefono;
-            if (match.titulacion && (!c.titulacion || c.titulacion === 'Sin Titulación')) c.titulacion = match.titulacion;
-            if (match.dob && !c.dob) c.dob = window.normalizeDateStr(match.dob);
+            if (match.nombre && (isNewer || !c.nombre || c.nombre === 'Sin Nombre' || !c.nameEdited)) c.nombre = fixNameCaps(match.nombre);
+            if (match.apellido && (isNewer || !c.apellido || c.apellido.trim() === '' || !c.nameEdited)) c.apellido = fixNameCaps(match.apellido);
+            if (match.email && (isNewer || !c.email || c.email === '-')) c.email = match.email;
+            if (match.telefono && (isNewer || !c.telefono || c.telefono === '-')) c.telefono = match.telefono;
+            if (match.titulacion && (isNewer || !c.titulacion || c.titulacion === 'Sin Titulación' || !c.titulacionEdited)) c.titulacion = match.titulacion;
+            if (match.dob && (isNewer || !c.dob || !c.dobEdited)) c.dob = window.normalizeDateStr(match.dob);
             if (match.dni && !c.dni) c.dni = window.normalizeDni(match.dni);
-            if (match.dives && (!c.dives || c.dives < match.dives)) c.dives = match.dives;
+            if (match.dives !== undefined && match.dives !== null && match.dives !== '' && (isNewer || !c.dives || !c.divesEdited)) {
+                const numD = parseInt(match.dives, 10);
+                c.dives = !isNaN(numD) ? numD : match.dives;
+            }
 
-            // --- 🛡️ INSURANCE AUTO-UPGRADE FIX ---
-            // If Jotform submission has insurance info, update profile if newer or if existing is missing/expired
-            if (match.insurance && match.insurance.type) {
-                const sheetExpiry = window.normalizeDateStr(match.insurance.expiry);
-                const currentExpiry = c.insurance ? window.normalizeDateStr(c.insurance.expiry) : '';
-                if (!c.insurance || !currentExpiry || sheetExpiry >= currentExpiry || !match.insurance.type.toLowerCase().includes('no')) {
-                    c.insurance = {
-                        type: match.insurance.type,
-                        expiry: sheetExpiry
-                    };
-                }
+            if (match.insurance && match.insurance.type && (isNewer || !c.insurance || !c.insuranceEdited)) {
+                const sheetExpiry = window.normalizeDateStr(match.insurance.expiry) || match.insurance.expiry || '';
+                c.insurance = {
+                    type: match.insurance.type,
+                    expiry: sheetExpiry
+                };
             }
         }
     } catch(e) {
@@ -2139,6 +2160,14 @@ window.syncSingleJotformDiver = async function(targetDni) {
                 customerDatabase.push(existing);
             }
 
+            const isNewer = window.isJotformNewerThanManualEdit(existing, sheetClient);
+            if (!isNewer && existing.lastManualEditTimestamp) {
+                if (typeof showToast === 'function') {
+                    showToast("ℹ️ El perfil fue editado manualmente más recientemente que la respuesta de Jotform.");
+                }
+                return;
+            }
+
             const fixNameCaps = (str) => {
                 if (!str) return '';
                 return str.toLowerCase().split(' ').map(word =>
@@ -2146,45 +2175,31 @@ window.syncSingleJotformDiver = async function(targetDni) {
                 ).join(' ');
             };
 
-            const sheetFullName = window.combineFirstAndLastName(sheetClient.nombre, sheetClient.apellido);
-            const existingFullName = window.combineFirstAndLastName(existing.nombre, existing.apellido);
-
-            if (isExplicitSingleImport || !existing.nameEdited || !existing.apellido) {
-                if (sheetClient.nombre) existing.nombre = fixNameCaps(sheetClient.nombre);
-                if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
-                if (isExplicitSingleImport) existing.nameEdited = false;
-            } else {
-                if (!existing.nombre || existing.nombre === 'Sin Nombre' || existing.nombre.toLowerCase().includes('sin nombre')) {
-                    existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
-                } else if (sheetFullName && (existingFullName.toLowerCase() === 'sin nombre' || existingFullName.length < sheetFullName.length)) {
-                    existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
-                }
-                if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
-            }
-
+            if (sheetClient.nombre) existing.nombre = fixNameCaps(sheetClient.nombre);
+            if (sheetClient.apellido) existing.apellido = fixNameCaps(sheetClient.apellido);
             if (sheetClient.email) existing.email = sheetClient.email;
             if (sheetClient.telefono) existing.telefono = sheetClient.telefono;
             if (sheetClient.titulacion) existing.titulacion = sheetClient.titulacion;
-            
-            if (isExplicitSingleImport || (!existing.dobEdited && sheetClient.dob)) {
-                if (sheetClient.dob) existing.dob = window.normalizeDateStr(sheetClient.dob);
-                if (isExplicitSingleImport) existing.dobEdited = false;
-            }
-            
+            if (sheetClient.dob) existing.dob = window.normalizeDateStr(sheetClient.dob);
             if (sheetClient.dives !== undefined && sheetClient.dives !== null && sheetClient.dives !== '') {
-                existing.dives = sheetClient.dives;
+                const numD = parseInt(sheetClient.dives, 10);
+                existing.dives = !isNaN(numD) ? numD : sheetClient.dives;
             }
 
-            if (isExplicitSingleImport || !existing.insuranceEdited) {
-                if (sheetClient.insurance && sheetClient.insurance.type) {
-                    const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry);
-                    existing.insurance = {
-                        type: sheetClient.insurance.type,
-                        expiry: sheetExpiry
-                    };
-                }
-                if (isExplicitSingleImport) existing.insuranceEdited = false;
+            if (sheetClient.insurance && sheetClient.insurance.type) {
+                const sheetExpiry = window.normalizeDateStr(sheetClient.insurance.expiry) || sheetClient.insurance.expiry || '';
+                existing.insurance = {
+                    type: sheetClient.insurance.type,
+                    expiry: sheetExpiry
+                };
             }
+
+            existing.nameEdited = false;
+            existing.dobEdited = false;
+            existing.insuranceEdited = false;
+            existing.divesEdited = false;
+            existing.titulacionEdited = false;
+            delete existing.lastManualEditTimestamp;
 
             if (typeof mergedAllocations !== 'undefined') {
                 const isEmptyValue = (val) => {
