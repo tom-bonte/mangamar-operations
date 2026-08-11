@@ -1213,7 +1213,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                 <tr class="bg-blue-50/30 focus-within:z-50 relative add-guest-row">
                     <td class="p-3 text-center text-blue-400 text-sm font-black">+</td>
                     <td colspan="6" class="p-2 relative">
-                        <input type="text" id="search-${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="searchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" onfocus="window._activeSearchGroupIdx = ${groupIndex}" autocomplete="off" onblur="setTimeout(() => { const activeEl = document.activeElement; if (activeEl && (activeEl.id.startsWith('relink-') || activeEl.id.startsWith('search-'))) return; const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
+                        <input type="text" id="search-${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="window.debouncedSearchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" onfocus="window._activeSearchGroupIdx = ${groupIndex}" autocomplete="off" onblur="setTimeout(() => { const activeEl = document.activeElement; if (activeEl && (activeEl.id.startsWith('relink-') || activeEl.id.startsWith('search-'))) return; const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
                     </td>
                 </tr>
         `;
@@ -2957,21 +2957,35 @@ function getGlobalDropdown() {
     return dropdown;
 }
 
+let _searchDebounceTimer = null;
+window.debouncedSearchCustomers = function(groupIndex, query) {
+    if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
+    const normQuery = window.normalizeSearchString(query);
+    if (!normQuery || normQuery.length < 2) {
+        const dropdown = document.getElementById('global-autocomplete');
+        if (dropdown) dropdown.classList.add('hidden');
+        return;
+    }
+    _searchDebounceTimer = setTimeout(() => {
+        searchCustomers(groupIndex, query);
+    }, 100);
+};
+
 function searchCustomers(groupIndex, query) {
     const dropdown = getGlobalDropdown();
     const originalQuery = query.trim();
     const normQuery = window.normalizeSearchString(query);
     if (normQuery.length < 2) { dropdown.classList.add('hidden'); return; }
 
-    if (typeof window.enrichCustomerFromJotform === 'function') {
-        customerDatabase.forEach(c => window.enrichCustomerFromJotform(c));
-    }
-
     const results = customerDatabase.filter(c => {
         const fullName = window.normalizeSearchString(getFullName(c));
         const apodoMatch = c.apodo && window.normalizeSearchString(c.apodo).includes(normQuery);
         return fullName.includes(normQuery) || apodoMatch || window.checkDniMatch(c.dni, normQuery);
     });
+
+    if (typeof window.enrichCustomerFromJotform === 'function') {
+        results.forEach(c => window.enrichCustomerFromJotform(c));
+    }
 
     if (results.length === 0) {
         dropdown.innerHTML = `<div class="px-4 py-3 text-sm text-slate-500 italic">No encontrado.<br><span class="text-xs">Presiona <b>Enter</b> para añadir manualmente.</span></div>`;
