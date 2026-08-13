@@ -871,6 +871,12 @@ window.getFirstName = function(name) {
     return trimmed.split(' ')[0];
 };
 
+window.safeEncodeJSON = function(obj) {
+    if (!obj) return '';
+    const str = typeof obj === 'string' ? obj : JSON.stringify(obj);
+    return encodeURIComponent(str).replace(/'/g, "%27");
+};
+
 window.formatInsuranceDate = function(dateStr) {
     if (!dateStr) return '---';
     const trimmed = dateStr.trim();

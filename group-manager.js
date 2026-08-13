@@ -1004,7 +1004,7 @@ window.searchGroupCustomers = function(query) {
     } else {
         dropdown.innerHTML = results.map(c => {
             const fullName = getFullName(c);
-            const encodedData = encodeURIComponent(JSON.stringify(c));
+            const encodedData = window.safeEncodeJSON(c);
             return `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer text-sm font-bold text-slate-800 global-ac-item" onmousedown="window.selectGroupCustomer('${encodedData}')">${fullName}<div class="text-xs text-slate-500 font-medium">${c.titulacion || ''} • ${c.dni || ''}</div></div>`;
         }).join('');
         dropdown.classList.remove('hidden');

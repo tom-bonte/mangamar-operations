@@ -2225,7 +2225,7 @@ function searchRelink(groupIndex, guestIndex, query) {
                     </div>
                 </div>`;
             } else {
-                const encodedData = encodeURIComponent(JSON.stringify(c));
+                const encodedData = window.safeEncodeJSON(c);
                 return `<div class="px-3 py-2 bg-white hover:bg-blue-50 cursor-pointer border-b border-slate-100 text-left global-ac-item" onmousedown="event.preventDefault(); window.executeRelink(${groupIndex}, ${guestIndex}, '${encodedData}')">
                     <div class="font-bold text-slate-800 text-xs">${fullName}</div>
                     <div class="text-[10px] text-slate-500">${c.titulacion || '-'} • ${c.dni}</div>
@@ -3033,7 +3033,7 @@ function searchCustomers(groupIndex, query) {
                     }
                     // Rebuild dropdown with found result
                     const conflict = checkDiverConflict(dni, nombre);
-                    const encodedData = encodeURIComponent(JSON.stringify({ nombre, apellido: '', titulacion: tit, telefono: d.telefono || '', email: d.email || '', dni }));
+                    const encodedData = window.safeEncodeJSON({ nombre, apellido: '', titulacion: tit, telefono: d.telefono || '', email: d.email || '', dni });
                     dropdown.innerHTML = conflict.conflict
                         ? `<div class="px-4 py-3 bg-slate-50 opacity-60 text-sm font-bold text-slate-500">${nombre} <span class="text-xs">(En ${conflict.where})</span></div>`
                         : `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer text-sm font-bold text-slate-800 global-ac-item" onmousedown="event.preventDefault(); window.selectCustomer(${groupIndex}, '${encodedData}')">${nombre}<div class="text-xs text-slate-500 font-medium">${tit} • ${dni}</div></div>`;
@@ -3055,7 +3055,7 @@ function searchCustomers(groupIndex, query) {
                     <span class="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-1 rounded">En ${conflict.where}</span>
                 </div>`;
             } else {
-                const encodedData = encodeURIComponent(JSON.stringify(c));
+                const encodedData = window.safeEncodeJSON(c);
                 return `<div class="px-4 py-3 bg-white hover:bg-blue-50 cursor-pointer border-b border-slate-100 transition-colors global-ac-item" onmousedown="event.preventDefault(); window.selectCustomer(${groupIndex}, '${encodedData}')">
                     <div class="font-bold text-slate-800 text-sm">${fullName}</div>
                     <div class="text-xs text-slate-500 font-medium">${c.titulacion || '-'} • ${c.dni}</div>
@@ -4285,7 +4285,7 @@ window.searchWaitlistCustomers = function(query) {
     } else {
         dd.innerHTML = results.map(c => {
             const fullName = getFullName(c);
-            const encoded  = encodeURIComponent(JSON.stringify(c));
+            const encoded  = window.safeEncodeJSON(c);
             return `<div class="waitlist-ac-item px-4 py-3 bg-white hover:bg-amber-50 cursor-pointer border-b border-slate-100 transition-colors"
                         onmousedown="selectWaitlistCustomer('${encoded}')">
                 <div class="font-black text-slate-800 text-sm">${fullName}</div>
