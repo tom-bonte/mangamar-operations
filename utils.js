@@ -359,12 +359,28 @@ window.getPersonLocation = function(dni, fullName, excludeType = null, excludeGr
     return null;
 };
 
+window.escapeHtml = function(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+
 // Clipboard & Toast
 window.copyData = function(text, type, hidePayload = false) {
     if(!text) return;
     navigator.clipboard.writeText(text).then(() => { 
         showToast(hidePayload ? type : `${type} copiado: ${text}`); 
     });
+};
+
+window.copyGuestElementText = function(el, type, hidePayload = false) {
+    if (!el) return;
+    const text = el.getAttribute('data-copy-val') || el.getAttribute('data-nombre') || el.getAttribute('data-dni') || el.innerText || '';
+    window.copyData(text.trim(), type, hidePayload);
 };
 
 window.showToast = function(msg) {

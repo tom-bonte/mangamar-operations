@@ -175,13 +175,13 @@ window.renderContactsList = function() {
                         ${catLabel}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-sm font-black text-slate-800 cursor-pointer hover:text-blue-600 transition-colors" onclick="window.copyData('${c.nombre.replace(/'/g, "\\'")}', 'Nombre')">
+                <td class="px-4 py-3 text-sm font-black text-slate-800 cursor-pointer hover:text-blue-600 transition-colors" data-copy-val="${window.escapeHtml(c.nombre)}" onclick="window.copyGuestElementText(this, 'Nombre')">
                     ${c.nombre}
                 </td>
-                <td class="px-4 py-3 text-xs font-bold text-slate-600 font-mono cursor-pointer hover:text-blue-600 transition-colors" onclick="window.copyData('${cleanPhone}', 'Teléfono')">
+                <td class="px-4 py-3 text-xs font-bold text-slate-600 font-mono cursor-pointer hover:text-blue-600 transition-colors" data-copy-val="${window.escapeHtml(cleanPhone)}" onclick="window.copyGuestElementText(this, 'Teléfono')">
                     ${cleanPhone || '---'}
                 </td>
-                <td class="px-4 py-3 text-xs font-bold text-slate-600 font-mono cursor-pointer hover:text-blue-600 transition-colors" onclick="window.copyData('${c.email || ''}', 'Email')">
+                <td class="px-4 py-3 text-xs font-bold text-slate-600 font-mono cursor-pointer hover:text-blue-600 transition-colors" data-copy-val="${window.escapeHtml(c.email || '')}" onclick="window.copyGuestElementText(this, 'Email')">
                     ${c.email || '---'}
                 </td>
                 <td class="px-4 py-3 text-xs font-bold text-slate-400 font-mono">
