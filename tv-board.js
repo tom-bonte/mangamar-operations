@@ -132,32 +132,30 @@ window._buildTVContent = function() {
         rowWrapper.className = "grid grid-cols-[200px_1fr_1fr] gap-x-8 items-stretch min-h-full snap-start py-12 border-b border-slate-100 last:border-0 shrink-0";
 
         // Build a lookup: diver NAME (normalised) → previous boat label
-        // (only relevant for slots after the first)
+        // (only for divers in the immediately preceding time slot)
         const prevDivers = new Map(); // normalised name → 'Ares' | 'Kaiser' | 'Shore'
         const timeIdx = TIMES.indexOf(time);
         if (timeIdx > 0) {
-            for (let i = 0; i < timeIdx; i++) {
-                const prevTime = TIMES[i];
-                const prevTrips = todaysTrips.filter(t => t.time === prevTime && !t.cancelled);
-                prevTrips.forEach(prevTrip => {
-                    const boatId = (prevTrip.assignedBoat || '').toLowerCase();
-                    const siteStr = (prevTrip.site || '').toLowerCase();
-                    let label = 'Ares';
-                    if (boatId === 'kaiser') label = 'Kaiser';
-                    else if (boatId === 'shore' || boatId === 'aula' || siteStr.includes('shore') || siteStr.includes('aula')) label = 'Shore';
-                    else if (boatId === 'ares') label = 'Ares';
-                    else if (boatId === 'astec') label = 'Astec';
-                    else if (boatId) label = boatId.charAt(0).toUpperCase() + boatId.slice(1);
+            const prevTime = TIMES[timeIdx - 1];
+            const prevTrips = todaysTrips.filter(t => t.time === prevTime && !t.cancelled);
+            prevTrips.forEach(prevTrip => {
+                const boatId = (prevTrip.assignedBoat || '').toLowerCase();
+                const siteStr = (prevTrip.site || '').toLowerCase();
+                let label = 'Ares';
+                if (boatId === 'kaiser') label = 'Kaiser';
+                else if (boatId === 'shore' || boatId === 'aula' || siteStr.includes('shore') || siteStr.includes('aula')) label = 'Shore';
+                else if (boatId === 'ares') label = 'Ares';
+                else if (boatId === 'astec') label = 'Astec';
+                else if (boatId) label = boatId.charAt(0).toUpperCase() + boatId.slice(1);
 
-                    (prevTrip.groups || []).forEach(g => {
-                        (g.guests || []).forEach(guest => {
-                            if (guest.cancelled) return;
-                            const key = (guest.nombre || '').trim().toUpperCase();
-                            if (key) prevDivers.set(key, label);
-                        });
+                (prevTrip.groups || []).forEach(g => {
+                    (g.guests || []).forEach(guest => {
+                        if (guest.cancelled) return;
+                        const key = (guest.nombre || '').trim().toUpperCase();
+                        if (key) prevDivers.set(key, label);
                     });
                 });
-            }
+            });
         }
 
         // ── A. Time Sidebar Label ──────────────────────────────────────
