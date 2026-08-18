@@ -420,7 +420,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                     </svg>
                                 </div>
-                                <input type="text" id="daily-search-input" placeholder="Buscar buceador..." class="bg-transparent text-xs font-bold text-slate-700 placeholder-slate-400 outline-none w-0 opacity-0 transition-all duration-300" autocomplete="off" oninput="window.executeDailySearch(this.value)" onkeydown="if(event.key==='Enter'){window._searchEnterPressed = true; this.blur(); setTimeout(() => { window._searchEnterPressed = false; }, 300);}" onfocus="window.expandDailySearch()" onblur="setTimeout(window.collapseDailySearch, 200)">
+                                <input type="text" id="daily-search-input" name="mangamar_daily_search" placeholder="Buscar buceador..." class="bg-transparent text-xs font-bold text-slate-700 placeholder-slate-400 outline-none w-0 opacity-0 transition-all duration-300" autocomplete="chrome-off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" oninput="window.executeDailySearch(this.value)" onkeydown="if(event.key==='Enter'){window._searchEnterPressed = true; this.blur(); setTimeout(() => { window._searchEnterPressed = false; }, 300);}" onfocus="window.expandDailySearch()" onblur="setTimeout(window.collapseDailySearch, 200)">
                                 <span id="daily-search-count" class="hidden text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md shrink-0 whitespace-nowrap mr-1">0 matches</span>
                                 <button id="daily-search-clear" onclick="event.stopPropagation(); window.clearDailySearch()" class="hidden p-0.5 text-slate-400 hover:text-slate-600 rounded-full transition-colors shrink-0 mr-2">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -807,13 +807,13 @@
                         <!-- Add row — CRM search -->
                         <div class="flex gap-2 p-3 border-b border-amber-200 bg-white relative">
                             <div class="flex-1 relative">
-                                <input id="waitlist-search-input" type="text"
+                                <input id="waitlist-search-input" name="mangamar_waitlist_search" type="text"
                                     placeholder="Buscar por nombre o DNI en el CRM..."
                                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-slate-50"
                                     oninput="searchWaitlistCustomers(this.value)"
                                     onkeydown="handleWaitlistSearchKey(event)"
                                     onblur="setTimeout(()=>{ const d=document.getElementById('waitlist-autocomplete'); if(d) d.classList.add('hidden'); },200)"
-                                    autocomplete="off" />
+                                    autocomplete="chrome-off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
                             </div>
                             <button onclick="addWaitlistEntry()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-lg transition-colors flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
@@ -1422,7 +1422,7 @@
                                 
                                 <!-- Search Bar -->
                                 <div class="mb-3 relative z-10">
-                                    <input type="text" id="group-search-input-creation" oninput="window.filterGroupsList(this.value)" placeholder="Buscar por grupo, nombre o DNI..." class="w-full pl-9 pr-4 py-2 bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs font-bold text-slate-700 shadow-sm" autocomplete="off">
+                                    <input type="text" id="group-search-input-creation" name="mangamar_group_search_create" oninput="window.filterGroupsList(this.value)" placeholder="Buscar por grupo, nombre o DNI..." class="w-full pl-9 pr-4 py-2 bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs font-bold text-slate-700 shadow-sm" autocomplete="chrome-off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other">
                                     <svg class="w-4 h-4 text-purple-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                 </div>
 
@@ -1437,7 +1437,7 @@
                             
                             <!-- Search Bar -->
                             <div class="mb-4 relative">
-                                <input type="text" id="group-search-input" oninput="window.filterGroupsList(this.value)" placeholder="Buscar por grupo, nombre o DNI..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 shadow-inner" autocomplete="off">
+                                <input type="text" id="group-search-input" name="mangamar_group_search" oninput="window.filterGroupsList(this.value)" placeholder="Buscar por grupo, nombre o DNI..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-700 shadow-inner" autocomplete="chrome-off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other">
                                 <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </div>
 
@@ -1487,7 +1487,7 @@
                                     </div>
                                 </div>
                                 <div class="relative mb-3 flex gap-2">
-                                    <input type="text" id="group-add-member-input" placeholder="Añadir por Nombre o DNI..." class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" onkeydown="if(event.key === 'Enter') addMemberToGlobalGroup()" oninput="window.searchGroupCustomers(this.value)" autocomplete="off" onblur="setTimeout(() => { const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
+                                    <input type="text" id="group-add-member-input" name="mangamar_group_add_member" placeholder="Añadir por Nombre o DNI..." class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" onkeydown="if(event.key === 'Enter') addMemberToGlobalGroup()" oninput="window.searchGroupCustomers(this.value)" autocomplete="chrome-off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" onblur="setTimeout(() => { const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
                                     <button onclick="addMemberToGlobalGroup()" class="px-3 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold text-sm shadow-sm flex items-center justify-center" title="Añadir al grupo">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>
                                     </button>
@@ -2850,7 +2850,7 @@
                 </div>
 
                 <div class="relative">
-                    <input type="text" id="global-diver-search" placeholder="Buscar cualquier cliente por Nombre o DNI..." class="w-full px-4 py-3 pl-10 bg-white border border-blue-300 rounded-xl text-sm font-bold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="searchGlobalDivers(this.value)" autocomplete="off">
+                    <input type="text" id="global-diver-search" name="mangamar_global_diver_search" placeholder="Buscar cualquier cliente por Nombre o DNI..." class="w-full px-4 py-3 pl-10 bg-white border border-blue-300 rounded-xl text-sm font-bold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="searchGlobalDivers(this.value)" autocomplete="chrome-off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other">
                     <svg class="w-5 h-5 text-blue-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     <div id="global-search-results" class="absolute z-[100] left-0 right-0 bg-white border border-slate-200 rounded-b-xl shadow-xl mt-1 max-h-64 overflow-y-auto empty:hidden"></div>
                 </div>

@@ -1012,9 +1012,11 @@ window.searchGroupCustomers = function(query) {
 
     const inputEl = document.getElementById('group-add-member-input');
     const rect = inputEl.getBoundingClientRect();
-    dropdown.style.top = `${rect.bottom + window.scrollY}px`;
-    dropdown.style.left = `${rect.left + window.scrollX}px`;
+    dropdown.style.top = `${rect.bottom + 2}px`;
+    dropdown.style.left = `${rect.left}px`;
     dropdown.style.width = `${rect.width}px`;
+    const maxAvailableHeight = Math.max(120, window.innerHeight - rect.bottom - 16);
+    dropdown.style.maxHeight = `${Math.min(256, maxAvailableHeight)}px`;
 };
 
 window.selectGroupCustomer = async function(encodedData) {

@@ -891,7 +891,7 @@ function _renderGroupsCore(skipAutoSave = false) {
             let nameHtml = '';
             if (guest.isRelinking) {
                 nameHtml = `<div class="relative">
-                    <input type="text" id="relink-${groupIndex}-${guestIndex}" class="w-full px-2 py-1 border border-red-300 rounded focus:ring-2 focus:ring-red-500" placeholder="Buscar en DB..." oninput="searchRelink(${groupIndex}, ${guestIndex}, this.value)" onkeydown="checkRelinkEnter(event, ${groupIndex}, ${guestIndex})" onblur="setTimeout(() => { const activeEl = document.activeElement; if (activeEl && (activeEl.id.startsWith('relink-') || activeEl.id.startsWith('search-'))) return; const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); if(activeBoatItem && activeBoatItem.groups[${groupIndex}] && activeBoatItem.groups[${groupIndex}].guests[${guestIndex}]) { activeBoatItem.groups[${groupIndex}].guests[${guestIndex}].isRelinking = false; renderGroups(); } }, 200)" autocomplete="off">
+                    <input type="text" id="relink-${groupIndex}-${guestIndex}" name="mangamar_relink_${groupIndex}_${guestIndex}" class="w-full px-2 py-1 border border-red-300 rounded focus:ring-2 focus:ring-red-500" placeholder="Buscar en DB..." oninput="searchRelink(${groupIndex}, ${guestIndex}, this.value)" onkeydown="checkRelinkEnter(event, ${groupIndex}, ${guestIndex})" onblur="setTimeout(() => { const activeEl = document.activeElement; if (activeEl && (activeEl.id.startsWith('relink-') || activeEl.id.startsWith('search-'))) return; const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); if(activeBoatItem && activeBoatItem.groups[${groupIndex}] && activeBoatItem.groups[${groupIndex}].guests[${guestIndex}]) { activeBoatItem.groups[${groupIndex}].guests[${guestIndex}].isRelinking = false; renderGroups(); } }, 200)" autocomplete="chrome-off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other">
                 </div>`;
             } else {
                 let manualDot = guest.isManual ? `<button onclick="activateRelink(${groupIndex}, ${guestIndex})" title="Cliente Manual - Click para enlazar a la Base de Datos" class="w-2.5 h-2.5 rounded-full bg-red-500 hover:bg-red-700 animate-pulse mr-2 inline-block shrink-0 shadow-sm"></button>` : '';
@@ -1213,7 +1213,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                 <tr class="bg-blue-50/30 focus-within:z-50 relative add-guest-row">
                     <td class="p-3 text-center text-blue-400 text-sm font-black">+</td>
                     <td colspan="6" class="p-2 relative">
-                        <input type="text" id="search-${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="window.debouncedSearchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" onfocus="window._activeSearchGroupIdx = ${groupIndex}" autocomplete="off" onblur="setTimeout(() => { const activeEl = document.activeElement; if (activeEl && (activeEl.id.startsWith('relink-') || activeEl.id.startsWith('search-'))) return; const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
+                        <input type="text" id="search-${groupIndex}" name="mangamar_search_${groupIndex}" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar cliente por DNI o Nombre... (o presiona Enter para manual)" oninput="window.debouncedSearchCustomers(${groupIndex}, this.value)" onkeydown="checkEnter(event, ${groupIndex})" onfocus="window._activeSearchGroupIdx = ${groupIndex}" autocomplete="chrome-off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" onblur="setTimeout(() => { const activeEl = document.activeElement; if (activeEl && (activeEl.id.startsWith('relink-') || activeEl.id.startsWith('search-'))) return; const d = document.getElementById('global-autocomplete'); if(d) d.classList.add('hidden'); }, 200)">
                     </td>
                 </tr>
         `;
@@ -2235,9 +2235,11 @@ function searchRelink(groupIndex, guestIndex, query) {
     }
 
     const inputRect = document.getElementById(`relink-${groupIndex}-${guestIndex}`).getBoundingClientRect();
-    dropdown.style.top = inputRect.bottom + 'px';
+    dropdown.style.top = (inputRect.bottom + 2) + 'px';
     dropdown.style.left = inputRect.left + 'px';
     dropdown.style.width = inputRect.width + 'px';
+    const maxAvailableHeight = Math.max(120, window.innerHeight - inputRect.bottom - 16);
+    dropdown.style.maxHeight = `${Math.min(256, maxAvailableHeight)}px`;
     dropdown.classList.remove('hidden');
 }
 
@@ -3065,9 +3067,11 @@ function searchCustomers(groupIndex, query) {
     }
 
     const inputRect = document.getElementById(`search-${groupIndex}`).getBoundingClientRect();
-    dropdown.style.top = inputRect.bottom + 'px';
+    dropdown.style.top = (inputRect.bottom + 2) + 'px';
     dropdown.style.left = inputRect.left + 'px';
     dropdown.style.width = inputRect.width + 'px';
+    const maxAvailableHeight = Math.max(120, window.innerHeight - inputRect.bottom - 16);
+    dropdown.style.maxHeight = `${Math.min(256, maxAvailableHeight)}px`;
     dropdown.classList.remove('hidden');
 }
 
@@ -4295,9 +4299,11 @@ window.searchWaitlistCustomers = function(query) {
     }
 
     const rect = document.getElementById('waitlist-search-input').getBoundingClientRect();
-    dd.style.top   = rect.bottom + 'px';
+    dd.style.top   = (rect.bottom + 2) + 'px';
     dd.style.left  = rect.left   + 'px';
     dd.style.width = rect.width  + 'px';
+    const maxAvailableHeight = Math.max(120, window.innerHeight - rect.bottom - 16);
+    dd.style.maxHeight = `${Math.min(256, maxAvailableHeight)}px`;
     dd.classList.remove('hidden');
 }
 
