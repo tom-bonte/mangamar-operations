@@ -876,16 +876,32 @@ function _renderGroupsCore(skipAutoSave = false) {
                 if (guest.computer === 'INC') { guest.computer = 0; guest.computerPrice = 0; }
                 if (guest.insurance === 'INC') guest.insurance = 0;
             }
-            // Live-heal isManual based on the CRM database profile status
-            if (window.crmLoaded && guest.dni && typeof customerDatabase !== 'undefined') {
-                const crmMatch = customerDatabase.find(c => window.normalizeSearchString(c.dni || '') === window.normalizeSearchString(guest.dni));
-                if (crmMatch) {
-                    guest.isManual = !window.isProfileComplete(crmMatch);
-                } else {
-                    guest.isManual = true;
+            // Live-heal isManual and contact info based on CRM database profile or guest contact data
+            let crmMatch = null;
+            if (typeof customerDatabase !== 'undefined' && Array.isArray(customerDatabase)) {
+                if (guest.dni) {
+                    const normDni = window.normalizeSearchString(guest.dni);
+                    crmMatch = customerDatabase.find(c => c.dni && window.normalizeSearchString(c.dni) === normDni);
                 }
-            } else if (window.crmLoaded && !guest.dni) {
-                guest.isManual = true;
+                if (!crmMatch && guest.nombre) {
+                    const normName = window.normalizeSearchString(guest.nombre);
+                    crmMatch = customerDatabase.find(c => {
+                        const cFull = window.normalizeSearchString(window.combineFirstAndLastName(c.nombre, c.apellido));
+                        const cName = window.normalizeSearchString(c.nombre || '');
+                        const cApodo = c.apodo ? window.normalizeSearchString(c.apodo) : '';
+                        return (cFull && cFull === normName) || (cName && cName === normName) || (cApodo && cApodo === normName);
+                    });
+                }
+            }
+
+            if (crmMatch) {
+                if (!guest.dni && crmMatch.dni) guest.dni = crmMatch.dni;
+                if (!guest.telefono && crmMatch.telefono) guest.telefono = crmMatch.telefono;
+                if (!guest.email && crmMatch.email) guest.email = crmMatch.email;
+                if (!guest.titulacion && crmMatch.titulacion) guest.titulacion = crmMatch.titulacion;
+                guest.isManual = !(window.isProfileComplete(crmMatch) || window.isProfileComplete(guest));
+            } else if (window.crmLoaded) {
+                guest.isManual = !window.isProfileComplete(guest);
             }
 
             let nameHtml = '';
@@ -2823,7 +2839,7 @@ window.saveLocalGuestEdit = async function() {
         guest.titulacion = modalTit;
         guest.telefono = modalPhone;
         guest.email = modalEmail;
-        guest.isManual = true;
+        guest.isManual = !window.isProfileComplete(guest);
         if (guest.hasOwnProperty('dni')) {
             delete guest.dni;
         }
@@ -2897,7 +2913,7 @@ window.saveLocalGuestEdit = async function() {
                                         gst.email = guest.email;
                                         gst.tempId = guest.tempId;
                                         gst.bookingTag = guest.bookingTag;
-                                        gst.isManual = true;
+                                        gst.isManual = !window.isProfileComplete(gst);
                                         modified = true;
                                     }
                                 }
@@ -2922,7 +2938,7 @@ window.saveLocalGuestEdit = async function() {
                                         gst.email = guest.email;
                                         gst.tempId = guest.tempId;
                                         gst.bookingTag = guest.bookingTag;
-                                        gst.isManual = true;
+                                        gst.isManual = !window.isProfileComplete(gst);
                                     }
                                 });
                             }
