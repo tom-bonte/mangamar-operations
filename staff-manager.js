@@ -76,6 +76,25 @@ function renderStaffView() {
                                 <svg class="w-3 h-3 text-slate-350" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
                                 ${person.dni}
                             </div>
+                            ${person.dob ? `
+                                <div class="text-[9px] font-black text-rose-700 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.5 flex items-center gap-1 leading-none h-4 uppercase tracking-wider shrink-0" title="Fecha de Nacimiento: ${(() => {
+                                    const norm = window.normalizeDateStr ? window.normalizeDateStr(person.dob) : person.dob;
+                                    if (/^\d{4}-\d{2}-\d{2}$/.test(norm)) {
+                                        const [y, m, d] = norm.split('-');
+                                        return `${d}/${m}/${y}`;
+                                    }
+                                    return person.dob;
+                                })()}">
+                                    <span>🎂 ${(() => {
+                                        const norm = window.normalizeDateStr ? window.normalizeDateStr(person.dob) : person.dob;
+                                        if (/^\d{4}-\d{2}-\d{2}$/.test(norm)) {
+                                            const [y, m, d] = norm.split('-');
+                                            return `${d}/${m}/${y}`;
+                                        }
+                                        return person.dob;
+                                    })()}</span>
+                                </div>
+                            ` : ''}
                             ${person.padi ? `
                                 <div class="text-[9px] font-black text-sky-700 bg-sky-50 border border-sky-150 rounded px-1.5 py-0.5 flex items-center gap-0.5 leading-none h-4 uppercase tracking-wider shrink-0">
                                     <span>PADI ${person.padi}</span>
@@ -147,10 +166,18 @@ function renderStaffView() {
 async function addStaff(type) {
     const nameInput = document.getElementById(type === 'capitanes' ? 'new-cap-name' : (type === 'recepcion' ? 'new-recep-name' : 'new-guide-name'));
     const dniInput = document.getElementById(type === 'capitanes' ? 'new-cap-dni' : (type === 'recepcion' ? 'new-recep-dni' : 'new-guide-dni'));
+    const dobInput = document.getElementById(type === 'capitanes' ? 'new-cap-dob' : (type === 'recepcion' ? 'new-recep-dob' : 'new-guide-dob'));
     if(!nameInput.value || !dniInput.value) { showAppAlert("Rellena nombre y DNI"); return; }
     if(!staffDatabase[type]) staffDatabase[type] = [];
     
-    let newPerson = { nombre: nameInput.value.trim(), dni: dniInput.value.trim() };
+    let rawDob = dobInput && dobInput.value ? dobInput.value.trim() : '';
+    let normDob = rawDob ? (window.normalizeDateStr ? (window.normalizeDateStr(rawDob) || rawDob) : rawDob) : '';
+
+    let newPerson = { 
+        nombre: nameInput.value.trim(), 
+        dni: dniInput.value.trim(),
+        dob: normDob
+    };
     if (type === 'guias') {
         const roleInput = document.getElementById('new-guide-role');
         newPerson.role = roleInput ? roleInput.value : 'Guía';
@@ -160,15 +187,18 @@ async function addStaff(type) {
     
     staffDatabase[type].push(newPerson);
     nameInput.value = ''; dniInput.value = '';
+    if (dobInput) dobInput.value = '';
     const padiInput = document.getElementById('new-guide-padi');
     if (padiInput) padiInput.value = '';
 
     await db.collection(INTERNAL_DB).doc('staff').set(staffDatabase);
+    renderStaffView();
 }
 async function removeStaff(type, index) {
     showAppConfirm("¿Eliminar este miembro del staff?", async () => {
         staffDatabase[type].splice(index, 1);
         await db.collection(INTERNAL_DB).doc('staff').set(staffDatabase);
+        renderStaffView();
     });
 }
 
@@ -177,8 +207,12 @@ let editingStaffInfo = null;
 function openEditStaffModal(type, index) {
     editingStaffInfo = { type, index };
     const person = staffDatabase[type][index];
-    document.getElementById('edit-staff-name').value = person.nombre;
-    document.getElementById('edit-staff-dni').value = person.dni;
+    document.getElementById('edit-staff-name').value = person.nombre || '';
+    document.getElementById('edit-staff-dni').value = person.dni || '';
+    const dobInput = document.getElementById('edit-staff-dob');
+    if (dobInput) {
+        dobInput.value = person.dob ? (window.normalizeDateStr ? (window.normalizeDateStr(person.dob) || person.dob) : person.dob) : '';
+    }
     
     const roleContainer = document.getElementById('edit-staff-role-container');
     const padiContainer = document.getElementById('edit-staff-padi-container');
@@ -200,9 +234,18 @@ async function saveStaffEdit() {
     const { type, index } = editingStaffInfo;
     const newName = document.getElementById('edit-staff-name').value.trim();
     const newDni = document.getElementById('edit-staff-dni').value.trim();
+    const dobInput = document.getElementById('edit-staff-dob');
+    const rawDob = dobInput ? dobInput.value.trim() : '';
+    const newDob = rawDob ? (window.normalizeDateStr ? (window.normalizeDateStr(rawDob) || rawDob) : rawDob) : '';
     if(!newName || !newDni) { showAppAlert("Rellena nombre y DNI"); return; }
     
-    let updatedPerson = { nombre: newName, dni: newDni };
+    const person = staffDatabase[type][index] || {};
+    let updatedPerson = { 
+        ...person,
+        nombre: newName, 
+        dni: newDni,
+        dob: newDob
+    };
     if (type === 'guias') {
         updatedPerson.role = document.getElementById('edit-staff-role').value;
         const padiInput = document.getElementById('edit-staff-padi');

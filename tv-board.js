@@ -38,6 +38,124 @@ window.openTVView = function() {
     }, 8000);
 }
 
+// Helper to discover all birthdays for people who are active on the TV schedule for targetDateStr
+window.getTVBirthdays = function(todaysTrips, targetDateStr) {
+    if (!targetDateStr) return [];
+    const targetMonthDay = targetDateStr.slice(5); // "MM-DD"
+    const birthdayPeople = []; // { name, role: 'Capitán' | 'Guía' | 'Apoyo' | 'Buceador', isStaff: boolean }
+    const seenKeys = new Set();
+
+    const checkDobMatch = (dob) => {
+        if (!dob) return false;
+        const norm = typeof window.normalizeDateStr === 'function' ? window.normalizeDateStr(dob) : dob;
+        if (!norm || norm.length < 10) return false;
+        return norm.slice(5) === targetMonthDay;
+    };
+
+    const findClient = (name, dni) => {
+        if (typeof customerDatabase === 'undefined' || !Array.isArray(customerDatabase)) return null;
+        if (dni) {
+            const normDni = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(dni) : dni.trim().toUpperCase();
+            const byDni = customerDatabase.find(c => c.dni && (typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(c.dni) : c.dni.trim().toUpperCase()) === normDni);
+            if (byDni) return byDni;
+        }
+        if (name) {
+            const normName = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(name) : name.trim().toLowerCase();
+            return customerDatabase.find(c => {
+                const cFull = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(window.combineFirstAndLastName(c.nombre, c.apellido)) : (c.nombre + ' ' + (c.apellido || '')).trim().toLowerCase();
+                const cFirst = typeof window.normalizeSearchString === 'function' ? window.normalizeSearchString(c.nombre || '') : (c.nombre || '').trim().toLowerCase();
+                return (cFull && cFull === normName) || (cFirst && cFirst === normName);
+            });
+        }
+        return null;
+    };
+
+    const findStaff = (name) => {
+        if (typeof staffDatabase === 'undefined') return null;
+        const allStaff = [...(staffDatabase.capitanes || []), ...(staffDatabase.guias || []), ...(staffDatabase.recepcion || [])];
+        const normName = (name || '').trim().toLowerCase();
+        return allStaff.find(s => (s.nombre || '').trim().toLowerCase() === normName);
+    };
+
+    (todaysTrips || []).forEach(trip => {
+        if (trip.cancelled) return;
+
+        // 1. Captain
+        if (trip.captain && trip.captain.trim()) {
+            const capName = trip.captain.trim();
+            const key = capName.toLowerCase();
+            if (!seenKeys.has(key)) {
+                const sProf = findStaff(capName);
+                const cProf = findClient(capName, sProf ? sProf.dni : null);
+                const dob = (sProf && sProf.dob) || (cProf && cProf.dob);
+                if (checkDobMatch(dob)) {
+                    seenKeys.add(key);
+                    birthdayPeople.push({ name: capName, role: 'Capitán', isStaff: true });
+                }
+            }
+        }
+
+        // 2. Groups (Guides, Apoyos, Guests)
+        (trip.groups || []).forEach(group => {
+            // Guide
+            if (group.guide && group.guide.trim() && group.guide.trim().toUpperCase() !== 'POR ASIGNAR' && group.guide.trim().toUpperCase() !== 'POR') {
+                const gName = group.guide.trim();
+                const key = gName.toLowerCase();
+                if (!seenKeys.has(key)) {
+                    const sProf = findStaff(gName);
+                    const cProf = findClient(gName, sProf ? sProf.dni : null);
+                    const dob = (sProf && sProf.dob) || (cProf && cProf.dob);
+                    if (checkDobMatch(dob)) {
+                        seenKeys.add(key);
+                        birthdayPeople.push({ name: gName, role: 'Guía', isStaff: true });
+                    }
+                }
+            }
+
+            // Apoyo
+            if (group.apoyo && group.apoyo.trim()) {
+                const aName = group.apoyo.trim();
+                const key = aName.toLowerCase();
+                if (!seenKeys.has(key)) {
+                    const sProf = findStaff(aName);
+                    const cProf = findClient(aName, sProf ? sProf.dni : null);
+                    const dob = (sProf && sProf.dob) || (cProf && cProf.dob);
+                    if (checkDobMatch(dob)) {
+                        seenKeys.add(key);
+                        birthdayPeople.push({ name: aName, role: 'Apoyo', isStaff: true });
+                    }
+                }
+            }
+
+            // Guests
+            (group.guests || []).forEach(guest => {
+                if (guest.cancelled) return;
+                const gstName = (guest.nombre || '').trim();
+                if (!gstName) return;
+                const key = gstName.toLowerCase();
+                if (seenKeys.has(key)) return;
+
+                let dob = guest.dob;
+                if (!dob) {
+                    const cProfile = findClient(gstName, guest.dni);
+                    if (cProfile && cProfile.dob) dob = cProfile.dob;
+                }
+                if (!dob) {
+                    const sProfile = findStaff(gstName);
+                    if (sProfile && sProfile.dob) dob = sProfile.dob;
+                }
+
+                if (checkDobMatch(dob)) {
+                    seenKeys.add(key);
+                    birthdayPeople.push({ name: gstName, role: 'Buceador', isStaff: false });
+                }
+            });
+        });
+    });
+
+    return birthdayPeople;
+};
+
 // Core render function — builds the content grid from in-memory trip data
 window._buildTVContent = function() {
     const container = document.getElementById('tv-content-grid');
@@ -61,6 +179,38 @@ window._buildTVContent = function() {
     const targetDateStr = `${year}-${month}-${day}`;
 
     const todaysTrips = getMergedTrips(mergedAllocations.filter(t => t.date === targetDateStr));
+
+    // Birthday Discovery for all active people on the TV today
+    const birthdayPeople = window.getTVBirthdays ? window.getTVBirthdays(todaysTrips, targetDateStr) : [];
+    const birthdayBanner = document.getElementById('tv-birthday-banner-container');
+    if (birthdayBanner) {
+        if (birthdayPeople.length > 0) {
+            birthdayBanner.innerHTML = `
+            <div class="tv-birthday-banner rounded-2xl py-2 px-6 flex items-center justify-center gap-4 text-slate-800 shadow-lg">
+                <span class="tv-birthday-balloon text-2xl">🎈</span>
+                <span class="tv-birthday-sparkle text-xl">✨</span>
+                <div class="flex items-center gap-2.5 flex-wrap justify-center">
+                    <span class="text-lg font-black text-rose-600 tracking-wider uppercase drop-shadow-sm">¡FELIZ CUMPLEAÑOS!</span>
+                    <span class="text-lg font-black text-slate-800">
+                        ${birthdayPeople.map(p => `🎂 <span class="text-rose-700 underline decoration-rose-400 decoration-2 underline-offset-4">${p.name}</span> <span class="text-[11px] font-black px-2 py-0.5 rounded-full bg-rose-100/90 text-rose-700 border border-rose-300 align-middle uppercase">${p.role}</span>`).join(' &bull; ')}
+                    </span>
+                </div>
+                <span class="tv-birthday-sparkle text-xl">✨</span>
+                <span class="tv-birthday-balloon text-2xl" style="animation-delay: 1.1s;">🎈</span>
+            </div>
+            `;
+            birthdayBanner.classList.remove('hidden');
+            if (typeof window.startTvConfetti === 'function') {
+                window.startTvConfetti();
+            }
+        } else {
+            birthdayBanner.innerHTML = '';
+            birthdayBanner.classList.add('hidden');
+            if (typeof window.stopTvConfetti === 'function') {
+                window.stopTvConfetti();
+            }
+        }
+    }
 
     // Helper: count ONLY from groups (prevents double-counting Visor flat list + groups)
     const countGuests = trip => {
@@ -177,12 +327,15 @@ window._buildTVContent = function() {
                 let groupsHtml = '';
                 (trip.groups || []).forEach(group => {
                     let guideLabel = 'Sin Guía';
+                    let guideIsBday = false;
                     if (group.guide && group.guide.trim() && group.guide.trim().toUpperCase() !== 'POR ASIGNAR' && group.guide.trim().toUpperCase() !== 'POR') {
                         const guideFirst = group.guide.trim().split(' ')[0];
                         guideLabel = guideFirst.charAt(0).toUpperCase() + guideFirst.slice(1).toLowerCase();
+                        guideIsBday = birthdayPeople.some(p => p.name.toLowerCase() === group.guide.trim().toLowerCase());
                     }
                     const supportFirst = (group.apoyo || '').split(' ')[0];
                     const supportLabel = supportFirst ? supportFirst.charAt(0).toUpperCase() + supportFirst.slice(1) : '';
+                    const apoyoIsBday = group.apoyo ? birthdayPeople.some(p => p.name.toLowerCase() === group.apoyo.trim().toLowerCase()) : false;
                     const groupGuests = (group.guests || []).filter(g => !g.cancelled);
 
                     if (groupGuests.length > 0 || group.guide || group.apoyo) {
@@ -207,7 +360,8 @@ window._buildTVContent = function() {
                                 </svg>
                                 <div class="flex items-baseline flex-wrap gap-x-1.5">
                                     <span class="text-2xl font-black text-orange-600 uppercase tracking-wider">${guideLabel}</span>
-                                    ${supportLabel ? `<span class="text-orange-500 font-black text-2xl mx-1">+</span><span class="text-2xl font-black text-orange-600 uppercase tracking-wider">${supportLabel}</span><span class="text-2xl font-normal text-orange-600 uppercase tracking-wider ml-1">(Apoyo)</span>` : ''}
+                                    ${guideIsBday ? `<span class="tv-birthday-balloon text-base ml-1" title="¡Cumpleaños!">🎂🎉</span>` : ''}
+                                    ${supportLabel ? `<span class="text-orange-500 font-black text-2xl mx-1">+</span><span class="text-2xl font-black text-orange-600 uppercase tracking-wider">${supportLabel}</span>${apoyoIsBday ? `<span class="tv-birthday-balloon text-base ml-1" title="¡Cumpleaños!">🎂🎉</span>` : ''}<span class="text-2xl font-normal text-orange-600 uppercase tracking-wider ml-1">(Apoyo)</span>` : ''}
                                 </div>
                             </div>
                             <div class="space-y-1">
@@ -233,8 +387,8 @@ window._buildTVContent = function() {
                                         let badgeClass   = 'tv-gas-air';
 
                                         if (isSnorkel) {
-                                            displayGas = 'Snorkel';
-                                            badgeClass = 'tv-gas-snorkel';
+                                             displayGas = 'Snorkel';
+                                             badgeClass = 'tv-gas-snorkel';
                                         } else if (isNx) {
                                             displayGas = fullGas.replace(/EAN\s*(\d+)/i, '$1%');
                                             badgeClass = 'tv-gas-nitrox';
@@ -252,6 +406,12 @@ window._buildTVContent = function() {
                                             courseBadgeHtml = `<span style="font-size:1.15rem;font-weight:900;color:#be185d;background:#fdf2f8;border:2px solid #fbcfe8;border-radius:8px;padding:3px 10px;margin-left:10px;white-space:nowrap;flex-shrink:0">${courseText}</span>`;
                                         }
 
+                                        // Birthday badge
+                                        const isGuestBday = birthdayPeople.some(p => p.name.toLowerCase() === (g.nombre || '').trim().toLowerCase());
+                                        const bdayBadge = isGuestBday
+                                            ? `<span class="tv-birthday-balloon inline-flex items-center text-sm font-black text-rose-600 bg-rose-50 border border-rose-300 rounded-lg px-2 py-0.5 ml-2 shadow-sm shrink-0" title="¡Hoy es su cumpleaños! 🎂">🎂 ¡Cumple! 🎉</span>`
+                                            : '';
+
                                         // Arrived checkmark badge
                                         const arrivedBadge = g.arrived
                                             ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:#10b981;border:2px solid #059669;margin-right:12px;flex-shrink:0;box-shadow:0 0 0 4px rgba(16,185,129,0.2)"><svg style="width:1.1rem;height:1.1rem" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg></span>`
@@ -263,6 +423,7 @@ window._buildTVContent = function() {
                                                 ${arrivedBadge}
                                                 <span class="text-[22px] font-black text-slate-700 uppercase tracking-tight truncate">${g.nombre}</span>
                                                 ${courseBadgeHtml}
+                                                ${bdayBadge}
                                                 ${returnBadge}
                                             </div>
                                             <span class="tv-gas-badge ${badgeClass}" style="font-size:1.35rem;font-weight:900;padding:5px 14px;min-width:130px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;line-height:1;border-radius:12px">${displayGas}</span>
@@ -401,8 +562,145 @@ window.addEventListener('resize', () => {
     const tvModal = document.getElementById('tv-view-modal');
     if (tvModal && !tvModal.classList.contains('hidden')) {
         window.adjustCardScaling();
+        const canvas = document.getElementById('tv-confetti-canvas');
+        if (canvas) {
+            canvas.width = tvModal.clientWidth || window.innerWidth;
+            canvas.height = tvModal.clientHeight || window.innerHeight;
+        }
     }
 });
+
+// ==========================================
+// TV BIRTHDAY CONFETTI ENGINE (SUBTLE & LIGHTWEIGHT)
+// ==========================================
+window._tvConfettiAnimId = null;
+window._tvConfettiParticles = [];
+
+window.startTvConfetti = function() {
+    const canvas = document.getElementById('tv-confetti-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const modal = document.getElementById('tv-view-modal');
+    canvas.width = modal ? (modal.clientWidth || window.innerWidth) : window.innerWidth;
+    canvas.height = modal ? (modal.clientHeight || window.innerHeight) : window.innerHeight;
+
+    // Subtle, elegant particle count
+    const count = 48;
+    const colors = [
+        '#f43f5e', '#fb7185', // Rose / Pink
+        '#f59e0b', '#fbbf24', // Gold / Amber
+        '#0ea5e9', '#38bdf8', // Sky Blue
+        '#10b981', '#34d399', // Mint / Emerald
+        '#8b5cf6', '#c084fc'  // Lavender / Violet
+    ];
+
+    window._tvConfettiParticles = [];
+    for (let i = 0; i < count; i++) {
+        window._tvConfettiParticles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 6 + 4, // 4-10px
+            color: colors[Math.floor(Math.random() * colors.length)],
+            speedY: Math.random() * 1.1 + 0.5, // gentle drift
+            speedX: (Math.random() - 0.5) * 0.6,
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 2.2,
+            shape: Math.random() > 0.35 ? 'rect' : (Math.random() > 0.4 ? 'circle' : 'star'),
+            opacity: Math.random() * 0.45 + 0.45,
+            sway: Math.random() * Math.PI * 2,
+            swaySpeed: Math.random() * 0.025 + 0.012
+        });
+    }
+
+    if (window._tvConfettiAnimId) {
+        cancelAnimationFrame(window._tvConfettiAnimId);
+        window._tvConfettiAnimId = null;
+    }
+
+    const drawStar = (cx, cy, spikes, outerRadius, innerRadius) => {
+        let rot = (Math.PI / 2) * 3;
+        let x = cx;
+        let y = cy;
+        const step = Math.PI / spikes;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            x = cx + Math.cos(rot) * outerRadius;
+            y = cy + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fill();
+    };
+
+    const render = () => {
+        const tvModal = document.getElementById('tv-view-modal');
+        if (!tvModal || tvModal.classList.contains('hidden')) {
+            window.stopTvConfetti();
+            return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        (window._tvConfettiParticles || []).forEach(p => {
+            p.sway += p.swaySpeed;
+            p.y += p.speedY;
+            p.x += p.speedX + Math.sin(p.sway) * 0.65;
+            p.rotation += p.rotationSpeed;
+
+            // Soft wrap around bottom
+            if (p.y > canvas.height + 20) {
+                p.y = -20;
+                p.x = Math.random() * canvas.width;
+            }
+            if (p.x > canvas.width + 20) p.x = -20;
+            if (p.x < -20) p.x = canvas.width + 20;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.globalAlpha = p.opacity;
+            ctx.fillStyle = p.color;
+
+            if (p.shape === 'rect') {
+                ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size * 0.55);
+            } else if (p.shape === 'circle') {
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size * 0.35, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (p.shape === 'star') {
+                drawStar(0, 0, 5, p.size * 0.65, p.size * 0.3);
+            }
+
+            ctx.restore();
+        });
+
+        window._tvConfettiAnimId = requestAnimationFrame(render);
+    };
+
+    window._tvConfettiAnimId = requestAnimationFrame(render);
+};
+
+window.stopTvConfetti = function() {
+    if (window._tvConfettiAnimId) {
+        cancelAnimationFrame(window._tvConfettiAnimId);
+        window._tvConfettiAnimId = null;
+    }
+    const canvas = document.getElementById('tv-confetti-canvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+};
 
 // --- OPTIMIZED TV DATE NAVIGATION AND MODAL CLOSING ---
 window._lastTvNavTime = 0;
@@ -419,6 +717,9 @@ window.changeTVDate = function(offset) {
 };
 
 window.closeTVView = function() {
+    if (typeof window.stopTvConfetti === 'function') {
+        window.stopTvConfetti();
+    }
     document.getElementById('tv-view-modal').classList.add('hidden');
     // Catch up the background daily/monthly calendar rendering now that TV view is closed
     if (typeof updateDateHeaders === 'function') updateDateHeaders();

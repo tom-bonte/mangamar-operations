@@ -1014,3 +1014,39 @@ body.is-dragging * {
 #staff-schedule-scroll-right:active {
     transform: translateY(-50%) scale(0.92);
 }
+
+/* ==========================================
+   TV BIRTHDAY ANIMATIONS
+   ========================================== */
+@keyframes tvBirthdayPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 10px 25px -5px rgba(244, 63, 94, 0.3), 0 8px 10px -6px rgba(244, 63, 94, 0.2);
+    }
+    50% {
+        transform: scale(1.01);
+        box-shadow: 0 16px 32px -4px rgba(244, 63, 94, 0.45), 0 10px 14px -5px rgba(244, 63, 94, 0.25);
+    }
+}
+@keyframes tvBalloonFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-5px) rotate(5deg); }
+}
+@keyframes tvSparkleSpin {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.25); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+.tv-birthday-banner {
+    animation: tvBirthdayPulse 3s ease-in-out infinite;
+    background: linear-gradient(135deg, #ffe4e6 0%, #fef3c7 50%, #fbcfe8 100%);
+    border: 2px solid #fb7185;
+}
+.tv-birthday-balloon {
+    display: inline-block;
+    animation: tvBalloonFloat 2.2s ease-in-out infinite;
+}
+.tv-birthday-sparkle {
+    display: inline-block;
+    animation: tvSparkleSpin 3.5s linear infinite;
+}
