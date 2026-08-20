@@ -271,6 +271,18 @@ window._buildTVContent = function() {
         return tripHasContent(a) || tripHasContent(k);
     });
 
+    if (activeSlots.length === 0) {
+        container.innerHTML = `
+        <div class="flex-1 flex flex-col items-center justify-center py-32 text-center h-full">
+            <div class="w-24 h-24 rounded-3xl bg-orange-100/70 border border-orange-200 text-orange-500 flex items-center justify-center mb-5 text-4xl shadow-sm">
+                ⛵
+            </div>
+            <h3 class="text-3xl font-black text-slate-700 uppercase tracking-widest mb-2">Sin Salidas Programadas</h3>
+            <p class="text-xl font-bold text-slate-400">No hay salidas con buceadores o guías para este día.</p>
+        </div>
+        `;
+    }
+
     activeSlots.forEach((time, slotIdx) => {
         const aresTrip   = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time && !t.cancelled);
         const kaiserTrip = todaysTrips.find(t => t.assignedBoat === 'kaiser' && t.time === time && !t.cancelled);
