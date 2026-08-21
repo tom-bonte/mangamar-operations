@@ -670,24 +670,61 @@ window.renderRegHistoryList = function() {
     }
 
     listContainer.innerHTML = filtered.map(t => {
-        let statusBadge = 'bg-amber-100 text-amber-800 border-amber-300';
-        if (t.status === 'En Taller') statusBadge = 'bg-blue-100 text-blue-800 border-blue-300';
-        if (t.status === 'Listo para Recoger') statusBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-        if (t.status === 'Entregado') statusBadge = 'bg-slate-100 text-slate-600 border-slate-300';
+        let theme = {
+            card: 'bg-amber-50/90 border-amber-300',
+            icon: 'bg-amber-100 text-amber-800 border-amber-300',
+            ticketTag: 'bg-amber-100/90 text-amber-900 border-amber-300',
+            badge: 'bg-amber-500 text-white border-amber-600 shadow-sm',
+            select: 'bg-white/90 border-amber-300 text-amber-900 focus:ring-amber-500',
+            btnEdit: 'bg-amber-100/80 text-amber-900 border-amber-300 hover:bg-amber-200',
+            btnPrint: 'bg-white/90 text-amber-900 border-amber-300 hover:bg-amber-100'
+        };
+
+        if (t.status === 'En Taller') {
+            theme = {
+                card: 'bg-blue-50/90 border-blue-300',
+                icon: 'bg-blue-100 text-blue-800 border-blue-300',
+                ticketTag: 'bg-blue-100/90 text-blue-900 border-blue-300',
+                badge: 'bg-blue-600 text-white border-blue-700 shadow-sm',
+                select: 'bg-white/90 border-blue-300 text-blue-900 focus:ring-blue-500',
+                btnEdit: 'bg-blue-100/80 text-blue-900 border-blue-300 hover:bg-blue-200',
+                btnPrint: 'bg-white/90 text-blue-900 border-blue-300 hover:bg-blue-100'
+            };
+        } else if (t.status === 'Listo para Recoger') {
+            theme = {
+                card: 'bg-emerald-50/90 border-emerald-300',
+                icon: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                ticketTag: 'bg-emerald-100/90 text-emerald-900 border-emerald-300',
+                badge: 'bg-emerald-600 text-white border-emerald-700 shadow-sm',
+                select: 'bg-white/90 border-emerald-300 text-emerald-900 focus:ring-emerald-500',
+                btnEdit: 'bg-emerald-100/80 text-emerald-900 border-emerald-300 hover:bg-emerald-200',
+                btnPrint: 'bg-white/90 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
+            };
+        } else if (t.status === 'Entregado') {
+            theme = {
+                card: 'bg-slate-100/90 border-slate-300 opacity-80 hover:opacity-100',
+                icon: 'bg-slate-200 text-slate-700 border-slate-300',
+                ticketTag: 'bg-slate-200 text-slate-800 border-slate-300',
+                badge: 'bg-slate-600 text-white border-slate-700 shadow-sm',
+                select: 'bg-white/90 border-slate-300 text-slate-800 focus:ring-slate-500',
+                btnEdit: 'bg-slate-200/80 text-slate-800 border-slate-300 hover:bg-slate-300',
+                btnPrint: 'bg-white/90 text-slate-700 border-slate-300 hover:bg-slate-200'
+            };
+        }
 
         return `
-        <div class="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-4 rounded-2xl border-2 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${theme.card}">
             <div class="flex items-start gap-3.5">
-                <div class="w-11 h-11 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center font-black text-xs shrink-0 shadow-inner">
+                <div class="w-11 h-11 rounded-xl border flex items-center justify-center font-black text-xs shrink-0 shadow-inner ${theme.icon}">
                     🤿
                 </div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs font-black text-cyan-700 bg-cyan-100/50 px-2 py-0.5 rounded border border-cyan-200">${t.ticketCode || t.id}</span>
+                        <span class="font-mono text-xs font-black px-2 py-0.5 rounded border ${theme.ticketTag}">${t.ticketCode || t.id}</span>
                         <span class="text-sm font-black text-slate-800">${t.clientName}</span>
-                        <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${statusBadge}">${t.status || 'Pendiente'}</span>
+                        <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${theme.badge}">${t.status || 'Pendiente'}</span>
                     </div>
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-bold mt-1.5">
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 font-bold mt-1.5">
                         <span>📞 ${t.clientPhone}</span>
                         <span>🎛️ ${t.brand || ''} ${t.model || ''} (${t.connection || 'DIN'})</span>
                         <span>📅 Entrada: ${formatEuropeanDate(t.dateEntry)}</span>
@@ -697,16 +734,16 @@ window.renderRegHistoryList = function() {
             </div>
             
             <div class="flex items-center gap-2 shrink-0 self-end md:self-center">
-                <select onchange="window.updateRegStatus('${t.id}', this.value)" class="text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 outline-none cursor-pointer focus:ring-1 focus:ring-cyan-500">
+                <select onchange="window.updateRegStatus('${t.id}', this.value)" class="text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none cursor-pointer focus:ring-1 border ${theme.select}">
                     <option value="Pendiente" ${t.status === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
                     <option value="En Taller" ${t.status === 'En Taller' ? 'selected' : ''}>En Taller</option>
                     <option value="Listo para Recoger" ${t.status === 'Listo para Recoger' ? 'selected' : ''}>Listo para Recoger</option>
                     <option value="Entregado" ${t.status === 'Entregado' ? 'selected' : ''}>Entregado</option>
                 </select>
-                <button onclick="window.openRegMaintenanceModal('${t.id}')" class="px-3 py-1.5 bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-lg text-xs font-black hover:bg-cyan-100 transition-colors flex items-center gap-1 shadow-sm">
+                <button onclick="window.openRegMaintenanceModal('${t.id}')" class="px-3 py-1.5 rounded-lg text-xs font-black transition-colors flex items-center gap-1 shadow-sm border ${theme.btnEdit}">
                     ✏️ Ver / Editar
                 </button>
-                <button onclick="window.loadRegTicketForEdit('${t.id}'); window.printRegService();" class="px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-black hover:bg-slate-200 transition-colors flex items-center gap-1 shadow-sm" title="Imprimir PDF">
+                <button onclick="window.loadRegTicketForEdit('${t.id}'); window.printRegService();" class="px-3 py-1.5 rounded-lg text-xs font-black transition-colors flex items-center gap-1 shadow-sm border ${theme.btnPrint}" title="Imprimir PDF">
                     🖨️ PDF
                 </button>
                 <button onclick="window.deleteRegTicket('${t.id}')" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar orden">
