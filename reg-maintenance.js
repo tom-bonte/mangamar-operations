@@ -251,7 +251,9 @@ window.searchRegCustomer = function(query) {
     }
 
     const matches = customerDatabase.filter(c => {
-        const full = `${c.nombre || ''} ${c.apellido || ''}`.toLowerCase();
+        const full = typeof window.combineFirstAndLastName === 'function' 
+            ? window.combineFirstAndLastName(c.nombre, c.apellido).toLowerCase() 
+            : `${c.nombre || ''} ${c.apellido || ''}`.toLowerCase();
         const dni = (c.dni || '').toLowerCase();
         const phone = (c.telefono || c.phone || '').toLowerCase();
         const email = (c.email || '').toLowerCase();
@@ -265,7 +267,9 @@ window.searchRegCustomer = function(query) {
     }
 
     resultsContainer.innerHTML = matches.map(c => {
-        const fullName = `${c.nombre || ''} ${c.apellido || ''}`.trim();
+        const fullName = typeof window.combineFirstAndLastName === 'function'
+            ? window.combineFirstAndLastName(c.nombre, c.apellido)
+            : `${c.nombre || ''} ${c.apellido || ''}`.trim();
         const phone = c.telefono || c.phone || '---';
         const dni = c.dni || '---';
         const email = c.email || '';
