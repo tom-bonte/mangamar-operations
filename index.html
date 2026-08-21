@@ -3043,10 +3043,6 @@
                                     <span>Sustitución de Latiguillos</span>
                                 </label>
                                 <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                    <input type="checkbox" id="srv-mouthpiece" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
-                                    <span>Cambio de Boquilla</span>
-                                </label>
-                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
                                     <input type="checkbox" id="srv-spool" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
                                     <span>Junta Spool / Manómetro</span>
                                 </label>
@@ -3059,29 +3055,47 @@
                                 <input type="text" id="srv-other" oninput="window.updateRegLivePreview()" placeholder="Otro trabajo o reparación específica..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500">
                             </div>
 
-                            <div class="pt-2 border-t border-slate-100 space-y-3">
+                            <div class="pt-2 border-t border-slate-100">
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Motivo / Síntomas reportados por el cliente</label>
+                                <textarea id="reg-input-symptoms" oninput="window.updateRegLivePreview()" rows="2" placeholder="Ej: Pérdida leve por la 2ª etapa, flujo libre en superficie, revisión periódica..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 5. Technician Workshop & Cost Calculation Box -->
+                        <div class="bg-white p-4 rounded-2xl border border-cyan-200/90 shadow-sm space-y-3">
+                            <h4 class="text-xs font-black text-cyan-900 uppercase tracking-widest flex items-center justify-between">
+                                <span>🔧 Liquidación Taller y Observaciones</span>
+                                <span class="text-[10px] text-cyan-700 font-bold bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200">25 € / hora</span>
+                            </h4>
+                            <div class="grid grid-cols-3 gap-3">
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Motivo / Síntomas reportados por el cliente</label>
-                                    <textarea id="reg-input-symptoms" oninput="window.updateRegLivePreview()" rows="2" placeholder="Ej: Pérdida leve por la 2ª etapa, flujo libre en superficie, revisión periódica..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
-                                </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Presupuesto Máximo (€)</label>
-                                        <input type="number" id="reg-input-budget" oninput="window.updateRegLivePreview()" placeholder="Ej: 120" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">IP Final Objetivo (bar)</label>
-                                        <input type="text" id="reg-input-final-ip" oninput="window.updateRegLivePreview()" value="9.5" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Observaciones / Estado Inicial</label>
-                                    <input type="text" id="reg-input-initial-notes" oninput="window.updateRegLivePreview()" placeholder="Ej: Protector latiguillo agrietado, rayón en carcasa frontal..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kits de Servicio (€)</label>
+                                    <input type="number" id="reg-input-cost-kits" step="0.5" min="0" oninput="window.updateRegLivePreview()" placeholder="0" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Notas Técnicas del Taller (Piezas sustituidas, etc.)</label>
-                                    <textarea id="reg-input-tech-notes" oninput="window.updateRegLivePreview()" rows="2" placeholder="Notas internas para el técnico de taller..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Otros Materiales (€)</label>
+                                    <input type="number" id="reg-input-cost-materials" step="0.5" min="0" oninput="window.updateRegLivePreview()" placeholder="0" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                                 </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Horas Trabajo (h)</label>
+                                    <input type="number" id="reg-input-hours" step="0.25" min="0" oninput="window.updateRegLivePreview()" placeholder="1" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                            </div>
+                            
+                            <!-- Total Calculation Summary Banner -->
+                            <div class="p-3 bg-cyan-50 border border-cyan-200 rounded-xl flex items-center justify-between">
+                                <div class="text-xs text-cyan-900 font-bold">
+                                    <span>Mano de obra: <b id="reg-calc-labor-cost">0.00 €</b></span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[9px] font-black text-cyan-700 uppercase block leading-none">Coste Total Estimado</span>
+                                    <span class="text-base font-mono font-black text-cyan-950" id="reg-calc-total-cost">0.00 €</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Observaciones del Técnico (Remarks / Trabajos)</label>
+                                <textarea id="reg-input-tech-notes" oninput="window.updateRegLivePreview()" rows="2" placeholder="Notas y observaciones del técnico de taller..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
                             </div>
                         </div>
 
@@ -3189,43 +3203,56 @@
                                         <ul id="prev-services-list" class="text-xs space-y-1 text-slate-800"></ul>
                                     </div>
                                     <div class="border border-slate-300 rounded-lg p-2.5 bg-slate-50/50">
-                                        <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">4. SÍNTOMAS Y OBSERVACIONES</div>
-                                        <div class="text-xs text-slate-800 mb-1.5" id="prev-symptoms">Sin incidencias previas.</div>
-                                        <div class="text-[10px] text-slate-500 pt-1 border-t border-slate-200">
-                                            <span class="font-bold">Presupuesto acordado:</span> <span id="prev-budget" class="font-black text-slate-800">---</span>
-                                        </div>
-                                        <div class="text-[10px] text-slate-500 mt-1">
-                                            <span class="font-bold">Estado inicial:</span> <span id="prev-initial-notes" class="text-slate-700">---</span>
-                                        </div>
+                                        <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">4. SÍNTOMAS / MOTIVO DE REVISIÓN</div>
+                                        <div class="text-xs text-slate-800 leading-relaxed" id="prev-symptoms">Sin incidencias previas.</div>
                                     </div>
                                 </div>
 
-                                <!-- 4. Workshop Tests & Verification -->
+                                <!-- 5. Technician Workshop & Cost Breakdown Box -->
                                 <div class="border-2 border-slate-800 rounded-lg p-3 bg-white">
-                                    <div class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2 flex justify-between">
-                                        <span>5. CONTROL TÉCNICO Y PRUEBAS EN BANCO DE TALLER</span>
-                                        <span class="text-slate-500">USO EXCLUSIVO TÉCNICO</span>
+                                    <div class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2 flex justify-between border-b border-slate-200 pb-1">
+                                        <span>5. LIQUIDACIÓN DE TALLER Y OBSERVACIONES</span>
+                                        <span class="text-slate-500 font-normal">Tarifa mano de obra: 25 € / hora</span>
                                     </div>
-                                    <div class="grid grid-cols-4 gap-2 text-xs text-center">
-                                        <div class="border border-slate-200 rounded p-1.5 bg-slate-50">
-                                            <div class="text-[9px] font-bold text-slate-500 uppercase">P. Intermedia (IP)</div>
-                                            <div class="text-sm font-mono font-black text-slate-900 mt-0.5" id="prev-final-ip">9.5 bar</div>
+                                    
+                                    <div class="grid grid-cols-[1fr_270px] gap-4 items-stretch">
+                                        <!-- Left side: Technician remarks & signature -->
+                                        <div class="flex flex-col justify-between space-y-2">
+                                            <div>
+                                                <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Observaciones del Técnico:</div>
+                                                <div id="prev-tech-notes" class="text-xs text-slate-800 leading-relaxed min-h-[55px] p-2 bg-slate-50 border border-slate-200 rounded">
+                                                    Sin observaciones adicionales.
+                                                </div>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 pt-1 border-t border-slate-200">
+                                                <span>Firma / Conforme Técnico: ______________________</span>
+                                            </div>
                                         </div>
-                                        <div class="border border-slate-200 rounded p-1.5 bg-slate-50">
-                                            <div class="text-[9px] font-bold text-slate-500 uppercase">Estanqueidad</div>
-                                            <div class="text-xs font-black text-emerald-700 mt-1">✓ CONFORME</div>
+
+                                        <!-- Right side: Cost Calculation Box -->
+                                        <div class="bg-slate-50 border border-slate-300 rounded-lg p-2.5 space-y-1.5 text-xs flex flex-col justify-between">
+                                            <div>
+                                                <div class="text-[10px] font-black text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-1 mb-1.5">
+                                                    Desglose de Costes
+                                                </div>
+                                                <div class="flex justify-between text-slate-600 text-[11px] py-0.5">
+                                                    <span>Kits de Servicio:</span>
+                                                    <span class="font-mono font-bold text-slate-800" id="prev-cost-kits">0.00 €</span>
+                                                </div>
+                                                <div class="flex justify-between text-slate-600 text-[11px] py-0.5">
+                                                    <span>Otros Materiales:</span>
+                                                    <span class="font-mono font-bold text-slate-800" id="prev-cost-materials">0.00 €</span>
+                                                </div>
+                                                <div class="flex justify-between text-slate-600 text-[11px] py-0.5">
+                                                    <span>Mano de Obra (<span id="prev-hours">0</span> h × 25 €):</span>
+                                                    <span class="font-mono font-bold text-slate-800" id="prev-cost-labor">0.00 €</span>
+                                                </div>
+                                            </div>
+                                            <div class="flex justify-between items-center text-slate-900 font-black text-xs pt-1.5 border-t-2 border-slate-800">
+                                                <span class="uppercase">TOTAL:</span>
+                                                <span class="font-mono text-sm font-black text-slate-900" id="prev-cost-total">0.00 €</span>
+                                            </div>
                                         </div>
-                                        <div class="border border-slate-200 rounded p-1.5 bg-slate-50">
-                                            <div class="text-[9px] font-bold text-slate-500 uppercase">Esfuerzo Resp.</div>
-                                            <div class="text-xs font-black text-emerald-700 mt-1">✓ ÓPTIMO</div>
-                                        </div>
-                                        <div class="border border-slate-200 rounded p-1.5 bg-slate-50">
-                                            <div class="text-[9px] font-bold text-slate-500 uppercase">Firma Técnico</div>
-                                            <div class="text-[10px] text-slate-400 italic mt-1.5">Firma / Sello</div>
-                                        </div>
-                                    </div>
-                                    <div class="text-[10px] text-slate-600 mt-2">
-                                        <span class="font-bold">Notas de intervención / Piezas cambiadas:</span> <span id="prev-tech-notes" class="text-slate-700">---</span>
                                     </div>
                                 </div>
 
@@ -3255,9 +3282,9 @@
                                         <div><span class="text-slate-500 font-bold">Fecha Prevista:</span> <span id="prev-date-pickup-bot" class="font-bold text-slate-800">---</span></div>
                                     </div>
 
-                                    <div class="text-[10px] text-slate-700 pt-1 border-t border-cyan-200/60 flex justify-between">
+                                    <div class="text-[10px] text-slate-700 pt-1 border-t border-cyan-200/60 flex justify-between items-center">
                                         <div><span class="font-bold text-slate-500">Equipo:</span> <span id="prev-brand-bot" class="font-black">Aqualung</span> <span id="prev-model-bot" class="font-black">---</span> (<span id="prev-components-list-bot">---</span>)</div>
-                                        <div class="text-slate-500 font-mono">Tel. Tienda: +34 968 56 30 14</div>
+                                        <div class="text-slate-900 font-bold font-mono">Total: <span id="prev-cost-total-bot">0.00 €</span></div>
                                     </div>
                                 </div>
                             </div>
