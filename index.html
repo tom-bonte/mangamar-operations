@@ -231,6 +231,9 @@
                         <button onclick="openIncidenciaModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Incidencia Reserva Marina
                         </button>
+                        <button onclick="openRegMaintenanceModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                            <svg class="w-5 h-5 text-slate-400 group-hover:text-cyan-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Mantenimiento Reguladores
+                        </button>
                         <button onclick="openSettingsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Ajustes
                         </button>
@@ -2799,6 +2802,503 @@
         </div>
     </div>
 
+    <!-- ============================================ -->
+    <!-- MANTENIMIENTO DE REGULADORES MODAL           -->
+    <!-- ============================================ -->
+    <div id="reg-maintenance-modal" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] border border-slate-200 overflow-hidden flex flex-col" style="height: 96vh;">
+            
+            <!-- Modal Header -->
+            <div id="reg-maintenance-modal-header" class="p-4 border-b border-slate-100 flex flex-wrap gap-3 justify-between items-center bg-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center font-black text-lg shrink-0 shadow-inner">
+                        🛠️
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                            Mantenimiento y Revisión de Reguladores
+                        </h3>
+                        <p class="text-xs text-slate-400 font-bold">Ficha de entrada en taller, control de estado e impresión de resguardo</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+                        <button id="reg-btn-tab-form" onclick="window.switchRegTab('form')" class="px-4 py-2 text-xs font-black rounded-xl bg-cyan-600 text-white shadow-sm transition-all flex items-center gap-1.5">
+                            <span>📝 Ficha / Impresión</span>
+                        </button>
+                        <button id="reg-btn-tab-history" onclick="window.switchRegTab('history')" class="px-4 py-2 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all flex items-center gap-1.5">
+                            <span>📋 Historial de Órdenes</span>
+                        </button>
+                    </div>
+
+                    <button onclick="window.resetRegForm()" class="px-3.5 py-2 bg-slate-50 text-slate-700 border border-slate-200 font-black text-xs rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm" title="Nueva Ficha en blanco">
+                        <span>➕ Nueva Ficha</span>
+                    </button>
+                    <button onclick="window.saveRegServiceTicket()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm hover:shadow">
+                        <span>💾 Guardar</span>
+                    </button>
+                    <button onclick="window.printRegService()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm hover:shadow">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        <span>Imprimir / PDF</span>
+                    </button>
+                    <button onclick="window.closeRegMaintenanceModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-colors ml-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="flex-1 overflow-hidden flex flex-col bg-slate-100">
+                
+                <!-- TAB 1: FORM + LIVE PREVIEW -->
+                <div id="reg-tab-form" class="flex-1 overflow-hidden flex flex-col lg:flex-row">
+                    
+                    <!-- LEFT COLUMN: INPUT WIZARD -->
+                    <div id="reg-form-inputs-container" class="w-full lg:w-[48%] xl:w-[45%] overflow-y-auto p-4 lg:p-6 bg-slate-50 border-r border-slate-200 space-y-6">
+                        
+                        <!-- CRM Customer Quick Search -->
+                        <div class="bg-white p-4 rounded-2xl border border-cyan-200/80 shadow-sm relative">
+                            <label class="block text-xs font-black text-cyan-800 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                <span>🔍 Buscar Cliente en CRM (Rellenar Automático)</span>
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="reg-crm-search-input" oninput="window.searchRegCustomer(this.value)" placeholder="Escribe nombre, teléfono o DNI..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all shadow-inner">
+                                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            </div>
+                            <div id="reg-crm-search-results" class="absolute left-4 right-4 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 max-h-56 overflow-y-auto hidden z-50 divide-y divide-slate-100"></div>
+                        </div>
+
+                        <!-- 1. Intake Header Meta -->
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                <span>📌 Datos de la Orden</span>
+                            </h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nº Ficha / Ticket</label>
+                                    <input type="text" id="reg-input-ticket-id" oninput="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-black text-cyan-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha Entrada</label>
+                                    <input type="date" id="reg-input-date-entry" onchange="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha Prevista Recogida</label>
+                                    <input type="date" id="reg-input-date-pickup" onchange="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                                </div>
+                                <div class="col-span-2 md:col-span-2">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Recepcionado por</label>
+                                    <select id="reg-input-staff" onchange="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                                        <option value="">— Seleccionar personal —</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Estado</label>
+                                    <select id="reg-input-status" onchange="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                                        <option value="Pendiente">Pendiente</option>
+                                        <option value="En Taller">En Taller</option>
+                                        <option value="Listo para Recoger">Listo para Recoger</option>
+                                        <option value="Entregado">Entregado</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Client Details -->
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                <span>👤 Datos del Cliente</span>
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-black text-rose-600 uppercase mb-1">Nombre Completo *</label>
+                                    <input type="text" id="reg-input-name" oninput="window.updateRegLivePreview()" placeholder="Nombre del cliente..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-inner" required>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-black text-rose-600 uppercase mb-1">Teléfono / WhatsApp *</label>
+                                    <input type="text" id="reg-input-phone" oninput="window.updateRegLivePreview()" placeholder="+34 600 000 000" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-inner" required>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Correo Electrónico</label>
+                                    <input type="email" id="reg-input-email" oninput="window.updateRegLivePreview()" placeholder="cliente@correo.com" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">DNI / NIE / Pasaporte</label>
+                                    <input type="text" id="reg-input-dni" oninput="window.updateRegLivePreview()" placeholder="12345678Z" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Gear / Regulator Info -->
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                <span>🤿 Datos del Regulador</span>
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Marca</label>
+                                    <select id="reg-input-brand" onchange="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                                        <option value="Aqualung">Aqualung</option>
+                                        <option value="Apeks">Apeks</option>
+                                        <option value="Scubapro">Scubapro</option>
+                                        <option value="Mares">Mares</option>
+                                        <option value="Cressi">Cressi</option>
+                                        <option value="Atomic Aquatics">Atomic Aquatics</option>
+                                        <option value="Poseidon">Poseidon</option>
+                                        <option value="Halcyon">Halcyon</option>
+                                        <option value="Tecline">Tecline</option>
+                                        <option value="Beuchat">Beuchat</option>
+                                        <option value="Hollis">Hollis</option>
+                                        <option value="Oceanic">Oceanic</option>
+                                        <option value="Sherwood">Sherwood</option>
+                                        <option value="Otra...">Otra...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modelo</label>
+                                    <input type="text" id="reg-input-model" oninput="window.updateRegLivePreview()" placeholder="Ej: Legend, XTX50..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Conexión</label>
+                                    <select id="reg-input-conn" onchange="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                                        <option value="DIN 300">DIN 300 bar</option>
+                                        <option value="DIN 200">DIN 200 bar</option>
+                                        <option value="INT">INT / Estribo</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nº Serie 1ª Etapa</label>
+                                    <input type="text" id="reg-input-serial1" oninput="window.updateRegLivePreview()" placeholder="Nº serie 1ª etapa..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nº Serie 2ª Etapa / Octopus</label>
+                                    <input type="text" id="reg-input-serial2" oninput="window.updateRegLivePreview()" placeholder="Nº serie 2ª etapa..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                            </div>
+
+                            <!-- Component Checklist -->
+                            <div class="pt-2 border-t border-slate-100">
+                                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Componentes Entregados</label>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input type="checkbox" id="comp-1st" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
+                                        <span>1ª Etapa</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input type="checkbox" id="comp-2nd-main" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
+                                        <span>2ª Etapa Ppal</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input type="checkbox" id="comp-2nd-octo" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
+                                        <span>Octopus</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input type="checkbox" id="comp-spg" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
+                                        <span>Manómetro</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input type="checkbox" id="comp-bcd" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
+                                        <span>Latiguillo BCD</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input type="checkbox" id="comp-dry" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                        <span>Latig. Seco</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input type="checkbox" id="comp-tx" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                        <span>Transmisor</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input type="checkbox" id="comp-bag" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                        <span>Bolsa Reg.</span>
+                                    </label>
+                                </div>
+                                <div class="mt-2">
+                                    <input type="text" id="comp-other" oninput="window.updateRegLivePreview()" placeholder="Otros accesorios incluidos (protectores, etc.)..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Services Checklist & Symptoms -->
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                <span>⚙️ Trabajo Solicitado y Síntomas</span>
+                            </h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="checkbox" id="srv-annual" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
+                                    <span>Revisión Anual Completa</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="checkbox" id="srv-ip-adj" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                    <span>Ajuste Presión Intermedia / Flujo</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="checkbox" id="srv-ultrasonic" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                    <span>Limpieza Ultrasonidos</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="checkbox" id="srv-hoses" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                    <span>Sustitución de Latiguillos</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="checkbox" id="srv-mouthpiece" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                    <span>Cambio de Boquilla</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="checkbox" id="srv-spool" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                    <span>Junta Spool / Manómetro</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="checkbox" id="srv-o2" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
+                                    <span>Servicio Oxígeno / O2 Clean</span>
+                                </label>
+                            </div>
+                            <div class="mt-2">
+                                <input type="text" id="srv-other" oninput="window.updateRegLivePreview()" placeholder="Otro trabajo o reparación específica..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                            </div>
+
+                            <div class="pt-2 border-t border-slate-100 space-y-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Motivo / Síntomas reportados por el cliente</label>
+                                    <textarea id="reg-input-symptoms" oninput="window.updateRegLivePreview()" rows="2" placeholder="Ej: Pérdida leve por la 2ª etapa, flujo libre en superficie, revisión periódica..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Presupuesto Máximo (€)</label>
+                                        <input type="number" id="reg-input-budget" oninput="window.updateRegLivePreview()" placeholder="Ej: 120" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">IP Final Objetivo (bar)</label>
+                                        <input type="text" id="reg-input-final-ip" oninput="window.updateRegLivePreview()" value="9.5" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Observaciones / Estado Inicial</label>
+                                    <input type="text" id="reg-input-initial-notes" oninput="window.updateRegLivePreview()" placeholder="Ej: Protector latiguillo agrietado, rayón en carcasa frontal..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Notas Técnicas del Taller (Piezas sustituidas, etc.)</label>
+                                    <textarea id="reg-input-tech-notes" oninput="window.updateRegLivePreview()" rows="2" placeholder="Notas internas para el técnico de taller..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- RIGHT COLUMN: LIVE PRINTABLE A4 SHEET PREVIEW -->
+                    <div class="flex-1 overflow-y-auto p-4 lg:p-6 flex justify-center bg-slate-200/70">
+                        
+                        <!-- The A4 Sheet Box -->
+                        <div id="reg-service-printable-sheet" class="w-full max-w-[800px] bg-white rounded-xl shadow-2xl p-8 border border-slate-300 text-slate-800 flex flex-col justify-between" style="min-height: 1050px; font-family: Arial, sans-serif;">
+                            
+                            <!-- MAIN WORK ORDER SHEET (FOR WORKSHOP & ARCHIVE) -->
+                            <div class="space-y-4">
+                                
+                                <!-- Header & Logo -->
+                                <div class="flex justify-between items-start border-b-2 border-slate-800 pb-3">
+                                    <div class="flex items-center gap-3">
+                                        <img src="Mangamar.png" class="h-12 w-auto object-contain" alt="Mangamar Dive Center">
+                                        <div>
+                                            <div class="text-base font-black tracking-tight text-slate-900 leading-none">MANGAMAR DIVE CENTER</div>
+                                            <div class="text-[9px] text-slate-500 font-bold mt-1">
+                                                Puerto de Cabo de Palos • Cartagena (Murcia) • Tel: +34 968 56 30 14<br>
+                                                CIF: B-73785442 • info@mangamar.es • www.mangamar.es
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="inline-block bg-slate-900 text-white font-mono font-black text-sm px-3 py-1 rounded-md shadow-sm">
+                                            ORDEN: <span id="prev-ticket-code">REG-26-001</span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-500 font-bold mt-1">
+                                            Estado: <span id="prev-status" class="font-black text-slate-800 uppercase">Pendiente</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-center py-1 bg-cyan-50 border border-cyan-200 rounded text-xs font-black text-cyan-900 uppercase tracking-wider">
+                                    FICHA DE RECEPCIÓN Y MANTENIMIENTO DE REGULADORES
+                                </div>
+
+                                <!-- Meta Grid (Dates & Staff) -->
+                                <div class="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs">
+                                    <div><span class="font-bold text-slate-500">Fecha Entrada:</span> <span id="prev-date-entry" class="font-black text-slate-800">---</span></div>
+                                    <div><span class="font-bold text-slate-500">Fecha Prevista:</span> <span id="prev-date-pickup" class="font-black text-slate-800">---</span></div>
+                                    <div><span class="font-bold text-slate-500">Atendido por:</span> <span id="prev-staff" class="font-black text-slate-800">---</span></div>
+                                </div>
+
+                                <!-- 1. Client Details Table -->
+                                <div>
+                                    <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">1. DATOS DEL CLIENTE</div>
+                                    <table class="w-full text-xs border border-slate-300">
+                                        <tr class="bg-slate-100 font-bold text-slate-700 border-b border-slate-300">
+                                            <td class="p-1.5 w-1/2 border-r border-slate-300">NOMBRE Y APELLIDOS</td>
+                                            <td class="p-1.5 w-1/4 border-r border-slate-300">TELÉFONO / WHATSAPP</td>
+                                            <td class="p-1.5 w-1/4">DNI / PASAPORTE</td>
+                                        </tr>
+                                        <tr class="border-b border-slate-200 font-bold text-slate-800">
+                                            <td class="p-1.5 border-r border-slate-300" id="prev-client-name">---</td>
+                                            <td class="p-1.5 border-r border-slate-300 font-mono" id="prev-client-phone">---</td>
+                                            <td class="p-1.5 font-mono" id="prev-client-dni">---</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="3" class="p-1.5 text-slate-600 bg-slate-50 text-[11px]">
+                                                <span class="font-bold text-slate-500">Email:</span> <span id="prev-client-email">---</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <!-- 2. Equipment Details Table -->
+                                <div>
+                                    <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">2. DATOS DEL EQUIPO EN TALLER</div>
+                                    <table class="w-full text-xs border border-slate-300">
+                                        <tr class="bg-slate-100 font-bold text-slate-700 border-b border-slate-300">
+                                            <td class="p-1.5 w-1/3 border-r border-slate-300">MARCA</td>
+                                            <td class="p-1.5 w-1/3 border-r border-slate-300">MODELO</td>
+                                            <td class="p-1.5 w-1/3">TIPO CONEXIÓN</td>
+                                        </tr>
+                                        <tr class="border-b border-slate-200 font-bold text-slate-800">
+                                            <td class="p-1.5 border-r border-slate-300" id="prev-brand">Aqualung</td>
+                                            <td class="p-1.5 border-r border-slate-300" id="prev-model">---</td>
+                                            <td class="p-1.5 font-mono" id="prev-conn">DIN</td>
+                                        </tr>
+                                        <tr class="text-[11px] text-slate-700 border-b border-slate-200">
+                                            <td colspan="2" class="p-1.5 border-r border-slate-300">
+                                                <span class="font-bold text-slate-500">Nº Serie 1ª Etapa:</span> <span id="prev-serial1" class="font-mono">---</span>
+                                            </td>
+                                            <td class="p-1.5">
+                                                <span class="font-bold text-slate-500">Nº Serie 2ª:</span> <span id="prev-serial2" class="font-mono">---</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="3" class="p-2 bg-slate-50">
+                                                <span class="font-bold text-slate-500 text-[10px] uppercase block mb-1">Componentes entregados:</span>
+                                                <div id="prev-components-list" class="flex flex-wrap gap-1"></div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <!-- 3. Service Requested & Symptoms -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="border border-slate-300 rounded-lg p-2.5 bg-slate-50/50">
+                                        <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">3. TRABAJOS SOLICITADOS</div>
+                                        <ul id="prev-services-list" class="text-xs space-y-1 text-slate-800"></ul>
+                                    </div>
+                                    <div class="border border-slate-300 rounded-lg p-2.5 bg-slate-50/50">
+                                        <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">4. SÍNTOMAS Y OBSERVACIONES</div>
+                                        <div class="text-xs text-slate-800 mb-1.5" id="prev-symptoms">Sin incidencias previas.</div>
+                                        <div class="text-[10px] text-slate-500 pt-1 border-t border-slate-200">
+                                            <span class="font-bold">Presupuesto acordado:</span> <span id="prev-budget" class="font-black text-slate-800">---</span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-500 mt-1">
+                                            <span class="font-bold">Estado inicial:</span> <span id="prev-initial-notes" class="text-slate-700">---</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 4. Workshop Tests & Verification -->
+                                <div class="border-2 border-slate-800 rounded-lg p-3 bg-white">
+                                    <div class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2 flex justify-between">
+                                        <span>5. CONTROL TÉCNICO Y PRUEBAS EN BANCO DE TALLER</span>
+                                        <span class="text-slate-500">USO EXCLUSIVO TÉCNICO</span>
+                                    </div>
+                                    <div class="grid grid-cols-4 gap-2 text-xs text-center">
+                                        <div class="border border-slate-200 rounded p-1.5 bg-slate-50">
+                                            <div class="text-[9px] font-bold text-slate-500 uppercase">P. Intermedia (IP)</div>
+                                            <div class="text-sm font-mono font-black text-slate-900 mt-0.5" id="prev-final-ip">9.5 bar</div>
+                                        </div>
+                                        <div class="border border-slate-200 rounded p-1.5 bg-slate-50">
+                                            <div class="text-[9px] font-bold text-slate-500 uppercase">Estanqueidad</div>
+                                            <div class="text-xs font-black text-emerald-700 mt-1">✓ CONFORME</div>
+                                        </div>
+                                        <div class="border border-slate-200 rounded p-1.5 bg-slate-50">
+                                            <div class="text-[9px] font-bold text-slate-500 uppercase">Esfuerzo Resp.</div>
+                                            <div class="text-xs font-black text-emerald-700 mt-1">✓ ÓPTIMO</div>
+                                        </div>
+                                        <div class="border border-slate-200 rounded p-1.5 bg-slate-50">
+                                            <div class="text-[9px] font-bold text-slate-500 uppercase">Firma Técnico</div>
+                                            <div class="text-[10px] text-slate-400 italic mt-1.5">Firma / Sello</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-[10px] text-slate-600 mt-2">
+                                        <span class="font-bold">Notas de intervención / Piezas cambiadas:</span> <span id="prev-tech-notes" class="text-slate-700">---</span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <!-- TEAR-OFF CLIENT RECEIPT (BOTTOM SLIP) -->
+                            <div class="pt-4 mt-4 border-t-2 border-dashed border-slate-400">
+                                <div class="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    <span>✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</span>
+                                </div>
+                                
+                                <div class="p-3 bg-cyan-50/50 border border-cyan-200 rounded-lg space-y-2">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="text-xs font-black text-slate-900 uppercase">MANGAMAR DIVE CENTER — RESGUARDO DE DEPÓSITO</div>
+                                            <div class="text-[9px] text-slate-500">Presentar este resguardo o DNI para la retirada del equipo en tienda.</div>
+                                        </div>
+                                        <div class="text-right font-mono text-xs font-black bg-slate-900 text-white px-2.5 py-0.5 rounded">
+                                            <span id="prev-ticket-code-bot">REG-26-001</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1 border-t border-cyan-200/60">
+                                        <div><span class="text-slate-500 font-bold">Cliente:</span> <span id="prev-client-name-bot" class="font-black text-slate-800">---</span></div>
+                                        <div><span class="text-slate-500 font-bold">Teléfono:</span> <span id="prev-client-phone-bot" class="font-black text-slate-800">---</span></div>
+                                        <div><span class="text-slate-500 font-bold">Fecha Entrada:</span> <span id="prev-date-entry-bot" class="font-bold text-slate-800">---</span></div>
+                                        <div><span class="text-slate-500 font-bold">Fecha Prevista:</span> <span id="prev-date-pickup-bot" class="font-bold text-slate-800">---</span></div>
+                                    </div>
+
+                                    <div class="text-[10px] text-slate-700 pt-1 border-t border-cyan-200/60 flex justify-between">
+                                        <div><span class="font-bold text-slate-500">Equipo:</span> <span id="prev-brand-bot" class="font-black">Aqualung</span> <span id="prev-model-bot" class="font-black">---</span> (<span id="prev-components-list-bot">---</span>)</div>
+                                        <div class="text-slate-500 font-mono">Tel. Tienda: +34 968 56 30 14</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- TAB 2: HISTORY LIST -->
+                <div id="reg-tab-history" class="flex-1 overflow-y-auto p-4 lg:p-6 hidden bg-slate-50 space-y-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center justify-between">
+                        <div class="flex items-center gap-3 flex-1 min-w-[280px]">
+                            <div class="relative flex-1">
+                                <input type="text" id="reg-history-search" oninput="window.renderRegHistoryList()" placeholder="Buscar por cliente, ticket, teléfono, marca..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            </div>
+                            <select id="reg-history-filter-status" onchange="window.renderRegHistoryList()" class="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                                <option value="ALL">Todos los Estados</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="En Taller">En Taller</option>
+                                <option value="Listo para Recoger">Listo para Recoger</option>
+                                <option value="Entregado">Entregado</option>
+                            </select>
+                        </div>
+                        <div class="text-xs font-black text-slate-500" id="reg-history-count">
+                            0 órdenes
+                        </div>
+                    </div>
+
+                    <div id="reg-history-container" class="space-y-3">
+                        <!-- Rendered by window.renderRegHistoryList() -->
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
     <div id="price-list-modal" class="fixed inset-0 z-[400] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) closePriceModal()">
         <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] md:h-[90vh]">
             <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
@@ -3187,6 +3687,7 @@
     <script src="course-manager.js?v=2"></script>
     <script src="staff-schedule.js?v=2"></script>
     <script src="contacts-manager.js"></script>
+    <script src="reg-maintenance.js?v=1"></script>
 
     <!-- Contacts Modal -->
     <div id="contacts-modal" onclick="if(event.target===this) closeContactsModal()" class="fixed inset-0 z-[60] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer">
