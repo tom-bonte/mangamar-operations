@@ -2,12 +2,39 @@
 // 13. MODERN TV DASHBOARD ENGINE (ROW-BASED + GROUPED)
 // ==========================================
 
+// Track active visible time slot on TV screen
+window._tvActiveTimeSlot = null;
+
+function initTvScrollTracking() {
+    const scrollContainer = document.getElementById('tv-scroll-container');
+    if (!scrollContainer || scrollContainer._hasTvScrollListener) return;
+    scrollContainer._hasTvScrollListener = true;
+    scrollContainer.addEventListener('scroll', () => {
+        const rows = scrollContainer.querySelectorAll('.snap-start[data-time]');
+        let closestTime = null;
+        let minDiff = Infinity;
+        const sTop = scrollContainer.scrollTop;
+        rows.forEach(r => {
+            const diff = Math.abs(r.offsetTop - sTop);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestTime = r.dataset.time;
+            }
+        });
+        if (closestTime) {
+            window._tvActiveTimeSlot = closestTime;
+        }
+    }, { passive: true });
+}
+
 window.openTVView = function() {
-    // Build content first
-    window._buildTVContent();
+    // Reset active slot when opening fresh
+    window._tvActiveTimeSlot = null;
+    window._buildTVContent(false);
 
     document.getElementById('tv-view-modal').classList.remove('hidden');
-    setTimeout(window.adjustCardScaling, 50);
+    initTvScrollTracking();
+    setTimeout(() => window.adjustCardScaling(), 50);
 
     // START TV CLOCK
     if (window.tvClockInterval) clearInterval(window.tvClockInterval);
@@ -21,20 +48,14 @@ window.openTVView = function() {
         clockEl.innerText = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }, 1000);
 
-    // LIVE ARRIVED REFRESH: Re-render the content grid every 8s to show checkmark changes
+    // LIVE ARRIVED REFRESH: Re-render the content grid every 8s to show checkmark changes while strictly preserving the current salida
     if (window.tvArrivedRefreshInterval) clearInterval(window.tvArrivedRefreshInterval);
     window.tvArrivedRefreshInterval = setInterval(() => {
         if (document.getElementById('tv-view-modal').classList.contains('hidden')) {
             clearInterval(window.tvArrivedRefreshInterval);
             return;
         }
-        // Rebuild content grid while preserving scroll position
-        const container = document.getElementById('tv-content-grid');
-        if (container) {
-            const scrollTop = container.scrollTop;
-            window._buildTVContent();
-            container.scrollTop = scrollTop;
-        }
+        window._buildTVContent(true);
     }, 8000);
 }
 
@@ -157,9 +178,27 @@ window.getTVBirthdays = function(todaysTrips, targetDateStr) {
 };
 
 // Core render function — builds the content grid from in-memory trip data
-window._buildTVContent = function() {
+window._buildTVContent = function(preserveActiveSlot = true) {
     const container = document.getElementById('tv-content-grid');
+    const scrollContainer = document.getElementById('tv-scroll-container');
     if (!container) return;
+
+    initTvScrollTracking();
+
+    // Remember the currently viewed time slot so we never jump or shift unexpectedly
+    let targetTime = preserveActiveSlot ? window._tvActiveTimeSlot : null;
+    if (preserveActiveSlot && !targetTime && scrollContainer) {
+        const rows = scrollContainer.querySelectorAll('.snap-start[data-time]');
+        let minDiff = Infinity;
+        const sTop = scrollContainer.scrollTop;
+        rows.forEach(r => {
+            const diff = Math.abs(r.offsetTop - sTop);
+            if (diff < minDiff) {
+                minDiff = diff;
+                targetTime = r.dataset.time;
+            }
+        });
+    }
 
     container.innerHTML = '';
 
@@ -292,6 +331,8 @@ window._buildTVContent = function() {
         // snap-start tells the browser to align this row's top to the container's top
         const rowWrapper = document.createElement('div');
         rowWrapper.className = "grid grid-cols-[200px_1fr_1fr] gap-x-8 items-stretch min-h-full snap-start py-12 border-b border-slate-100 last:border-0 shrink-0";
+        rowWrapper.dataset.time = time;
+        rowWrapper.id = `tv-row-${time.replace(':', '')}`;
 
         // Build a lookup: diver NAME (normalised) → previous boat label
         // (only for divers in the immediately preceding time slot)
@@ -521,12 +562,12 @@ window._buildTVContent = function() {
         container.appendChild(rowWrapper);
     });
 
-    // Run scaling adjustment after DOM attachment
-    setTimeout(window.adjustCardScaling, 0);
+    // Run scaling adjustment and restore scroll position to target time slot
+    setTimeout(() => window.adjustCardScaling(targetTime), 0);
 }
 
 // Dynamic scaling for TV cards so they always fit perfectly in the viewport height
-window.adjustCardScaling = function() {
+window.adjustCardScaling = function(targetTime = null) {
     const scrollContainer = document.getElementById('tv-scroll-container');
     if (!scrollContainer) return;
 
@@ -534,7 +575,7 @@ window.adjustCardScaling = function() {
     const budget = scrollContainer.clientHeight - 96;
     if (budget <= 0) {
         // If not loaded/visible yet, retry shortly
-        setTimeout(window.adjustCardScaling, 100);
+        setTimeout(() => window.adjustCardScaling(targetTime), 100);
         return;
     }
 
@@ -567,6 +608,15 @@ window.adjustCardScaling = function() {
             });
         }
     });
+
+    // Scroll to the active target time slot without any jumping
+    const activeTime = targetTime || window._tvActiveTimeSlot;
+    if (activeTime) {
+        const targetRow = scrollContainer.querySelector(`.snap-start[data-time="${activeTime}"]`);
+        if (targetRow) {
+            scrollContainer.scrollTop = targetRow.offsetTop;
+        }
+    }
 };
 
 // Listen to window resizing to dynamically scale cards in real-time

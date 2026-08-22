@@ -1052,8 +1052,10 @@ window.mergeAndRender = function mergeAndRender() {
         if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
         // Auto-refresh the TV board if it is currently open
         const tvModal = document.getElementById('tv-view-modal');
-        if (tvModal && !tvModal.classList.contains('hidden') && typeof openTVView === 'function') {
-            openTVView();
+        if (tvModal && !tvModal.classList.contains('hidden')) {
+            if (typeof window._buildTVContent === 'function') {
+                window._buildTVContent(true);
+            }
         }
     });
 }
