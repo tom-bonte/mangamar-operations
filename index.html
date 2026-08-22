@@ -232,7 +232,7 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Incidencia Reserva Marina
                         </button>
                         <button onclick="openRegMaintenanceModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5 text-slate-400 group-hover:text-cyan-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Mantenimiento Reguladores
+                            <svg class="w-5 h-5 text-slate-400 group-hover:text-cyan-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Mantenimiento Reguladores
                         </button>
                         <button onclick="openSettingsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Ajustes
@@ -900,31 +900,73 @@
     </div>
 
     <!-- Settings Modal -->
-    <div id="settings-modal" class="fixed inset-0 z-[300] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) this.classList.add('hidden')">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 p-6 overflow-hidden flex flex-col">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Ajustes
-                </h3>
-                <button onclick="document.getElementById('settings-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    <div id="settings-modal" class="fixed inset-0 z-[300] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 overflow-y-auto" onclick="if(event.target === this) this.classList.add('hidden')">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl border border-slate-200 p-6 md:p-8 my-8 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-100 mb-6 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center font-black shadow-inner">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-black text-slate-800 tracking-tight">Ajustes y Configuración</h3>
+                        <p class="text-xs font-bold text-slate-400">Preferencias del sistema y visualización de operaciones</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('settings-modal').classList.add('hidden')" class="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
             </div>
             
-            <div class="space-y-6 flex-1 py-2">
-                <!-- Setting Item 1: Radio times on TV screen -->
-                <div class="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100/50 transition-colors">
+            <div class="space-y-6 flex-1 overflow-y-auto pr-1">
+                <!-- Setting Section 1: Staff Days Off (Libranzas en Cabecera Diaria) -->
+                <div class="bg-slate-50/80 border border-slate-200 rounded-2xl p-5 space-y-4">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                <span>🏖️ Alertas de Días Libres en Vista Diaria</span>
+                            </div>
+                            <p class="text-xs text-slate-500 font-bold mt-1">
+                                Selecciona qué capitanes, instructores y guías quieres monitorizar en la parte superior del planning diario cuando tengan día libre (Libranza).
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Capitanes -->
+                    <div class="pt-2 border-t border-slate-200/60">
+                        <div class="text-xs font-black text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span> Capitanes / Patrones
+                        </div>
+                        <div id="settings-tracked-captains-container" class="flex flex-wrap gap-2">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Instructores y Guías -->
+                    <div class="pt-3 border-t border-slate-200/60">
+                        <div class="text-xs font-black text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-orange-500"></span> Instructores y Guías
+                        </div>
+                        <div id="settings-tracked-guides-container" class="flex flex-wrap gap-2">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Setting Section 2: Radio times on TV screen -->
+                <div class="flex items-center justify-between p-5 bg-slate-50/80 border border-slate-200 rounded-2xl hover:bg-slate-100/60 transition-colors">
                     <div class="flex-1 pr-4">
                         <span class="block text-sm font-black text-slate-800 uppercase tracking-tight">Tiempos de Radio en TV</span>
-                        <span class="block text-xs font-bold text-slate-400 mt-1">Muestra la sección inferior de 'Salida Anterior' con los horarios de comunicación por radio de Ares y Kaiser.</span>
+                        <span class="block text-xs font-bold text-slate-500 mt-1">Muestra la sección inferior de 'Salida Anterior' con los horarios de comunicación por radio de Ares y Kaiser en la pantalla TV.</span>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
                         <input type="checkbox" id="setting-toggle-radio-times" class="sr-only peer" onchange="window.handleSettingsRadioTimesToggle(this.checked)">
-                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 shadow-inner"></div>
                     </label>
                 </div>
             </div>
             
-            <div class="mt-8 flex gap-3">
-                <button onclick="document.getElementById('settings-modal').classList.add('hidden')" class="w-full py-3 rounded-xl text-sm font-black text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors shadow-sm text-center">Aceptar</button>
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end shrink-0">
+                <button onclick="document.getElementById('settings-modal').classList.add('hidden')" class="px-6 py-2.5 rounded-xl text-sm font-black text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-md active:scale-95">Aceptar</button>
             </div>
         </div>
     </div>

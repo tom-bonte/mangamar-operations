@@ -486,29 +486,85 @@ function renderDailyAlerts(targetDateStr) {
     const monthKey = targetDateStr.substring(0, 7);
     const schedule = window.staffSchedulesData ? window.staffSchedulesData.get(monthKey) : null;
     
-    const captainsOff = [];
-    const captains = window.staffDatabase ? (window.staffDatabase.capitanes || []) : [];
-    
-    if (schedule && schedule.daysOff) {
-        captains.forEach(captain => {
-            const list = schedule.daysOff[captain.nombre] || [];
-            if (list.includes(targetDateStr)) {
-                // Get display name: Abel, Tom, etc.
-                const firstName = window.getFirstName ? window.getFirstName(captain.nombre) : captain.nombre;
-                const capitalized = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-                captainsOff.push(capitalized);
-            }
-        });
+    if (!schedule || !schedule.daysOff) {
+        alertsContainer.classList.add('hidden');
+        return;
     }
+
+    let tracked = window.appSettings?.trackedStaffOff;
+    if (!Array.isArray(tracked)) {
+        tracked = ['Abel', 'Antonio'];
+    }
+
+    const allStaff = [
+        ...(window.staffDatabase?.capitanes || []).map(s => ({ ...s, isCaptain: true })),
+        ...(window.staffDatabase?.guias || []).map(s => ({ ...s, isGuide: true }))
+    ];
+
+    const isTracked = (name) => {
+        const norm = String(name).trim().toLowerCase();
+        const first = norm.split(' ')[0];
+        return tracked.some(t => {
+            const tNorm = String(t).trim().toLowerCase();
+            const tFirst = tNorm.split(' ')[0];
+            return tNorm === norm || tFirst === first || norm.includes(tNorm) || tNorm.includes(norm);
+        });
+    };
+
+    const staffOff = [];
+
+    allStaff.forEach(person => {
+        if (!isTracked(person.nombre)) return;
+
+        // Check if person has day off in schedule
+        let daysOffList = schedule.daysOff[person.nombre];
+        if (!daysOffList) {
+            // Check by matching key in daysOff
+            const matchingKey = Object.keys(schedule.daysOff).find(k => {
+                const kNorm = k.toLowerCase().trim();
+                const pNorm = person.nombre.toLowerCase().trim();
+                return kNorm === pNorm || kNorm.split(' ')[0] === pNorm.split(' ')[0];
+            });
+            if (matchingKey) {
+                daysOffList = schedule.daysOff[matchingKey];
+            }
+        }
+
+        if (Array.isArray(daysOffList) && daysOffList.includes(targetDateStr)) {
+            const firstName = window.getFirstName ? window.getFirstName(person.nombre) : person.nombre;
+            const capitalized = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+            staffOff.push({
+                name: capitalized,
+                isCaptain: !!person.isCaptain
+            });
+        }
+    });
+
+    // Remove duplicates if any
+    const uniqueStaffOff = [];
+    const seen = new Set();
+    staffOff.forEach(item => {
+        if (!seen.has(item.name.toLowerCase())) {
+            seen.add(item.name.toLowerCase());
+            uniqueStaffOff.push(item);
+        }
+    });
     
-    if (captainsOff.length > 0) {
+    if (uniqueStaffOff.length > 0) {
         alertsContainer.classList.remove('hidden');
-        captainsOff.forEach(name => {
+        uniqueStaffOff.forEach(item => {
             const badge = document.createElement('div');
-            badge.className = 'flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse';
+            const colorClass = item.isCaptain 
+                ? 'bg-rose-50 border-rose-200 text-rose-700' 
+                : 'bg-amber-50 border-amber-200 text-amber-800';
+            const iconSvg = item.isCaptain 
+                ? '<svg class="w-3.5 h-3.5 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
+                : '<span class="text-xs">🤿</span>';
+
+            badge.className = `flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse ${colorClass}`;
             badge.innerHTML = `
-                <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                <span>${name} libre</span>
+                ${iconSvg}
+                <span>${item.name} libre</span>
             `;
             alertsContainer.appendChild(badge);
         });
@@ -1441,8 +1497,111 @@ window.openSettingsModal = function() {
     if (toggleInput) {
         toggleInput.checked = window.appSettings.showTVRadioTimes !== false;
     }
+    
+    if (typeof window.renderSettingsStaffTrackers === 'function') {
+        window.renderSettingsStaffTrackers();
+    }
+    
     const modal = document.getElementById('settings-modal');
     if (modal) modal.classList.remove('hidden');
+};
+
+window.renderSettingsStaffTrackers = function() {
+    const captainsContainer = document.getElementById('settings-tracked-captains-container');
+    const guidesContainer = document.getElementById('settings-tracked-guides-container');
+    if (!captainsContainer || !guidesContainer) return;
+
+    let tracked = window.appSettings?.trackedStaffOff;
+    if (!Array.isArray(tracked)) {
+        tracked = ['Abel', 'Antonio'];
+    }
+
+    const isTracked = (name) => {
+        const norm = String(name).trim().toLowerCase();
+        const first = norm.split(' ')[0];
+        return tracked.some(t => {
+            const tNorm = String(t).trim().toLowerCase();
+            const tFirst = tNorm.split(' ')[0];
+            return tNorm === norm || tFirst === first || norm.includes(tNorm) || tNorm.includes(norm);
+        });
+    };
+
+    // Capitanes / Patrones
+    const captains = window.staffDatabase?.capitanes || [];
+    captainsContainer.innerHTML = captains.map(cap => {
+        const active = isTracked(cap.nombre);
+        const firstName = window.getFirstName ? window.getFirstName(cap.nombre) : cap.nombre;
+        return `
+            <button type="button" onclick="window.toggleTrackedStaffOff('${cap.nombre.replace(/'/g, "\\'")}')" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border cursor-pointer select-none active:scale-95 ${
+                active 
+                ? 'bg-blue-600 text-white border-blue-700 shadow-sm shadow-blue-200 ring-2 ring-blue-400/30' 
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+            }">
+                <span class="text-[11px]">${active ? '✓' : '+'}</span>
+                <span>⛵ ${firstName}</span>
+            </button>
+        `;
+    }).join('') || '<span class="text-xs text-slate-400 italic">No hay capitanes configurados</span>';
+
+    // Instructores y Guías
+    const guides = window.staffDatabase?.guias || [];
+    guidesContainer.innerHTML = guides.map(g => {
+        const active = isTracked(g.nombre);
+        const firstName = window.getFirstName ? window.getFirstName(g.nombre) : g.nombre;
+        return `
+            <button type="button" onclick="window.toggleTrackedStaffOff('${g.nombre.replace(/'/g, "\\'")}')" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border cursor-pointer select-none active:scale-95 ${
+                active 
+                ? 'bg-orange-500 text-white border-orange-600 shadow-sm shadow-orange-200 ring-2 ring-orange-400/30' 
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+            }">
+                <span class="text-[11px]">${active ? '✓' : '+'}</span>
+                <span>🤿 ${firstName}</span>
+            </button>
+        `;
+    }).join('') || '<span class="text-xs text-slate-400 italic">No hay guías configurados</span>';
+};
+
+window.toggleTrackedStaffOff = function(name) {
+    window.appSettings = window.appSettings || {};
+    let tracked = window.appSettings.trackedStaffOff;
+    if (!Array.isArray(tracked)) {
+        tracked = ['Abel', 'Antonio'];
+    }
+
+    const norm = String(name).trim().toLowerCase();
+    const first = norm.split(' ')[0];
+    const existsIdx = tracked.findIndex(t => {
+        const tNorm = String(t).trim().toLowerCase();
+        const tFirst = tNorm.split(' ')[0];
+        return tNorm === norm || tFirst === first || norm.includes(tNorm) || tNorm.includes(norm);
+    });
+
+    const firstName = window.getFirstName ? window.getFirstName(name) : name;
+    if (existsIdx >= 0) {
+        tracked.splice(existsIdx, 1);
+    } else {
+        tracked.push(firstName);
+    }
+
+    window.appSettings.trackedStaffOff = tracked;
+    window.renderSettingsStaffTrackers();
+
+    // Update Daily Alerts immediately
+    if (typeof renderDailyAlerts === 'function' && typeof currentDate !== 'undefined') {
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        renderDailyAlerts(`${year}-${month}-${day}`);
+    }
+
+    // Persist to Firestore
+    if (typeof db !== 'undefined' && db.collection) {
+        db.collection("mangamar_directory").doc("settings").set({
+            trackedStaffOff: tracked
+        }, { merge: true }).catch(err => {
+            console.error("Error saving trackedStaffOff to Firestore:", err);
+        });
+    }
 };
 
 window.handleSettingsRadioTimesToggle = function(checked) {

@@ -611,8 +611,26 @@ function startFirestoreListeners() {
                         }
                     }
                 }
+
+                if (data.trackedStaffOff !== undefined) {
+                    window.appSettings = window.appSettings || {};
+                    window.appSettings.trackedStaffOff = data.trackedStaffOff;
+                    if (typeof window.renderSettingsStaffTrackers === 'function') {
+                        window.renderSettingsStaffTrackers();
+                    }
+                    if (typeof renderDailyAlerts === 'function' && typeof currentDate !== 'undefined') {
+                        const year = currentDate.getFullYear();
+                        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(currentDate.getDate()).padStart(2, '0');
+                        renderDailyAlerts(`${year}-${month}-${day}`);
+                    }
+                }
             } else {
-                db.collection("mangamar_directory").doc("settings").set({ adminPassword: "manga321", showTVRadioTimes: true });
+                db.collection("mangamar_directory").doc("settings").set({ 
+                    adminPassword: "manga321", 
+                    showTVRadioTimes: true,
+                    trackedStaffOff: ['Abel', 'Antonio']
+                });
             }
         });
 
