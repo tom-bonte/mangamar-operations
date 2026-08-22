@@ -3285,29 +3285,68 @@
         <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1550px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] md:h-[92vh] relative animate-scale-up">
             
             <!-- HEADER (Simple & Professional) -->
-            <div class="p-3.5 md:px-6 border-b border-slate-200 flex flex-wrap gap-3 justify-between items-center bg-white shrink-0 no-print">
+            <div class="p-3 md:px-5 border-b border-slate-200 flex flex-wrap gap-2.5 justify-between items-center bg-white shrink-0 no-print">
                 <div class="flex items-center gap-3">
-                    <h2 class="text-base md:text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
-                        <span>Inventario Tanks / Tanques / Botellas Mangamar</span>
-                        <span id="tank-inventory-count" class="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200">0 botellas</span>
+                    <h2 class="text-base md:text-lg font-black text-slate-800 tracking-tight flex items-center gap-2 capitalize">
+                        <span>Inventario botellas mangamar</span>
+                        <span id="tank-inventory-count" class="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200 lowercase">0 botellas</span>
                     </h2>
                 </div>
 
-                <div class="flex items-center gap-2.5 flex-1 max-w-md justify-end">
-                    <div class="relative w-full max-w-xs">
-                        <input type="text" id="tank-filter-search" oninput="window.renderTankInventoryUI()" placeholder="Buscar por serie, sello, tipo..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <!-- FILTERS & ACTIONS BAR -->
+                <div class="flex flex-wrap items-center gap-2 flex-1 justify-end">
+                    <!-- 1. Search Bar -->
+                    <div class="relative min-w-[170px] max-w-xs flex-1 sm:flex-initial">
+                        <input type="text" id="tank-filter-search" oninput="window.renderTankInventoryUI()" placeholder="Buscar serie, sello, grifería..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                         <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
 
+                    <!-- 2. Species Filter -->
+                    <select id="tank-filter-species" onchange="window.renderTankInventoryUI()" class="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                        <option value="ALL">Todas las Especies</option>
+                        <option value="12L_ALTO">🔵 12L ACERO (alto)</option>
+                        <option value="12L_AIRE">⚪ 12L ACERO AIRE</option>
+                        <option value="12L_EANX">🟢 12L ACERO EANx</option>
+                        <option value="12L_ALU">🔷 12L ALU</option>
+                        <option value="15L_AIRE">🟡 15L ACERO AIRE</option>
+                        <option value="15L_EANX">🟢 15L ACERO EANx</option>
+                        <option value="NO_ENCONTRADO">🔘 No encontrado en MM</option>
+                    </select>
+
+                    <!-- 3. Status Filter -->
+                    <select id="tank-filter-status" onchange="window.renderTankInventoryUI()" class="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                        <option value="ALL">Todos los Estados</option>
+                        <option value="Testing">🟡 Testing</option>
+                        <option value="Painting">🔵 Painting / To Paint</option>
+                        <option value="Rechazada">🔴 Rechazada</option>
+                        <option value="OPERATIVA">🟢 Operativa (Sin estado)</option>
+                    </select>
+
+                    <!-- 4. Inventory Filter -->
+                    <select id="tank-filter-inventory" onchange="window.renderTankInventoryUI()" class="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                        <option value="ALL">Todo Inventario</option>
+                        <option value="IN_INV">☑️ En Taller (Check)</option>
+                        <option value="NOT_INV">⬜ No presentes</option>
+                    </select>
+
+                    <!-- 5. Edit in Table Toggle (Protects against misclicks) -->
+                    <button id="btn-toggle-tank-edit-mode" onclick="window.toggleTankTableEditMode()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-300 shrink-0" title="Activa o desactiva la edición directa en las celdas de la tabla">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        <span>Editar en Tabla</span>
+                    </button>
+
+                    <!-- 6. New Tank Button -->
                     <button onclick="window.openEditTankModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-sm shrink-0">
                         <span>+ Nueva Botella</span>
                     </button>
 
+                    <!-- 7. Print PDF -->
                     <button onclick="window.printTankInventory()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shrink-0" title="Imprimir / Guardar como PDF (30-40 botellas por página)">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                         <span>Imprimir PDF</span>
                     </button>
 
+                    <!-- 8. Close Button -->
                     <button onclick="window.closeTankInventoryModal()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>

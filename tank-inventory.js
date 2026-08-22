@@ -329,6 +329,30 @@ window.toggleTankSort = function(key) {
     window.renderTankInventoryUI();
 };
 
+window.tankTableEditMode = false;
+window.tankInventoryFilter = {
+    search: '',
+    species: 'ALL',
+    status: 'ALL',
+    inventory: 'ALL'
+};
+
+// Toggle Table Edit Mode (protects against misclicks)
+window.toggleTankTableEditMode = function() {
+    window.tankTableEditMode = !window.tankTableEditMode;
+    const btn = document.getElementById('btn-toggle-tank-edit-mode');
+    if (btn) {
+        if (window.tankTableEditMode) {
+            btn.className = 'px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm shrink-0 ring-2 ring-amber-300';
+            btn.innerHTML = '<span>🔓 Modo Edición Activo</span>';
+        } else {
+            btn.className = 'px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-300 shrink-0';
+            btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg><span>Editar en Tabla</span>';
+        }
+    }
+    window.renderTankInventoryUI();
+};
+
 // Render Main Tank Inventory UI
 window.renderTankInventoryUI = function() {
     const tbody = document.getElementById('tank-inventory-tbody');
@@ -336,9 +360,13 @@ window.renderTankInventoryUI = function() {
 
     let list = [...(window.tankInventoryList || [])];
 
-    // Search query
+    // Read Filter Values
     const searchVal = (document.getElementById('tank-filter-search')?.value || '').trim().toLowerCase();
+    const speciesVal = document.getElementById('tank-filter-species')?.value || 'ALL';
+    const statusVal = document.getElementById('tank-filter-status')?.value || 'ALL';
+    const invVal = document.getElementById('tank-filter-inventory')?.value || 'ALL';
 
+    // 1. Search Query Filter
     if (searchVal) {
         list = list.filter(t => {
             const matchSello = String(t.sello || '').toLowerCase().includes(searchVal);
@@ -352,7 +380,40 @@ window.renderTankInventoryUI = function() {
         });
     }
 
-    // Apply Sorting if active
+    // 2. Species Filter
+    if (speciesVal !== 'ALL') {
+        list = list.filter(t => {
+            const tType = String(t.type || '').toLowerCase().trim();
+            if (speciesVal === '12L_ALTO') return tType.includes('alto');
+            if (speciesVal === '12L_AIRE') return tType.includes('12l') && tType.includes('aire');
+            if (speciesVal === '12L_EANX') return tType.includes('12l') && tType.includes('eanx');
+            if (speciesVal === '12L_ALU') return tType.includes('alu');
+            if (speciesVal === '15L_AIRE') return tType.includes('15l') && tType.includes('aire');
+            if (speciesVal === '15L_EANX') return tType.includes('15l') && tType.includes('eanx');
+            if (speciesVal === 'NO_ENCONTRADO') return tType.includes('no econtrado') || tType.includes('no encontrado');
+            return true;
+        });
+    }
+
+    // 3. Status Filter
+    if (statusVal !== 'ALL') {
+        list = list.filter(t => {
+            const st = (t.status || '').trim();
+            if (statusVal === 'OPERATIVA') return !st;
+            return st.toLowerCase() === statusVal.toLowerCase();
+        });
+    }
+
+    // 4. Inventory Filter
+    if (invVal !== 'ALL') {
+        list = list.filter(t => {
+            if (invVal === 'IN_INV') return t.inInventory === true;
+            if (invVal === 'NOT_INV') return !t.inInventory;
+            return true;
+        });
+    }
+
+    // Apply Column Sorting if active
     if (window.tankSortState.key) {
         const k = window.tankSortState.key;
         const mult = window.tankSortState.asc ? 1 : -1;
@@ -386,10 +447,10 @@ window.renderTankInventoryUI = function() {
         if (iconEl) {
             if (window.tankSortState.key === colKey) {
                 iconEl.innerHTML = window.tankSortState.asc ? '▲' : '▼';
-                iconEl.className = 'text-[9px] text-emerald-600 font-black inline ml-1';
+                iconEl.className = 'text-[9px] text-emerald-800 font-black inline ml-1';
             } else {
                 iconEl.innerHTML = '⇅';
-                iconEl.className = 'text-[9px] text-slate-300 inline ml-1';
+                iconEl.className = 'text-[9px] text-slate-400 inline ml-1';
             }
         }
     });
@@ -405,103 +466,182 @@ window.renderTankInventoryUI = function() {
         tbody.innerHTML = `
             <tr>
                 <td colspan="9" class="text-center py-10 text-slate-400 font-bold italic">
-                    No se encontraron botellas con la búsqueda.
+                    No se encontraron botellas con los filtros seleccionados.
                 </td>
             </tr>
         `;
         return;
     }
 
+    const isEditMode = !!window.tankTableEditMode;
+
     tbody.innerHTML = list.map((t) => {
         const st = t.status || '';
-        let rowClass = 'hover:bg-slate-50 transition-colors';
+        const tType = String(t.type || '').trim();
+        const tTypeLower = tType.toLowerCase();
+
+        // 2) Distinct subtle background color per tank 'species'
+        let speciesRowClass = 'bg-white hover:bg-slate-50';
+        if (tTypeLower.includes('alto')) {
+            speciesRowClass = 'bg-blue-50/40 hover:bg-blue-100/50';
+        } else if (tTypeLower.includes('12l') && tTypeLower.includes('eanx')) {
+            speciesRowClass = 'bg-emerald-50/40 hover:bg-emerald-100/50';
+        } else if (tTypeLower.includes('12l') && tTypeLower.includes('aire')) {
+            speciesRowClass = 'bg-slate-50/40 hover:bg-slate-100/60';
+        } else if (tTypeLower.includes('alu')) {
+            speciesRowClass = 'bg-sky-50/40 hover:bg-sky-100/50';
+        } else if (tTypeLower.includes('15l') && tTypeLower.includes('aire')) {
+            speciesRowClass = 'bg-amber-50/40 hover:bg-amber-100/50';
+        } else if (tTypeLower.includes('15l') && tTypeLower.includes('eanx')) {
+            speciesRowClass = 'bg-teal-50/40 hover:bg-teal-100/50';
+        } else if (tTypeLower.includes('no econtrado') || tTypeLower.includes('no encontrado')) {
+            speciesRowClass = 'bg-gray-100/60 hover:bg-gray-200/60 text-slate-500';
+        }
+
+        // Highlight rejected tanks clearly
         if (st === 'Rechazada') {
-            rowClass = 'bg-rose-50/40 hover:bg-rose-50/70';
+            speciesRowClass = 'bg-rose-100/60 hover:bg-rose-100/80 text-rose-950';
         }
 
-        // Status select options
-        const statusOptions = `
-            <option value="" ${!st ? 'selected' : ''}>—</option>
-            <option value="Testing" ${st === 'Testing' ? 'selected' : ''}>Testing</option>
-            <option value="Painting" ${st === 'Painting' ? 'selected' : ''}>Painting</option>
-            <option value="Rechazada" ${st === 'Rechazada' ? 'selected' : ''}>Rechazada</option>
-        `;
-        let statusSelectClass = 'bg-transparent text-slate-400 border-transparent hover:border-slate-300 focus:bg-white focus:border-emerald-500';
-        if (st === 'Testing') statusSelectClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
-        else if (st === 'Rechazada') statusSelectClass = 'bg-rose-100 text-rose-900 border-rose-300 font-bold';
-        else if (st === 'Painting') statusSelectClass = 'bg-sky-100 text-sky-900 border-sky-300 font-bold';
-
-        // Type select options
-        const currentType = t.type || '12L ACERO AIRE';
-        const typeOptions = [
-            '12L ACERO (alto)',
-            '12L ACERO AIRE',
-            '12L ACERO EANx',
-            '12L ALU',
-            '15L ACERO AIRE',
-            '15L ACERO EANx',
-            'No econtrado en MM',
-            '18L ACERO',
-            '7L ALU'
-        ];
-        if (!typeOptions.includes(currentType) && currentType) {
-            typeOptions.push(currentType);
+        // Status badge styling in read-only mode
+        let statusBadge = '<span class="text-slate-300 text-xs">—</span>';
+        if (st === 'Testing') {
+            statusBadge = '<span class="bg-amber-100 text-amber-900 border border-amber-300 font-black px-2 py-0.5 rounded text-[11px]">Testing</span>';
+        } else if (st === 'Rechazada') {
+            statusBadge = '<span class="bg-rose-200 text-rose-950 border border-rose-400 font-black px-2 py-0.5 rounded text-[11px]">Rechazada</span>';
+        } else if (st === 'Painting') {
+            statusBadge = '<span class="bg-sky-100 text-sky-900 border border-sky-300 font-black px-2 py-0.5 rounded text-[11px]">Painting</span>';
         }
 
-        const typeSelectHtml = `
-            <select onchange="window.updateTankField('${t.id}', 'type', this.value)" class="text-xs font-semibold text-slate-800 bg-transparent border border-transparent hover:border-slate-300 focus:border-emerald-500 focus:bg-white rounded px-1 py-0.5 w-full cursor-pointer transition-all outline-none">
-                ${typeOptions.map(opt => `<option value="${opt}" ${opt === currentType ? 'selected' : ''}>${opt}</option>`).join('')}
-            </select>
-        `;
+        // INLINE EDIT MODE CONTROLS
+        if (isEditMode) {
+            const statusOptions = `
+                <option value="" ${!st ? 'selected' : ''}>—</option>
+                <option value="Testing" ${st === 'Testing' ? 'selected' : ''}>Testing</option>
+                <option value="Painting" ${st === 'Painting' ? 'selected' : ''}>Painting</option>
+                <option value="Rechazada" ${st === 'Rechazada' ? 'selected' : ''}>Rechazada</option>
+            `;
+            let statusSelectClass = 'bg-white text-slate-700 border-slate-300';
+            if (st === 'Testing') statusSelectClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+            else if (st === 'Rechazada') statusSelectClass = 'bg-rose-100 text-rose-900 border-rose-300 font-bold';
+            else if (st === 'Painting') statusSelectClass = 'bg-sky-100 text-sky-900 border-sky-300 font-bold';
 
+            const typeOptions = [
+                '12L ACERO (alto)',
+                '12L ACERO AIRE',
+                '12L ACERO EANx',
+                '12L ALU',
+                '15L ACERO AIRE',
+                '15L ACERO EANx',
+                'No econtrado en MM',
+                '18L ACERO',
+                '7L ALU'
+            ];
+            if (!typeOptions.includes(tType) && tType) typeOptions.push(tType);
+
+            return `
+                <tr class="border-b border-slate-200 ${speciesRowClass} transition-colors">
+                    <!-- 1. Sello (Non-editable) -->
+                    <td class="py-1 px-3 border-r border-slate-200 font-mono font-black text-slate-900 text-xs">
+                        ${t.sello || ''}
+                    </td>
+
+                    <!-- 2. Status (Editable) -->
+                    <td class="py-1 px-2 border-r border-slate-200">
+                        <select onchange="window.updateTankField('${t.id}', 'status', this.value)" class="text-[11px] font-bold px-2 py-0.5 rounded border ${statusSelectClass} cursor-pointer outline-none transition-all w-full shadow-xs">
+                            ${statusOptions}
+                        </select>
+                    </td>
+
+                    <!-- 3. Tipo (Editable) -->
+                    <td class="py-1 px-2 border-r border-slate-200">
+                        <select onchange="window.updateTankField('${t.id}', 'type', this.value)" class="text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded px-1.5 py-0.5 w-full cursor-pointer outline-none shadow-xs">
+                            ${typeOptions.map(opt => `<option value="${opt}" ${opt === tType ? 'selected' : ''}>${opt}</option>`).join('')}
+                        </select>
+                    </td>
+
+                    <!-- 4. No. Serie (Editable) -->
+                    <td class="py-1 px-2 border-r border-slate-200">
+                        <input type="text" value="${t.serial || ''}" placeholder="No serie" onchange="window.updateTankField('${t.id}', 'serial', this.value)" class="font-mono font-bold text-xs px-1.5 py-0.5 rounded border border-slate-300 focus:border-emerald-500 bg-white w-full outline-none shadow-xs">
+                    </td>
+
+                    <!-- 5. Griferia (Editable) -->
+                    <td class="py-1 px-2 border-r border-slate-200">
+                        <input type="text" value="${t.valve || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'valve', this.value)" class="font-mono text-xs px-1.5 py-0.5 rounded border border-slate-300 focus:border-emerald-500 bg-white w-full outline-none shadow-xs ${t.valve ? 'font-bold text-emerald-800' : ''}">
+                    </td>
+
+                    <!-- 6. Fecha Hydrostatico (Editable) -->
+                    <td class="py-1 px-2 border-r border-slate-200">
+                        <input type="text" value="${t.hydroDate || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'hydroDate', this.value)" class="text-xs px-1.5 py-0.5 rounded border border-slate-300 focus:border-emerald-500 bg-white w-full outline-none font-medium shadow-xs">
+                    </td>
+
+                    <!-- 7. Last Painted (Editable) -->
+                    <td class="py-1 px-2 border-r border-slate-200">
+                        <input type="text" value="${t.lastPainted || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'lastPainted', this.value)" class="text-xs px-1.5 py-0.5 rounded border border-slate-300 focus:border-emerald-500 bg-white w-full outline-none font-medium shadow-xs">
+                    </td>
+
+                    <!-- 8. Inventario -->
+                    <td class="py-1 px-2 text-center border-r border-slate-200">
+                        <input type="checkbox" onchange="window.toggleTankInventory('${t.id}', this.checked)" ${t.inInventory ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="py-1 px-1 text-center no-print">
+                        <button onclick="window.deleteTank('${t.id}')" class="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Eliminar botella">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // READ-ONLY / VIEWING MODE (Crisp, protected from accidental misclicks)
         return `
-            <tr class="border-b border-slate-200 ${rowClass}">
-                <!-- 1. Sello -->
-                <td class="py-1 px-2 border-r border-slate-200">
-                    <input type="text" value="${t.sello || ''}" onchange="window.updateTankField('${t.id}', 'sello', this.value)" class="font-mono font-bold text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none">
+            <tr class="border-b border-slate-200 ${speciesRowClass} transition-colors group">
+                <!-- 1. Sello (Non-editable, clean text) -->
+                <td class="py-2 px-3 border-r border-slate-200/80 font-mono font-black text-slate-900 text-xs">
+                    ${t.sello || ''}
                 </td>
 
-                <!-- 2. Status (Column 2) -->
-                <td class="py-1 px-2 border-r border-slate-200">
-                    <select onchange="window.updateTankField('${t.id}', 'status', this.value)" class="text-[11px] font-bold px-2 py-0.5 rounded border ${statusSelectClass} cursor-pointer outline-none transition-all w-full">
-                        ${statusOptions}
-                    </select>
+                <!-- 2. Status -->
+                <td class="py-2 px-3 border-r border-slate-200/80">
+                    ${statusBadge}
                 </td>
 
-                <!-- 3. Tipo (Column 3) -->
-                <td class="py-1 px-2 border-r border-slate-200">
-                    ${typeSelectHtml}
+                <!-- 3. Tipo -->
+                <td class="py-2 px-3 border-r border-slate-200/80 text-xs font-semibold text-slate-800">
+                    ${tType || '12L ACERO AIRE'}
                 </td>
 
-                <!-- 4. No. Serie (Column 4) -->
-                <td class="py-1 px-2 border-r border-slate-200">
-                    <input type="text" value="${t.serial || ''}" placeholder="No serie" onchange="window.updateTankField('${t.id}', 'serial', this.value)" class="font-mono font-bold text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none">
+                <!-- 4. No. Serie -->
+                <td class="py-2 px-3 border-r border-slate-200/80 font-mono font-bold text-xs text-slate-900">
+                    ${t.serial || '—'}
                 </td>
 
-                <!-- 5. Griferia (Column 5) -->
-                <td class="py-1 px-2 border-r border-slate-200">
-                    <input type="text" value="${t.valve || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'valve', this.value)" class="font-mono text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none ${t.valve ? 'font-bold text-emerald-800' : 'text-slate-600'}">
+                <!-- 5. Griferia -->
+                <td class="py-2 px-3 border-r border-slate-200/80 font-mono text-xs text-slate-800">
+                    ${t.valve ? `<span class="bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono font-bold px-1.5 py-0.5 rounded">${t.valve}</span>` : ''}
                 </td>
 
-                <!-- 6. Fecha Hydrostatico (Column 6) -->
-                <td class="py-1 px-2 border-r border-slate-200">
-                    <input type="text" value="${t.hydroDate || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'hydroDate', this.value)" class="text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none text-slate-800 font-medium">
+                <!-- 6. Fecha Hydrostatico -->
+                <td class="py-2 px-3 border-r border-slate-200/80 text-xs font-medium text-slate-700">
+                    ${t.hydroDate || ''}
                 </td>
 
-                <!-- 7. Last Painted (Column 7) -->
-                <td class="py-1 px-2 border-r border-slate-200">
-                    <input type="text" value="${t.lastPainted || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'lastPainted', this.value)" class="text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none text-slate-800 font-medium">
+                <!-- 7. Last Painted -->
+                <td class="py-2 px-3 border-r border-slate-200/80 text-xs text-slate-700">
+                    ${t.lastPainted || ''}
                 </td>
 
                 <!-- 8. Inventario (20 Dic 2025) -->
-                <td class="py-1 px-2 text-center border-r border-slate-200">
+                <td class="py-2 px-3 text-center border-r border-slate-200/80">
                     <input type="checkbox" onchange="window.toggleTankInventory('${t.id}', this.checked)" ${t.inInventory ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
                 </td>
 
-                <!-- Delete Action -->
-                <td class="py-1 px-1 text-center no-print">
-                    <button onclick="window.deleteTank('${t.id}')" class="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Eliminar botella">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                <!-- Row Actions (Edit modal trigger) -->
+                <td class="py-2 px-1 text-center no-print">
+                    <button onclick="window.openEditTankModal('${t.id}')" class="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors opacity-70 group-hover:opacity-100" title="Editar datos">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                     </button>
                 </td>
             </tr>
