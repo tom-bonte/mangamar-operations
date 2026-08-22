@@ -607,7 +607,7 @@ window.printRegService = function() {
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 0.5cm;
+                margin: 0.4cm 0.5cm;
             }
             html, body {
                 width: 100% !important;
@@ -628,14 +628,14 @@ window.printRegService = function() {
                 display: block !important;
                 padding: 0 !important;
                 width: 100% !important;
-                height: auto !important;
+                height: 100% !important;
                 overflow: hidden !important;
                 z-index: 99999 !important;
             }
             #reg-maintenance-modal > div {
                 box-shadow: none !important;
                 border: none !important;
-                height: auto !important;
+                height: 100% !important;
                 max-width: 100% !important;
                 border-radius: 0 !important;
                 display: block !important;
@@ -664,15 +664,16 @@ window.printRegService = function() {
                 justify-content: space-between !important;
                 width: 100% !important;
                 max-width: 100% !important;
-                height: 275mm !important;
-                max-height: 277mm !important;
+                height: 270mm !important;
+                max-height: 272mm !important;
+                min-height: auto !important;
                 margin: 0 !important;
-                padding: 0.5cm 0.6cm !important;
+                padding: 0.2cm 0.3cm !important;
                 box-shadow: none !important;
                 border: none !important;
                 box-sizing: border-box !important;
-                font-size: 11px !important;
-                line-height: 1.3 !important;
+                font-size: 10px !important;
+                line-height: 1.25 !important;
                 page-break-inside: avoid !important;
                 page-break-before: avoid !important;
                 page-break-after: avoid !important;
