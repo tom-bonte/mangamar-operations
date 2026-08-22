@@ -477,6 +477,17 @@ function renderMonthlyCalendar() {
 // 2. GRID RENDERING & PREVIEWS
 // ==========================================
 // Render warning alerts at the top of daily view (e.g. Captains on Day Off)
+function isStaffTracked(nombre) {
+    let tracked = window.appSettings?.trackedStaffOff;
+    if (!Array.isArray(tracked)) {
+        // Default: only Abel and Antonio
+        const n = String(nombre).toLowerCase().trim();
+        return n.startsWith('abel') || n.startsWith('antonio');
+    }
+    const target = String(nombre).toLowerCase().trim();
+    return tracked.some(t => String(t).toLowerCase().trim() === target);
+}
+
 function renderDailyAlerts(targetDateStr) {
     const alertsContainer = document.getElementById('daily-alerts-container');
     if (!alertsContainer) return;
@@ -491,40 +502,22 @@ function renderDailyAlerts(targetDateStr) {
         return;
     }
 
-    let tracked = window.appSettings?.trackedStaffOff;
-    if (!Array.isArray(tracked)) {
-        tracked = ['Abel', 'Antonio'];
-    }
-
     const allStaff = [
         ...(window.staffDatabase?.capitanes || []).map(s => ({ ...s, isCaptain: true })),
         ...(window.staffDatabase?.guias || []).map(s => ({ ...s, isGuide: true }))
     ];
 
-    const isTracked = (name) => {
-        const norm = String(name).trim().toLowerCase();
-        const first = norm.split(' ')[0];
-        return tracked.some(t => {
-            const tNorm = String(t).trim().toLowerCase();
-            const tFirst = tNorm.split(' ')[0];
-            return tNorm === norm || tFirst === first || norm.includes(tNorm) || tNorm.includes(norm);
-        });
-    };
-
     const staffOff = [];
 
     allStaff.forEach(person => {
-        if (!isTracked(person.nombre)) return;
+        if (!isStaffTracked(person.nombre)) return;
 
         // Check if person has day off in schedule
         let daysOffList = schedule.daysOff[person.nombre];
         if (!daysOffList) {
-            // Check by matching key in daysOff
-            const matchingKey = Object.keys(schedule.daysOff).find(k => {
-                const kNorm = k.toLowerCase().trim();
-                const pNorm = person.nombre.toLowerCase().trim();
-                return kNorm === pNorm || kNorm.split(' ')[0] === pNorm.split(' ')[0];
-            });
+            // Check by exact key matching
+            const pNorm = person.nombre.toLowerCase().trim();
+            const matchingKey = Object.keys(schedule.daysOff).find(k => k.toLowerCase().trim() === pNorm);
             if (matchingKey) {
                 daysOffList = schedule.daysOff[matchingKey];
             }
@@ -555,15 +548,13 @@ function renderDailyAlerts(targetDateStr) {
         uniqueStaffOff.forEach(item => {
             const badge = document.createElement('div');
             const colorClass = item.isCaptain 
-                ? 'bg-rose-50 border-rose-200 text-rose-700' 
+                ? 'bg-blue-50 border-blue-200 text-blue-800' 
                 : 'bg-amber-50 border-amber-200 text-amber-800';
-            const iconSvg = item.isCaptain 
-                ? '<svg class="w-3.5 h-3.5 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
-                : '<span class="text-xs">🤿</span>';
+            const iconBadge = item.isCaptain ? '⛵' : '🤿';
 
-            badge.className = `flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse ${colorClass}`;
+            badge.className = `flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider shadow-xs ${colorClass}`;
             badge.innerHTML = `
-                ${iconSvg}
+                <span class="text-xs">${iconBadge}</span>
                 <span>${item.name} libre</span>
             `;
             alertsContainer.appendChild(badge);
@@ -1511,80 +1502,56 @@ window.renderSettingsStaffTrackers = function() {
     const guidesContainer = document.getElementById('settings-tracked-guides-container');
     if (!captainsContainer || !guidesContainer) return;
 
-    let tracked = window.appSettings?.trackedStaffOff;
-    if (!Array.isArray(tracked)) {
-        tracked = ['Abel', 'Antonio'];
-    }
-
-    const isTracked = (name) => {
-        const norm = String(name).trim().toLowerCase();
-        const first = norm.split(' ')[0];
-        return tracked.some(t => {
-            const tNorm = String(t).trim().toLowerCase();
-            const tFirst = tNorm.split(' ')[0];
-            return tNorm === norm || tFirst === first || norm.includes(tNorm) || tNorm.includes(norm);
-        });
-    };
-
     // Capitanes / Patrones
     const captains = window.staffDatabase?.capitanes || [];
-    captainsContainer.innerHTML = captains.map(cap => {
-        const active = isTracked(cap.nombre);
+    captainsContainer.innerHTML = captains.map((cap, idx) => {
+        const checked = isStaffTracked(cap.nombre);
         const firstName = window.getFirstName ? window.getFirstName(cap.nombre) : cap.nombre;
+        const inputId = `staff-track-cap-${idx}`;
         return `
-            <button type="button" onclick="window.toggleTrackedStaffOff('${cap.nombre.replace(/'/g, "\\'")}')" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border cursor-pointer select-none active:scale-95 ${
-                active 
-                ? 'bg-blue-600 text-white border-blue-700 shadow-sm shadow-blue-200 ring-2 ring-blue-400/30' 
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
-            }">
-                <span class="text-[11px]">${active ? '✓' : '+'}</span>
-                <span>⛵ ${firstName}</span>
-            </button>
+            <label for="${inputId}" class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-blue-50/50 hover:border-blue-300 cursor-pointer select-none transition-all shadow-xs group">
+                <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackCheckbox('${cap.nombre.replace(/'/g, "\\'")}', this.checked)" ${checked ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+                <span class="text-xs font-bold text-slate-800 group-hover:text-blue-700 truncate">⛵ ${firstName}</span>
+            </label>
         `;
-    }).join('') || '<span class="text-xs text-slate-400 italic">No hay capitanes configurados</span>';
+    }).join('') || '<span class="text-xs text-slate-400 italic col-span-full">No hay capitanes configurados</span>';
 
     // Instructores y Guías
     const guides = window.staffDatabase?.guias || [];
-    guidesContainer.innerHTML = guides.map(g => {
-        const active = isTracked(g.nombre);
+    guidesContainer.innerHTML = guides.map((g, idx) => {
+        const checked = isStaffTracked(g.nombre);
         const firstName = window.getFirstName ? window.getFirstName(g.nombre) : g.nombre;
+        const inputId = `staff-track-guide-${idx}`;
         return `
-            <button type="button" onclick="window.toggleTrackedStaffOff('${g.nombre.replace(/'/g, "\\'")}')" class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border cursor-pointer select-none active:scale-95 ${
-                active 
-                ? 'bg-orange-500 text-white border-orange-600 shadow-sm shadow-orange-200 ring-2 ring-orange-400/30' 
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
-            }">
-                <span class="text-[11px]">${active ? '✓' : '+'}</span>
-                <span>🤿 ${firstName}</span>
-            </button>
+            <label for="${inputId}" class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-orange-50/50 hover:border-orange-300 cursor-pointer select-none transition-all shadow-xs group">
+                <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackCheckbox('${g.nombre.replace(/'/g, "\\'")}', this.checked)" ${checked ? 'checked' : ''} class="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500 cursor-pointer">
+                <span class="text-xs font-bold text-slate-800 group-hover:text-orange-700 truncate">🤿 ${firstName}</span>
+            </label>
         `;
-    }).join('') || '<span class="text-xs text-slate-400 italic">No hay guías configurados</span>';
+    }).join('') || '<span class="text-xs text-slate-400 italic col-span-full">No hay guías configurados</span>';
 };
 
-window.toggleTrackedStaffOff = function(name) {
+window.handleStaffTrackCheckbox = function(nombre, isChecked) {
     window.appSettings = window.appSettings || {};
     let tracked = window.appSettings.trackedStaffOff;
     if (!Array.isArray(tracked)) {
-        tracked = ['Abel', 'Antonio'];
+        const all = [
+            ...(window.staffDatabase?.capitanes || []),
+            ...(window.staffDatabase?.guias || [])
+        ];
+        tracked = all.filter(p => {
+            const n = p.nombre.toLowerCase().trim();
+            return n.startsWith('abel') || n.startsWith('antonio');
+        }).map(p => p.nombre.trim());
     }
 
-    const norm = String(name).trim().toLowerCase();
-    const first = norm.split(' ')[0];
-    const existsIdx = tracked.findIndex(t => {
-        const tNorm = String(t).trim().toLowerCase();
-        const tFirst = tNorm.split(' ')[0];
-        return tNorm === norm || tFirst === first || norm.includes(tNorm) || tNorm.includes(norm);
-    });
-
-    const firstName = window.getFirstName ? window.getFirstName(name) : name;
-    if (existsIdx >= 0) {
-        tracked.splice(existsIdx, 1);
-    } else {
-        tracked.push(firstName);
+    const target = String(nombre).toLowerCase().trim();
+    tracked = tracked.filter(t => String(t).toLowerCase().trim() !== target);
+    if (isChecked) {
+        tracked.push(String(nombre).trim());
     }
 
     window.appSettings.trackedStaffOff = tracked;
-    window.renderSettingsStaffTrackers();
 
     // Update Daily Alerts immediately
     if (typeof renderDailyAlerts === 'function' && typeof currentDate !== 'undefined') {
