@@ -546,6 +546,14 @@ window.printRegService = function() {
 
     window.updateRegLivePreview();
 
+    const ticketCode = document.getElementById('reg-input-ticket-id').value.trim() || 'REG-26-001';
+    const formattedCode = ticketCode.startsWith('REG-') ? `20${ticketCode.slice(4)}` : ticketCode;
+    const cleanClient = clientName.replace(/[^\w\s-]/gi, '').trim();
+    
+    // Save original title and set specific filename title for browser PDF save
+    const originalTitle = document.title;
+    document.title = `Reg Maintenance ${formattedCode}${cleanClient ? ' - ' + cleanClient : ''}`;
+
     const printStyle = document.createElement('style');
     printStyle.id = 'reg-print-style';
     printStyle.innerHTML = `
@@ -604,11 +612,17 @@ window.printRegService = function() {
         }
     `;
     document.head.appendChild(printStyle);
-    window.print();
-    setTimeout(() => {
+
+    const cleanupPrint = () => {
         const s = document.getElementById('reg-print-style');
         if (s) s.remove();
-    }, 1000);
+        document.title = originalTitle;
+        window.removeEventListener('afterprint', cleanupPrint);
+    };
+
+    window.addEventListener('afterprint', cleanupPrint);
+    window.print();
+    setTimeout(cleanupPrint, 2500);
 };
 
 // Render Ticket History List with colored full cards
