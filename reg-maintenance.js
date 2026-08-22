@@ -667,12 +667,12 @@ window.printRegService = function() {
                 height: 275mm !important;
                 max-height: 277mm !important;
                 margin: 0 !important;
-                padding: 0.3cm 0.5cm !important;
+                padding: 0.5cm 0.6cm !important;
                 box-shadow: none !important;
                 border: none !important;
                 box-sizing: border-box !important;
-                font-size: 9.5px !important;
-                line-height: 1.25 !important;
+                font-size: 11px !important;
+                line-height: 1.3 !important;
                 page-break-inside: avoid !important;
                 page-break-before: avoid !important;
                 page-break-after: avoid !important;
