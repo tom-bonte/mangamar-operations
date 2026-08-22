@@ -560,15 +560,20 @@ window.printRegService = function() {
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 0;
+                margin: 0.5cm;
             }
-            body > *:not(#reg-maintenance-modal) {
-                display: none !important;
-            }
-            body {
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 background: #ffffff !important;
+                overflow: hidden !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            body > *:not(#reg-maintenance-modal) {
+                display: none !important;
             }
             #reg-maintenance-modal {
                 position: static !important;
@@ -577,7 +582,7 @@ window.printRegService = function() {
                 padding: 0 !important;
                 width: 100% !important;
                 height: auto !important;
-                overflow: visible !important;
+                overflow: hidden !important;
                 z-index: 99999 !important;
             }
             #reg-maintenance-modal > div {
@@ -587,6 +592,8 @@ window.printRegService = function() {
                 max-width: 100% !important;
                 border-radius: 0 !important;
                 display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
             #reg-maintenance-modal-header,
             #reg-form-inputs-container,
@@ -595,19 +602,32 @@ window.printRegService = function() {
             }
             #reg-tab-form {
                 display: block !important;
-                overflow: visible !important;
+                overflow: hidden !important;
                 padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+            }
+            #reg-tab-form > div {
+                padding: 0 !important;
+                background: transparent !important;
             }
             #reg-service-printable-sheet {
-                display: block !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
                 width: 100% !important;
                 max-width: 100% !important;
+                height: 275mm !important;
+                max-height: 277mm !important;
                 margin: 0 !important;
-                padding: 1.2cm 1.4cm !important;
+                padding: 0.3cm 0.5cm !important;
                 box-shadow: none !important;
                 border: none !important;
                 box-sizing: border-box !important;
                 page-break-inside: avoid !important;
+                page-break-before: avoid !important;
+                page-break-after: avoid !important;
+                overflow: hidden !important;
             }
         }
     `;
