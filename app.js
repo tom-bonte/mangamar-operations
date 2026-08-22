@@ -477,15 +477,51 @@ function renderMonthlyCalendar() {
 // 2. GRID RENDERING & PREVIEWS
 // ==========================================
 // Render warning alerts at the top of daily view (e.g. Captains on Day Off)
-function isStaffTracked(nombre) {
-    let tracked = window.appSettings?.trackedStaffOff;
-    if (!Array.isArray(tracked)) {
-        // Default: only Abel and Antonio
-        const n = String(nombre).toLowerCase().trim();
-        return n.startsWith('abel') || n.startsWith('antonio');
+function getStaffTrackConfig() {
+    window.appSettings = window.appSettings || {};
+    if (!window.appSettings.staffOffTracking) {
+        try {
+            const cached = localStorage.getItem('mangamar_staff_off_tracking');
+            if (cached) window.appSettings.staffOffTracking = JSON.parse(cached);
+        } catch(e) {}
     }
+    if (!window.appSettings.staffOffTracking) {
+        window.appSettings.staffOffTracking = {
+            'Abel': 'always',
+            'Antonio': 'always'
+        };
+    }
+    return window.appSettings.staffOffTracking;
+}
+
+function getStaffTrackMode(nombre) {
+    const config = getStaffTrackConfig();
     const target = String(nombre).toLowerCase().trim();
-    return tracked.some(t => String(t).toLowerCase().trim() === target);
+    for (let [k, mode] of Object.entries(config)) {
+        if (String(k).toLowerCase().trim() === target) {
+            return mode; // 'always', 'weekend', 'never'
+        }
+    }
+    // Default fallback
+    if (target.startsWith('abel') || target.startsWith('antonio')) {
+        return 'always';
+    }
+    return 'never';
+}
+
+function isStaffTrackedOnDate(nombre, targetDateStr) {
+    const mode = getStaffTrackMode(nombre);
+    if (!mode || mode === 'never') return false;
+    if (mode === 'always') return true;
+    if (mode === 'weekend') {
+        const parts = targetDateStr.split('-').map(Number);
+        if (parts.length === 3) {
+            const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+            const dayOfWeek = dateObj.getDay(); // 0 is Sunday, 6 is Saturday
+            return (dayOfWeek === 0 || dayOfWeek === 6);
+        }
+    }
+    return false;
 }
 
 function renderDailyAlerts(targetDateStr) {
@@ -510,12 +546,11 @@ function renderDailyAlerts(targetDateStr) {
     const staffOff = [];
 
     allStaff.forEach(person => {
-        if (!isStaffTracked(person.nombre)) return;
+        if (!isStaffTrackedOnDate(person.nombre, targetDateStr)) return;
 
         // Check if person has day off in schedule
         let daysOffList = schedule.daysOff[person.nombre];
         if (!daysOffList) {
-            // Check by exact key matching
             const pNorm = person.nombre.toLowerCase().trim();
             const matchingKey = Object.keys(schedule.daysOff).find(k => k.toLowerCase().trim() === pNorm);
             if (matchingKey) {
@@ -1505,53 +1540,74 @@ window.renderSettingsStaffTrackers = function() {
     // Capitanes / Patrones
     const captains = window.staffDatabase?.capitanes || [];
     captainsContainer.innerHTML = captains.map((cap, idx) => {
-        const checked = isStaffTracked(cap.nombre);
+        const mode = getStaffTrackMode(cap.nombre);
+        const active = (mode === 'always' || mode === 'weekend');
         const firstName = window.getFirstName ? window.getFirstName(cap.nombre) : cap.nombre;
         const inputId = `staff-track-cap-${idx}`;
+        const selectId = `staff-track-cap-mode-${idx}`;
         return `
-            <label for="${inputId}" class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-blue-50/50 hover:border-blue-300 cursor-pointer select-none transition-all shadow-xs group">
-                <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackCheckbox('${cap.nombre.replace(/'/g, "\\'")}', this.checked)" ${checked ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
-                <span class="text-xs font-bold text-slate-800 group-hover:text-blue-700 truncate">⛵ ${firstName}</span>
-            </label>
+            <div class="flex items-center justify-between p-2.5 bg-white border ${active ? 'border-blue-300 shadow-xs bg-blue-50/20' : 'border-slate-200'} rounded-xl transition-all">
+                <label for="${inputId}" class="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-0 pr-2">
+                    <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackToggle('${cap.nombre.replace(/'/g, "\\'")}', this.checked)" ${active ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
+                    <span class="text-xs font-black text-slate-800 truncate">⛵ ${firstName}</span>
+                </label>
+                <select id="${selectId}" onchange="window.handleStaffTrackModeChange('${cap.nombre.replace(/'/g, "\\'")}', this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shrink-0 ${active ? '' : 'opacity-30 pointer-events-none'}">
+                    <option value="always" ${mode !== 'weekend' ? 'selected' : ''}>☀️ Siempre</option>
+                    <option value="weekend" ${mode === 'weekend' ? 'selected' : ''}>📅 Solo Finde</option>
+                </select>
+            </div>
         `;
     }).join('') || '<span class="text-xs text-slate-400 italic col-span-full">No hay capitanes configurados</span>';
 
     // Instructores y Guías
     const guides = window.staffDatabase?.guias || [];
     guidesContainer.innerHTML = guides.map((g, idx) => {
-        const checked = isStaffTracked(g.nombre);
+        const mode = getStaffTrackMode(g.nombre);
+        const active = (mode === 'always' || mode === 'weekend');
         const firstName = window.getFirstName ? window.getFirstName(g.nombre) : g.nombre;
         const inputId = `staff-track-guide-${idx}`;
+        const selectId = `staff-track-guide-mode-${idx}`;
         return `
-            <label for="${inputId}" class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-orange-50/50 hover:border-orange-300 cursor-pointer select-none transition-all shadow-xs group">
-                <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackCheckbox('${g.nombre.replace(/'/g, "\\'")}', this.checked)" ${checked ? 'checked' : ''} class="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500 cursor-pointer">
-                <span class="text-xs font-bold text-slate-800 group-hover:text-orange-700 truncate">🤿 ${firstName}</span>
-            </label>
+            <div class="flex items-center justify-between p-2.5 bg-white border ${active ? 'border-orange-300 shadow-xs bg-orange-50/20' : 'border-slate-200'} rounded-xl transition-all">
+                <label for="${inputId}" class="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-0 pr-2">
+                    <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackToggle('${g.nombre.replace(/'/g, "\\'")}', this.checked)" ${active ? 'checked' : ''} class="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500 cursor-pointer shrink-0">
+                    <span class="text-xs font-black text-slate-800 truncate">🤿 ${firstName}</span>
+                </label>
+                <select id="${selectId}" onchange="window.handleStaffTrackModeChange('${g.nombre.replace(/'/g, "\\'")}', this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer shrink-0 ${active ? '' : 'opacity-30 pointer-events-none'}">
+                    <option value="always" ${mode !== 'weekend' ? 'selected' : ''}>☀️ Siempre</option>
+                    <option value="weekend" ${mode === 'weekend' ? 'selected' : ''}>📅 Solo Finde</option>
+                </select>
+            </div>
         `;
     }).join('') || '<span class="text-xs text-slate-400 italic col-span-full">No hay guías configurados</span>';
 };
 
-window.handleStaffTrackCheckbox = function(nombre, isChecked) {
-    window.appSettings = window.appSettings || {};
-    let tracked = window.appSettings.trackedStaffOff;
-    if (!Array.isArray(tracked)) {
-        const all = [
-            ...(window.staffDatabase?.capitanes || []),
-            ...(window.staffDatabase?.guias || [])
-        ];
-        tracked = all.filter(p => {
-            const n = p.nombre.toLowerCase().trim();
-            return n.startsWith('abel') || n.startsWith('antonio');
-        }).map(p => p.nombre.trim());
-    }
-
-    const target = String(nombre).toLowerCase().trim();
-    tracked = tracked.filter(t => String(t).toLowerCase().trim() !== target);
+window.handleStaffTrackToggle = function(nombre, isChecked) {
+    const config = { ...getStaffTrackConfig() };
+    const key = nombre.trim();
     if (isChecked) {
-        tracked.push(String(nombre).trim());
+        config[key] = config[key] === 'weekend' ? 'weekend' : 'always';
+    } else {
+        config[key] = 'never';
     }
+    saveStaffTrackConfig(config);
+};
 
-    window.appSettings.trackedStaffOff = tracked;
+window.handleStaffTrackModeChange = function(nombre, newMode) {
+    const config = { ...getStaffTrackConfig() };
+    const key = nombre.trim();
+    config[key] = newMode;
+    saveStaffTrackConfig(config);
+};
+
+function saveStaffTrackConfig(config) {
+    window.appSettings = window.appSettings || {};
+    window.appSettings.staffOffTracking = config;
+    try {
+        localStorage.setItem('mangamar_staff_off_tracking', JSON.stringify(config));
+    } catch(e) {}
+
+    window.renderSettingsStaffTrackers();
 
     // Update Daily Alerts immediately
     if (typeof renderDailyAlerts === 'function' && typeof currentDate !== 'undefined') {
@@ -1561,15 +1617,15 @@ window.handleStaffTrackCheckbox = function(nombre, isChecked) {
         renderDailyAlerts(`${year}-${month}-${day}`);
     }
 
-    // Persist to Firestore
+    // Persist to Firestore settings
     if (typeof db !== 'undefined' && db.collection) {
         db.collection("mangamar_directory").doc("settings").set({
-            trackedStaffOff: tracked
+            staffOffTracking: config
         }, { merge: true }).catch(err => {
-            console.error("Error saving trackedStaffOff to Firestore:", err);
+            console.error("Error saving staffOffTracking to Firestore:", err);
         });
     }
-};
+}
 
 window.handleSettingsRadioTimesToggle = function(checked) {
     // Optimistic local update

@@ -612,9 +612,20 @@ function startFirestoreListeners() {
                     }
                 }
 
-                if (data.trackedStaffOff !== undefined) {
+                const trackingData = data.staffOffTracking || data.trackedStaffOff;
+                if (trackingData !== undefined) {
                     window.appSettings = window.appSettings || {};
-                    window.appSettings.trackedStaffOff = data.trackedStaffOff;
+                    if (Array.isArray(trackingData)) {
+                        const map = {};
+                        trackingData.forEach(name => { map[name.trim()] = 'always'; });
+                        window.appSettings.staffOffTracking = map;
+                    } else {
+                        window.appSettings.staffOffTracking = trackingData;
+                    }
+                    try {
+                        localStorage.setItem('mangamar_staff_off_tracking', JSON.stringify(window.appSettings.staffOffTracking));
+                    } catch(e) {}
+
                     if (typeof window.renderSettingsStaffTrackers === 'function') {
                         window.renderSettingsStaffTrackers();
                     }
@@ -629,7 +640,7 @@ function startFirestoreListeners() {
                 db.collection("mangamar_directory").doc("settings").set({ 
                     adminPassword: "manga321", 
                     showTVRadioTimes: true,
-                    trackedStaffOff: ['Abel', 'Antonio']
+                    staffOffTracking: { 'Abel': 'always', 'Antonio': 'always' }
                 });
             }
         });
