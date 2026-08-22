@@ -330,12 +330,54 @@ window.toggleTankSort = function(key) {
 };
 
 window.tankTableEditMode = false;
-window.tankInventoryFilter = {
-    search: '',
-    species: 'ALL',
-    status: 'ALL',
-    inventory: 'ALL'
+
+// Filter Popover handlers
+window.toggleTankFilterPopover = function() {
+    const pop = document.getElementById('tank-filter-popover');
+    if (pop) pop.classList.toggle('hidden');
 };
+
+window.onTankFilterChange = function() {
+    const speciesVal = document.getElementById('tank-filter-species')?.value || 'ALL';
+    const statusVal = document.getElementById('tank-filter-status')?.value || 'ALL';
+    const invVal = document.getElementById('tank-filter-inventory')?.value || 'ALL';
+
+    const hasActiveFilters = (speciesVal !== 'ALL') || (statusVal !== 'ALL') || (invVal !== 'ALL');
+    const badge = document.getElementById('tank-active-filter-badge');
+    const btn = document.getElementById('btn-tank-filter-popover');
+    
+    if (badge) {
+        badge.classList.toggle('hidden', !hasActiveFilters);
+    }
+    if (btn) {
+        if (hasActiveFilters) {
+            btn.className = 'px-3 py-1.5 bg-emerald-50 text-emerald-800 border-emerald-300 font-black rounded-xl text-xs transition-all flex items-center gap-1.5 border shrink-0';
+        } else {
+            btn.className = 'px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-300 shrink-0';
+        }
+    }
+
+    window.renderTankInventoryUI();
+};
+
+window.resetTankFilters = function() {
+    const s1 = document.getElementById('tank-filter-species');
+    const s2 = document.getElementById('tank-filter-status');
+    const s3 = document.getElementById('tank-filter-inventory');
+    if (s1) s1.value = 'ALL';
+    if (s2) s2.value = 'ALL';
+    if (s3) s3.value = 'ALL';
+    window.onTankFilterChange();
+};
+
+// Close popover when clicking outside
+document.addEventListener('click', function(e) {
+    const container = document.getElementById('tank-filter-popover-container');
+    const pop = document.getElementById('tank-filter-popover');
+    if (container && pop && !container.contains(e.target) && !pop.classList.contains('hidden')) {
+        pop.classList.add('hidden');
+    }
+});
 
 // Toggle Table Edit Mode (protects against misclicks)
 window.toggleTankTableEditMode = function() {
@@ -480,27 +522,29 @@ window.renderTankInventoryUI = function() {
         const tType = String(t.type || '').trim();
         const tTypeLower = tType.toLowerCase();
 
-        // 2) Distinct subtle background color per tank 'species'
-        let speciesRowClass = 'bg-white hover:bg-slate-50';
+        // 2) Distinct colored tag/badge for each tank 'species' in the Tipo column
+        let speciesTag = `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-block">${tType}</span>`;
+
         if (tTypeLower.includes('alto')) {
-            speciesRowClass = 'bg-blue-50/40 hover:bg-blue-100/50';
-        } else if (tTypeLower.includes('12l') && tTypeLower.includes('eanx')) {
-            speciesRowClass = 'bg-emerald-50/40 hover:bg-emerald-100/50';
+            speciesTag = `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-100 text-blue-900 border border-blue-300 inline-block">12L ACERO (alto)</span>`;
         } else if (tTypeLower.includes('12l') && tTypeLower.includes('aire')) {
-            speciesRowClass = 'bg-slate-50/40 hover:bg-slate-100/60';
+            speciesTag = `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300 inline-block">12L ACERO AIRE</span>`;
+        } else if (tTypeLower.includes('12l') && tTypeLower.includes('eanx')) {
+            speciesTag = `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 inline-block">12L ACERO EANx</span>`;
         } else if (tTypeLower.includes('alu')) {
-            speciesRowClass = 'bg-sky-50/40 hover:bg-sky-100/50';
+            speciesTag = `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300 inline-block">12L ALU</span>`;
         } else if (tTypeLower.includes('15l') && tTypeLower.includes('aire')) {
-            speciesRowClass = 'bg-amber-50/40 hover:bg-amber-100/50';
+            speciesTag = `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block">15L ACERO AIRE</span>`;
         } else if (tTypeLower.includes('15l') && tTypeLower.includes('eanx')) {
-            speciesRowClass = 'bg-teal-50/40 hover:bg-teal-100/50';
+            speciesTag = `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-teal-100 text-teal-900 border border-teal-300 inline-block">15L ACERO EANx</span>`;
         } else if (tTypeLower.includes('no econtrado') || tTypeLower.includes('no encontrado')) {
-            speciesRowClass = 'bg-gray-100/60 hover:bg-gray-200/60 text-slate-500';
+            speciesTag = `<span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-500 border border-gray-300 italic inline-block">No encontrado en MM</span>`;
         }
 
-        // Highlight rejected tanks clearly
+        // Highlight rejected rows softly
+        let rowClass = 'bg-white hover:bg-slate-50';
         if (st === 'Rechazada') {
-            speciesRowClass = 'bg-rose-100/60 hover:bg-rose-100/80 text-rose-950';
+            rowClass = 'bg-rose-50/70 hover:bg-rose-100/70 text-rose-950';
         }
 
         // Status badge styling in read-only mode
@@ -540,7 +584,7 @@ window.renderTankInventoryUI = function() {
             if (!typeOptions.includes(tType) && tType) typeOptions.push(tType);
 
             return `
-                <tr class="border-b border-slate-200 ${speciesRowClass} transition-colors">
+                <tr class="border-b border-slate-200 ${rowClass} transition-colors">
                     <!-- 1. Sello (Non-editable) -->
                     <td class="py-1 px-3 border-r border-slate-200 font-mono font-black text-slate-900 text-xs">
                         ${t.sello || ''}
@@ -597,7 +641,7 @@ window.renderTankInventoryUI = function() {
 
         // READ-ONLY / VIEWING MODE (Crisp, protected from accidental misclicks)
         return `
-            <tr class="border-b border-slate-200 ${speciesRowClass} transition-colors group">
+            <tr class="border-b border-slate-200 ${rowClass} transition-colors group">
                 <!-- 1. Sello (Non-editable, clean text) -->
                 <td class="py-2 px-3 border-r border-slate-200/80 font-mono font-black text-slate-900 text-xs">
                     ${t.sello || ''}
@@ -608,9 +652,9 @@ window.renderTankInventoryUI = function() {
                     ${statusBadge}
                 </td>
 
-                <!-- 3. Tipo -->
-                <td class="py-2 px-3 border-r border-slate-200/80 text-xs font-semibold text-slate-800">
-                    ${tType || '12L ACERO AIRE'}
+                <!-- 3. Tipo (Distinct colored tag) -->
+                <td class="py-2 px-3 border-r border-slate-200/80">
+                    ${speciesTag}
                 </td>
 
                 <!-- 4. No. Serie -->
