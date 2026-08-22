@@ -404,19 +404,18 @@ window.updateRegLivePreview = function() {
 
     // Render Services in Preview
     const srvList = [];
-    if (sAnnual) srvList.push('Revisión Anual Completa (Kit + Ultrasonidos + IP)');
-    if (sIp) srvList.push('Calibración Presión Intermedia / Flujo Libre');
+    if (sAnnual) srvList.push('Revisión Anual Completa');
+    if (sIp) srvList.push('Ajuste Presión Intermedia / Flujo');
     if (sUltra) srvList.push('Limpieza Ultrasonidos');
-    if (sHoses) srvList.push('Sustitución de Latiguillos');
-    if (sSpool) srvList.push('Sustitución Spool Manómetro');
-    if (sO2) srvList.push('Servicio Oxígeno / Nitrox');
-    if (sOther) srvList.push(sOther);
+    if (sHoses) srvList.push('Sustitución Latiguillos');
+    if (sSpool) srvList.push('Junta Spool / Manómetro');
+    if (sO2) srvList.push('Servicio Oxígeno / O2 Clean');
 
     const srvContainer = document.getElementById('prev-services-list');
     if (srvContainer) {
         srvContainer.innerHTML = srvList.length > 0
-            ? srvList.map(s => `<li class="flex items-start gap-1.5"><span class="text-cyan-700 font-bold">☑</span><span>${s}</span></li>`).join('')
-            : '<li class="text-slate-400 italic">Revisión general estándar</li>';
+            ? srvList.map(s => `<span class="inline-block bg-cyan-50 text-cyan-900 border border-cyan-200 text-[9px] font-bold px-1.5 py-0.5 rounded">✓ ${s}</span>`).join(' ')
+            : '<span class="text-slate-400 italic text-[9px]">Revisión general estándar</span>';
     }
 
     setText('prev-symptoms', symptoms);
@@ -624,6 +623,8 @@ window.printRegService = function() {
                 box-shadow: none !important;
                 border: none !important;
                 box-sizing: border-box !important;
+                font-size: 9.5px !important;
+                line-height: 1.25 !important;
                 page-break-inside: avoid !important;
                 page-break-before: avoid !important;
                 page-break-after: avoid !important;
