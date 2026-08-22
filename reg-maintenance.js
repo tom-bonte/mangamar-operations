@@ -166,12 +166,6 @@ window.resetRegForm = function() {
     // Symptoms
     document.getElementById('reg-input-symptoms').value = '';
 
-    // Workshop & Cost calculation fields
-    document.getElementById('reg-input-cost-kits').value = '';
-    document.getElementById('reg-input-cost-materials').value = '';
-    document.getElementById('reg-input-hours').value = '1';
-    document.getElementById('reg-input-tech-notes').value = '';
-
     window.updateRegLivePreview();
 };
 
@@ -225,12 +219,6 @@ window.loadRegTicketForEdit = function(ticketId) {
 
     // Symptoms
     document.getElementById('reg-input-symptoms').value = ticket.symptoms || '';
-
-    // Workshop & Cost calculation fields
-    document.getElementById('reg-input-cost-kits').value = ticket.costKits !== undefined ? ticket.costKits : '';
-    document.getElementById('reg-input-cost-materials').value = ticket.costMaterials !== undefined ? ticket.costMaterials : '';
-    document.getElementById('reg-input-hours').value = ticket.hoursLabor !== undefined ? ticket.hoursLabor : '1';
-    document.getElementById('reg-input-tech-notes').value = ticket.techNotes || '';
 
     window.switchRegTab('form');
     window.updateRegLivePreview();
@@ -319,7 +307,7 @@ function formatEuropeanDate(dateStr) {
     return dateStr;
 }
 
-// Update Live A4 Sheet Preview and Calculation
+// Update Live A4 Sheet Preview
 window.updateRegLivePreview = function() {
     const ticketCode = document.getElementById('reg-input-ticket-id').value || 'REG-26-001';
     const dateEntry = document.getElementById('reg-input-date-entry').value;
@@ -359,22 +347,6 @@ window.updateRegLivePreview = function() {
     const sOther = document.getElementById('srv-other').value.trim();
 
     const symptoms = document.getElementById('reg-input-symptoms').value || 'Sin incidencias previas reportadas por el cliente.';
-
-    // Workshop Costs Calculation (Kits + Materials + Hours * 25€)
-    const costKits = parseFloat(document.getElementById('reg-input-cost-kits').value) || 0;
-    const costMaterials = parseFloat(document.getElementById('reg-input-cost-materials').value) || 0;
-    const hours = parseFloat(document.getElementById('reg-input-hours').value) || 0;
-    const laborRate = 25;
-    const laborTotal = hours * laborRate;
-    const grandTotal = costKits + costMaterials + laborTotal;
-
-    const techNotes = document.getElementById('reg-input-tech-notes').value.trim();
-
-    // Update Interactive Form Totals
-    const laborCostEl = document.getElementById('reg-calc-labor-cost');
-    if (laborCostEl) laborCostEl.innerText = `${laborTotal.toFixed(2)} €`;
-    const totalCostEl = document.getElementById('reg-calc-total-cost');
-    if (totalCostEl) totalCostEl.innerText = `${grandTotal.toFixed(2)} €`;
 
     // Render Preview DOM Elements
     const setText = (id, val) => {
@@ -448,15 +420,6 @@ window.updateRegLivePreview = function() {
     }
 
     setText('prev-symptoms', symptoms);
-
-    // Workshop & Cost Breakdown preview
-    setText('prev-tech-notes', techNotes || 'Sin observaciones adicionales.');
-    setText('prev-cost-kits', `${costKits.toFixed(2)} €`);
-    setText('prev-cost-materials', `${costMaterials.toFixed(2)} €`);
-    setText('prev-hours', `${hours}`);
-    setText('prev-cost-labor', `${laborTotal.toFixed(2)} €`);
-    setText('prev-cost-total', `${grandTotal.toFixed(2)} €`);
-    setText('prev-cost-total-bot', `${grandTotal.toFixed(2)} €`);
 };
 
 // Save Service Ticket to Firestore
@@ -512,14 +475,6 @@ window.saveRegServiceTicket = async function() {
 
     const symptoms = document.getElementById('reg-input-symptoms').value.trim();
 
-    // Workshop Costs Calculation
-    const costKits = parseFloat(document.getElementById('reg-input-cost-kits').value) || 0;
-    const costMaterials = parseFloat(document.getElementById('reg-input-cost-materials').value) || 0;
-    const hoursLabor = parseFloat(document.getElementById('reg-input-hours').value) || 0;
-    const laborTotal = hoursLabor * 25;
-    const totalCost = costKits + costMaterials + laborTotal;
-    const techNotes = document.getElementById('reg-input-tech-notes').value.trim();
-
     const ticketId = window.activeRegTicketId || `REG_${Date.now()}`;
     const timestamp = Date.now();
 
@@ -542,12 +497,6 @@ window.saveRegServiceTicket = async function() {
         components,
         services,
         symptoms,
-        costKits,
-        costMaterials,
-        hoursLabor,
-        laborTotal,
-        totalCost,
-        techNotes,
         updatedAt: timestamp
     };
 
@@ -662,7 +611,7 @@ window.printRegService = function() {
     }, 1000);
 };
 
-// Render Ticket History List with colored full cards & cost summary
+// Render Ticket History List with colored full cards
 window.renderRegHistoryList = function() {
     const listContainer = document.getElementById('reg-history-container');
     if (!listContainer) return;
@@ -735,8 +684,6 @@ window.renderRegHistoryList = function() {
             };
         }
 
-        const totalFormatted = t.totalCost !== undefined ? parseFloat(t.totalCost).toFixed(2) : '0.00';
-
         return `
         <div class="p-4 rounded-2xl border-2 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${theme.card}">
             <div class="flex items-start gap-3.5">
@@ -748,7 +695,6 @@ window.renderRegHistoryList = function() {
                         <span class="font-mono text-xs font-black px-2 py-0.5 rounded border ${theme.ticketTag}">${t.ticketCode || t.id}</span>
                         <span class="text-sm font-black text-slate-800">${t.clientName}</span>
                         <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${theme.badge}">${t.status || 'Pendiente'}</span>
-                        <span class="text-xs font-mono font-black text-slate-700 bg-white/80 px-2 py-0.5 rounded-md border border-slate-300/80">💰 ${totalFormatted} €</span>
                     </div>
                     <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 font-bold mt-1.5">
                         <span>📞 ${t.clientPhone}</span>
