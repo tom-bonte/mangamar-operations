@@ -3282,145 +3282,74 @@
 
     <!-- TANK / CYLINDER INVENTORY MODAL -->
     <div id="tank-inventory-modal" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4" onclick="if(event.target === this) window.closeTankInventoryModal()">
-        <div class="bg-white rounded-3xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] md:h-[92vh] relative animate-scale-up">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1550px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] md:h-[92vh] relative animate-scale-up">
             
-            <!-- HEADER -->
-            <div class="p-4 md:px-6 md:py-4 border-b border-slate-100 flex flex-wrap gap-3 justify-between items-center bg-white shrink-0">
+            <!-- HEADER (Simple & Professional) -->
+            <div class="p-3.5 md:px-6 border-b border-slate-200 flex flex-wrap gap-3 justify-between items-center bg-white shrink-0 no-print">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 font-black">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                    </div>
-                    <div>
-                        <h2 class="text-base md:text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                            Inventario y Control de Botellas / Tanques
-                            <span class="text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">Mangamar Taller</span>
-                        </h2>
-                        <p class="text-xs text-slate-400 font-bold">Control de botellas, inspecciones hidrostáticas (retimbrados), revisiones visuales y estado en taller.</p>
-                    </div>
+                    <h2 class="text-base md:text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                        <span>Inventario Tanks / Tanques / Botellas Mangamar</span>
+                        <span id="tank-inventory-count" class="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200">0 botellas</span>
+                    </h2>
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <button onclick="window.openEditTankModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm shadow-emerald-200 active:scale-95">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <div class="flex items-center gap-2.5 flex-1 max-w-md justify-end">
+                    <div class="relative w-full max-w-xs">
+                        <input type="text" id="tank-filter-search" oninput="window.renderTankInventoryUI()" placeholder="Buscar por serie, sello, tipo..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+
+                    <button onclick="window.openEditTankModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-sm shrink-0">
                         <span>+ Nueva Botella</span>
                     </button>
-                    <button onclick="window.openTankImportModal()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200 active:scale-95" title="Importar o pegar filas desde Google Sheets / Excel">
-                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        <span>Pegar desde Sheets</span>
+
+                    <button onclick="window.printTankInventory()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shrink-0" title="Imprimir / Guardar como PDF (30-40 botellas por página)">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        <span>Imprimir PDF</span>
                     </button>
-                    <button onclick="window.printTankInventory()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors" title="Imprimir / Exportar Listado">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                    </button>
-                    <button onclick="window.closeTankInventoryModal()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+
+                    <button onclick="window.closeTankInventoryModal()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
             </div>
 
-            <!-- KPI SUMMARY CARDS -->
-            <div class="px-4 md:px-6 py-3 bg-slate-50 border-b border-slate-200/80 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 shrink-0">
-                <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Total</span>
-                        <span id="stat-tank-total" class="text-base font-black text-slate-800">0</span>
-                    </div>
-                    <span class="text-lg">🤿</span>
-                </div>
-                <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">En Taller</span>
-                        <span id="stat-tank-inventory" class="text-base font-black text-cyan-700">0</span>
-                    </div>
-                    <span class="text-lg">🏢</span>
-                </div>
-                <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">Operativas</span>
-                        <span id="stat-tank-operative" class="text-base font-black text-emerald-700">0</span>
-                    </div>
-                    <span class="text-lg">🟢</span>
-                </div>
-                <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-black text-amber-600 uppercase tracking-widest block">Testing / Insp.</span>
-                        <span id="stat-tank-testing" class="text-base font-black text-amber-700">0</span>
-                    </div>
-                    <span class="text-lg">🟡</span>
-                </div>
-                <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-black text-sky-600 uppercase tracking-widest block">En Pintura</span>
-                        <span id="stat-tank-painting" class="text-base font-black text-sky-700">0</span>
-                    </div>
-                    <span class="text-lg">🎨</span>
-                </div>
-                <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-black text-rose-600 uppercase tracking-widest block">Rechazadas</span>
-                        <span id="stat-tank-rejected" class="text-base font-black text-rose-700">0</span>
-                    </div>
-                    <span class="text-lg">🔴</span>
-                </div>
-            </div>
-
-            <!-- FILTERS & SEARCH TOOLBAR -->
-            <div class="px-4 md:px-6 py-3 bg-white border-b border-slate-100 flex flex-wrap gap-2.5 items-center justify-between shrink-0">
-                <div class="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
-                    <div class="relative flex-1 min-w-[200px]">
-                        <input type="text" id="tank-filter-search" oninput="window.renderTankInventoryUI()" placeholder="Buscar por Sello, Nº de Serie, Grifería, Tipo..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </div>
-
-                    <select id="tank-filter-type" onchange="window.renderTankInventoryUI()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                        <option value="ALL">Todos los Tipos</option>
-                        <option value="12L_AIRE">12L Acero Aire</option>
-                        <option value="12L_EANX">12L Acero EANx (Nitrox)</option>
-                        <option value="12L_ALTO">12L Acero (Alto)</option>
-                        <option value="ALU">12L Aluminio (Alu / S80)</option>
-                        <option value="15L">15L Acero</option>
-                        <option value="18L">18L Acero</option>
-                    </select>
-
-                    <select id="tank-filter-status" onchange="window.renderTankInventoryUI()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                        <option value="ALL">Todos los Estados</option>
-                        <option value="Operativa">🟢 Operativas</option>
-                        <option value="Testing">🟡 En Testing / Inspección</option>
-                        <option value="Painting">🔵 En Pintura</option>
-                        <option value="Rechazada">🔴 Rechazadas / Baja</option>
-                    </select>
-
-                    <select id="tank-filter-inventory" onchange="window.renderTankInventoryUI()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                        <option value="ALL">Todo el Historial</option>
-                        <option value="IN_INV">🏢 En Taller (Inventariadas)</option>
-                        <option value="NOT_INV">Fuera / No presentes</option>
-                    </select>
-                </div>
-            </div>
-
             <!-- TABLE CONTAINER -->
-            <div class="flex-1 overflow-y-auto bg-slate-50/50 p-2 md:p-6">
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-600 uppercase font-black tracking-wider text-[10px]">
-                                    <th class="py-3 px-3 text-center w-16">Sello</th>
-                                    <th class="py-3 px-3 w-40">Estado</th>
-                                    <th class="py-3 px-3">Tipo de Botella</th>
-                                    <th class="py-3 px-3">No. Serie</th>
-                                    <th class="py-3 px-3">Grifería</th>
-                                    <th class="py-3 px-3">Fecha Hidrostático / Retimbrado</th>
-                                    <th class="py-3 px-3">Pintura / Tratamiento</th>
-                                    <th class="py-3 px-3 text-center w-24">En Taller</th>
-                                    <th class="py-3 px-3 text-right w-20">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tank-inventory-tbody" class="divide-y divide-slate-100">
-                                <!-- Rendered dynamically by tank-inventory.js -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <div class="flex-1 overflow-y-auto bg-white p-2 md:p-4 print-container">
+                <table class="w-full text-left border-collapse text-xs border border-slate-300 tank-print-table">
+                    <thead class="sticky top-0 bg-amber-50/90 backdrop-blur-xs z-10">
+                        <tr class="border-b-2 border-slate-300 text-slate-800 font-black text-[11px]">
+                            <th onclick="window.toggleTankSort('sello')" class="py-2 px-3 text-left w-16 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
+                                Sello <span id="tank-sort-icon-sello" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            </th>
+                            <th onclick="window.toggleTankSort('status')" class="py-2 px-3 w-28 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
+                                Status <span id="tank-sort-icon-status" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            </th>
+                            <th onclick="window.toggleTankSort('type')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
+                                Tipo <span id="tank-sort-icon-type" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            </th>
+                            <th onclick="window.toggleTankSort('serial')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
+                                No. Serie <span id="tank-sort-icon-serial" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            </th>
+                            <th onclick="window.toggleTankSort('valve')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
+                                Griferia <span id="tank-sort-icon-valve" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            </th>
+                            <th onclick="window.toggleTankSort('hydroDate')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
+                                Fecha Hydrostatico <span id="tank-sort-icon-hydroDate" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            </th>
+                            <th onclick="window.toggleTankSort('lastPainted')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
+                                Last Painted <span id="tank-sort-icon-lastPainted" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            </th>
+                            <th onclick="window.toggleTankSort('inInventory')" class="py-2 px-3 text-center w-36 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
+                                Inventario (20 Dic 2025) <span id="tank-sort-icon-inInventory" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            </th>
+                            <th class="py-2 px-3 text-right w-14 no-print">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tank-inventory-tbody" class="divide-y divide-slate-200">
+                        <!-- Rendered dynamically by tank-inventory.js -->
+                    </tbody>
+                </table>
             </div>
 
         </div>

@@ -1050,3 +1050,77 @@ body.is-dragging * {
     display: inline-block;
     animation: tvSparkleSpin 3.5s linear infinite;
 }
+
+/* ==========================================
+   TANK INVENTORY PRINT OPTIMIZATION (35-40 TANKS/PAGE)
+   ========================================== */
+@media print {
+    body.printing-tanks > *:not(#tank-inventory-modal),
+    #tank-inventory-modal.hidden {
+        display: none !important;
+    }
+
+    #tank-inventory-modal:not(.hidden) {
+        position: static !important;
+        inset: auto !important;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        z-index: 99999 !important;
+    }
+
+    #tank-inventory-modal:not(.hidden) > div {
+        max-width: 100% !important;
+        width: 100% !important;
+        height: auto !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .print-container {
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    .tank-print-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 8pt !important;
+        line-height: 1.15 !important;
+    }
+
+    .tank-print-table thead {
+        display: table-header-group !important;
+    }
+
+    .tank-print-table th {
+        background-color: #fef3c7 !important;
+        color: #1e293b !important;
+        border: 1px solid #94a3b8 !important;
+        padding: 3px 4px !important;
+        font-size: 8pt !important;
+        font-weight: 900 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .tank-print-table td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 2.5px 4px !important;
+        font-size: 7.5pt !important;
+        height: 6mm !important;
+    }
+
+    .tank-print-table tr {
+        page-break-inside: avoid !important;
+    }
+}

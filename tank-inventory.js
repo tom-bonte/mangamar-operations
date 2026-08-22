@@ -5,51 +5,242 @@
 
 window.tankInventoryList = [];
 window.activeTankEditId = null;
-window.tankInventoryFilter = {
-    search: '',
-    type: 'ALL',
-    status: 'ALL',
-    inventoryOnly: 'ALL'
-};
+window.tankSortState = { key: null, asc: true }; // null preserves original sheet order
 
-// Initial Seed Data extracted from Mangamar Google Sheet
+// Complete dataset extracted directly from the official Mangamar Google Sheet / PDF
 window.INITIAL_TANK_DATA = [
-    { id: 'TNK_001', sello: '22', status: 'Operativa', type: '12L ACERO (alto)', serial: 'CCX027', valve: '', hydroDate: '2022-07', lastPainted: '', inInventory: true },
-    { id: 'TNK_002', sello: '23', status: 'Operativa', type: '12L ACERO (alto)', serial: 'BNZ007', valve: '', hydroDate: '2022-07', lastPainted: '', inInventory: true },
-    { id: 'TNK_003', sello: '1', status: 'Operativa', type: '12L ACERO AIRE', serial: '12495461', valve: '', hydroDate: '2024-02', lastPainted: '', inInventory: true },
-    { id: 'TNK_004', sello: '2', status: 'Testing', type: '12L ACERO AIRE', serial: '12850894', valve: '61.06-11', hydroDate: '2026-04', lastPainted: '', inInventory: true },
-    { id: 'TNK_005', sello: '4', status: 'Operativa', type: '12L ACERO AIRE', serial: '12184450', valve: '', hydroDate: '2024-02', lastPainted: '', inInventory: true },
-    { id: 'TNK_006', sello: '5', status: 'Operativa', type: '12L ACERO AIRE', serial: '12115741', valve: '', hydroDate: '2024-02', lastPainted: '', inInventory: true },
-    { id: 'TNK_007', sello: '6', status: 'Operativa', type: '12L ACERO AIRE', serial: '13923066', valve: '', hydroDate: '', lastPainted: '', inInventory: false },
-    { id: 'TNK_008', sello: '7', status: 'Testing', type: '12L ACERO AIRE', serial: '12881647', valve: 'F00413', hydroDate: '2026-04', lastPainted: '', inInventory: true },
-    { id: 'TNK_009', sello: '8', status: 'Operativa', type: '12L ACERO AIRE', serial: '13923071', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_010', sello: '9', status: 'Testing', type: '12L ACERO AIRE', serial: '12495475', valve: 'H04535', hydroDate: '2026-04', lastPainted: 'Painting', inInventory: true },
-    { id: 'TNK_011', sello: '10', status: 'Testing', type: '12L ACERO AIRE', serial: '13922976', valve: 'H04516', hydroDate: '2026-04', lastPainted: '', inInventory: true },
-    { id: 'TNK_012', sello: '11', status: 'Operativa', type: '12L ACERO AIRE', serial: '12881643', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_013', sello: '12', status: 'Operativa', type: '12L ACERO AIRE', serial: '13923015', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_014', sello: '13', status: 'Operativa', type: '12L ACERO AIRE', serial: '13923037', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_015', sello: '14', status: 'Operativa', type: '12L ACERO AIRE', serial: '13923067', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_016', sello: '15', status: 'Operativa', type: '12L ACERO AIRE', serial: '13922972', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_017', sello: '16', status: 'Operativa', type: '12L ACERO AIRE', serial: '13923031', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_018', sello: '17', status: 'Operativa', type: '12L ACERO AIRE', serial: '13923063', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_019', sello: '18', status: 'Operativa', type: '12L ACERO AIRE', serial: '19/0095/035', valve: '', hydroDate: '2022-06', lastPainted: '', inInventory: true },
-    { id: 'TNK_020', sello: '19', status: 'Testing', type: '12L ACERO AIRE', serial: '13923060', valve: 'H04533', hydroDate: '2026-04', lastPainted: 'Painting', inInventory: true },
-    { id: 'TNK_021', sello: '20', status: 'Operativa', type: '12L ACERO AIRE', serial: '19/0095/040', valve: '', hydroDate: '2022-06', lastPainted: '', inInventory: true },
-    { id: 'TNK_022', sello: '21', status: 'Testing', type: '12L ACERO AIRE', serial: '13923066', valve: 'H04521', hydroDate: '', lastPainted: 'Painting', inInventory: true },
-    { id: 'TNK_023', sello: '22', status: 'Operativa', type: '12L ACERO AIRE', serial: '13410677', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_024', sello: '53', status: 'Testing', type: '12L ACERO AIRE', serial: '12495462', valve: 'F00482', hydroDate: '2026-04', lastPainted: 'Painting', inInventory: true },
-    { id: 'TNK_025', sello: '1', status: 'Operativa', type: '12L ACERO EANx', serial: '12495461', valve: '', hydroDate: '', lastPainted: '', inInventory: false },
-    { id: 'TNK_026', sello: '2', status: 'Rechazada', type: '12L ACERO EANx', serial: '12184435', valve: 'D02284', hydroDate: '2022-06', lastPainted: '', inInventory: true },
-    { id: 'TNK_027', sello: '3', status: 'Operativa', type: '12L ACERO EANx', serial: '12115713', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
-    { id: 'TNK_028', sello: '4', status: 'Operativa', type: '12L ACERO EANx', serial: '13923069', valve: '', hydroDate: '2022-06', lastPainted: '', inInventory: true },
-    { id: 'TNK_029', sello: '5', status: 'Operativa', type: '12L ACERO EANx', serial: '13922975', valve: '', hydroDate: '2022-06', lastPainted: '', inInventory: true },
-    { id: 'TNK_030', sello: '6', status: 'Testing', type: '12L ACERO EANx', serial: '13922977', valve: 'H04637', hydroDate: '2026-04', lastPainted: 'Painting', inInventory: true },
-    { id: 'TNK_031', sello: '7', status: 'Operativa', type: '12L ACERO EANx', serial: '19/0095/038', valve: '', hydroDate: '2022-06', lastPainted: '', inInventory: true },
-    { id: 'TNK_032', sello: '8', status: 'Operativa', type: '12L ACERO EANx', serial: '13922973', valve: '', hydroDate: '2022-06', lastPainted: '', inInventory: true },
-    { id: 'TNK_033', sello: '9', status: 'Operativa', type: '12L ACERO EANx', serial: '13923001', valve: '', hydroDate: '2022-06', lastPainted: '', inInventory: true },
-    { id: 'TNK_034', sello: '1', status: 'Operativa', type: '12L ALU', serial: '30180', valve: '', hydroDate: '2022-09', lastPainted: '', inInventory: true },
-    { id: 'TNK_035', sello: '2', status: 'Operativa', type: '12L ALU', serial: '30181', valve: '', hydroDate: '2022-09', lastPainted: '', inInventory: true },
-    { id: 'TNK_036', sello: '3', status: 'Operativa', type: '12L ALU', serial: '30182', valve: '', hydroDate: '2022-09', lastPainted: '', inInventory: false }
+    // Page 1 - 12L ACERO (alto)
+    { id: 'TNK_001', sello: '1', status: '', type: '12L ACERO (alto)', serial: 'CCX015UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_002', sello: '2', status: '', type: '12L ACERO (alto)', serial: 'BNZ062UT', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_003', sello: '3', status: '', type: '12L ACERO (alto)', serial: 'BNZ017UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_004', sello: '4', status: '', type: '12L ACERO (alto)', serial: 'CCX006UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_005', sello: '5', status: '', type: '12L ACERO (alto)', serial: 'CCX016UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_006', sello: '6', status: '', type: '12L ACERO (alto)', serial: 'CCX012UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_007', sello: '7', status: '', type: '12L ACERO (alto)', serial: 'CCX018UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_008', sello: '8', status: '', type: '12L ACERO (alto)', serial: 'BNZ044UT', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_009', sello: '9', status: 'Testing', type: '12L ACERO (alto)', serial: 'BNZ052UT', valve: '61.06-11', hydroDate: 'April 2026', lastPainted: 'To Paint', inInventory: true },
+    { id: 'TNK_010', sello: '10', status: '', type: '12L ACERO (alto)', serial: 'CCX011UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_011', sello: '11', status: '', type: '12L ACERO (alto)', serial: 'CCX010UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_012', sello: '12', status: '', type: '12L ACERO (alto)', serial: 'BNZ041UT', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_013', sello: '13', status: '', type: '12L ACERO (alto)', serial: 'BNZ004UT', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_014', sello: '14', status: '', type: '12L ACERO (alto)', serial: '19/0103/109', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_015', sello: '15', status: '', type: '12L ACERO (alto)', serial: '19/0103/162', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_016', sello: '16', status: '', type: '12L ACERO (alto)', serial: '19/0103/179', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_017', sello: '17', status: '', type: '12L ACERO (alto)', serial: '19/0103/146', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_018', sello: '18', status: '', type: '12L ACERO (alto)', serial: '19/0103/011', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_019', sello: '19', status: '', type: '12L ACERO (alto)', serial: 'BNZ050UT', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_020', sello: '20', status: 'Testing', type: '12L ACERO (alto)', serial: 'CCX021UT', valve: '61.48-10', hydroDate: 'April 2026', lastPainted: 'To Paint', inInventory: true },
+    { id: 'TNK_021', sello: '21', status: '', type: '12L ACERO (alto)', serial: 'BNZ059UT', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_022', sello: '22', status: '', type: '12L ACERO (alto)', serial: 'CCX027', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_023', sello: '23', status: '', type: '12L ACERO (alto)', serial: 'BNZ007', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+
+    // Page 1 - 12L ACERO AIRE
+    { id: 'TNK_024', sello: '1', status: '', type: '12L ACERO AIRE', serial: '12495461', valve: '', hydroDate: 'February 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_025', sello: '2', status: 'Testing', type: '12L ACERO AIRE', serial: '12850894', valve: '61.06-11', hydroDate: 'April 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_026', sello: '4', status: '', type: '12L ACERO AIRE', serial: '12184450', valve: '', hydroDate: 'February 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_027', sello: '5', status: '', type: '12L ACERO AIRE', serial: '12115741', valve: '', hydroDate: 'February 2024 [1]', lastPainted: '', inInventory: true },
+    { id: 'TNK_028', sello: '6', status: '', type: '12L ACERO AIRE', serial: '13923066', valve: '', hydroDate: '', lastPainted: '', inInventory: false },
+    { id: 'TNK_029', sello: '7', status: 'Testing', type: '12L ACERO AIRE', serial: '12881647', valve: 'F00413', hydroDate: 'April 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_030', sello: '8', status: '', type: '12L ACERO AIRE', serial: '13923071', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_031', sello: '9', status: 'Testing', type: '12L ACERO AIRE', serial: '12495475', valve: 'H04535', hydroDate: 'April 2026', lastPainted: 'Painting', inInventory: true },
+    { id: 'TNK_032', sello: '10', status: 'Testing', type: '12L ACERO AIRE', serial: '13922976', valve: 'H04516', hydroDate: 'April 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_033', sello: '11', status: '', type: '12L ACERO AIRE', serial: '12881643', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_034', sello: '12', status: '', type: '12L ACERO AIRE', serial: '13923015', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_035', sello: '13', status: '', type: '12L ACERO AIRE', serial: '13923037', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_036', sello: '14', status: '', type: '12L ACERO AIRE', serial: '13923067', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_037', sello: '15', status: '', type: '12L ACERO AIRE', serial: '13922972', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_038', sello: '16', status: '', type: '12L ACERO AIRE', serial: '13923031', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_039', sello: '17', status: '', type: '12L ACERO AIRE', serial: '13923063', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_040', sello: '18', status: '', type: '12L ACERO AIRE', serial: '19/0095/035', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_041', sello: '19', status: 'Testing', type: '12L ACERO AIRE', serial: '13923060', valve: 'H04533', hydroDate: 'April 2026', lastPainted: 'Painting', inInventory: true },
+    { id: 'TNK_042', sello: '20', status: '', type: '12L ACERO AIRE', serial: '19/0095/040', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_043', sello: '21', status: 'Testing', type: '12L ACERO AIRE', serial: '13923086', valve: 'H04521', hydroDate: '', lastPainted: 'Painting', inInventory: true },
+    { id: 'TNK_044', sello: '22', status: '', type: '12L ACERO AIRE', serial: '13410677', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_045', sello: '53', status: 'Testing', type: '12L ACERO AIRE', serial: '12495462', valve: 'F00482', hydroDate: 'April 2026', lastPainted: 'Painting', inInventory: true },
+
+    // Page 1 - 12L ACERO EANx
+    { id: 'TNK_046', sello: '1', status: '', type: '12L ACERO EANx', serial: '12495461', valve: '', hydroDate: '', lastPainted: '', inInventory: false },
+    { id: 'TNK_047', sello: '2', status: 'Rechazada', type: '12L ACERO EANx', serial: '12184435', valve: 'D02284', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_048', sello: '3', status: '', type: '12L ACERO EANx', serial: '12115713', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_049', sello: '4', status: '', type: '12L ACERO EANx', serial: '13923069', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_050', sello: '5', status: '', type: '12L ACERO EANx', serial: '13922975', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_051', sello: '6', status: 'Testing', type: '12L ACERO EANx', serial: '13922977', valve: 'H04637', hydroDate: 'April 2026', lastPainted: 'Painting', inInventory: true },
+    { id: 'TNK_052', sello: '7', status: '', type: '12L ACERO EANx', serial: '19/0095/038', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_053', sello: '8', status: '', type: '12L ACERO EANx', serial: '13922973', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_054', sello: '9', status: '', type: '12L ACERO EANx', serial: '13923001', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+
+    // Page 1 & 2 - 12L ALU
+    { id: 'TNK_055', sello: '1', status: '', type: '12L ALU', serial: '30180', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_056', sello: '2', status: '', type: '12L ALU', serial: '30181', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_057', sello: '3', status: '', type: '12L ALU', serial: '30182', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: false },
+    { id: 'TNK_058', sello: '4', status: '', type: '12L ALU', serial: '30183', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_059', sello: '5', status: '', type: '12L ALU', serial: '30184', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: false },
+    { id: 'TNK_060', sello: '6', status: '', type: '12L ALU', serial: '30185', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_061', sello: '7', status: '', type: '12L ALU', serial: '30186', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_062', sello: '8', status: '', type: '12L ALU', serial: '30187', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_063', sello: '9', status: '', type: '12L ALU', serial: '30188', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_064', sello: '10', status: '', type: '12L ALU', serial: '30189', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_065', sello: '11', status: '', type: '12L ALU', serial: '30190', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_066', sello: '12', status: '', type: '12L ALU', serial: '30191', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_067', sello: '13', status: '', type: '12L ALU', serial: '30192', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_068', sello: '14', status: '', type: '12L ALU', serial: '30191', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_069', sello: '15', status: '', type: '12L ALU', serial: '30194', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_070', sello: '16', status: '', type: '12L ALU', serial: '30195', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_071', sello: '17', status: '', type: '12L ALU', serial: '30196', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_072', sello: '18', status: '', type: '12L ALU', serial: '30197', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_073', sello: '19', status: '', type: '12L ALU', serial: '30198', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_074', sello: '20', status: '', type: '12L ALU', serial: '30199', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_075', sello: '21', status: '', type: '12L ALU', serial: '30200', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_076', sello: '22', status: '', type: '12L ALU', serial: '30201', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_077', sello: '23', status: '', type: '12L ALU', serial: '30202', valve: '', hydroDate: 'September 2022', lastPainted: '', inInventory: true },
+
+    // Page 2 & 3 - 15L ACERO AIRE
+    { id: 'TNK_078', sello: '1', status: '', type: '15L ACERO AIRE', serial: 'no visible', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_079', sello: '2', status: 'Testing', type: '15L ACERO AIRE', serial: '12115837', valve: 'F00472', hydroDate: 'April 2026', lastPainted: 'Enero 2026', inInventory: true },
+    { id: 'TNK_080', sello: '3', status: 'Rechazada', type: '15L ACERO AIRE', serial: 'CND008', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: false },
+    { id: 'TNK_081', sello: '3', status: 'Testing', type: '15L ACERO AIRE', serial: 'ZKE104', valve: 'H05598', hydroDate: 'April 2026', lastPainted: 'Enero 2026', inInventory: true },
+    { id: 'TNK_082', sello: '4', status: 'Testing', type: '15L ACERO AIRE', serial: 'ZKE107', valve: 'D01863', hydroDate: 'April 2026', lastPainted: 'Enero 2026', inInventory: true },
+    { id: 'TNK_083', sello: '5', status: '', type: '15L ACERO AIRE', serial: 'CND024UT', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_084', sello: '6', status: '', type: '15L ACERO AIRE', serial: 'CND014UT', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_085', sello: '7', status: '', type: '15L ACERO AIRE', serial: 'CND022UT', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_086', sello: '8', status: '', type: '15L ACERO AIRE', serial: '02/0940/088', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_087', sello: '9', status: '', type: '15L ACERO AIRE', serial: 'BOH084', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_088', sello: '10', status: '', type: '15L ACERO AIRE', serial: '95/1028/095', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_089', sello: '11', status: '', type: '15L ACERO AIRE', serial: '12881674', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_090', sello: '12', status: '', type: '15L ACERO AIRE', serial: '12881656', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_091', sello: '13', status: '', type: '15L ACERO AIRE', serial: '1214479', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_092', sello: '14', status: '', type: '15L ACERO AIRE', serial: '14276298', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_093', sello: '15', status: '', type: '15L ACERO AIRE', serial: '14276333', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_094', sello: '16', status: '', type: '15L ACERO AIRE', serial: '12881663', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_095', sello: '17', status: '', type: '15L ACERO AIRE', serial: '40856022', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_096', sello: '18', status: '', type: '15L ACERO AIRE', serial: '50751172', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_097', sello: '19', status: '', type: '15L ACERO AIRE', serial: '14276289', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_098', sello: '20', status: '', type: '15L ACERO AIRE', serial: '1211583 [2]', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_099', sello: '21', status: '', type: '15L ACERO AIRE', serial: 'Not Visible', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_100', sello: '22', status: '', type: '15L ACERO AIRE', serial: '14276330', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_101', sello: '23', status: '', type: '15L ACERO AIRE', serial: '12184461', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_102', sello: '24', status: '', type: '15L ACERO AIRE', serial: '12115840', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_103', sello: '25', status: '', type: '15L ACERO AIRE', serial: '14276288', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_104', sello: '26', status: '', type: '15L ACERO AIRE', serial: '12115828', valve: '', hydroDate: 'February 2024 [3]', lastPainted: '', inInventory: true },
+    { id: 'TNK_105', sello: '27', status: '', type: '15L ACERO AIRE', serial: 'BXL164UT', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_106', sello: '28', status: '', type: '15L ACERO AIRE', serial: 'ZEK114', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_107', sello: '29', status: '', type: '15L ACERO AIRE', serial: '12184473', valve: '', hydroDate: 'February 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_108', sello: '30', status: '', type: '15L ACERO AIRE', serial: 'BXL158UT', valve: '', hydroDate: 'February 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_109', sello: '31', status: '', type: '15L ACERO AIRE', serial: 'CND007UT', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_110', sello: '32', status: '', type: '15L ACERO AIRE', serial: 'BOH081', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_111', sello: '33', status: '', type: '15L ACERO AIRE', serial: 'BXL161UT', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_112', sello: '34', status: '', type: '15L ACERO AIRE', serial: 'no visible', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_113', sello: '35', status: '', type: '15L ACERO AIRE', serial: '12184468', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_114', sello: '36', status: '', type: '15L ACERO AIRE', serial: 'BOH072UT', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_115', sello: '37', status: '', type: '15L ACERO AIRE', serial: '12881670', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_116', sello: '38', status: '', type: '15L ACERO AIRE', serial: '12184471', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: false },
+    { id: 'TNK_117', sello: '39', status: 'Testing', type: '15L ACERO AIRE', serial: 'ZKE096', valve: '61.48-10', hydroDate: 'April 2026', lastPainted: 'Enero 2026', inInventory: true },
+    { id: 'TNK_118', sello: '40', status: 'Testing', type: '15L ACERO AIRE', serial: 'BXL169', valve: 'D02156', hydroDate: 'April 2026', lastPainted: 'Enero 2026', inInventory: true },
+    { id: 'TNK_119', sello: '41', status: '', type: '15L ACERO AIRE', serial: '14276286', valve: '', hydroDate: 'April 2022', lastPainted: 'Marzo 2026', inInventory: true },
+    { id: 'TNK_120', sello: '42', status: 'Rechazada', type: '15L ACERO AIRE', serial: '14276290', valve: 'D02235', hydroDate: '', lastPainted: '', inInventory: false },
+    { id: 'TNK_121', sello: '43', status: 'Rechazada', type: '15L ACERO AIRE', serial: '14276268', valve: 'D00121', hydroDate: 'April 2022', lastPainted: '', inInventory: false },
+    { id: 'TNK_122', sello: '44', status: '', type: '15L ACERO AIRE', serial: '12184456', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_123', sello: '45', status: '', type: '15L ACERO AIRE', serial: 'BOH109UT', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_124', sello: '46', status: '', type: '15L ACERO AIRE', serial: '04/085/61', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_125', sello: '47', status: '', type: '15L ACERO AIRE', serial: 'BQH098', valve: '', hydroDate: 'March 2024 [4]', lastPainted: 'Marzo 2026', inInventory: true },
+    { id: 'TNK_126', sello: '48', status: 'Testing', type: '15L ACERO AIRE', serial: 'BOH094UT', valve: 'D02290', hydroDate: 'April 2026', lastPainted: 'Enero 2026', inInventory: true },
+    { id: 'TNK_127', sello: '49', status: '', type: '15L ACERO AIRE', serial: '12115830', valve: '', hydroDate: 'April 2022', lastPainted: 'Marzo 2026', inInventory: true },
+    { id: 'TNK_128', sello: '50', status: '', type: '15L ACERO AIRE', serial: 'BOH080', valve: '', hydroDate: 'March 2022', lastPainted: 'Marzo 2026', inInventory: true },
+    { id: 'TNK_129', sello: '51', status: '', type: '15L ACERO AIRE', serial: 'BQH079UT', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_130', sello: '52', status: 'Rechazada', type: '15L ACERO AIRE', serial: 'CND005', valve: 'E00411', hydroDate: 'April 2022', lastPainted: '', inInventory: false },
+    { id: 'TNK_131', sello: '54', status: '', type: '15L ACERO AIRE', serial: 'BOH110', valve: '', hydroDate: 'March 2024 [5]', lastPainted: '', inInventory: true },
+    { id: 'TNK_132', sello: '55', status: 'Rechazada', type: '15L ACERO AIRE', serial: '12..1667', valve: 'F02764', hydroDate: '', lastPainted: '', inInventory: false },
+    { id: 'TNK_133', sello: '56', status: '', type: '15L ACERO AIRE', serial: 'BOH089', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_134', sello: '57', status: '', type: '15L ACERO AIRE', serial: '14276284', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_135', sello: '58', status: '', type: '15L ACERO AIRE', serial: 'no visible', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_136', sello: '59', status: '', type: '15L ACERO AIRE', serial: 'BOH083', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_137', sello: '60', status: '', type: '15L ACERO AIRE', serial: '0110CTME13', valve: '', hydroDate: 'Marzo 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_138', sello: '61', status: '', type: '15L ACERO AIRE', serial: '14276306', valve: '', hydroDate: 'April 2022', lastPainted: 'Marzo 2026', inInventory: true },
+    { id: 'TNK_139', sello: '62', status: '', type: '15L ACERO AIRE', serial: 'CND018UT', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_140', sello: '63', status: '', type: '15L ACERO AIRE', serial: 'BOH082', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_141', sello: '64', status: '', type: '15L ACERO AIRE', serial: 'BOH071', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_142', sello: '65', status: '', type: '15L ACERO AIRE', serial: 'BOH093', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+
+    // Page 3 - 15L ACERO EANx
+    { id: 'TNK_143', sello: '1', status: 'Testing', type: '15L ACERO EANx', serial: '12184469', valve: 'D02232', hydroDate: 'April 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_144', sello: '2', status: 'Testing', type: '15L ACERO EANx', serial: '14276328', valve: 'D02282', hydroDate: 'April 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_145', sello: '3', status: 'Testing', type: '15L ACERO EANx', serial: '14276331', valve: 'D02128', hydroDate: 'April 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_146', sello: '4', status: 'Testing', type: '15L ACERO EANx', serial: '12184478', valve: 'D02294', hydroDate: 'April 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_147', sello: '5', status: '', type: '15L ACERO EANx', serial: '14276296', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_148', sello: '6', status: '', type: '15L ACERO EANx', serial: '12184470', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_149', sello: '7', status: '', type: '15L ACERO EANx', serial: 'BOH090UT', valve: '', hydroDate: 'February 2024 [6]', lastPainted: '', inInventory: true },
+    { id: 'TNK_150', sello: '8', status: '', type: '15L ACERO EANx', serial: '14455487', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_151', sello: '9', status: '', type: '15L ACERO EANx', serial: '13922825', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_152', sello: '10', status: 'Testing', type: '15L ACERO EANx', serial: '14276274', valve: 'D02275', hydroDate: 'April 2026', lastPainted: 'Painting', inInventory: true },
+    { id: 'TNK_153', sello: '11', status: '', type: '15L ACERO EANx', serial: '23/0012/062', valve: '', hydroDate: 'January 2023', lastPainted: '', inInventory: true },
+    { id: 'TNK_154', sello: '12', status: '', type: '15L ACERO EANx', serial: '23/0012/138', valve: '', hydroDate: 'January 2023', lastPainted: '', inInventory: true },
+    { id: 'TNK_155', sello: '13', status: '', type: '15L ACERO EANx', serial: '23/0012/029', valve: '', hydroDate: 'January 2023', lastPainted: '', inInventory: true },
+    { id: 'TNK_156', sello: '14', status: '', type: '15L ACERO EANx', serial: '23/0012/157', valve: '', hydroDate: 'January 2023', lastPainted: '', inInventory: true },
+    { id: 'TNK_157', sello: '15', status: '', type: '15L ACERO EANx', serial: 'OBY174UT', valve: '', hydroDate: 'February 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_158', sello: '16', status: '', type: '15L ACERO EANx', serial: 'OBY010UT', valve: '', hydroDate: 'February 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_159', sello: '17', status: 'Rechazada', type: '15L ACERO EANx', serial: '12115844', valve: 'D02137', hydroDate: 'June 2022', lastPainted: '', inInventory: false },
+    { id: 'TNK_160', sello: '18', status: '', type: '15L ACERO EANx', serial: '23/0012/016', valve: '', hydroDate: 'January 2023', lastPainted: '', inInventory: true },
+    { id: 'TNK_161', sello: '19', status: '', type: '15L ACERO EANx', serial: '13922915', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_162', sello: '20', status: '', type: '15L ACERO EANx', serial: 'OBY017UT', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_163', sello: '21', status: 'Testing', type: '15L ACERO EANx', serial: 'no visible', valve: '119.44-17', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_164', sello: '22', status: 'Rechazada', type: '15L ACERO EANx', serial: 'BXL157', valve: 'D02292', hydroDate: 'March 2022', lastPainted: '', inInventory: false },
+    { id: 'TNK_165', sello: '23', status: '', type: '15L ACERO EANx', serial: '23/0012/067', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_166', sello: '24', status: '', type: '15L ACERO EANx', serial: '13922913', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_167', sello: '25', status: '', type: '15L ACERO EANx', serial: '13922921', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_168', sello: '26', status: '', type: '15L ACERO EANx', serial: '1445549', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+    { id: 'TNK_169', sello: '27', status: '', type: '15L ACERO EANx', serial: '23/0012/032', valve: '', hydroDate: '', lastPainted: '', inInventory: true },
+
+    // Page 3 & 4 - No encontrado en MM
+    { id: 'TNK_170', sello: '', status: '', type: 'No econtrado en MM', serial: '12/1428/072', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_171', sello: '', status: '', type: 'No econtrado en MM', serial: '12115812', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_172', sello: '', status: '', type: 'No econtrado en MM', serial: '12115813', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_173', sello: '', status: '', type: 'No econtrado en MM', serial: '12115839', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_174', sello: '', status: '', type: 'No econtrado en MM', serial: '12115842', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_175', sello: '', status: '', type: 'No econtrado en MM', serial: '12115845', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_176', sello: '', status: '', type: 'No econtrado en MM', serial: '12115847', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_177', sello: '', status: '', type: 'No econtrado en MM', serial: '13409992', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_178', sello: '', status: '', type: 'No econtrado en MM', serial: '13922910', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_179', sello: '', status: '', type: 'No econtrado en MM', serial: '13923068', valve: '', hydroDate: 'April 2026', lastPainted: '', inInventory: true },
+    { id: 'TNK_180', sello: '', status: '', type: 'No econtrado en MM', serial: '14276275', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_181', sello: '', status: '', type: 'No econtrado en MM', serial: '14276291', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_182', sello: '', status: '', type: 'No econtrado en MM', serial: '14276326', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_183', sello: '', status: '', type: 'No econtrado en MM', serial: '14276383', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_184', sello: '', status: '', type: 'No econtrado en MM', serial: '14455481', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_185', sello: '', status: '', type: 'No econtrado en MM', serial: '14455490', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_186', sello: '', status: '', type: 'No econtrado en MM', serial: '14455493', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_187', sello: '', status: '', type: 'No econtrado en MM', serial: '14455496', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_188', sello: '', status: '', type: 'No econtrado en MM', serial: '14455498', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_189', sello: '', status: '', type: 'No econtrado en MM', serial: '19/0095/042', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_190', sello: '', status: '', type: 'No econtrado en MM', serial: '19/0095/043', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_191', sello: '', status: '', type: 'No econtrado en MM', serial: '19/0095/044', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_192', sello: '', status: '', type: 'No econtrado en MM', serial: '2696', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_193', sello: '', status: '', type: 'No econtrado en MM', serial: '2698', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_194', sello: '', status: '', type: 'No econtrado en MM', serial: '4139', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_195', sello: '', status: '', type: 'No econtrado en MM', serial: '5735', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_196', sello: '', status: '', type: 'No econtrado en MM', serial: '5797', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_197', sello: '', status: '', type: 'No econtrado en MM', serial: '6779', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_198', sello: '', status: '', type: 'No econtrado en MM', serial: '7308', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_199', sello: '', status: '', type: 'No econtrado en MM', serial: '91/357/068', valve: '', hydroDate: 'February 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_200', sello: '', status: '', type: 'No econtrado en MM', serial: '91/357/139', valve: '', hydroDate: 'February 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_201', sello: '', status: '', type: 'No econtrado en MM', serial: '93/1506', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_202', sello: '', status: '', type: 'No econtrado en MM', serial: '95/1023/045', valve: '', hydroDate: 'April 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_203', sello: '', status: '', type: 'No econtrado en MM', serial: 'AZF079', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_204', sello: '', status: '', type: 'No econtrado en MM', serial: 'BNZ048', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_205', sello: '', status: '', type: 'No econtrado en MM', serial: 'BNZ051', valve: '', hydroDate: 'July 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_206', sello: '', status: '', type: 'No econtrado en MM', serial: 'BOH080', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_207', sello: '', status: '', type: 'No econtrado en MM', serial: 'BOH087', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_208', sello: '', status: '', type: 'No econtrado en MM', serial: 'BXL129', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_209', sello: '', status: '', type: 'No econtrado en MM', serial: 'BXL154', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_210', sello: '', status: '', type: 'No econtrado en MM', serial: 'BXL159', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_211', sello: '', status: '', type: 'No econtrado en MM', serial: 'BXL160', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_212', sello: '', status: '', type: 'No econtrado en MM', serial: 'GV0002191', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_213', sello: '', status: '', type: 'No econtrado en MM', serial: 'OEH091', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_214', sello: '', status: '', type: 'No econtrado en MM', serial: 'OEH093', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_215', sello: '', status: '', type: 'No econtrado en MM', serial: 'P3258V', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_216', sello: '', status: '', type: 'No econtrado en MM', serial: 'P54894', valve: '', hydroDate: 'June 2022', lastPainted: '', inInventory: true },
+    { id: 'TNK_217', sello: '', status: '', type: 'No econtrado en MM', serial: 'PP66838', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_218', sello: '', status: '', type: 'No econtrado en MM', serial: 'UPA109', valve: '', hydroDate: 'March 2024', lastPainted: '', inInventory: true },
+    { id: 'TNK_219', sello: '', status: '', type: 'No econtrado en MM', serial: 'ZKE113', valve: '', hydroDate: 'March 2022', lastPainted: '', inInventory: true }
 ];
 
 // Initialize Firestore Listener
@@ -59,9 +250,17 @@ window.initTankInventoryDB = function() {
         db.collection(INTERNAL_DB).doc('tank_inventory').onSnapshot(doc => {
             if (doc.exists) {
                 const data = doc.data();
-                window.tankInventoryList = data.tanks || [];
+                // If existing data has fewer tanks than initial full set, update with complete set
+                if (Array.isArray(data.tanks) && data.tanks.length >= 100) {
+                    window.tankInventoryList = data.tanks;
+                } else {
+                    window.tankInventoryList = [...window.INITIAL_TANK_DATA];
+                    db.collection(INTERNAL_DB).doc('tank_inventory').set({
+                        tanks: window.tankInventoryList,
+                        lastUpdated: Date.now()
+                    });
+                }
             } else {
-                // Initialize with seed data if doc doesn't exist yet
                 window.tankInventoryList = [...window.INITIAL_TANK_DATA];
                 db.collection(INTERNAL_DB).doc('tank_inventory').set({
                     tanks: window.tankInventoryList,
@@ -113,210 +312,173 @@ window.saveTankInventoryDB = async function() {
     }
 };
 
+// Column Sorting Handler
+window.toggleTankSort = function(key) {
+    if (window.tankSortState.key === key) {
+        if (window.tankSortState.asc) {
+            window.tankSortState.asc = false;
+        } else {
+            // Reset to default original order
+            window.tankSortState.key = null;
+            window.tankSortState.asc = true;
+        }
+    } else {
+        window.tankSortState.key = key;
+        window.tankSortState.asc = true;
+    }
+    window.renderTankInventoryUI();
+};
+
 // Render Main Tank Inventory UI
 window.renderTankInventoryUI = function() {
     const tbody = document.getElementById('tank-inventory-tbody');
     if (!tbody) return;
 
-    const list = window.tankInventoryList || [];
+    let list = [...(window.tankInventoryList || [])];
 
-    // Calculate Summary Stats
-    const totalTanks = list.length;
-    const countInInventory = list.filter(t => t.inInventory).length;
-    const countOperative = list.filter(t => (t.status || 'Operativa') === 'Operativa').length;
-    const countTesting = list.filter(t => t.status === 'Testing').length;
-    const countPainting = list.filter(t => t.status === 'Painting' || t.lastPainted === 'Painting').length;
-    const countRejected = list.filter(t => t.status === 'Rechazada').length;
-
-    // Update KPI counters in DOM
-    const setStat = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = val;
-    };
-    setStat('stat-tank-total', totalTanks);
-    setStat('stat-tank-inventory', countInInventory);
-    setStat('stat-tank-operative', countOperative);
-    setStat('stat-tank-testing', countTesting);
-    setStat('stat-tank-painting', countPainting);
-    setStat('stat-tank-rejected', countRejected);
-
-    // Apply Filters & Search
+    // Search query
     const searchVal = (document.getElementById('tank-filter-search')?.value || '').trim().toLowerCase();
-    const typeVal = document.getElementById('tank-filter-type')?.value || 'ALL';
-    const statusVal = document.getElementById('tank-filter-status')?.value || 'ALL';
-    const invVal = document.getElementById('tank-filter-inventory')?.value || 'ALL';
 
-    const filtered = list.filter(t => {
-        if (searchVal) {
+    if (searchVal) {
+        list = list.filter(t => {
             const matchSello = String(t.sello || '').toLowerCase().includes(searchVal);
             const matchSerial = String(t.serial || '').toLowerCase().includes(searchVal);
             const matchValve = String(t.valve || '').toLowerCase().includes(searchVal);
             const matchType = String(t.type || '').toLowerCase().includes(searchVal);
-            if (!matchSello && !matchSerial && !matchValve && !matchType) return false;
-        }
+            const matchStatus = String(t.status || '').toLowerCase().includes(searchVal);
+            const matchHydro = String(t.hydroDate || '').toLowerCase().includes(searchVal);
+            const matchPaint = String(t.lastPainted || '').toLowerCase().includes(searchVal);
+            return matchSello || matchSerial || matchValve || matchType || matchStatus || matchHydro || matchPaint;
+        });
+    }
 
-        if (typeVal !== 'ALL') {
-            const tType = String(t.type || '').toLowerCase();
-            if (typeVal === '12L_AIRE' && (!tType.includes('12l') || !tType.includes('aire') || tType.includes('eanx'))) return false;
-            if (typeVal === '12L_EANX' && !tType.includes('eanx')) return false;
-            if (typeVal === '12L_ALTO' && !tType.includes('alto')) return false;
-            if (typeVal === 'ALU' && !tType.includes('alu')) return false;
-            if (typeVal === '15L' && !tType.includes('15l')) return false;
-            if (typeVal === '18L' && !tType.includes('18l')) return false;
-        }
+    // Apply Sorting if active
+    if (window.tankSortState.key) {
+        const k = window.tankSortState.key;
+        const mult = window.tankSortState.asc ? 1 : -1;
 
-        if (statusVal !== 'ALL') {
-            const st = t.status || 'Operativa';
-            if (statusVal === 'Painting') {
-                if (st !== 'Painting' && t.lastPainted !== 'Painting') return false;
-            } else if (st !== statusVal) {
-                return false;
+        list.sort((a, b) => {
+            let valA = a[k] !== undefined && a[k] !== null ? a[k] : '';
+            let valB = b[k] !== undefined && b[k] !== null ? b[k] : '';
+
+            // Numeric comparison for sello
+            if (k === 'sello') {
+                const numA = parseInt(valA, 10);
+                const numB = parseInt(valB, 10);
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return (numA - numB) * mult;
+                }
+            }
+
+            // Boolean comparison for inInventory
+            if (k === 'inInventory') {
+                return ((valA === true ? 1 : 0) - (valB === true ? 1 : 0)) * mult;
+            }
+
+            return String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' }) * mult;
+        });
+    }
+
+    // Update Sort Indicators in the Table Header
+    const sortCols = ['sello', 'status', 'type', 'serial', 'valve', 'hydroDate', 'lastPainted', 'inInventory'];
+    sortCols.forEach(colKey => {
+        const iconEl = document.getElementById(`tank-sort-icon-${colKey}`);
+        if (iconEl) {
+            if (window.tankSortState.key === colKey) {
+                iconEl.innerHTML = window.tankSortState.asc ? '▲' : '▼';
+                iconEl.className = 'text-[9px] text-emerald-600 font-black inline ml-1';
+            } else {
+                iconEl.innerHTML = '⇅';
+                iconEl.className = 'text-[9px] text-slate-300 inline ml-1';
             }
         }
-
-        if (invVal === 'IN_INV' && !t.inInventory) return false;
-        if (invVal === 'NOT_INV' && t.inInventory) return false;
-
-        return true;
     });
 
+    // Update Counter
+    const countEl = document.getElementById('tank-inventory-count');
+    if (countEl) {
+        countEl.innerText = `${list.length} botellas`;
+    }
+
     // Populate Table
-    if (filtered.length === 0) {
+    if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center py-12 text-slate-400 font-bold italic">
-                    No se encontraron botellas con los filtros seleccionados.
+                <td colspan="9" class="text-center py-10 text-slate-400 font-bold italic">
+                    No se encontraron botellas con la búsqueda.
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = filtered.map((t) => {
-        const isEanx = String(t.type || '').toUpperCase().includes('EANX');
-        const isAlu = String(t.type || '').toUpperCase().includes('ALU');
-        const isAlto = String(t.type || '').toUpperCase().includes('ALTO');
+    tbody.innerHTML = list.map((t) => {
+        const st = t.status || '';
+        let statusBadge = 'text-slate-400';
+        let rowClass = 'hover:bg-slate-50/80 transition-colors';
 
-        // Type badge styling
-        let typeBadge = 'bg-slate-100 text-slate-700 border-slate-200';
-        if (isEanx) {
-            typeBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300 font-black';
-        } else if (isAlu) {
-            typeBadge = 'bg-sky-100 text-sky-800 border-sky-300 font-black';
-        } else if (isAlto) {
-            typeBadge = 'bg-indigo-100 text-indigo-800 border-indigo-300 font-black';
-        }
-
-        // Status badge & select styling
-        let statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        const st = t.status || 'Operativa';
         if (st === 'Testing') {
-            statusClass = 'bg-amber-100 text-amber-900 border-amber-300 font-black';
-        } else if (st === 'Painting') {
-            statusClass = 'bg-sky-100 text-sky-900 border-sky-300 font-black';
+            statusBadge = 'bg-amber-100 text-amber-900 border border-amber-300 font-black px-2 py-0.5 rounded text-[11px]';
         } else if (st === 'Rechazada') {
-            statusClass = 'bg-rose-100 text-rose-900 border-rose-300 font-black';
+            statusBadge = 'bg-rose-100 text-rose-900 border border-rose-300 font-black px-2 py-0.5 rounded text-[11px]';
+            rowClass = 'bg-rose-50/30 hover:bg-rose-50/60';
+        } else if (st === 'Painting') {
+            statusBadge = 'bg-sky-100 text-sky-900 border border-sky-300 font-black px-2 py-0.5 rounded text-[11px]';
         }
 
-        // Hydro date format & check expiration
-        let hydroDisplay = t.hydroDate || '<span class="text-slate-300 italic">Sin fecha</span>';
-        let hydroClass = 'text-slate-700 font-mono';
-        if (t.hydroDate) {
-            const parts = t.hydroDate.split('-');
-            if (parts.length === 2) {
-                const yr = parseInt(parts[0], 10);
-                const mo = parseInt(parts[1], 10);
-                const expDate = new Date(yr, mo, 1);
-                const now = new Date();
-                if (expDate < now) {
-                    hydroClass = 'text-rose-600 font-black bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200';
-                    hydroDisplay = `⚠️ ${t.hydroDate} (Caducada)`;
-                } else {
-                    hydroClass = 'text-emerald-700 font-black bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200';
-                }
-            }
-        }
+        const isNonFound = String(t.type || '').toLowerCase().includes('no econtrado') || String(t.type || '').toLowerCase().includes('no encontrado');
 
         return `
-            <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+            <tr class="border-b border-slate-100 ${rowClass}">
                 <!-- Sello -->
-                <td class="py-2.5 px-3 text-center">
-                    <span class="inline-block px-2.5 py-0.5 rounded-lg bg-slate-900 text-white font-mono font-black text-xs shadow-xs">
-                        ${t.sello || '—'}
-                    </span>
+                <td class="py-1.5 px-3 font-mono font-bold text-slate-900 text-xs">
+                    ${t.sello || ''}
                 </td>
 
-                <!-- Status Quick Dropdown -->
-                <td class="py-2.5 px-3">
-                    <select onchange="window.updateTankStatus('${t.id}', this.value)" class="text-xs font-black px-2.5 py-1 rounded-xl border cursor-pointer outline-none transition-all shadow-xs ${statusClass}">
-                        <option value="Operativa" ${st === 'Operativa' ? 'selected' : ''}>🟢 Operativa</option>
-                        <option value="Testing" ${st === 'Testing' ? 'selected' : ''}>🟡 Testing / Inspección</option>
-                        <option value="Painting" ${st === 'Painting' ? 'selected' : ''}>🔵 En Pintura</option>
-                        <option value="Rechazada" ${st === 'Rechazada' ? 'selected' : ''}>🔴 Rechazada / Baja</option>
-                    </select>
+                <!-- Status -->
+                <td class="py-1.5 px-3">
+                    ${st ? `<span class="${statusBadge}">${st}</span>` : '<span class="text-slate-300 text-xs">—</span>'}
                 </td>
 
                 <!-- Tipo -->
-                <td class="py-2.5 px-3">
-                    <span class="inline-block px-2 py-0.5 rounded-md border text-xs ${typeBadge}">
-                        ${t.type || '12L ACERO AIRE'}
-                    </span>
+                <td class="py-1.5 px-3 text-xs font-semibold ${isNonFound ? 'text-slate-400 italic' : 'text-slate-800'}">
+                    ${t.type || '12L ACERO AIRE'}
                 </td>
 
                 <!-- No. Serie -->
-                <td class="py-2.5 px-3">
-                    <span class="font-mono font-black text-xs text-slate-800 tracking-tight">
-                        ${t.serial || '—'}
-                    </span>
+                <td class="py-1.5 px-3 font-mono font-bold text-xs text-slate-900">
+                    ${t.serial || '—'}
                 </td>
 
                 <!-- Grifería -->
-                <td class="py-2.5 px-3">
-                    <span class="font-mono font-bold text-xs text-slate-600">
-                        ${t.valve || '—'}
-                    </span>
+                <td class="py-1.5 px-3 font-mono text-xs text-slate-700">
+                    ${t.valve ? `<span class="bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono font-bold px-1.5 py-0.5 rounded">${t.valve}</span>` : ''}
                 </td>
 
-                <!-- Fecha Hidrostática -->
-                <td class="py-2.5 px-3">
-                    <span class="${hydroClass}">
-                        ${hydroDisplay}
-                    </span>
+                <!-- Fecha Hydrostatico -->
+                <td class="py-1.5 px-3 text-xs font-medium text-slate-700">
+                    ${t.hydroDate || ''}
                 </td>
 
-                <!-- Last Painted / Mantenimiento -->
-                <td class="py-2.5 px-3 text-xs text-slate-600 font-bold">
-                    ${t.lastPainted ? `<span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-black">🎨 ${t.lastPainted}</span>` : '—'}
+                <!-- Last Painted -->
+                <td class="py-1.5 px-3 text-xs text-slate-700">
+                    ${t.lastPainted || ''}
                 </td>
 
-                <!-- En Inventario (Checkbox) -->
-                <td class="py-2.5 px-3 text-center">
-                    <input type="checkbox" onchange="window.toggleTankInventory('${t.id}', this.checked)" ${t.inInventory ? 'checked' : ''} class="w-4 h-4 text-cyan-600 rounded border-slate-300 focus:ring-cyan-500 cursor-pointer">
+                <!-- Inventario (Checkbox) -->
+                <td class="py-1.5 px-3 text-center">
+                    <input type="checkbox" onchange="window.toggleTankInventory('${t.id}', this.checked)" ${t.inInventory ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
                 </td>
 
-                <!-- Actions -->
-                <td class="py-2.5 px-3 text-right">
-                    <div class="flex items-center justify-end gap-1.5">
-                        <button onclick="window.openEditTankModal('${t.id}')" class="p-1.5 text-slate-500 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors" title="Editar datos de botella">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                        </button>
-                        <button onclick="window.deleteTank('${t.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Eliminar botella">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                    </div>
+                <!-- Edit Action -->
+                <td class="py-1.5 px-3 text-right no-print">
+                    <button onclick="window.openEditTankModal('${t.id}')" class="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors" title="Editar">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </button>
                 </td>
             </tr>
         `;
     }).join('');
-};
-
-// Quick Status Update
-window.updateTankStatus = function(tankId, newStatus) {
-    const tank = window.tankInventoryList.find(t => t.id === tankId);
-    if (!tank) return;
-    tank.status = newStatus;
-    window.renderTankInventoryUI();
-    window.saveTankInventoryDB();
 };
 
 // Quick Inventory Checkbox Toggle
@@ -339,13 +501,13 @@ window.openEditTankModal = function(tankId = null) {
     if (tankId) {
         const tank = window.tankInventoryList.find(t => t.id === tankId);
         if (!tank) return;
-        if (titleEl) titleEl.innerText = `Editar Botella #${tank.sello} (${tank.serial})`;
+        if (titleEl) titleEl.innerText = `Editar Botella ${tank.sello ? '#' + tank.sello : ''} (${tank.serial})`;
 
         document.getElementById('tank-input-sello').value = tank.sello || '';
         document.getElementById('tank-input-type').value = tank.type || '12L ACERO AIRE';
         document.getElementById('tank-input-serial').value = tank.serial || '';
         document.getElementById('tank-input-valve').value = tank.valve || '';
-        document.getElementById('tank-input-status').value = tank.status || 'Operativa';
+        document.getElementById('tank-input-status').value = tank.status || '';
         document.getElementById('tank-input-hydro').value = tank.hydroDate || '';
         document.getElementById('tank-input-paint').value = tank.lastPainted || '';
         document.getElementById('tank-input-inventory').checked = tank.inInventory !== false;
@@ -355,7 +517,7 @@ window.openEditTankModal = function(tankId = null) {
         document.getElementById('tank-input-type').value = '12L ACERO AIRE';
         document.getElementById('tank-input-serial').value = '';
         document.getElementById('tank-input-valve').value = '';
-        document.getElementById('tank-input-status').value = 'Operativa';
+        document.getElementById('tank-input-status').value = '';
         document.getElementById('tank-input-hydro').value = '';
         document.getElementById('tank-input-paint').value = '';
         document.getElementById('tank-input-inventory').checked = true;
@@ -443,83 +605,13 @@ window.deleteTank = function(tankId) {
     }
 };
 
-// Bulk Import from Google Sheets / Excel
-window.openTankImportModal = function() {
-    const modal = document.getElementById('tank-import-modal');
-    if (modal) modal.classList.remove('hidden');
-};
-
-window.closeTankImportModal = function() {
-    const modal = document.getElementById('tank-import-modal');
-    if (modal) modal.classList.add('hidden');
-};
-
-window.processBulkTankPaste = function() {
-    const textarea = document.getElementById('tank-bulk-import-text');
-    if (!textarea) return;
-
-    const raw = textarea.value.trim();
-    if (!raw) return;
-
-    const lines = raw.split(/\r?\n/);
-    let importedCount = 0;
-
-    lines.forEach(line => {
-        if (!line.trim()) return;
-        const cols = line.includes('\t') ? line.split('\t') : line.split(',');
-        if (cols.length < 2) return;
-
-        // Skip header line if pasted
-        const firstCol = cols[0].trim().toLowerCase();
-        if (firstCol.includes('sello') || firstCol.includes('status') || firstCol.includes('tipo')) return;
-
-        const sello = cols[0] ? cols[0].trim() : '';
-        const statusRaw = cols[1] ? cols[1].trim() : 'Operativa';
-        let status = 'Operativa';
-        if (statusRaw.toLowerCase().includes('test')) status = 'Testing';
-        else if (statusRaw.toLowerCase().includes('paint')) status = 'Painting';
-        else if (statusRaw.toLowerCase().includes('rechaz')) status = 'Rechazada';
-
-        const type = cols[2] ? cols[2].trim() : '12L ACERO AIRE';
-        const serial = cols[3] ? cols[3].trim() : '';
-        const valve = cols[4] ? cols[4].trim() : '';
-        const hydroDate = cols[5] ? cols[5].trim() : '';
-        const lastPainted = cols[6] ? cols[6].trim() : '';
-        const inInvRaw = cols[7] ? cols[7].trim().toLowerCase() : 'true';
-        const inInventory = !(inInvRaw === 'false' || inInvRaw === '0' || inInvRaw === 'no');
-
-        if (serial || sello) {
-            window.tankInventoryList.push({
-                id: `TNK_${Date.now()}_${Math.floor(Math.random()*10000)}`,
-                sello,
-                status,
-                type,
-                serial,
-                valve,
-                hydroDate,
-                lastPainted,
-                inInventory,
-                createdAt: Date.now()
-            });
-            importedCount++;
-        }
-    });
-
-    textarea.value = '';
-    window.closeTankImportModal();
-    window.renderTankInventoryUI();
-    window.saveTankInventoryDB();
-
-    if (typeof showAppAlert === 'function') {
-        showAppAlert(`Se han importado ${importedCount} botellas correctamente.`);
-    } else {
-        alert(`Se han importado ${importedCount} botellas correctamente.`);
-    }
-};
-
-// Print / Export Tank Inventory Table
+// Print as PDF (Clean, condensed 35-40 tanks per A4 sheet)
 window.printTankInventory = function() {
+    document.body.classList.add('printing-tanks');
     window.print();
+    setTimeout(() => {
+        document.body.classList.remove('printing-tanks');
+    }, 500);
 };
 
 if (document.readyState === 'loading') {
@@ -527,4 +619,3 @@ if (document.readyState === 'loading') {
 } else {
     window.initTankInventoryDB();
 }
-
