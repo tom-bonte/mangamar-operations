@@ -3315,35 +3315,35 @@
             </div>
 
             <!-- TABLE CONTAINER -->
-            <div class="flex-1 overflow-y-auto bg-white p-2 md:p-4 print-container">
-                <table class="w-full text-left border-collapse text-xs border border-slate-300 tank-print-table">
-                    <thead class="sticky top-0 bg-amber-50/90 backdrop-blur-xs z-10">
-                        <tr class="border-b-2 border-slate-300 text-slate-800 font-black text-[11px]">
-                            <th onclick="window.toggleTankSort('sello')" class="py-2 px-3 text-left w-16 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
-                                Sello <span id="tank-sort-icon-sello" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+            <div class="flex-1 overflow-y-auto bg-white p-0 print-container relative">
+                <table class="w-full text-left border-collapse text-xs tank-print-table">
+                    <thead class="sticky top-0 bg-[#fde68a] z-20 shadow-xs border-b-2 border-slate-300">
+                        <tr class="text-slate-900 font-black text-[11px] bg-[#fde68a]">
+                            <th onclick="window.toggleTankSort('sello')" class="py-2.5 px-3 text-left w-16 cursor-pointer select-none hover:bg-amber-300 transition-colors border-r border-slate-300 bg-[#fde68a]">
+                                Sello <span id="tank-sort-icon-sello" class="text-[9px] text-slate-400 inline ml-1">⇅</span>
                             </th>
-                            <th onclick="window.toggleTankSort('status')" class="py-2 px-3 w-28 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
-                                Status <span id="tank-sort-icon-status" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            <th onclick="window.toggleTankSort('status')" class="py-2.5 px-3 w-32 cursor-pointer select-none hover:bg-amber-300 transition-colors border-r border-slate-300 bg-[#fde68a]">
+                                Status <span id="tank-sort-icon-status" class="text-[9px] text-slate-400 inline ml-1">⇅</span>
                             </th>
-                            <th onclick="window.toggleTankSort('type')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
-                                Tipo <span id="tank-sort-icon-type" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            <th onclick="window.toggleTankSort('type')" class="py-2.5 px-3 cursor-pointer select-none hover:bg-amber-300 transition-colors border-r border-slate-300 bg-[#fde68a]">
+                                Tipo <span id="tank-sort-icon-type" class="text-[9px] text-slate-400 inline ml-1">⇅</span>
                             </th>
-                            <th onclick="window.toggleTankSort('serial')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
-                                No. Serie <span id="tank-sort-icon-serial" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            <th onclick="window.toggleTankSort('serial')" class="py-2.5 px-3 cursor-pointer select-none hover:bg-amber-300 transition-colors border-r border-slate-300 bg-[#fde68a]">
+                                No. Serie <span id="tank-sort-icon-serial" class="text-[9px] text-slate-400 inline ml-1">⇅</span>
                             </th>
-                            <th onclick="window.toggleTankSort('valve')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
-                                Griferia <span id="tank-sort-icon-valve" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            <th onclick="window.toggleTankSort('valve')" class="py-2.5 px-3 cursor-pointer select-none hover:bg-amber-300 transition-colors border-r border-slate-300 bg-[#fde68a]">
+                                Griferia <span id="tank-sort-icon-valve" class="text-[9px] text-slate-400 inline ml-1">⇅</span>
                             </th>
-                            <th onclick="window.toggleTankSort('hydroDate')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
-                                Fecha Hydrostatico <span id="tank-sort-icon-hydroDate" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            <th onclick="window.toggleTankSort('hydroDate')" class="py-2.5 px-3 cursor-pointer select-none hover:bg-amber-300 transition-colors border-r border-slate-300 bg-[#fde68a]">
+                                Fecha Hydrostatico <span id="tank-sort-icon-hydroDate" class="text-[9px] text-slate-400 inline ml-1">⇅</span>
                             </th>
-                            <th onclick="window.toggleTankSort('lastPainted')" class="py-2 px-3 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
-                                Last Painted <span id="tank-sort-icon-lastPainted" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            <th onclick="window.toggleTankSort('lastPainted')" class="py-2.5 px-3 cursor-pointer select-none hover:bg-amber-300 transition-colors border-r border-slate-300 bg-[#fde68a]">
+                                Last Painted <span id="tank-sort-icon-lastPainted" class="text-[9px] text-slate-400 inline ml-1">⇅</span>
                             </th>
-                            <th onclick="window.toggleTankSort('inInventory')" class="py-2 px-3 text-center w-36 cursor-pointer select-none hover:bg-amber-100/80 transition-colors border-r border-slate-200">
-                                Inventario (20 Dic 2025) <span id="tank-sort-icon-inInventory" class="text-[9px] text-slate-300 inline ml-1">⇅</span>
+                            <th onclick="window.toggleTankSort('inInventory')" class="py-2.5 px-3 text-center w-36 cursor-pointer select-none hover:bg-amber-300 transition-colors border-r border-slate-300 bg-[#fde68a]">
+                                Inventario (20 Dic 2025) <span id="tank-sort-icon-inInventory" class="text-[9px] text-slate-400 inline ml-1">⇅</span>
                             </th>
-                            <th class="py-2 px-3 text-right w-14 no-print">Acción</th>
+                            <th class="py-2.5 px-2 text-center w-10 no-print bg-[#fde68a]"></th>
                         </tr>
                     </thead>
                     <tbody id="tank-inventory-tbody" class="divide-y divide-slate-200">

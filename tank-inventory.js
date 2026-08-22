@@ -414,71 +414,110 @@ window.renderTankInventoryUI = function() {
 
     tbody.innerHTML = list.map((t) => {
         const st = t.status || '';
-        let statusBadge = 'text-slate-400';
-        let rowClass = 'hover:bg-slate-50/80 transition-colors';
-
-        if (st === 'Testing') {
-            statusBadge = 'bg-amber-100 text-amber-900 border border-amber-300 font-black px-2 py-0.5 rounded text-[11px]';
-        } else if (st === 'Rechazada') {
-            statusBadge = 'bg-rose-100 text-rose-900 border border-rose-300 font-black px-2 py-0.5 rounded text-[11px]';
-            rowClass = 'bg-rose-50/30 hover:bg-rose-50/60';
-        } else if (st === 'Painting') {
-            statusBadge = 'bg-sky-100 text-sky-900 border border-sky-300 font-black px-2 py-0.5 rounded text-[11px]';
+        let rowClass = 'hover:bg-slate-50 transition-colors';
+        if (st === 'Rechazada') {
+            rowClass = 'bg-rose-50/40 hover:bg-rose-50/70';
         }
 
-        const isNonFound = String(t.type || '').toLowerCase().includes('no econtrado') || String(t.type || '').toLowerCase().includes('no encontrado');
+        // Status select options
+        const statusOptions = `
+            <option value="" ${!st ? 'selected' : ''}>—</option>
+            <option value="Testing" ${st === 'Testing' ? 'selected' : ''}>Testing</option>
+            <option value="Painting" ${st === 'Painting' ? 'selected' : ''}>Painting</option>
+            <option value="Rechazada" ${st === 'Rechazada' ? 'selected' : ''}>Rechazada</option>
+        `;
+        let statusSelectClass = 'bg-transparent text-slate-400 border-transparent hover:border-slate-300 focus:bg-white focus:border-emerald-500';
+        if (st === 'Testing') statusSelectClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+        else if (st === 'Rechazada') statusSelectClass = 'bg-rose-100 text-rose-900 border-rose-300 font-bold';
+        else if (st === 'Painting') statusSelectClass = 'bg-sky-100 text-sky-900 border-sky-300 font-bold';
+
+        // Type select options
+        const currentType = t.type || '12L ACERO AIRE';
+        const typeOptions = [
+            '12L ACERO (alto)',
+            '12L ACERO AIRE',
+            '12L ACERO EANx',
+            '12L ALU',
+            '15L ACERO AIRE',
+            '15L ACERO EANx',
+            'No econtrado en MM',
+            '18L ACERO',
+            '7L ALU'
+        ];
+        if (!typeOptions.includes(currentType) && currentType) {
+            typeOptions.push(currentType);
+        }
+
+        const typeSelectHtml = `
+            <select onchange="window.updateTankField('${t.id}', 'type', this.value)" class="text-xs font-semibold text-slate-800 bg-transparent border border-transparent hover:border-slate-300 focus:border-emerald-500 focus:bg-white rounded px-1 py-0.5 w-full cursor-pointer transition-all outline-none">
+                ${typeOptions.map(opt => `<option value="${opt}" ${opt === currentType ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+        `;
 
         return `
-            <tr class="border-b border-slate-100 ${rowClass}">
-                <!-- Sello -->
-                <td class="py-1.5 px-3 font-mono font-bold text-slate-900 text-xs">
-                    ${t.sello || ''}
+            <tr class="border-b border-slate-200 ${rowClass}">
+                <!-- 1. Sello -->
+                <td class="py-1 px-2 border-r border-slate-200">
+                    <input type="text" value="${t.sello || ''}" onchange="window.updateTankField('${t.id}', 'sello', this.value)" class="font-mono font-bold text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none">
                 </td>
 
-                <!-- Status -->
-                <td class="py-1.5 px-3">
-                    ${st ? `<span class="${statusBadge}">${st}</span>` : '<span class="text-slate-300 text-xs">—</span>'}
+                <!-- 2. Status (Column 2) -->
+                <td class="py-1 px-2 border-r border-slate-200">
+                    <select onchange="window.updateTankField('${t.id}', 'status', this.value)" class="text-[11px] font-bold px-2 py-0.5 rounded border ${statusSelectClass} cursor-pointer outline-none transition-all w-full">
+                        ${statusOptions}
+                    </select>
                 </td>
 
-                <!-- Tipo -->
-                <td class="py-1.5 px-3 text-xs font-semibold ${isNonFound ? 'text-slate-400 italic' : 'text-slate-800'}">
-                    ${t.type || '12L ACERO AIRE'}
+                <!-- 3. Tipo (Column 3) -->
+                <td class="py-1 px-2 border-r border-slate-200">
+                    ${typeSelectHtml}
                 </td>
 
-                <!-- No. Serie -->
-                <td class="py-1.5 px-3 font-mono font-bold text-xs text-slate-900">
-                    ${t.serial || '—'}
+                <!-- 4. No. Serie (Column 4) -->
+                <td class="py-1 px-2 border-r border-slate-200">
+                    <input type="text" value="${t.serial || ''}" placeholder="No serie" onchange="window.updateTankField('${t.id}', 'serial', this.value)" class="font-mono font-bold text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none">
                 </td>
 
-                <!-- Grifería -->
-                <td class="py-1.5 px-3 font-mono text-xs text-slate-700">
-                    ${t.valve ? `<span class="bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono font-bold px-1.5 py-0.5 rounded">${t.valve}</span>` : ''}
+                <!-- 5. Griferia (Column 5) -->
+                <td class="py-1 px-2 border-r border-slate-200">
+                    <input type="text" value="${t.valve || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'valve', this.value)" class="font-mono text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none ${t.valve ? 'font-bold text-emerald-800' : 'text-slate-600'}">
                 </td>
 
-                <!-- Fecha Hydrostatico -->
-                <td class="py-1.5 px-3 text-xs font-medium text-slate-700">
-                    ${t.hydroDate || ''}
+                <!-- 6. Fecha Hydrostatico (Column 6) -->
+                <td class="py-1 px-2 border-r border-slate-200">
+                    <input type="text" value="${t.hydroDate || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'hydroDate', this.value)" class="text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none text-slate-800 font-medium">
                 </td>
 
-                <!-- Last Painted -->
-                <td class="py-1.5 px-3 text-xs text-slate-700">
-                    ${t.lastPainted || ''}
+                <!-- 7. Last Painted (Column 7) -->
+                <td class="py-1 px-2 border-r border-slate-200">
+                    <input type="text" value="${t.lastPainted || ''}" placeholder="—" onchange="window.updateTankField('${t.id}', 'lastPainted', this.value)" class="text-xs px-1 py-0.5 rounded border border-transparent hover:border-slate-300 focus:border-emerald-500 bg-transparent focus:bg-white w-full outline-none text-slate-800 font-medium">
                 </td>
 
-                <!-- Inventario (Checkbox) -->
-                <td class="py-1.5 px-3 text-center">
-                    <input type="checkbox" onchange="window.toggleTankInventory('${t.id}', this.checked)" ${t.inInventory ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                <!-- 8. Inventario (20 Dic 2025) -->
+                <td class="py-1 px-2 text-center border-r border-slate-200">
+                    <input type="checkbox" onchange="window.toggleTankInventory('${t.id}', this.checked)" ${t.inInventory ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
                 </td>
 
-                <!-- Edit Action -->
-                <td class="py-1.5 px-3 text-right no-print">
-                    <button onclick="window.openEditTankModal('${t.id}')" class="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors" title="Editar">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                <!-- Delete Action -->
+                <td class="py-1 px-1 text-center no-print">
+                    <button onclick="window.deleteTank('${t.id}')" class="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Eliminar botella">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                 </td>
             </tr>
         `;
     }).join('');
+};
+
+// Generic Field Updater for Direct Inline Editing
+window.updateTankField = function(tankId, field, value) {
+    const tank = window.tankInventoryList.find(t => t.id === tankId);
+    if (!tank) return;
+    tank[field] = typeof value === 'string' ? value.trim() : value;
+    if (field === 'status') {
+        window.renderTankInventoryUI();
+    }
+    window.saveTankInventoryDB();
 };
 
 // Quick Inventory Checkbox Toggle
