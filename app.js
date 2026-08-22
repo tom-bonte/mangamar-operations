@@ -479,32 +479,33 @@ function renderMonthlyCalendar() {
 // Render warning alerts at the top of daily view (e.g. Captains on Day Off)
 function getStaffTrackConfig() {
     window.appSettings = window.appSettings || {};
-    if (!window.appSettings.staffOffTracking) {
-        try {
-            const cached = localStorage.getItem('mangamar_staff_off_tracking');
-            if (cached) window.appSettings.staffOffTracking = JSON.parse(cached);
-        } catch(e) {}
+    if (window.appSettings.staffOffTracking && typeof window.appSettings.staffOffTracking === 'object') {
+        return window.appSettings.staffOffTracking;
     }
-    if (!window.appSettings.staffOffTracking) {
-        window.appSettings.staffOffTracking = {
-            'Abel': 'always',
-            'Antonio': 'always'
-        };
-    }
+    try {
+        const cached = localStorage.getItem('mangamar_staff_off_tracking');
+        if (cached) {
+            window.appSettings.staffOffTracking = JSON.parse(cached);
+            return window.appSettings.staffOffTracking;
+        }
+    } catch(e) {}
+    
+    // Default initial seed only if totally unconfigured
+    window.appSettings.staffOffTracking = {
+        'Abel': 'always',
+        'Antonio': 'always'
+    };
     return window.appSettings.staffOffTracking;
 }
 
 function getStaffTrackMode(nombre) {
+    if (!nombre) return 'never';
     const config = getStaffTrackConfig();
     const target = String(nombre).toLowerCase().trim();
     for (let [k, mode] of Object.entries(config)) {
         if (String(k).toLowerCase().trim() === target) {
             return mode; // 'always', 'weekend', 'never'
         }
-    }
-    // Default fallback
-    if (target.startsWith('abel') || target.startsWith('antonio')) {
-        return 'always';
     }
     return 'never';
 }
@@ -1585,6 +1586,12 @@ window.renderSettingsStaffTrackers = function() {
 window.handleStaffTrackToggle = function(nombre, isChecked) {
     const config = { ...getStaffTrackConfig() };
     const key = nombre.trim();
+    const norm = key.toLowerCase();
+    for (let k of Object.keys(config)) {
+        if (k.toLowerCase().trim() === norm && k !== key) {
+            delete config[k];
+        }
+    }
     if (isChecked) {
         config[key] = config[key] === 'weekend' ? 'weekend' : 'always';
     } else {
@@ -1596,6 +1603,12 @@ window.handleStaffTrackToggle = function(nombre, isChecked) {
 window.handleStaffTrackModeChange = function(nombre, newMode) {
     const config = { ...getStaffTrackConfig() };
     const key = nombre.trim();
+    const norm = key.toLowerCase();
+    for (let k of Object.keys(config)) {
+        if (k.toLowerCase().trim() === norm && k !== key) {
+            delete config[k];
+        }
+    }
     config[key] = newMode;
     saveStaffTrackConfig(config);
 };

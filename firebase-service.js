@@ -612,14 +612,14 @@ function startFirestoreListeners() {
                     }
                 }
 
-                const trackingData = data.staffOffTracking || data.trackedStaffOff;
-                if (trackingData !== undefined) {
+                const trackingData = (data.staffOffTracking !== undefined && data.staffOffTracking !== null) ? data.staffOffTracking : data.trackedStaffOff;
+                if (trackingData !== undefined && trackingData !== null) {
                     window.appSettings = window.appSettings || {};
                     if (Array.isArray(trackingData)) {
                         const map = {};
                         trackingData.forEach(name => { map[name.trim()] = 'always'; });
                         window.appSettings.staffOffTracking = map;
-                    } else {
+                    } else if (typeof trackingData === 'object') {
                         window.appSettings.staffOffTracking = trackingData;
                     }
                     try {
