@@ -206,18 +206,6 @@ window.loadRegTicketForEdit = function(ticketId) {
     document.getElementById('reg-input-octopus').value = ticket.octopus || '';
     document.getElementById('reg-input-staff').value = ticket.staff || '';
 
-    // Components
-    const comps = ticket.components || {};
-    document.getElementById('comp-1st').checked = !!comps['1st'];
-    document.getElementById('comp-2nd-main').checked = !!comps['2nd-main'];
-    document.getElementById('comp-2nd-octo').checked = !!comps['2nd-octo'];
-    document.getElementById('comp-spg').checked = !!comps['spg'];
-    document.getElementById('comp-bcd').checked = !!comps['bcd'];
-    document.getElementById('comp-dry').checked = !!comps['dry'];
-    document.getElementById('comp-tx').checked = !!comps['tx'];
-    document.getElementById('comp-bag').checked = !!comps['bag'];
-    document.getElementById('comp-other').value = comps['other'] || '';
-
     // Services
     const srvs = ticket.services || {};
     document.getElementById('srv-annual').checked = !!srvs['annual'];
