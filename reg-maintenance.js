@@ -134,23 +134,11 @@ window.resetRegForm = function() {
     document.getElementById('reg-crm-search-input').value = '';
 
     // Gear info
-    document.getElementById('reg-input-brand').value = 'Aqualung';
-    document.getElementById('reg-input-model').value = '';
-    document.getElementById('reg-input-conn').value = 'DIN 300';
-    document.getElementById('reg-input-serial1').value = '';
-    document.getElementById('reg-input-serial2').value = '';
+    document.getElementById('reg-input-brand').value = '';
+    document.getElementById('reg-input-1st-stage').value = '';
+    document.getElementById('reg-input-2nd-stage').value = '';
+    document.getElementById('reg-input-octopus').value = '';
     document.getElementById('reg-input-staff').value = '';
-
-    // Checkboxes Components
-    const compCheckboxes = [
-        'comp-1st', 'comp-2nd-main', 'comp-2nd-octo',
-        'comp-spg', 'comp-bcd', 'comp-dry', 'comp-tx', 'comp-bag'
-    ];
-    compCheckboxes.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.checked = (id === 'comp-1st' || id === 'comp-2nd-main' || id === 'comp-2nd-octo' || id === 'comp-spg' || id === 'comp-bcd');
-    });
-    document.getElementById('comp-other').value = '';
 
     // Checkboxes Services
     const serviceCheckboxes = [
@@ -211,12 +199,11 @@ window.loadRegTicketForEdit = function(ticketId) {
     document.getElementById('reg-input-email').value = ticket.clientEmail || '';
     document.getElementById('reg-input-dni').value = ticket.clientDni || '';
 
-    // Gear info
-    document.getElementById('reg-input-brand').value = ticket.brand || 'Aqualung';
-    document.getElementById('reg-input-model').value = ticket.model || '';
-    document.getElementById('reg-input-conn').value = ticket.connection || 'DIN 300';
-    document.getElementById('reg-input-serial1').value = ticket.serial1 || '';
-    document.getElementById('reg-input-serial2').value = ticket.serial2 || '';
+    // Gear info (Marca, 1ª Etapa, 2ª Etapa, Octopus)
+    document.getElementById('reg-input-brand').value = ticket.brand || '';
+    document.getElementById('reg-input-1st-stage').value = ticket.firstStage || ticket.serial1 || ticket.model || '';
+    document.getElementById('reg-input-2nd-stage').value = ticket.secondStage || ticket.serial2 || '';
+    document.getElementById('reg-input-octopus').value = ticket.octopus || '';
     document.getElementById('reg-input-staff').value = ticket.staff || '';
 
     // Components
@@ -355,22 +342,10 @@ window.updateRegLivePreview = function() {
     const clientEmail = document.getElementById('reg-input-email').value || '---';
     const clientDni = document.getElementById('reg-input-dni').value || '---';
 
-    const brand = document.getElementById('reg-input-brand').value || 'Aqualung';
-    const model = document.getElementById('reg-input-model').value || '---';
-    const conn = document.getElementById('reg-input-conn').value || 'DIN 300';
-    const serial1 = document.getElementById('reg-input-serial1').value || '---';
-    const serial2 = document.getElementById('reg-input-serial2').value || '---';
-
-    // Components checklist
-    const c1st = document.getElementById('comp-1st').checked;
-    const c2ndMain = document.getElementById('comp-2nd-main').checked;
-    const c2ndOcto = document.getElementById('comp-2nd-octo').checked;
-    const cSpg = document.getElementById('comp-spg').checked;
-    const cBcd = document.getElementById('comp-bcd').checked;
-    const cDry = document.getElementById('comp-dry').checked;
-    const cTx = document.getElementById('comp-tx').checked;
-    const cBag = document.getElementById('comp-bag').checked;
-    const cOther = document.getElementById('comp-other').value.trim();
+    const brand = document.getElementById('reg-input-brand').value || '---';
+    const stage1 = document.getElementById('reg-input-1st-stage').value || '---';
+    const stage2 = document.getElementById('reg-input-2nd-stage').value || '---';
+    const octopus = document.getElementById('reg-input-octopus').value || '---';
 
     // Services checklist
     const sAnnual = document.getElementById('srv-annual')?.checked;
@@ -406,35 +381,16 @@ window.updateRegLivePreview = function() {
 
     setText('prev-brand', brand);
     setText('prev-brand-bot', brand);
-    setText('prev-model', model);
-    setText('prev-model-bot', model);
-    setText('prev-conn', conn);
-    setText('prev-serial1', serial1);
-    setText('prev-serial2', serial2);
+    setText('prev-1st-stage', stage1);
+    setText('prev-2nd-stage', stage2);
+    setText('prev-octopus', octopus);
 
-    // Render Components Badges in Preview
-    const compList = [];
-    if (c1st) compList.push('1ª Etapa');
-    if (c2ndMain) compList.push('2ª Etapa Principal');
-    if (c2ndOcto) compList.push('Octopus / Auxiliar');
-    if (cSpg) compList.push('Manómetro / SPG');
-    if (cBcd) compList.push('Latiguillo Jacket');
-    if (cDry) compList.push('Latiguillo Seco');
-    if (cTx) compList.push('Transmisor');
-    if (cBag) compList.push('Bolsa Regulador');
-    if (cOther) compList.push(cOther);
-
-    const compContainer = document.getElementById('prev-components-list');
-    if (compContainer) {
-        compContainer.innerHTML = compList.length > 0
-            ? compList.map(c => `<span class="inline-block bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded">✓ ${c}</span>`).join(' ')
-            : '<span class="text-slate-400 italic text-[10px]">No especificado</span>';
-    }
-
-    const compContainerBot = document.getElementById('prev-components-list-bot');
-    if (compContainerBot) {
-        compContainerBot.innerHTML = compList.length > 0 ? compList.join(' • ') : 'Regulador Completo';
-    }
+    // Bottom slip gear summary
+    const gearParts = [];
+    if (stage1 && stage1 !== '---') gearParts.push(`1ª: ${stage1}`);
+    if (stage2 && stage2 !== '---') gearParts.push(`2ª: ${stage2}`);
+    if (octopus && octopus !== '---') gearParts.push(`Octo: ${octopus}`);
+    setText('prev-gear-bot', gearParts.length > 0 ? gearParts.join(' • ') : 'Regulador Completo');
 
     // Render Services in Preview
     const srvList = [];
@@ -476,6 +432,16 @@ window.saveRegServiceTicket = async function() {
         return;
     }
 
+    const brand = document.getElementById('reg-input-brand').value.trim();
+    if (!brand) {
+        if (typeof showAppAlert === 'function') {
+            showAppAlert("La marca del regulador es un campo obligatorio.");
+        } else {
+            alert("La marca del regulador es un campo obligatorio.");
+        }
+        return;
+    }
+
     const ticketCode = document.getElementById('reg-input-ticket-id').value.trim();
     const dateEntry = document.getElementById('reg-input-date-entry').value;
     const datePickup = document.getElementById('reg-input-date-pickup').value;
@@ -485,23 +451,9 @@ window.saveRegServiceTicket = async function() {
     const clientEmail = document.getElementById('reg-input-email').value.trim();
     const clientDni = document.getElementById('reg-input-dni').value.trim();
 
-    const brand = document.getElementById('reg-input-brand').value;
-    const model = document.getElementById('reg-input-model').value.trim();
-    const connection = document.getElementById('reg-input-conn').value;
-    const serial1 = document.getElementById('reg-input-serial1').value.trim();
-    const serial2 = document.getElementById('reg-input-serial2').value.trim();
-
-    const components = {
-        '1st': document.getElementById('comp-1st').checked,
-        '2nd-main': document.getElementById('comp-2nd-main').checked,
-        '2nd-octo': document.getElementById('comp-2nd-octo').checked,
-        'spg': document.getElementById('comp-spg').checked,
-        'bcd': document.getElementById('comp-bcd').checked,
-        'dry': document.getElementById('comp-dry').checked,
-        'tx': document.getElementById('comp-tx').checked,
-        'bag': document.getElementById('comp-bag').checked,
-        'other': document.getElementById('comp-other').value.trim()
-    };
+    const firstStage = document.getElementById('reg-input-1st-stage').value.trim();
+    const secondStage = document.getElementById('reg-input-2nd-stage').value.trim();
+    const octopus = document.getElementById('reg-input-octopus').value.trim();
 
     const customTasks = [];
     const customInputs = document.querySelectorAll('.reg-custom-task-input');
@@ -537,11 +489,9 @@ window.saveRegServiceTicket = async function() {
         clientEmail,
         clientDni,
         brand,
-        model,
-        connection,
-        serial1,
-        serial2,
-        components,
+        firstStage,
+        secondStage,
+        octopus,
         services,
         symptoms,
         updatedAt: timestamp
@@ -786,7 +736,7 @@ window.renderRegHistoryList = function() {
                     </div>
                     <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 font-bold mt-1.5">
                         <span>📞 ${t.clientPhone}</span>
-                        <span>🎛️ ${t.brand || ''} ${t.model || ''} (${t.connection || 'DIN 300'})</span>
+                        <span>🎛️ ${t.brand || ''}${t.firstStage || t.model ? ' ' + (t.firstStage || t.model) : ''}${t.secondStage ? ' • 2ª: ' + t.secondStage : ''}${t.octopus ? ' • Octo: ' + t.octopus : ''}</span>
                         <span>📅 Entrada: ${formatEuropeanDate(t.dateEntry)}</span>
                         ${t.datePickup ? `<span>🏁 Previsto: ${formatEuropeanDate(t.datePickup)}</span>` : ''}
                     </div>

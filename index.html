@@ -2930,92 +2930,43 @@
                             </div>
                         </div>
 
-                        <!-- 3. Gear / Regulator Info -->
+                        <!-- 3. Regulator Details (Marca, 1st stage, 2nd stage, Octopus) -->
                         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                             <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                                 <span>🤿 Datos del Regulador</span>
                             </h4>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Marca</label>
-                                    <select id="reg-input-brand" onchange="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
-                                        <option value="Aqualung">Aqualung</option>
-                                        <option value="Apeks">Apeks</option>
-                                        <option value="Scubapro">Scubapro</option>
-                                        <option value="Mares">Mares</option>
-                                        <option value="Cressi">Cressi</option>
-                                        <option value="Atomic Aquatics">Atomic Aquatics</option>
-                                        <option value="Poseidon">Poseidon</option>
-                                        <option value="Halcyon">Halcyon</option>
-                                        <option value="Tecline">Tecline</option>
-                                        <option value="Beuchat">Beuchat</option>
-                                        <option value="Hollis">Hollis</option>
-                                        <option value="Oceanic">Oceanic</option>
-                                        <option value="Sherwood">Sherwood</option>
-                                        <option value="Otra...">Otra...</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modelo</label>
-                                    <input type="text" id="reg-input-model" oninput="window.updateRegLivePreview()" placeholder="Ej: Legend, XTX50..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Marca <span class="text-red-500">*</span></label>
+                                    <input type="text" id="reg-input-brand" list="reg-brands-list" oninput="window.updateRegLivePreview()" placeholder="Ej: Scubapro, Aqualung, Apeks..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500" required>
+                                    <datalist id="reg-brands-list">
+                                        <option value="Scubapro">
+                                        <option value="Aqualung">
+                                        <option value="Apeks">
+                                        <option value="Mares">
+                                        <option value="Cressi">
+                                        <option value="Atomic Aquatics">
+                                        <option value="Poseidon">
+                                        <option value="Halcyon">
+                                        <option value="Tecline">
+                                        <option value="Beuchat">
+                                        <option value="Hollis">
+                                        <option value="Oceanic">
+                                        <option value="Sherwood">
+                                        <option value="Subgear">
+                                    </datalist>
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Conexión</label>
-                                    <select id="reg-input-conn" onchange="window.updateRegLivePreview()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
-                                        <option value="DIN 300">DIN 300 bar</option>
-                                        <option value="DIN 200">DIN 200 bar</option>
-                                        <option value="INT">INT / Estribo</option>
-                                    </select>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">1ª Etapa / 1st Stage</label>
+                                    <input type="text" id="reg-input-1st-stage" oninput="window.updateRegLivePreview()" placeholder="Ej: MK25, Legend, DST, FGT..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nº Serie 1ª Etapa</label>
-                                    <input type="text" id="reg-input-serial1" oninput="window.updateRegLivePreview()" placeholder="Nº serie 1ª etapa..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">2ª Etapa / 2nd Stage</label>
+                                    <input type="text" id="reg-input-2nd-stage" oninput="window.updateRegLivePreview()" placeholder="Ej: R195, G260, XTX50, Helix..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                                 </div>
-                                <div class="col-span-2">
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nº Serie 2ª Etapa / Octopus</label>
-                                    <input type="text" id="reg-input-serial2" oninput="window.updateRegLivePreview()" placeholder="Nº serie 2ª etapa..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                                </div>
-                            </div>
-
-                            <!-- Component Checklist -->
-                            <div class="pt-2 border-t border-slate-100">
-                                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Componentes Entregados</label>
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" id="comp-1st" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
-                                        <span>1ª Etapa</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" id="comp-2nd-main" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
-                                        <span>2ª Etapa Ppal</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" id="comp-2nd-octo" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
-                                        <span>Octopus</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" id="comp-spg" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
-                                        <span>Manómetro</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" id="comp-bcd" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500" checked>
-                                        <span>Latiguillo BCD</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" id="comp-dry" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
-                                        <span>Latig. Seco</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" id="comp-tx" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
-                                        <span>Transmisor</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" id="comp-bag" onchange="window.updateRegLivePreview()" class="rounded text-cyan-600 focus:ring-cyan-500">
-                                        <span>Bolsa Reg.</span>
-                                    </label>
-                                </div>
-                                <div class="mt-2">
-                                    <input type="text" id="comp-other" oninput="window.updateRegLivePreview()" placeholder="Otros accesorios incluidos (protectores, etc.)..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Octopus</label>
+                                    <input type="text" id="reg-input-octopus" oninput="window.updateRegLivePreview()" placeholder="Ej: R095, Alpha 8, Calypso..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                                 </div>
                             </div>
                         </div>
@@ -3134,33 +3085,21 @@
                                     </table>
                                 </div>
 
-                                <!-- 2. Equipment Details Table -->
+                                <!-- 2. Regulator Details Table -->
                                 <div>
-                                    <div class="text-[9.5px] font-black text-slate-500 uppercase tracking-widest mb-0.5">2. DATOS DEL EQUIPO EN TALLER</div>
+                                    <div class="text-[9.5px] font-black text-slate-500 uppercase tracking-widest mb-0.5">2. DATOS DEL REGULADOR</div>
                                     <table class="w-full text-xs border border-slate-300">
                                         <tr class="bg-slate-100 font-bold text-slate-700 border-b border-slate-300">
-                                            <td class="p-1 w-1/3 border-r border-slate-300">MARCA</td>
-                                            <td class="p-1 w-1/3 border-r border-slate-300">MODELO</td>
-                                            <td class="p-1 w-1/3">TIPO CONEXIÓN</td>
+                                            <td class="p-1 w-1/4 border-r border-slate-300">MARCA</td>
+                                            <td class="p-1 w-1/4 border-r border-slate-300">1ª ETAPA</td>
+                                            <td class="p-1 w-1/4 border-r border-slate-300">2ª ETAPA</td>
+                                            <td class="p-1 w-1/4">OCTOPUS</td>
                                         </tr>
                                         <tr class="border-b border-slate-200 font-bold text-slate-800">
-                                            <td class="p-1 border-r border-slate-300" id="prev-brand">Aqualung</td>
-                                            <td class="p-1 border-r border-slate-300" id="prev-model">---</td>
-                                            <td class="p-1 font-mono" id="prev-conn">DIN</td>
-                                        </tr>
-                                        <tr class="text-[10.5px] text-slate-700 border-b border-slate-200">
-                                            <td colspan="2" class="p-1 border-r border-slate-300">
-                                                <span class="font-bold text-slate-500">Nº Serie 1ª Etapa:</span> <span id="prev-serial1" class="font-mono">---</span>
-                                            </td>
-                                            <td class="p-1">
-                                                <span class="font-bold text-slate-500">Nº Serie 2ª:</span> <span id="prev-serial2" class="font-mono">---</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td colspan="3" class="p-1.5 bg-slate-50">
-                                                <span class="font-bold text-slate-500 text-[9.5px] uppercase block mb-0.5">Componentes entregados:</span>
-                                                <div id="prev-components-list" class="flex flex-wrap gap-1"></div>
-                                            </td>
+                                            <td class="p-1 border-r border-slate-300 uppercase" id="prev-brand">Scubapro</td>
+                                            <td class="p-1 border-r border-slate-300 font-mono" id="prev-1st-stage">---</td>
+                                            <td class="p-1 border-r border-slate-300 font-mono" id="prev-2nd-stage">---</td>
+                                            <td class="p-1 font-mono" id="prev-octopus">---</td>
                                         </tr>
                                     </table>
                                 </div>
@@ -3253,7 +3192,7 @@
                                     </div>
 
                                     <div class="text-[10px] text-slate-700 pt-1 border-t border-cyan-200/60 flex justify-between items-center">
-                                        <div><span class="font-bold text-slate-500">Equipo:</span> <span id="prev-brand-bot" class="font-black">Aqualung</span> <span id="prev-model-bot" class="font-black">---</span> (<span id="prev-components-list-bot">---</span>)</div>
+                                        <div><span class="font-bold text-slate-500">Equipo:</span> <span id="prev-brand-bot" class="font-black">Scubapro</span> (<span id="prev-gear-bot">---</span>)</div>
                                         <div class="text-slate-500 font-mono text-[9px]">Tel. Tienda: +34 968 56 30 14</div>
                                     </div>
                                 </div>
