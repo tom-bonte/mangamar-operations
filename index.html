@@ -212,53 +212,106 @@
 
         </div>
     </div>
-    <header id="desktop-header" class="hidden md:flex bg-orange-100/90 backdrop-blur-md text-slate-800 px-3 md:px-6 py-3 shadow-sm border-b border-orange-100 flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-0 z-50 shrink-0 sticky top-0">
-        <div class="flex items-center gap-4 w-[50%] md:w-1/3">
-            <div class="relative group cursor-pointer z-[100] auth-hide">
-                <div class="flex items-center gap-2 py-1 pr-2 rounded-lg hover:bg-slate-50 transition-colors">
-                    <img src="favicon_mangamar.webp" class="w-12 h-12 object-contain" alt="Mangamar Logo">
-                    <div class="flex flex-col">
-                        <span class="text-sm font-black tracking-tight leading-none text-slate-800">MANGAMAR</span>
-                        <span class="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-1 mt-0.5">Operaciones <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg></span>
+
+    <header id="desktop-header" class="hidden md:flex bg-orange-100/90 backdrop-blur-md text-slate-800 px-3 md:px-6 py-2.5 shadow-sm border-b border-orange-200/60 flex-wrap md:flex-nowrap justify-between items-center gap-3 md:gap-0 z-50 shrink-0 sticky top-0">
+        <!-- LEFT: LOGO & SUBMENUS (TALLER & GESTIÓN) -->
+        <div class="flex items-center gap-3 w-auto">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-2.5 py-1 pr-2">
+                <img src="favicon_mangamar.webp" class="w-10 h-10 object-contain" alt="Mangamar Logo">
+                <div class="flex flex-col">
+                    <span class="text-sm font-black tracking-tight leading-none text-slate-800">MANGAMAR</span>
+                    <span class="text-[9px] font-black text-orange-600 uppercase tracking-widest leading-none mt-0.5">Operaciones</span>
+                </div>
+            </div>
+
+            <!-- Top Nav Hub: Taller & Gestión -->
+            <div class="flex items-center gap-1.5 auth-hide">
+                <!-- 1. TALLER DROPDOWN -->
+                <div class="relative group z-[100]">
+                    <button class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-700 bg-white/70 hover:bg-white rounded-xl border border-orange-200/60 hover:border-orange-300 shadow-xs transition-all cursor-pointer">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        <span>Taller</span>
+                        <svg class="w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    
+                    <div class="absolute left-0 top-full mt-1 w-64 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                        <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5 overflow-hidden">
+                            <button onclick="openRegMaintenanceModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-cyan-50 hover:text-cyan-800 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-cyan-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                                <div>
+                                    <span class="block">Mantenimiento Reguladores</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Fichas de revisión y taller</span>
+                                </div>
+                            </button>
+                            <button onclick="openTankInventoryModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                <div>
+                                    <span class="block">Inventario Botellas</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Control de botellas y retimbrados</span>
+                                </div>
+                            </button>
+                            <button onclick="openNitroxForecastModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-cyan-50 hover:text-cyan-800 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-cyan-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                                <div>
+                                    <span class="block">Previsión Nitrox</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Calculadora botellas de carga</span>
+                                </div>
+                            </button>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="absolute left-0 top-full mt-0 w-56 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                    <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5">
-                        <button onclick="openPriceModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Lista de Precios
-                        </button>
-                        <button onclick="openIncidenciaModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Incidencia Reserva Marina
-                        </button>
-                        <button onclick="openRegMaintenanceModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5 text-slate-400 group-hover:text-cyan-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Mantenimiento Reguladores
-                        </button>
-                        <button onclick="openTankInventoryModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg> Inventario Botellas
-                        </button>
-                        <button onclick="openSettingsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Ajustes
-                        </button>
-                        <button onclick="openContactsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-teal-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5 text-slate-400 group-hover:text-teal-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg> Contactos Importantes
-                        </button>
-                        <button onclick="openWebAccessLogsModal()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
-                            <svg class="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg> Registro Accesos
-                        </button>
-                        <div class="group/admin relative">
-                            <button class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-red-600 flex items-center gap-3 transition-colors justify-between">
-                                <span class="flex items-center gap-3"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Herramientas (Admin)</span>
-                                <svg class="w-4 h-4 text-slate-400 group-hover/admin:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg>
+
+                <!-- 2. GESTIÓN & CENTRO DROPDOWN -->
+                <div class="relative group z-[100]">
+                    <button class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-700 bg-white/70 hover:bg-white rounded-xl border border-orange-200/60 hover:border-orange-300 shadow-xs transition-all cursor-pointer">
+                        <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <span>Gestión</span>
+                        <svg class="w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    
+                    <div class="absolute left-0 top-full mt-1 w-64 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                        <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5 overflow-hidden">
+                            <button onclick="openPriceModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-orange-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <span>Lista de Precios</span>
                             </button>
-                            <div class="absolute left-full top-0 ml-2 w-56 opacity-0 invisible group-hover/admin:opacity-100 group-hover/admin:visible transition-all z-50">
-                                <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5">
-                                    <button onclick="document.getElementById('debug-wipe-modal').classList.remove('hidden')" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Test: Vaciar Salidas
-                                    </button>
-                                    <button onclick="openResyncPrompt()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Re-Sync Visor
-                                    </button>
+                            <button onclick="openIncidenciaModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <span>Incidencia Reserva Marina</span>
+                            </button>
+                            <button onclick="openContabilidadView()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-rose-50 hover:text-rose-700 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                <span>Contabilidad & Facturación</span>
+                            </button>
+                            <button onclick="openSettingsModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-orange-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                <span>Ajustes & Días Libres</span>
+                            </button>
+                            <button onclick="openContactsModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-teal-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                                <span>Contactos Importantes</span>
+                            </button>
+                            <button onclick="openWebAccessLogsModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                <span>Registro de Accesos</span>
+                            </button>
+                            
+                            <!-- Admin Submenu -->
+                            <div class="group/admin relative">
+                                <button class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2.5 transition-colors justify-between">
+                                    <span class="flex items-center gap-2.5"><svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Herramientas (Admin)</span>
+                                    <svg class="w-3 h-3 text-slate-400 group-hover/admin:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                                <div class="absolute left-full top-0 ml-1 w-56 opacity-0 invisible group-hover/admin:opacity-100 group-hover/admin:visible transition-all z-50">
+                                    <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5 overflow-hidden">
+                                        <button onclick="document.getElementById('debug-wipe-modal').classList.remove('hidden')" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors">
+                                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Test: Vaciar Salidas
+                                        </button>
+                                        <button onclick="openResyncPrompt()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors">
+                                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Re-Sync Visor
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -267,38 +320,39 @@
             </div>
         </div>
         
+        <!-- CENTER: MAIN VIEW SWITCHER TABS -->
+        <nav class="flex items-center justify-between md:justify-center bg-white/80 p-1 rounded-xl border border-orange-200/60 shadow-xs order-last md:order-none w-full md:w-auto">
+            <button onclick="switchView('daily')" id="btn-view-daily" class="px-4 md:px-6 py-1.5 rounded-lg text-xs font-black transition-all bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 flex-1 md:flex-none">Diario</button>
+            <button onclick="switchView('monthly')" id="btn-view-monthly" class="px-4 md:px-6 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 hover:bg-orange-50 flex-1 md:flex-none">Mensual</button>
+            <button onclick="switchView('staff')" id="btn-view-staff" class="px-4 md:px-6 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 hover:bg-orange-50 auth-hide flex-1 md:flex-none">Staff</button>
+        </nav>
 
-        <div class="flex items-center justify-end w-[50%] md:w-1/3 gap-2 md:gap-4 order-2 md:order-last">
-            <a href="https://reserva-marina-visor.netlify.app/" target="_blank" class="text-xs font-bold text-slate-500 hover:text-orange-600 transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-orange-50">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg> Visor
+        <!-- RIGHT: UTILITIES & AUTH -->
+        <div class="flex items-center justify-end gap-2 md:gap-3 order-2 md:order-last">
+            <a href="https://reserva-marina-visor.netlify.app/" target="_blank" class="text-xs font-bold text-slate-600 hover:text-orange-600 transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-white/80 border border-transparent hover:border-orange-200">
+                <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg> Visor
             </a>
-            <div class="w-px h-6 bg-slate-200 hidden md:block"></div>
-            <button onclick="document.getElementById('help-modal').classList.remove('hidden')" class="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 hover:scale-105 font-black text-sm flex items-center justify-center transition-all auth-hide" title="Ayuda">?</button>
-            <button onclick="window.openExportCsvModal()" class="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 hover:scale-105 font-black flex items-center justify-center transition-all auth-hide" title="Exportar CSV">
-                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            <div class="w-px h-5 bg-orange-200/80 hidden md:block"></div>
+            <button onclick="document.getElementById('help-modal').classList.remove('hidden')" class="w-8 h-8 shrink-0 rounded-xl bg-white/80 border border-orange-200/60 hover:bg-white text-orange-600 shadow-xs font-black text-xs flex items-center justify-center transition-all auth-hide" title="Ayuda">?</button>
+            <button onclick="window.openExportCsvModal()" class="w-8 h-8 shrink-0 rounded-xl bg-white/80 border border-orange-200/60 hover:bg-white text-slate-700 shadow-xs font-black flex items-center justify-center transition-all auth-hide" title="Exportar CSV">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
             <div class="relative shrink-0">
-                <button id="auth-btn-logged-out" onclick="document.getElementById('login-modal').classList.remove('hidden')" class="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 bg-slate-800 text-white rounded-lg text-xs md:text-sm font-bold shadow-sm hover:bg-slate-900 transition-colors">
-                    <svg class="w-4 h-4 text-slate-300 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Iniciar Sesión
+                <button id="auth-btn-logged-out" onclick="document.getElementById('login-modal').classList.remove('hidden')" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-slate-900 transition-colors">
+                    <svg class="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg> Iniciar Sesión
                 </button>
                 <div id="auth-btn-logged-in" class="hidden">
-                    <button onclick="toggleAuthDropdown()" class="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 bg-orange-500 text-white rounded-lg text-xs md:text-sm font-bold shadow-sm hover:bg-orange-600 transition-colors group">
-                        Mangamar 
-                        <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <button onclick="toggleAuthDropdown()" class="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-black shadow-sm hover:bg-orange-600 transition-colors group">
+                        <span>Mangamar</span>
+                        <svg class="w-3.5 h-3.5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div id="auth-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-20">
-                        <button onclick="changeAdminPassword()" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 whitespace-nowrap auth-hide"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg> Cambiar contraseña</button>
-                        <button onclick="logout()" class="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 whitespace-nowrap"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Cerrar sesión</button>
+                    <div id="auth-dropdown" class="hidden absolute right-0 mt-1.5 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-20 divide-y divide-slate-100">
+                        <button onclick="changeAdminPassword()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 auth-hide"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg> Cambiar contraseña</button>
+                        <button onclick="logout()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Cerrar sesión</button>
                     </div>
                 </div>
             </div>
         </div>
-
-        <nav class="flex items-center justify-between md:justify-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 backdrop-blur-sm order-last md:order-none w-full md:w-auto">
-            <button onclick="switchView('daily')" id="btn-view-daily" class="px-4 md:px-6 py-2 rounded-lg text-sm font-black transition-all bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm ring-1 ring-orange-500/20 flex-1 md:flex-none">Diario</button>
-            <button onclick="switchView('monthly')" id="btn-view-monthly" class="px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50 flex-1 md:flex-none">Mensual</button>
-            <button onclick="switchView('staff')" id="btn-view-staff" class="px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-800 hover:bg-white/50 auth-hide flex-1 md:flex-none">Staff</button>
-        </nav>
     </header>
 
     <header id="mobile-header" class="flex md:hidden bg-orange-100/95 backdrop-blur-md text-slate-800 h-14 items-center justify-between px-4 border-b border-orange-100 shrink-0 relative z-50 shadow-sm">
@@ -339,61 +393,53 @@
         </div>
         
         <main id="view-daily" class="absolute inset-0 flex flex-col md:flex-row transition-opacity duration-300 z-10 bg-slate-50">
-            <aside class="w-full md:w-80 bg-white border-b md:border-r md:border-b-0 border-slate-200 flex flex-col shrink-0 overflow-y-auto max-h-[40vh] md:max-h-full">
-                <div class="p-6">
-                    <div class="flex items-center gap-2 mb-6">
-                        <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        <h3 class="font-black text-slate-800 tracking-tight uppercase text-sm">Calendario</h3>
-                    </div>
-                    <div class="bg-orange-50/50 border border-orange-100 rounded-xl p-4">
-                        <div class="flex justify-between items-center mb-4">
-                    
-                            <h4 id="mini-calendar-month" class="font-black text-slate-700 text-sm">MARZO</h4>
+            <!-- STREAMLINED LEFT SIDEBAR: CALENDAR + 1-CLICK CORE TOOLS -->
+            <aside class="w-full md:w-72 bg-white border-b md:border-r md:border-b-0 border-slate-200 flex flex-col shrink-0 overflow-y-auto max-h-[40vh] md:max-h-full">
+                <div class="p-5 space-y-4">
+                    <!-- Calendar Widget -->
+                    <div class="bg-orange-50/50 border border-orange-100 rounded-2xl p-3.5">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 id="mini-calendar-month" class="font-black text-slate-700 text-xs uppercase tracking-wider">MARZO</h4>
                             <div class="flex gap-1">
-                                <button onclick="changeMiniMonth(-1)" class="p-1 hover:bg-white rounded border border-transparent hover:border-slate-200 text-slate-500 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-                                <button onclick="changeMiniMonth(1)" class="p-1 hover:bg-white rounded border border-transparent hover:border-slate-200 text-slate-500 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                                <button onclick="changeMiniMonth(-1)" class="p-1 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 text-slate-500 transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                                <button onclick="changeMiniMonth(1)" class="p-1 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 text-slate-500 transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
                             </div>
                         </div>
-                        <div id="mini-calendar-grid" class="grid grid-cols-7 text-center gap-y-1"></div>
-                      </div>
-                      <button onclick="openTodayDiversModal()" class="w-full mt-6 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-xl text-sm font-black hover:bg-emerald-100/90 hover:text-emerald-800 hover:border-emerald-300 transition-all flex items-center justify-start px-4 gap-3 shadow-sm shadow-emerald-100/50 group active:scale-[0.98] auth-hide">
-                                <svg class="w-5 h-5 text-emerald-500 group-hover:text-emerald-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> Día de Hoy
-                            </button>
+                        <div id="mini-calendar-grid" class="grid grid-cols-7 text-center gap-y-1 text-xs"></div>
+                    </div>
 
-                            <button onclick="openTVView()" class="w-full mt-2 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200/80 rounded-xl text-sm font-black hover:bg-indigo-100/90 hover:text-indigo-800 hover:border-indigo-300 transition-all flex items-center justify-start px-4 gap-3 shadow-sm shadow-indigo-100/50 group active:scale-[0.98] auth-hide staff-allow">
-                                <svg class="w-5 h-5 text-indigo-500 group-hover:text-indigo-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> 
-                                Pizarra TV
-                            </button>
-                                
-                            <button onclick="openWhatsAppModal()" class="w-full mt-2 py-2.5 bg-green-50 text-green-700 border border-green-200/80 rounded-xl text-sm font-black hover:bg-green-100/90 hover:text-green-800 hover:border-green-300 transition-all flex items-center justify-start px-4 gap-3 shadow-sm shadow-green-100/50 group active:scale-[0.98] auth-hide">
-                                <svg class="w-5 h-5 text-green-500 group-hover:text-green-700 group-hover:scale-110 transition-transform shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.885-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                Disponibilidad
-                            </button>
+                    <!-- 1-CLICK CORE ACCESS BUTTONS -->
+                    <div class="space-y-2 pt-1">
+                        <!-- 1. Pizarra TV -->
+                        <button onclick="openTVView()" class="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 border border-indigo-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide staff-allow">
+                            <svg class="w-4 h-4 text-indigo-500 group-hover:text-indigo-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> 
+                            <span>Pizarra TV</span>
+                        </button>
+                            
+                        <!-- 2. Disponibilidad (WhatsApp / Spots) -->
+                        <button onclick="openWhatsAppModal()" class="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide">
+                            <svg class="w-4 h-4 text-emerald-500 group-hover:text-emerald-700 group-hover:scale-110 transition-transform shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.885-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            <span>Disponibilidad</span>
+                        </button>
 
-                            <button onclick="openCrmModal()" class="w-full mt-2 py-2.5 bg-purple-50 text-purple-700 border border-purple-200/80 rounded-xl text-sm font-black hover:bg-purple-100/90 hover:text-purple-800 hover:border-purple-300 transition-all flex items-center justify-start px-4 gap-3 shadow-sm shadow-purple-100/50 group active:scale-[0.98] auth-hide">
-                                <svg class="w-5 h-5 text-purple-500 group-hover:text-purple-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                                Directorio CRM
-                            </button>
+                        <!-- 3. Directorio CRM -->
+                        <button onclick="openCrmModal()" class="w-full py-2.5 bg-purple-50 hover:bg-purple-100/80 text-purple-700 border border-purple-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide">
+                            <svg class="w-4 h-4 text-purple-500 group-hover:text-purple-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <span>Directorio CRM</span>
+                        </button>
 
-                            <button onclick="openStaffViewsModal()" class="w-full mt-2 py-2.5 bg-amber-50 text-amber-700 border border-amber-200/80 rounded-xl text-sm font-black hover:bg-amber-100/90 hover:text-amber-800 hover:border-amber-300 transition-all flex items-center justify-start px-4 gap-3 shadow-sm shadow-amber-100/50 group active:scale-[0.98] auth-hide">
-                                <svg class="w-5 h-5 text-amber-500 group-hover:text-amber-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                Vistas de Staff
-                            </button>
+                        <!-- 4. Horario Staff -->
+                        <button onclick="window.openStaffScheduleModal()" class="w-full py-2.5 bg-violet-50 hover:bg-violet-100/80 text-violet-700 border border-violet-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide staff-allow">
+                            <svg class="w-4 h-4 text-violet-500 group-hover:text-violet-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span>Horario Staff</span>
+                        </button>
 
-                            <button onclick="window.openStaffScheduleModal()" class="w-full mt-2 py-2.5 bg-violet-50 text-violet-700 border border-violet-200/80 rounded-xl text-sm font-black hover:bg-violet-100/90 hover:text-violet-800 hover:border-violet-300 transition-all flex items-center justify-start px-4 gap-3 shadow-sm shadow-violet-100/50 group active:scale-[0.98] auth-hide staff-allow">
-                                <svg class="w-5 h-5 text-violet-500 group-hover:text-violet-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                Horario Staff
-                            </button>
-
-                            <button onclick="openNitroxForecastModal()" class="w-full mt-2 py-2.5 bg-cyan-50 text-cyan-700 border border-cyan-200/80 rounded-xl text-sm font-black hover:bg-cyan-100/90 hover:text-cyan-800 hover:border-cyan-300 transition-all flex items-center justify-start px-4 gap-3 shadow-sm shadow-cyan-100/50 group active:scale-[0.98] auth-hide staff-allow">
-                                <svg class="w-5 h-5 text-cyan-500 group-hover:text-cyan-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                                Previsión Nitrox
-                            </button>
-
-                            <button onclick="openContabilidadView()" class="w-full mt-2 py-2.5 bg-rose-50 text-rose-700 border border-rose-200/80 rounded-xl text-sm font-black hover:bg-rose-100/90 hover:text-rose-800 hover:border-rose-300 transition-all flex items-center justify-start px-4 gap-3 shadow-sm shadow-rose-100/50 group active:scale-[0.98] auth-hide">
-                                <svg class="w-5 h-5 text-rose-500 group-hover:text-rose-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                                Contabilidad
-                            </button>
+                        <!-- 5. Vistas de Staff -->
+                        <button onclick="openStaffViewsModal()" class="w-full py-2.5 bg-amber-50 hover:bg-amber-100/80 text-amber-800 border border-amber-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide">
+                            <svg class="w-4 h-4 text-amber-600 group-hover:text-amber-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span>Vistas de Staff</span>
+                        </button>
+                    </div>
                 </div>
             </aside>
             <div class="flex-1 overflow-y-auto p-6">
