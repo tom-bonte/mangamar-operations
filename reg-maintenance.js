@@ -161,11 +161,35 @@ window.resetRegForm = function() {
         const el = document.getElementById(id);
         if (el) el.checked = (id === 'srv-annual');
     });
-    document.getElementById('srv-other').value = '';
+    
+    // Clear dynamic custom tasks
+    const customContainer = document.getElementById('reg-custom-tasks-list');
+    if (customContainer) customContainer.innerHTML = '';
 
     // Symptoms
     document.getElementById('reg-input-symptoms').value = '';
 
+    window.updateRegLivePreview();
+};
+
+// Dynamic Custom Work Tasks Handler
+window.addRegCustomTask = function(val = '') {
+    const container = document.getElementById('reg-custom-tasks-list');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 reg-custom-task-row';
+    row.innerHTML = `
+        <input type="text" value="${val ? String(val).replace(/"/g, '&quot;') : ''}" class="reg-custom-task-input w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500" placeholder="Escribe el trabajo específico a realizar..." oninput="window.updateRegLivePreview()">
+        <button type="button" onclick="this.closest('.reg-custom-task-row').remove(); window.updateRegLivePreview();" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0" title="Eliminar este trabajo">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    `;
+    container.appendChild(row);
+    if (!val) {
+        const input = row.querySelector('input');
+        if (input) input.focus();
+    }
     window.updateRegLivePreview();
 };
 
@@ -215,7 +239,18 @@ window.loadRegTicketForEdit = function(ticketId) {
     document.getElementById('srv-hoses').checked = !!srvs['hoses'];
     document.getElementById('srv-spool').checked = !!srvs['spool'];
     document.getElementById('srv-o2').checked = !!srvs['o2'];
-    document.getElementById('srv-other').value = srvs['other'] || '';
+
+    // Dynamic custom tasks
+    const customContainer = document.getElementById('reg-custom-tasks-list');
+    if (customContainer) {
+        customContainer.innerHTML = '';
+        const customTasks = ticket.customTasks || (ticket.services?.customTasks || (srvs.other ? [srvs.other] : []));
+        if (Array.isArray(customTasks)) {
+            customTasks.forEach(task => {
+                if (task && typeof task === 'string') window.addRegCustomTask(task);
+            });
+        }
+    }
 
     // Symptoms
     document.getElementById('reg-input-symptoms').value = ticket.symptoms || '';
@@ -404,18 +439,25 @@ window.updateRegLivePreview = function() {
 
     // Render Services in Preview
     const srvList = [];
-    if (sAnnual) srvList.push('Revisión Anual Completa');
+    if (sAnnual) srvList.push('Revisión Anual Completa (Kit + Ultrasonidos + IP)');
     if (sIp) srvList.push('Ajuste Presión Intermedia / Flujo');
     if (sUltra) srvList.push('Limpieza Ultrasonidos');
-    if (sHoses) srvList.push('Sustitución Latiguillos');
+    if (sHoses) srvList.push('Sustitución de Latiguillos');
     if (sSpool) srvList.push('Junta Spool / Manómetro');
     if (sO2) srvList.push('Servicio Oxígeno / O2 Clean');
+
+    // Dynamic custom tasks
+    const customInputs = document.querySelectorAll('.reg-custom-task-input');
+    customInputs.forEach(input => {
+        const val = input.value.trim();
+        if (val) srvList.push(val);
+    });
 
     const srvContainer = document.getElementById('prev-services-list');
     if (srvContainer) {
         srvContainer.innerHTML = srvList.length > 0
-            ? srvList.map(s => `<span class="inline-block bg-cyan-50 text-cyan-900 border border-cyan-200 text-[9px] font-bold px-1.5 py-0.5 rounded">✓ ${s}</span>`).join(' ')
-            : '<span class="text-slate-400 italic text-[9px]">Revisión general estándar</span>';
+            ? srvList.map(s => `<li class="flex items-start gap-1.5"><span class="text-cyan-700 font-bold flex-shrink-0">☑</span><span>${s}</span></li>`).join('')
+            : '<li class="text-slate-400 italic">Revisión general estándar</li>';
     }
 
     setText('prev-symptoms', symptoms);
@@ -462,6 +504,13 @@ window.saveRegServiceTicket = async function() {
         'other': document.getElementById('comp-other').value.trim()
     };
 
+    const customTasks = [];
+    const customInputs = document.querySelectorAll('.reg-custom-task-input');
+    customInputs.forEach(input => {
+        const val = input.value.trim();
+        if (val) customTasks.push(val);
+    });
+
     const services = {
         'annual': document.getElementById('srv-annual').checked,
         'ip-adj': document.getElementById('srv-ip-adj').checked,
@@ -469,7 +518,7 @@ window.saveRegServiceTicket = async function() {
         'hoses': document.getElementById('srv-hoses').checked,
         'spool': document.getElementById('srv-spool').checked,
         'o2': document.getElementById('srv-o2').checked,
-        'other': document.getElementById('srv-other').value.trim()
+        'customTasks': customTasks
     };
 
     const symptoms = document.getElementById('reg-input-symptoms').value.trim();
