@@ -679,6 +679,10 @@ window.printRegService = function() {
                 page-break-after: avoid !important;
                 overflow: hidden !important;
             }
+            #prev-ticket-code, #prev-ticket-code-bot {
+                color: #000000 !important;
+                font-weight: 900 !important;
+            }
         }
     `;
     document.head.appendChild(printStyle);
