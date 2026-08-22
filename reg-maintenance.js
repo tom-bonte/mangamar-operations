@@ -373,15 +373,14 @@ window.updateRegLivePreview = function() {
     const cOther = document.getElementById('comp-other').value.trim();
 
     // Services checklist
-    const sAnnual = document.getElementById('srv-annual').checked;
-    const sIp = document.getElementById('srv-ip-adj').checked;
-    const sUltra = document.getElementById('srv-ultrasonic').checked;
-    const sHoses = document.getElementById('srv-hoses').checked;
-    const sSpool = document.getElementById('srv-spool').checked;
-    const sO2 = document.getElementById('srv-o2').checked;
-    const sOther = document.getElementById('srv-other').value.trim();
+    const sAnnual = document.getElementById('srv-annual')?.checked;
+    const sIp = document.getElementById('srv-ip-adj')?.checked;
+    const sUltra = document.getElementById('srv-ultrasonic')?.checked;
+    const sHoses = document.getElementById('srv-hoses')?.checked;
+    const sSpool = document.getElementById('srv-spool')?.checked;
+    const sO2 = document.getElementById('srv-o2')?.checked;
 
-    const symptoms = document.getElementById('reg-input-symptoms').value || 'Sin incidencias previas reportadas por el cliente.';
+    const symptoms = document.getElementById('reg-input-symptoms')?.value || 'Sin incidencias previas reportadas por el cliente.';
 
     // Render Preview DOM Elements
     const setText = (id, val) => {
