@@ -498,25 +498,21 @@ function getStaffTrackConfig() {
     return window.appSettings.staffOffTracking;
 }
 
-function getStaffTrackMode(nombre) {
+function getStaffTrackMode(nombre, role = '') {
     if (!nombre) return 'never';
     const config = getStaffTrackConfig();
-    const target = String(nombre).toLowerCase().trim();
-    const targetFirst = (typeof window.getFirstName === 'function' ? window.getFirstName(nombre) : nombre.split(' ')[0]).toLowerCase().trim();
-
-    for (let [k, mode] of Object.entries(config)) {
-        const kNorm = String(k).toLowerCase().trim();
-        const kFirst = (typeof window.getFirstName === 'function' ? window.getFirstName(k) : k.split(' ')[0]).toLowerCase().trim();
-        
-        if (kNorm === target || (targetFirst && kFirst && targetFirst === kFirst) || (kNorm.length >= 3 && (target.includes(kNorm) || kNorm.includes(target)))) {
-            return mode; // 'always', 'weekend', 'never'
-        }
+    const clean = nombre.trim();
+    if (role && config[`${role}:${clean}`]) {
+        return config[`${role}:${clean}`];
+    }
+    if (config[clean]) {
+        return config[clean];
     }
     return 'never';
 }
 
-function isStaffTrackedOnDate(nombre, targetDateStr) {
-    const mode = getStaffTrackMode(nombre);
+function isStaffTrackedOnDate(nombre, targetDateStr, role = '') {
+    const mode = getStaffTrackMode(nombre, role);
     if (!mode || mode === 'never') return false;
     if (mode === 'always') return true;
     if (mode === 'weekend') {
@@ -552,7 +548,7 @@ function renderDailyAlerts(targetDateStr) {
     const staffOff = [];
 
     allStaff.forEach(person => {
-        if (!isStaffTrackedOnDate(person.nombre, targetDateStr)) return;
+        if (!isStaffTrackedOnDate(person.nombre, targetDateStr, person.isCaptain ? 'cap' : 'guide')) return;
 
         // Check if person has day off in schedule
         let daysOffList = schedule.daysOff[person.nombre];
@@ -1546,7 +1542,8 @@ window.renderSettingsStaffTrackers = function() {
     // Capitanes / Patrones
     const captains = window.staffDatabase?.capitanes || [];
     captainsContainer.innerHTML = captains.map((cap, idx) => {
-        const mode = getStaffTrackMode(cap.nombre);
+        const key = `cap:${cap.nombre.trim()}`;
+        const mode = getStaffTrackMode(cap.nombre, 'cap');
         const active = (mode === 'always' || mode === 'weekend');
         const firstName = window.getFirstName ? window.getFirstName(cap.nombre) : cap.nombre;
         const inputId = `staff-track-cap-${idx}`;
@@ -1554,10 +1551,10 @@ window.renderSettingsStaffTrackers = function() {
         return `
             <div class="flex items-center justify-between p-2.5 bg-white border ${active ? 'border-blue-300 shadow-xs bg-blue-50/20' : 'border-slate-200'} rounded-xl transition-all">
                 <label for="${inputId}" class="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-0 pr-2">
-                    <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackToggle('${cap.nombre.replace(/'/g, "\\'")}', this.checked)" ${active ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
+                    <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackToggle('${key.replace(/'/g, "\\'")}', this.checked)" ${active ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
                     <span class="text-xs font-black text-slate-800 truncate">⛵ ${firstName}</span>
                 </label>
-                <select id="${selectId}" onchange="window.handleStaffTrackModeChange('${cap.nombre.replace(/'/g, "\\'")}', this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shrink-0 ${active ? '' : 'opacity-30 pointer-events-none'}">
+                <select id="${selectId}" onchange="window.handleStaffTrackModeChange('${key.replace(/'/g, "\\'")}', this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shrink-0 ${active ? '' : 'opacity-30 pointer-events-none'}">
                     <option value="always" ${mode !== 'weekend' ? 'selected' : ''}>☀️ Siempre</option>
                     <option value="weekend" ${mode === 'weekend' ? 'selected' : ''}>📅 Solo Finde</option>
                 </select>
@@ -1568,7 +1565,8 @@ window.renderSettingsStaffTrackers = function() {
     // Instructores y Guías
     const guides = window.staffDatabase?.guias || [];
     guidesContainer.innerHTML = guides.map((g, idx) => {
-        const mode = getStaffTrackMode(g.nombre);
+        const key = `guide:${g.nombre.trim()}`;
+        const mode = getStaffTrackMode(g.nombre, 'guide');
         const active = (mode === 'always' || mode === 'weekend');
         const firstName = window.getFirstName ? window.getFirstName(g.nombre) : g.nombre;
         const inputId = `staff-track-guide-${idx}`;
@@ -1576,10 +1574,10 @@ window.renderSettingsStaffTrackers = function() {
         return `
             <div class="flex items-center justify-between p-2.5 bg-white border ${active ? 'border-orange-300 shadow-xs bg-orange-50/20' : 'border-slate-200'} rounded-xl transition-all">
                 <label for="${inputId}" class="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-0 pr-2">
-                    <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackToggle('${g.nombre.replace(/'/g, "\\'")}', this.checked)" ${active ? 'checked' : ''} class="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500 cursor-pointer shrink-0">
+                    <input type="checkbox" id="${inputId}" onchange="window.handleStaffTrackToggle('${key.replace(/'/g, "\\'")}', this.checked)" ${active ? 'checked' : ''} class="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500 cursor-pointer shrink-0">
                     <span class="text-xs font-black text-slate-800 truncate">🤿 ${firstName}</span>
                 </label>
-                <select id="${selectId}" onchange="window.handleStaffTrackModeChange('${g.nombre.replace(/'/g, "\\'")}', this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer shrink-0 ${active ? '' : 'opacity-30 pointer-events-none'}">
+                <select id="${selectId}" onchange="window.handleStaffTrackModeChange('${key.replace(/'/g, "\\'")}', this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer shrink-0 ${active ? '' : 'opacity-30 pointer-events-none'}">
                     <option value="always" ${mode !== 'weekend' ? 'selected' : ''}>☀️ Siempre</option>
                     <option value="weekend" ${mode === 'weekend' ? 'selected' : ''}>📅 Solo Finde</option>
                 </select>
@@ -1588,32 +1586,22 @@ window.renderSettingsStaffTrackers = function() {
     }).join('') || '<span class="text-xs text-slate-400 italic col-span-full">No hay guías configurados</span>';
 };
 
-window.handleStaffTrackToggle = function(nombre, isChecked) {
+window.handleStaffTrackToggle = function(key, isChecked) {
     const config = { ...getStaffTrackConfig() };
-    const key = nombre.trim();
-    const norm = key.toLowerCase();
-    for (let k of Object.keys(config)) {
-        if (k.toLowerCase().trim() === norm && k !== key) {
-            delete config[k];
-        }
-    }
     if (isChecked) {
         config[key] = config[key] === 'weekend' ? 'weekend' : 'always';
     } else {
-        config[key] = 'never';
+        delete config[key];
+        if (key.startsWith('cap:') || key.startsWith('guide:')) {
+            const raw = key.split(':')[1];
+            delete config[raw];
+        }
     }
     saveStaffTrackConfig(config);
 };
 
-window.handleStaffTrackModeChange = function(nombre, newMode) {
+window.handleStaffTrackModeChange = function(key, newMode) {
     const config = { ...getStaffTrackConfig() };
-    const key = nombre.trim();
-    const norm = key.toLowerCase();
-    for (let k of Object.keys(config)) {
-        if (k.toLowerCase().trim() === norm && k !== key) {
-            delete config[k];
-        }
-    }
     config[key] = newMode;
     saveStaffTrackConfig(config);
 };
