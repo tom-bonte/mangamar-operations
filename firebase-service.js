@@ -260,49 +260,6 @@ function compileAndMerge() {
 }
 
 /**
- * Synchronously hydrates monthly and staff data from localStorage for instant (0ms) startup on mobile.
- */
-function hydrateMonthlyDataFromCache() {
-    const refDate = (typeof currentDate !== 'undefined' && currentDate) ? currentDate : new Date();
-    const targetMonths = getActiveMonthKeys(refDate);
-
-    targetMonths.forEach(monthKey => {
-        try {
-            const cachedInternal = localStorage.getItem('mangamar_cache_internal_' + monthKey);
-            if (cachedInternal && !internalMonthData.has(monthKey)) {
-                const parsed = JSON.parse(cachedInternal);
-                internalMonthData.set(monthKey, parsed.data || []);
-                internalMonthTombstones.set(monthKey, new Set(parsed.tombstones || []));
-            }
-        } catch(e) {}
-
-        try {
-            const cachedVisor = localStorage.getItem('mangamar_cache_visor_' + monthKey);
-            if (cachedVisor && !visorMonthData.has(monthKey)) {
-                visorMonthData.set(monthKey, JSON.parse(cachedVisor));
-            }
-        } catch(e) {}
-
-        try {
-            const cachedStaffSched = localStorage.getItem('mangamar_cache_staff_schedule_' + monthKey);
-            if (cachedStaffSched && !window.staffSchedulesData.has(monthKey)) {
-                window.staffSchedulesData.set(monthKey, JSON.parse(cachedStaffSched));
-            }
-        } catch(e) {}
-    });
-
-    try {
-        const cachedStaff = localStorage.getItem('mangamar_cache_staff_db');
-        if (cachedStaff && (!staffDatabase || !staffDatabase.capitanes || staffDatabase.capitanes.length === 0)) {
-            staffDatabase = JSON.parse(cachedStaff);
-        }
-    } catch(e) {}
-
-    // Immediately compile and merge so UI renders with zero lag!
-    compileAndMerge();
-}
-
-/**
  * Dynamically updates active document-level month listeners to follow the date in view.
  */
 function syncActiveMonthListeners() {
@@ -345,9 +302,6 @@ function syncActiveMonthListeners() {
                     }
                 }
                 visorMonthData.set(monthKey, visorData);
-                try {
-                    localStorage.setItem('mangamar_cache_visor_' + monthKey, JSON.stringify(visorData));
-                } catch(e) {}
                 compileAndMerge();
             }, (err) => console.warn(`Error listening to visor month ${monthKey}:`, err));
 
@@ -382,12 +336,6 @@ function syncActiveMonthListeners() {
                 }
                 internalMonthData.set(monthKey, internalData);
                 internalMonthTombstones.set(monthKey, tombstones);
-                try {
-                    localStorage.setItem('mangamar_cache_internal_' + monthKey, JSON.stringify({
-                        data: internalData,
-                        tombstones: Array.from(tombstones)
-                    }));
-                } catch(e) {}
                 compileAndMerge();
             }, (err) => console.warn(`Error listening to internal month ${monthKey}:`, err));
 
@@ -395,9 +343,6 @@ function syncActiveMonthListeners() {
             listeners.unsubscribeStaffSchedule = db.collection('mangamar_staff_schedule').doc(monthKey).onSnapshot((doc) => {
                 if (doc.exists) {
                     window.staffSchedulesData.set(monthKey, doc.data());
-                    try {
-                        localStorage.setItem('mangamar_cache_staff_schedule_' + monthKey, JSON.stringify(doc.data()));
-                    } catch(e) {}
                 } else {
                     window.staffSchedulesData.set(monthKey, {
                         monthKey: monthKey,
@@ -441,29 +386,28 @@ function updateSalidasLoadingState() {
     const refDate = (typeof currentDate !== 'undefined' && currentDate) ? currentDate : new Date();
     const currentMonthKey = refDate.getFullYear() + '-' + String(refDate.getMonth() + 1).padStart(2, '0');
     
-    // Only show loading screen if current active month has zero data in cache
-    const hasCurrentMonth = internalMonthData.has(currentMonthKey) && visorMonthData.has(currentMonthKey);
-    const isLoading = !hasCurrentMonth;
+    const hasCurrent = internalMonthData.has(currentMonthKey) && visorMonthData.has(currentMonthKey);
+    const isLoading = !hasCurrent;
     
     const loadingScreen = document.getElementById('salidas-loading-screen');
     if (loadingScreen) {
         if (isLoading) {
             loadingScreen.classList.remove('pointer-events-none', 'opacity-0');
             loadingScreen.classList.add('opacity-100');
-            // Strict 1.2s timeout failsafe so mobile never hangs
-            if (!window._salidasLoadingFailsafe) {
-                window._salidasLoadingFailsafe = setTimeout(() => {
+            // Strict failsafe timeout to prevent any stuck loading overlay
+            if (!window._salidasFailsafeTimer) {
+                window._salidasFailsafeTimer = setTimeout(() => {
                     if (loadingScreen) {
                         loadingScreen.classList.remove('opacity-100');
                         loadingScreen.classList.add('opacity-0', 'pointer-events-none');
                     }
-                    window._salidasLoadingFailsafe = null;
-                }, 1200);
+                    window._salidasFailsafeTimer = null;
+                }, 1500);
             }
         } else {
-            if (window._salidasLoadingFailsafe) {
-                clearTimeout(window._salidasLoadingFailsafe);
-                window._salidasLoadingFailsafe = null;
+            if (window._salidasFailsafeTimer) {
+                clearTimeout(window._salidasFailsafeTimer);
+                window._salidasFailsafeTimer = null;
             }
             loadingScreen.classList.remove('opacity-100');
             loadingScreen.classList.add('opacity-0', 'pointer-events-none');
@@ -472,50 +416,11 @@ function updateSalidasLoadingState() {
 }
 window.updateSalidasLoadingState = updateSalidasLoadingState;
 window.syncActiveMonthListeners = syncActiveMonthListeners;
-window.hydrateMonthlyDataFromCache = hydrateMonthlyDataFromCache;
-
-// Mobile browser lifecycle auto-recovery (handles app switching, background sleep, lockscreen)
-(function initMobileLifecycle() {
-    let lastResumeTime = 0;
-    function onAppResume() {
-        const now = Date.now();
-        if (now - lastResumeTime < 1000) return; // Debounce rapid focus triggers
-        lastResumeTime = now;
-        
-        // Fast local re-hydration
-        hydrateMonthlyDataFromCache();
-
-        // Refresh date headers & daily grid instantly
-        if (typeof updateDateHeaders === 'function') updateDateHeaders();
-        if (typeof renderDailyGrid === 'function') renderDailyGrid();
-
-        // Wake up Firestore socket if it was suspended by the OS
-        if (typeof db !== 'undefined' && typeof db.enableNetwork === 'function') {
-            db.enableNetwork().catch(() => {});
-        }
-        
-        // Ensure active month listeners are synced
-        if (typeof syncActiveMonthListeners === 'function') {
-            syncActiveMonthListeners();
-        }
-    }
-
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            onAppResume();
-        }
-    });
-    window.addEventListener('pageshow', onAppResume);
-    window.addEventListener('focus', onAppResume);
-})();
 
 /**
  * Boots up the real-time listeners for active months and background databases.
  */
 function startFirestoreListeners() {
-    // 0. Synchronously hydrate from local cache immediately (0ms instant boot)
-    hydrateMonthlyDataFromCache();
-
     // 1. DYNAMIC DOCUMENT MONTH LISTENERS (Bridges to Ares & Kaiser instantly!)
     syncActiveMonthListeners();
 
@@ -526,9 +431,6 @@ function startFirestoreListeners() {
         db.collection(INTERNAL_DB).doc("staff").onSnapshot((doc) => {
             if (doc.exists) {
                 staffDatabase = doc.data();
-                try {
-                    localStorage.setItem('mangamar_cache_staff_db', JSON.stringify(staffDatabase));
-                } catch(e) {}
                 if (typeof renderStaffView === 'function') renderStaffView();
                 if (typeof renderGroups === 'function' && activeBoatItem) renderGroups(true);
             }
@@ -830,6 +732,38 @@ window.mergeAndRender = function mergeAndRender() {
 
     // 1. Convert Visor and Internal data to Maps for easy lookup
     const visorMap = new Map(visibleVisorTrips.map(t => [t.id, t]));
+
+    // --- VISOR DELETIONS PRUNING ---
+    // If a Visor trip is deleted/removed in the Visor (no longer in visorMap):
+    // - If the internal shadow has cancelled: true, we KEEP it (do not delete).
+    // - If it was NOT cancelled, we delete/prune it from the internal database.
+    const internalToKeep = [];
+    const internalToDelete = [];
+
+    (window.internalTrips || []).forEach(internal => {
+        const isVisorId = internal.id && !internal.id.startsWith('internal_') && !internal.id.startsWith('boat_') && internal.id.includes('_M_');
+        if (isVisorId && !visorMap.has(internal.id)) {
+            if (internal.cancelled) {
+                internalToKeep.push(internal);
+            } else {
+                internalToDelete.push(internal);
+            }
+        } else {
+            internalToKeep.push(internal);
+        }
+    });
+
+    if (internalToDelete.length > 0) {
+        internalToDelete.forEach(t => {
+            console.log(`🧹 Visor deleted departure ${t.id} which was NOT annulled. Auto-pruning internal shadow.`);
+            const monthKey = t.date ? t.date.substring(0, 7) : t.id.substring(0, 7);
+            db.collection(INTERNAL_DB).doc(monthKey).update({
+                [`allocations.${t.id}`]: firebase.firestore.FieldValue.delete()
+            }).catch(e => console.error("Pruning visor shadow failed:", e));
+        });
+        window.internalTrips = internalToKeep;
+    }
+
     const internalMap = new Map((window.internalTrips || []).map(t => [t.id, t]));
 
     // Helper to extract the unique Visor slot suffix (e.g. "_M_1", "_H_2")
