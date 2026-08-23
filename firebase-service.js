@@ -629,35 +629,63 @@ function startFirestoreListeners() {
                 }
 
                 const trackingData = (data.staffOffTracking !== undefined && data.staffOffTracking !== null) ? data.staffOffTracking : data.trackedStaffOff;
-                if (trackingData !== undefined && trackingData !== null) {
-                    window.appSettings = window.appSettings || {};
-                    if (Array.isArray(trackingData)) {
-                        const map = {};
-                        trackingData.forEach(name => { map[name.trim()] = 'always'; });
-                        window.appSettings.staffOffTracking = map;
-                    } else if (typeof trackingData === 'object') {
-                        window.appSettings.staffOffTracking = trackingData;
-                    }
-                    try {
-                        localStorage.setItem('mangamar_staff_off_tracking', JSON.stringify(window.appSettings.staffOffTracking));
-                    } catch(e) {}
+                window.appSettings = window.appSettings || {};
+                let resolvedMap = null;
 
-                    if (typeof window.renderSettingsStaffTrackers === 'function') {
-                        window.renderSettingsStaffTrackers();
-                    }
-                    if (typeof renderDailyAlerts === 'function' && typeof currentDate !== 'undefined') {
-                        const year = currentDate.getFullYear();
-                        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                        const day = String(currentDate.getDate()).padStart(2, '0');
-                        renderDailyAlerts(`${year}-${month}-${day}`);
-                    }
+                if (Array.isArray(trackingData) && trackingData.length > 0) {
+                    const map = {};
+                    trackingData.forEach(name => { map[name.trim()] = 'always'; });
+                    resolvedMap = map;
+                } else if (typeof trackingData === 'object' && trackingData && Object.keys(trackingData).length > 0) {
+                    resolvedMap = trackingData;
+                }
+
+                if (resolvedMap) {
+                    window.appSettings.staffOffTracking = resolvedMap;
+                    try {
+                        localStorage.setItem('mangamar_staff_off_tracking', JSON.stringify(resolvedMap));
+                    } catch(e) {}
+                } else {
+                    // If Firestore has empty settings, check localStorage to preserve user's selections
+                    try {
+                        const localCached = localStorage.getItem('mangamar_staff_off_tracking');
+                        if (localCached) {
+                            const localMap = JSON.parse(localCached);
+                            if (localMap && Object.keys(localMap).length > 0) {
+                                window.appSettings.staffOffTracking = localMap;
+                                // Sync back to Firestore so it's persisted across all devices
+                                db.collection("mangamar_directory").doc("settings").set({
+                                    staffOffTracking: localMap
+                                }, { merge: true }).catch(err => console.error(err));
+                            }
+                        }
+                    } catch(e) {}
+                }
+
+                if (typeof window.renderSettingsStaffTrackers === 'function') {
+                    window.renderSettingsStaffTrackers();
+                }
+                if (typeof renderDailyAlerts === 'function' && typeof currentDate !== 'undefined') {
+                    const year = currentDate.getFullYear();
+                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(currentDate.getDate()).padStart(2, '0');
+                    renderDailyAlerts(`${year}-${month}-${day}`);
                 }
             } else {
+                let defaultMap = { 'Abel': 'always', 'Antonio': 'always' };
+                try {
+                    const localCached = localStorage.getItem('mangamar_staff_off_tracking');
+                    if (localCached) {
+                        const localMap = JSON.parse(localCached);
+                        if (localMap && Object.keys(localMap).length > 0) defaultMap = localMap;
+                    }
+                } catch(e) {}
+
                 db.collection("mangamar_directory").doc("settings").set({ 
                     adminPassword: "manga321", 
                     showTVRadioTimes: true,
-                    staffOffTracking: { 'Abel': 'always', 'Antonio': 'always' }
-                });
+                    staffOffTracking: defaultMap
+                }, { merge: true });
             }
         });
 

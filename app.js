@@ -502,8 +502,13 @@ function getStaffTrackMode(nombre) {
     if (!nombre) return 'never';
     const config = getStaffTrackConfig();
     const target = String(nombre).toLowerCase().trim();
+    const targetFirst = (typeof window.getFirstName === 'function' ? window.getFirstName(nombre) : nombre.split(' ')[0]).toLowerCase().trim();
+
     for (let [k, mode] of Object.entries(config)) {
-        if (String(k).toLowerCase().trim() === target) {
+        const kNorm = String(k).toLowerCase().trim();
+        const kFirst = (typeof window.getFirstName === 'function' ? window.getFirstName(k) : k.split(' ')[0]).toLowerCase().trim();
+        
+        if (kNorm === target || (targetFirst && kFirst && targetFirst === kFirst) || (kNorm.length >= 3 && (target.includes(kNorm) || kNorm.includes(target)))) {
             return mode; // 'always', 'weekend', 'never'
         }
     }
