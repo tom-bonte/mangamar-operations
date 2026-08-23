@@ -265,6 +265,10 @@
                     
                     <div class="absolute left-0 top-full mt-1 w-64 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
                         <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5 overflow-hidden">
+                            <button onclick="openProjectManagerModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-orange-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                                <span>Proyectos</span>
+                            </button>
                             <button onclick="openStaffViewsModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2.5 transition-colors">
                                 <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                 <span>Vistas de Staff</span>
@@ -3815,6 +3819,219 @@
 
     </div>
 
+    <!-- ============================================ -->
+    <!-- PROJECT MANAGEMENT MODAL (MONDAY.COM STYLE) -->
+    <!-- ============================================ -->
+    <div id="project-manager-modal" class="fixed inset-0 z-[500] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-2 md:p-4" onclick="if(event.target === this) window.closeProjectManagerModal()">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[95vh] md:h-[92vh] relative animate-scale-up">
+            
+            <!-- HEADER (Monday.com style toolbar & counters) -->
+            <div class="p-4 border-b border-slate-200 flex flex-wrap gap-3 justify-between items-center bg-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-base md:text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                            <span>Proyectos & Tareas</span>
+                            <span class="text-xs font-bold text-slate-400 font-normal">| Mangamar Operations</span>
+                        </h2>
+                        <div class="flex items-center gap-2 text-[11px] font-bold text-slate-500 mt-0.5">
+                            <span class="flex items-center gap-1"><span id="proj-count-total" class="font-black text-slate-800">0</span> Total</span>
+                            <span>•</span>
+                            <span class="flex items-center gap-1 text-blue-600"><span id="proj-count-progress" class="font-black">0</span> En Progreso</span>
+                            <span>•</span>
+                            <span class="flex items-center gap-1 text-amber-600"><span id="proj-count-waiting" class="font-black">0</span> En Espera</span>
+                            <span>•</span>
+                            <span class="flex items-center gap-1 text-emerald-600"><span id="proj-count-done" class="font-black">0</span> Hecho</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW TOGGLE & ACTIONS -->
+                <div class="flex items-center gap-2.5">
+                    <!-- View Switcher -->
+                    <div class="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200">
+                        <button id="btn-proj-view-table" onclick="window.switchProjectsView('table')" class="px-3 py-1.5 rounded-lg text-xs font-black bg-white text-slate-800 shadow-xs border border-slate-200 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                            <span>Tabla</span>
+                        </button>
+                        <button id="btn-proj-view-board" onclick="window.switchProjectsView('board')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors">
+                            <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+                            <span>Tablero</span>
+                        </button>
+                    </div>
+
+                    <!-- New Project Button -->
+                    <button onclick="window.openProjectEditModal()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        <span>Nuevo Proyecto</span>
+                    </button>
+
+                    <!-- Close Button -->
+                    <button onclick="window.closeProjectManagerModal()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold transition-colors">✕</button>
+                </div>
+            </div>
+
+            <!-- FILTERS TOOLBAR -->
+            <div class="px-4 py-2.5 bg-slate-50/90 border-b border-slate-200 flex flex-wrap items-center gap-2.5 shrink-0 text-xs">
+                <!-- Search Input -->
+                <div class="relative flex-1 min-w-[200px] max-w-sm">
+                    <input type="text" id="proj-filter-search" oninput="window.handleProjectsFilterChange()" placeholder="Buscar por título, notas, persona..." class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+
+                <!-- Category Filter -->
+                <select id="proj-filter-category" onchange="window.handleProjectsFilterChange()" class="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer">
+                    <option value="ALL">Todas las Categorías</option>
+                    <option value="Barcos">Barcos & Flota</option>
+                    <option value="Compresores">Compresores & Aire</option>
+                    <option value="Taller">Taller & Equipos</option>
+                    <option value="Local">Local & Instalaciones</option>
+                    <option value="Tienda">Tienda & Stock</option>
+                    <option value="Admin">Gestión & Admin</option>
+                </select>
+
+                <!-- Status Filter -->
+                <select id="proj-filter-status" onchange="window.handleProjectsFilterChange()" class="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer">
+                    <option value="ALL">Todos los Estados</option>
+                    <option value="por_empezar">Por Empezar</option>
+                    <option value="en_progreso">En Progreso</option>
+                    <option value="en_espera">En Espera / Piezas</option>
+                    <option value="completado">Completado</option>
+                </select>
+
+                <!-- Assignee Filter -->
+                <select id="proj-filter-assignee" onchange="window.handleProjectsFilterChange()" class="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer">
+                    <option value="ALL">Todos los Responsables</option>
+                </select>
+
+                <!-- Priority Filter -->
+                <select id="proj-filter-priority" onchange="window.handleProjectsFilterChange()" class="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer">
+                    <option value="ALL">Todas las Prioridades</option>
+                    <option value="urgente">🔥 Urgente</option>
+                    <option value="alta">⚡ Alta</option>
+                    <option value="media">🔹 Media</option>
+                    <option value="baja">⚪ Baja</option>
+                </select>
+            </div>
+
+            <!-- SCROLLABLE CONTENT (Table or Kanban Board) -->
+            <div id="project-manager-content" class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50">
+                <!-- Rendered dynamically by project-manager.js -->
+            </div>
+
+        </div>
+    </div>
+
+    <!-- DETAIL & EDIT PROJECT MODAL -->
+    <div id="project-edit-modal" class="fixed inset-0 z-[600] hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onclick="if(event.target === this) window.closeProjectEditModal()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-scale-up">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 id="proj-edit-modal-title" class="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    Editar Proyecto / Tarea
+                </h3>
+                <button onclick="window.closeProjectEditModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form onsubmit="window.saveProjectFromModal(event)" class="p-5 overflow-y-auto space-y-4 text-xs">
+                <input type="hidden" id="proj-field-id">
+
+                <!-- Title -->
+                <div>
+                    <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Título del Proyecto / Tarea *</label>
+                    <input type="text" id="proj-field-title" required placeholder="ej. Revisión filtro de aire compresor Coltri" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+
+                <!-- Category & Assignee -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Categoría / Área</label>
+                        <select id="proj-field-category" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <option value="Barcos">Barcos & Flota</option>
+                            <option value="Compresores">Compresores & Aire</option>
+                            <option value="Taller">Taller & Equipos</option>
+                            <option value="Local">Local & Instalaciones</option>
+                            <option value="Tienda">Tienda & Stock</option>
+                            <option value="Admin">Gestión & Admin</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Responsable</label>
+                        <select id="proj-field-assignee" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <option value="">Sin Asignar</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Status & Priority -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Estado</label>
+                        <select id="proj-field-status" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <option value="por_empezar">Por Empezar ⚪</option>
+                            <option value="en_progreso">En Progreso 🔵</option>
+                            <option value="en_espera">En Espera / Piezas 🟠</option>
+                            <option value="completado">Completado 🟢</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Prioridad</label>
+                        <select id="proj-field-priority" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <option value="urgente">🔥 Urgente</option>
+                            <option value="alta">⚡ Alta</option>
+                            <option value="media" selected>🔹 Media</option>
+                            <option value="baja">⚪ Baja</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Due Date & Cost / Budget -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Fecha Límite</label>
+                        <input type="date" id="proj-field-duedate" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div>
+                        <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Coste Estimado (€)</label>
+                        <input type="number" step="0.01" id="proj-field-budget-est" placeholder="0.00" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div>
+                        <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Coste Real (€)</label>
+                        <input type="number" step="0.01" id="proj-field-budget-act" placeholder="0.00" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+                </div>
+
+                <!-- Description & Notes -->
+                <div>
+                    <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1">Descripción / Notas</label>
+                    <textarea id="proj-field-desc" rows="3" placeholder="Detalles, proveedores, referencias de piezas o instrucciones..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500 leading-relaxed"></textarea>
+                </div>
+
+                <!-- Subtasks Checklist -->
+                <div>
+                    <label class="block font-black text-slate-700 uppercase tracking-widest text-[10px] mb-1.5">Checklist / Subtareas</label>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="text" id="proj-new-subtask-input" placeholder="Nueva subtarea (ej. Pedir filtro a Bauer)..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.addSubtaskFromInput(); }" class="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        <button type="button" onclick="window.addSubtaskFromInput()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-colors">+ Añadir</button>
+                    </div>
+                    <div id="proj-subtasks-container" class="space-y-1.5 max-h-36 overflow-y-auto">
+                        <!-- Subtasks rendered dynamically -->
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 -mx-5 -mb-5 mt-4 border-t border-slate-100 flex justify-end gap-2">
+                    <button type="button" onclick="window.closeProjectEditModal()" class="px-4 py-2 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl shadow-md transition-all">Guardar Proyecto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     <script src="config.js?v=10"></script>
     <script src="state.js?v=10"></script>
@@ -3962,6 +4179,7 @@
     <script src="contacts-manager.js"></script>
     <script src="reg-maintenance.js?v=1"></script>
     <script src="tank-inventory.js?v=1"></script>
+    <script src="project-manager.js?v=1"></script>
 
     <!-- Contacts Modal -->
     <div id="contacts-modal" onclick="if(event.target===this) closeContactsModal()" class="fixed inset-0 z-[60] hidden bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer">
