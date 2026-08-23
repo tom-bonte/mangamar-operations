@@ -202,14 +202,22 @@ window.switchTodayTab = async function (tabId) {
             listEl.innerHTML = '<div class="p-10 text-center text-slate-500 font-bold flex flex-col items-center"><svg class="animate-spin h-8 w-8 text-blue-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analizando perfiles...</div>';
 
             try {
-                const pendingDnis = currentTodayDiversData.map(d => d.dni);
+                const pendingDnis = currentTodayDiversData
+                    .map(d => window.normalizeDni(d.dni))
+                    .filter(dni => dni && typeof dni === 'string' && dni.trim() !== '' && !dni.includes('/'));
                 let pendingHtml = '';
                 let visibleCount = 0;
                 let visibleDebt = 0;
                 let debtors = [];
 
                 if (pendingDnis.length > 0) {
-                    const historyPromises = pendingDnis.map(dni => db.collection('mangamar_customers').doc(dni).collection('history').get());
+                    const historyPromises = pendingDnis.map(dni => 
+                        db.collection('mangamar_customers').doc(dni).collection('history').get()
+                        .catch(err => {
+                            console.warn("History subcollection fetch failed for:", dni, err);
+                            return { forEach: () => {}, empty: true };
+                        })
+                    );
                     const histories = await Promise.all(historyPromises);
 
                     histories.forEach((histSnap, index) => {
@@ -361,7 +369,13 @@ window.switchTodayTab = async function (tabId) {
         try {
             // 1. Identify everyone who owes money
             const snap = await db.collectionGroup('history').where('paymentStatus', '==', 'pending').get();
-            const pendingDnis = [...new Set(snap.docs.map(doc => doc.ref.parent.parent.id))];
+            const pendingDnis = [...new Set(snap.docs.map(doc => {
+                try {
+                    return window.normalizeDni(doc.ref.parent.parent.id);
+                } catch(e) {
+                    return null;
+                }
+            }))].filter(dni => dni && typeof dni === 'string' && dni.trim() !== '' && !dni.includes('/'));
 
             let pendingHtml = '';
             let totalPendingDebt = 0;
@@ -370,7 +384,13 @@ window.switchTodayTab = async function (tabId) {
             if (pendingDnis.length > 0) {
                 // 2. Fetch full history ONLY for the people who owe money
                 // This guarantees the math matches their Ficha perfectly without scanning the whole DB.
-                const historyPromises = pendingDnis.map(dni => db.collection('mangamar_customers').doc(dni).collection('history').get());
+                const historyPromises = pendingDnis.map(dni => 
+                    db.collection('mangamar_customers').doc(dni).collection('history').get()
+                    .catch(err => {
+                        console.warn("Global history fetch failed for:", dni, err);
+                        return { forEach: () => {}, empty: true };
+                    })
+                );
                 const histories = await Promise.all(historyPromises);
 
                 histories.forEach((histSnap, index) => {
