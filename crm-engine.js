@@ -298,6 +298,7 @@ window.switchTodayTab = async function (tabId) {
                             }
                         });
 
+                        const c = (window.customerDatabase && window.customerDatabase.length > 0) ? window.customerDatabase.find(cust => cust && cust.dni && window.isSameDni(cust.dni, dni)) : null;
                         const deposit = c && c.deposit ? c.deposit : 0;
                         const finalDebt = Math.max(0, debt - deposit);
                         const isClean = finalDebt === 0;
@@ -481,6 +482,7 @@ window.switchTodayTab = async function (tabId) {
                     });
 
                     if (debt > 0) {
+                        const c = (window.customerDatabase && window.customerDatabase.length > 0) ? window.customerDatabase.find(cust => cust && cust.dni && window.isSameDni(cust.dni, dni)) : null;
                         const deposit = c && c.deposit ? c.deposit : 0;
                         const finalDebt = Math.max(0, debt - deposit);
                         if (finalDebt > 0) {
