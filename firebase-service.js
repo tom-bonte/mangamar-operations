@@ -830,38 +830,6 @@ window.mergeAndRender = function mergeAndRender() {
 
     // 1. Convert Visor and Internal data to Maps for easy lookup
     const visorMap = new Map(visibleVisorTrips.map(t => [t.id, t]));
-
-    // --- VISOR DELETIONS PRUNING ---
-    // If a Visor trip is deleted/removed in the Visor (no longer in visorMap):
-    // - If the internal shadow has cancelled: true, we KEEP it (do not delete).
-    // - If it was NOT cancelled, we delete/prune it from the internal database.
-    const internalToKeep = [];
-    const internalToDelete = [];
-
-    (window.internalTrips || []).forEach(internal => {
-        const isVisorId = internal.id && !internal.id.startsWith('internal_') && !internal.id.startsWith('boat_') && internal.id.includes('_M_');
-        if (isVisorId && !visorMap.has(internal.id)) {
-            if (internal.cancelled) {
-                internalToKeep.push(internal);
-            } else {
-                internalToDelete.push(internal);
-            }
-        } else {
-            internalToKeep.push(internal);
-        }
-    });
-
-    if (internalToDelete.length > 0) {
-        internalToDelete.forEach(t => {
-            console.log(`🧹 Visor deleted departure ${t.id} which was NOT annulled. Auto-pruning internal shadow.`);
-            const monthKey = t.date ? t.date.substring(0, 7) : t.id.substring(0, 7);
-            db.collection(INTERNAL_DB).doc(monthKey).update({
-                [`allocations.${t.id}`]: firebase.firestore.FieldValue.delete()
-            }).catch(e => console.error("Pruning visor shadow failed:", e));
-        });
-        window.internalTrips = internalToKeep;
-    }
-
     const internalMap = new Map((window.internalTrips || []).map(t => [t.id, t]));
 
     // Helper to extract the unique Visor slot suffix (e.g. "_M_1", "_H_2")
@@ -971,6 +939,7 @@ window.mergeAndRender = function mergeAndRender() {
 
     // 3. Combine both arrays, resolve full CRM names dynamically, and format ALL names to Title Case
     mergedAllocations = [...visibleVisorTrips, ...alignedInternalTrips];
+    window.mergedAllocations = mergedAllocations;
 
     // Build a Map for O(1) DNI → profile lookup instead of O(n) Array.find per guest.
     let customerMap = null;
