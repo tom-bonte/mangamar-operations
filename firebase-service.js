@@ -581,6 +581,12 @@ function startFirestoreListeners() {
                         renderCrmTable();
                     }
 
+                    // If Día de Hoy modal is open, refresh it now that data has loaded
+                    const todayModal = document.getElementById('today-divers-modal');
+                    if (todayModal && !todayModal.classList.contains('hidden') && typeof switchTodayTab === 'function') {
+                        switchTodayTab(window.activeTodayTab || 'today');
+                    }
+
                     // If Group Link modal is open, refresh it so DNI members display their correct names from CRM
                     const groupModal = document.getElementById('group-link-modal');
                     if (groupModal && !groupModal.classList.contains('hidden') && typeof window.openGroupLinkModal === 'function') {

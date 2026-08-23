@@ -34,6 +34,58 @@ function searchGlobalDivers(query) {
 
 
 // Handles switching tabs in the Today's Divers view
+window.findCustomerNameByDni = function(dni, fallbackData = null) {
+    if (!dni) return (fallbackData && fallbackData.nombre) ? fallbackData.nombre : 'Sin Nombre';
+    
+    // 1. Search in loaded CRM database with normalized DNI match
+    if (window.customerDatabase && window.customerDatabase.length > 0) {
+        const c = window.customerDatabase.find(x => x.dni && window.isSameDni(x.dni, dni));
+        if (c) {
+            const fullName = window.getFullName(c);
+            if (fullName && fullName.trim() !== '' && !fullName.startsWith('Cliente ')) {
+                return fullName;
+            }
+        }
+    }
+
+    // 2. Search in active mergedAllocations boat manifests for this DNI
+    if (window.mergedAllocations && Array.isArray(window.mergedAllocations)) {
+        for (const trip of window.mergedAllocations) {
+            if (trip.guests) {
+                const g = trip.guests.find(gst => gst.dni && window.isSameDni(gst.dni, dni));
+                if (g && g.nombre && g.nombre.trim() !== '' && !g.nombre.startsWith('Cliente ')) {
+                    return g.nombre;
+                }
+            }
+            if (trip.groups) {
+                for (const grp of trip.groups) {
+                    if (grp.guests) {
+                        const g = grp.guests.find(gst => gst.dni && window.isSameDni(gst.dni, dni));
+                        if (g && g.nombre && g.nombre.trim() !== '' && !g.nombre.startsWith('Cliente ')) {
+                            return g.nombre;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Check fallbackData if provided (e.g. from history document)
+    if (fallbackData) {
+        if (fallbackData.nombre && fallbackData.nombre.trim() !== '' && !fallbackData.nombre.startsWith('Cliente ')) {
+            return fallbackData.nombre;
+        }
+        if (fallbackData.guestName && fallbackData.guestName.trim() !== '' && !fallbackData.guestName.startsWith('Cliente ')) {
+            return fallbackData.guestName;
+        }
+    }
+
+    return 'Cliente ' + dni;
+};
+window.activeTodayTab = 'today';
+window.currentTodayDiversData = [];
+window.currentTodayGuidesMap = new Map();
+window.jointPaymentMode = false;
 window.activeJointSelection = [];
 window.currentTodayDiversData = []; // Cache of natural order
 window.todaySortMode = 'asc'; // 'asc', 'desc'
@@ -162,8 +214,7 @@ window.switchTodayTab = async function (tabId) {
 
                     histories.forEach((histSnap, index) => {
                         const dni = pendingDnis[index];
-                        const c = customerDatabase.find(cust => cust.dni === dni);
-                        const nombre = c ? getFullName(c) : 'Cliente ' + dni;
+                        const nombre = window.findCustomerNameByDni(dni);
 
                         let debt = 0;
                         let divesList = [];
@@ -324,8 +375,7 @@ window.switchTodayTab = async function (tabId) {
 
                 histories.forEach((histSnap, index) => {
                     const dni = pendingDnis[index];
-                    const c = customerDatabase.find(cust => cust.dni === dni);
-                    const nombre = c ? getFullName(c) : 'Cliente ' + dni;
+                    const nombre = window.findCustomerNameByDni(dni);
 
                     let debt = 0;
                     let divesList = [];
@@ -493,8 +543,7 @@ window.renderTodayCerts = async function (forceFetch = false) {
             snap.forEach(doc => {
                 const data = doc.data();
                 const dni = doc.ref.parent.parent.id;
-                const c = customerDatabase.find(x => x.dni === dni);
-                const nombre = c ? getFullName(c) : 'Cliente ' + dni;
+                const nombre = window.findCustomerNameByDni(dni, data);
 
                 let rawCourse = data.course || data.baseCourse || 'Curso Desconocido';
                 let cleanCourse = rawCourse.split(' | ')[0].trim();
@@ -723,6 +772,10 @@ window.toggleCertStatus = async function (dni, cleanCourseName, studentName, new
 window.openTodayDiversModal = function (isNavBackForward = false) {
     if (typeof isNavBackForward !== 'boolean') isNavBackForward = false;
     recordModalHistory({ type: 'today', isNavBackForward });
+
+    if (typeof window.loadCrmDatabase === 'function' && !window.crmLoaded) {
+        window.loadCrmDatabase();
+    }
 
     const year = currentDate.getFullYear();
     const month = String(currentDate.getMonth() + 1).padStart(2, '0');
