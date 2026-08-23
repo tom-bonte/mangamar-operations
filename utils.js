@@ -156,7 +156,7 @@ window.formatNameStr = function(str) {
     }).join(' ');
 };
 
-// Auto-heal/clean duplicated words or repeated surnames in a name string
+// Auto-heal/clean duplicated words, repeated surnames, or hyphenated repetitions in a name string
 window.cleanDuplicatedName = function(name) {
     if (!name) return '';
     let str = name.trim();
@@ -166,22 +166,48 @@ window.cleanDuplicatedName = function(name) {
     let apodoSuffix = apodoMatch ? ` (${apodoMatch[1].trim()})` : '';
     let coreName = apodoMatch ? str.replace(/\s*\([^)]+\)\s*$/, '').trim() : str;
 
-    let words = coreName.split(/\s+/);
-    if (words.length < 2) return str;
+    // Split by whitespace AND hyphens so tokens are atomic
+    let rawTokens = coreName.split(/[\s-]+/).filter(Boolean);
+    if (rawTokens.length < 2) return window.formatNameStr(coreName) + apodoSuffix;
 
-    const normalizeWord = w => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    let normWords = words.map(normalizeWord);
+    let normTokens = rawTokens.map(w => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim());
 
-    // Check for duplicated chunks of words (from floor(N/2) down to 1 word)
-    for (let len = Math.floor(words.length / 2); len >= 1; len--) {
-        for (let i = 0; i <= words.length - 2 * len; i++) {
-            let chunk1 = normWords.slice(i, i + len).join(' ');
-            let chunk2 = normWords.slice(i + len, i + 2 * len).join(' ');
+    // Check for duplicate contiguous chunks of tokens (from floor(N/2) down to 1)
+    let tokenDeduplicated = false;
+    for (let len = Math.floor(normTokens.length / 2); len >= 1; len--) {
+        for (let i = 0; i <= normTokens.length - 2 * len; i++) {
+            let chunk1 = normTokens.slice(i, i + len).join(' ');
+            let chunk2 = normTokens.slice(i + len, i + 2 * len).join(' ');
             if (chunk1 === chunk2) {
-                words.splice(i + len, len);
-                return window.formatNameStr(words.join(' ')) + apodoSuffix;
+                rawTokens.splice(i + len, len);
+                normTokens.splice(i + len, len);
+                tokenDeduplicated = true;
+                // re-evaluate from updated length
+                len = Math.floor(normTokens.length / 2) + 1;
+                break;
             }
         }
+    }
+
+    // Also check for non-contiguous duplicated chunks (e.g. repetition later in the string)
+    for (let len = Math.floor(normTokens.length / 2); len >= 2; len--) {
+        for (let i = 0; i <= normTokens.length - len; i++) {
+            let chunk1 = normTokens.slice(i, i + len).join(' ');
+            for (let j = i + len; j <= normTokens.length - len; j++) {
+                let chunk2 = normTokens.slice(j, j + len).join(' ');
+                if (chunk1 === chunk2) {
+                    rawTokens.splice(j, len);
+                    normTokens.splice(j, len);
+                    tokenDeduplicated = true;
+                    len = Math.floor(normTokens.length / 2) + 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (tokenDeduplicated) {
+        return window.formatNameStr(rawTokens.join(' ')) + apodoSuffix;
     }
 
     return window.formatNameStr(coreName) + apodoSuffix;
@@ -194,11 +220,11 @@ window.combineFirstAndLastName = function(nombre, apellido) {
     if (!n) return window.cleanDuplicatedName(a);
     if (!a) return window.cleanDuplicatedName(n);
 
-    const normalizeStr = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const normalizeStr = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_.,]/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
     let normN = normalizeStr(n);
     let normA = normalizeStr(a);
 
-    // If 'nombre' already contains or ends with 'apellido' (accent-insensitive)
+    // If 'nombre' already contains or ends with 'apellido' (accent and hyphen-insensitive)
     if (normN.includes(normA) || normN.endsWith(normA)) {
         return window.cleanDuplicatedName(n);
     }
@@ -208,7 +234,7 @@ window.combineFirstAndLastName = function(nombre, apellido) {
         return window.cleanDuplicatedName(a);
     }
 
-    // Check for word overlap (e.g. n = "Juan Manuel Rodríguez", a = "Rodríguez Pertusa")
+    // Word/token-level overlap check (e.g. n = "Juan Manuel Rodríguez", a = "Rodríguez Pertusa")
     let wordsN = n.split(/\s+/);
     let wordsA = a.split(/\s+/);
 

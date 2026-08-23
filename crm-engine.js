@@ -1915,6 +1915,14 @@ window.enrichCustomerFromJotform = function(c) {
 
             if (match.nombre && (isNewer || !c.nombre || c.nombre === 'Sin Nombre' || !c.nameEdited)) c.nombre = fixNameCaps(match.nombre);
             if (match.apellido && (isNewer || !c.apellido || c.apellido.trim() === '' || !c.nameEdited)) c.apellido = fixNameCaps(match.apellido);
+            if (c.nombre && c.apellido) {
+                const normN = (c.nombre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_.,]/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
+                const normA = (c.apellido || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_.,]/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
+                if (normN.includes(normA) || normN.endsWith(normA)) {
+                    c.apellido = '';
+                }
+            }
+            if (c.nombre) c.nombre = window.cleanDuplicatedName(c.nombre);
             if (match.email && (isNewer || !c.email || c.email === '-')) c.email = match.email;
             if (match.telefono && (isNewer || !c.telefono || c.telefono === '-')) c.telefono = match.telefono;
             if (match.titulacion && (isNewer || !c.titulacion || c.titulacion === 'Sin Titulación' || !c.titulacionEdited)) c.titulacion = match.titulacion;
@@ -2014,15 +2022,30 @@ window.syncJotformCustomers = async function() {
                 const existingFullName = window.combineFirstAndLastName(existing.nombre, existing.apellido);
                 
                 if (!existing.nameEdited) {
+                    let nCandidate = existing.nombre;
+                    let aCandidate = existing.apellido;
+
                     if (!existing.nombre || existing.nombre === 'Sin Nombre' || existing.nombre.toLowerCase().includes('sin nombre')) {
-                        existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
-                        modified = true;
+                        nCandidate = fixNameCaps(sheetClient.nombre) || existing.nombre;
                     } else if (sheetFullName && (existingFullName.toLowerCase() === 'sin nombre' || existingFullName.length < sheetFullName.length)) {
-                        existing.nombre = fixNameCaps(sheetClient.nombre) || existing.nombre;
-                        modified = true;
+                        nCandidate = fixNameCaps(sheetClient.nombre) || existing.nombre;
                     }
-                    if (sheetClient.apellido && existing.apellido !== fixNameCaps(sheetClient.apellido)) {
-                        existing.apellido = fixNameCaps(sheetClient.apellido);
+                    if (sheetClient.apellido) {
+                        aCandidate = fixNameCaps(sheetClient.apellido);
+                    }
+
+                    if (nCandidate && aCandidate) {
+                        const normN = (nCandidate || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_.,]/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
+                        const normA = (aCandidate || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_.,]/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
+                        if (normN.includes(normA) || normN.endsWith(normA)) {
+                            aCandidate = '';
+                        }
+                    }
+                    nCandidate = window.cleanDuplicatedName(nCandidate);
+
+                    if (existing.nombre !== nCandidate || existing.apellido !== aCandidate) {
+                        existing.nombre = nCandidate;
+                        existing.apellido = aCandidate;
                         modified = true;
                     }
                 }
@@ -2061,10 +2084,19 @@ window.syncJotformCustomers = async function() {
                     mergedCount++;
                 }
             } else {
+                let nNew = fixNameCaps(sheetClient.nombre) || 'Sin Nombre';
+                let aNew = fixNameCaps(sheetClient.apellido) || '';
+                if (nNew && aNew) {
+                    const normN = (nNew || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_.,]/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
+                    const normA = (aNew || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_.,]/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
+                    if (normN.includes(normA) || normN.endsWith(normA)) {
+                        aNew = '';
+                    }
+                }
                 const newClient = {
                     dni: window.normalizeDni(rawDni),
-                    nombre: fixNameCaps(sheetClient.nombre) || 'Sin Nombre',
-                    apellido: fixNameCaps(sheetClient.apellido) || '',
+                    nombre: window.cleanDuplicatedName(nNew),
+                    apellido: aNew,
                     email: sheetClient.email || '',
                     telefono: sheetClient.telefono || '',
                     titulacion: sheetClient.titulacion || 'Sin Titulación',
