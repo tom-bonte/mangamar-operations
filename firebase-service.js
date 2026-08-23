@@ -546,6 +546,7 @@ function startFirestoreListeners() {
                     // ✅ Mark CRM as fully loaded — now safe for all downstream writes
                     window.crmLoaded = true;
                     window.crmLoadedClientCount = cleanClients.length;
+                    window.lastFetchedCerts = null; // Ensure certs will re-map with full CRM names
                     console.log(`✅ [CRM] Loaded ${cleanClients.length} clients. SafeWrite guards are now active.`);
     
                     // Re-merge and render manifests now that the CRM database has loaded!

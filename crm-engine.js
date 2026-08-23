@@ -70,13 +70,68 @@ window.findCustomerNameByDni = function(dni, fallbackData = null) {
         }
     }
 
-    // 3. Check fallbackData if provided (e.g. from history document)
+    // 3. Search in all loaded month data (internalMonthData and visorMonthData)
+    if (typeof internalMonthData !== 'undefined' && internalMonthData instanceof Map) {
+        for (const [mKey, mData] of internalMonthData.entries()) {
+            if (mData && mData.allocations) {
+                for (const tripId in mData.allocations) {
+                    const trip = mData.allocations[tripId];
+                    if (trip && trip.guests) {
+                        const g = trip.guests.find(gst => gst.dni && window.isSameDni(gst.dni, dni));
+                        if (g && g.nombre && g.nombre.trim() !== '' && !g.nombre.startsWith('Cliente ')) {
+                            return g.nombre;
+                        }
+                    }
+                    if (trip && trip.groups) {
+                        for (const grp of trip.groups) {
+                            if (grp.guests) {
+                                const g = grp.guests.find(gst => gst.dni && window.isSameDni(gst.dni, dni));
+                                if (g && g.nombre && g.nombre.trim() !== '' && !g.nombre.startsWith('Cliente ')) {
+                                    return g.nombre;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Check fallbackData if provided (e.g. from history document)
     if (fallbackData) {
         if (fallbackData.nombre && fallbackData.nombre.trim() !== '' && !fallbackData.nombre.startsWith('Cliente ')) {
             return fallbackData.nombre;
         }
         if (fallbackData.guestName && fallbackData.guestName.trim() !== '' && !fallbackData.guestName.startsWith('Cliente ')) {
             return fallbackData.guestName;
+        }
+    }
+
+    // 5. Check in-memory async name cache
+    if (!window._asyncNameCache) window._asyncNameCache = new Map();
+    const normDni = window.normalizeDni(dni);
+    if (window._asyncNameCache.has(normDni)) {
+        return window._asyncNameCache.get(normDni);
+    }
+    
+    // 6. Trigger background async profile fetch from Firestore if missing
+    if (typeof db !== 'undefined') {
+        if (!window._asyncNameFetching) window._asyncNameFetching = new Set();
+        if (!window._asyncNameFetching.has(normDni)) {
+            window._asyncNameFetching.add(normDni);
+            db.collection('mangamar_customers').doc(normDni).get().then(doc => {
+                if (doc.exists && doc.data()) {
+                    const docData = doc.data();
+                    const resolvedName = window.getFullName(docData) || docData.nombre || docData.name;
+                    if (resolvedName && resolvedName.trim() !== '' && !resolvedName.startsWith('Cliente ')) {
+                        window._asyncNameCache.set(normDni, resolvedName.trim());
+                        // Re-render certs or today table if open
+                        if (window.activeTodayTab === 'certs' && typeof renderTodayCerts === 'function') {
+                            renderTodayCerts();
+                        }
+                    }
+                }
+            }).catch(err => console.warn("Background customer name fetch failed for", normDni, err));
         }
     }
 
@@ -540,7 +595,7 @@ window.switchTodayTab = async function (tabId) {
         if (bCert) bCert.className = 'px-4 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow-sm transition-all';
         if (subnav) subnav.classList.add('hidden');
         if (subnavCerts) subnavCerts.classList.remove('hidden');
-        renderTodayCerts();
+        renderTodayCerts(true);
     }
 };
 
@@ -699,10 +754,13 @@ window.renderTodayCerts = async function (forceFetch = false) {
     }
 
     filteredCerts.forEach(item => {
+        const studentName = window.findCustomerNameByDni(item.dni, item);
+        item.nombre = studentName;
+
         let actionBtn = '';
         if (dbMode === 'db_pending') {
             actionBtn = `
-            <button onclick="toggleCertStatus('${item.dni}', '${item.course.replace(/'/g, "\\'")}', '${item.nombre.replace(/'/g, "\\'")}', 'procesado', this)" class="group px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white rounded-xl text-xs font-black transition-all border border-amber-100 shadow-sm flex items-center gap-1.5 focus:scale-95 cursor-pointer min-w-[100px] justify-center">
+            <button onclick="toggleCertStatus('${item.dni}', '${item.course.replace(/'/g, "\\'")}', '${studentName.replace(/'/g, "\\'")}', 'procesado', this)" class="group px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white rounded-xl text-xs font-black transition-all border border-amber-100 shadow-sm flex items-center gap-1.5 focus:scale-95 cursor-pointer min-w-[100px] justify-center">
                 <span class="inline-flex items-center gap-1.5 group-hover:hidden">
                     <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Pendiente
                 </span>
@@ -712,7 +770,7 @@ window.renderTodayCerts = async function (forceFetch = false) {
             </button>`;
         } else {
             actionBtn = `
-            <button onclick="toggleCertStatus('${item.dni}', '${item.course.replace(/'/g, "\\'")}', '${item.nombre.replace(/'/g, "\\'")}', 'pendiente', this)" class="group px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl text-xs font-black transition-all border border-emerald-100 shadow-sm flex items-center gap-1.5 focus:scale-95 cursor-pointer min-w-[100px] justify-center">
+            <button onclick="toggleCertStatus('${item.dni}', '${item.course.replace(/'/g, "\\'")}', '${studentName.replace(/'/g, "\\'")}', 'pendiente', this)" class="group px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl text-xs font-black transition-all border border-emerald-100 shadow-sm flex items-center gap-1.5 focus:scale-95 cursor-pointer min-w-[100px] justify-center">
                 <span class="inline-flex items-center gap-1.5 group-hover:hidden">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Procesado
                 </span>
@@ -729,8 +787,8 @@ window.renderTodayCerts = async function (forceFetch = false) {
                     <span class="text-xs font-black bg-pink-100 text-pink-700 px-2 py-0.5 rounded uppercase tracking-wider">${item.course}</span>
                     <span class="text-[10px] font-bold text-slate-400 font-mono">${item.date}</span>
                 </div>
-                <div class="font-black text-slate-800 group-hover:text-pink-600 transition-colors cursor-pointer" onclick="openCustomerProfile('${item.dni}', '${item.nombre.replace(/'/g, "\\'")}')">
-                    ${item.nombre} <span class="text-xs text-slate-400 font-normal ml-1">${item.dni}</span>
+                <div class="font-black text-slate-800 group-hover:text-pink-600 transition-colors cursor-pointer" onclick="openCustomerProfile('${item.dni}', '${studentName.replace(/'/g, "\\'")}')">
+                    ${studentName} <span class="text-xs text-slate-400 font-normal ml-1">${item.dni}</span>
                 </div>
             </div>
             ${actionBtn}
