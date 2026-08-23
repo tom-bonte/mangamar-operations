@@ -6,11 +6,6 @@ window.hasPendingSave = false;
 window.hasPendingWrites = false;
 window.lastLocalEditTime = 0;
 
-window.onerror = function(message, source, lineno, colno, error) {
-    alert(`ERR: ${message} (line ${lineno})`);
-    return false;
-};
-
 // RAF-debounce state for renderGroups.
 window.isStaffOnDayOff = function(name, dateStr) {
     if (!name || !dateStr) return false;
