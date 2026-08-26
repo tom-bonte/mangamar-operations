@@ -1027,12 +1027,27 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     const tripNote = (trip.note || trip.comment || '').trim();
     const hasNote = tripNote.length > 0;
 
+    const waitlist = Array.isArray(trip.waitlist) ? trip.waitlist : [];
+    const waitlistCount = waitlist.length;
+    const hasWaitlist = waitlistCount > 0;
+    const waitlistNamesStr = waitlist.map(w => w.name).filter(Boolean).join(', ');
+
     const noteCalloutHtml = hasNote ? `
     <div class="mb-2.5 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs font-medium flex items-start gap-2 shadow-sm">
         <span class="text-xs shrink-0 mt-0.5 select-none">💬</span>
         <div class="flex-1 min-w-0">
             <div class="text-[8.5px] font-black text-amber-400 uppercase tracking-widest mb-0.5">Notas de la Salida</div>
             <div class="text-[10.5px] leading-snug whitespace-pre-wrap break-words text-amber-100">${tripNote}</div>
+        </div>
+    </div>
+    ` : '';
+
+    const waitlistCalloutHtml = hasWaitlist ? `
+    <div class="mb-2.5 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs font-medium flex items-start gap-2 shadow-sm">
+        <span class="text-xs shrink-0 mt-0.5 select-none">⏳</span>
+        <div class="flex-1 min-w-0">
+            <div class="text-[8.5px] font-black text-amber-400 uppercase tracking-widest mb-0.5">Lista de Espera (${waitlistCount})</div>
+            <div class="text-[10.5px] leading-snug whitespace-pre-wrap break-words text-amber-100">${waitlistNamesStr || `${waitlistCount} en espera`}</div>
         </div>
     </div>
     ` : '';
@@ -1061,9 +1076,18 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     `;
 
     col.innerHTML = `
-        ${hasNote ? `
-        <div class="absolute -top-1.5 -right-1.5 z-30 flex items-center justify-center w-5 h-5 rounded-full bg-[#ff3b30] text-white shadow-md border-2 border-white text-[10px] font-black leading-none cursor-pointer select-none" title="Notas de la Salida: ${tripNote.replace(/"/g, '&quot;')}">
-            1
+        ${(hasWaitlist || hasNote) ? `
+        <div class="absolute -top-1.5 -right-1.5 z-30 flex items-center gap-1 select-none pointer-events-auto">
+            ${hasWaitlist ? `
+            <div class="flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-amber-500 text-white shadow-md border-2 border-white text-[10px] font-black leading-none cursor-pointer" title="Lista de Espera: ${waitlistCount} ${waitlistCount === 1 ? 'persona' : 'personas'}${waitlistNamesStr ? ' (' + waitlistNamesStr.replace(/"/g, '&quot;') + ')' : ''}">
+                ${waitlistCount}
+            </div>
+            ` : ''}
+            ${hasNote ? `
+            <div class="flex items-center justify-center w-5 h-5 rounded-full bg-[#ff3b30] text-white shadow-md border-2 border-white text-[10px] font-black leading-none cursor-pointer" title="Notas de la Salida: ${tripNote.replace(/"/g, '&quot;')}">
+                1
+            </div>
+            ` : ''}
         </div>
         ` : ''}
         <div class="w-full h-full flex flex-col overflow-hidden rounded-[15px]">
@@ -1109,6 +1133,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
         
         <div class="tooltip-content absolute z-[999] p-3 bg-slate-900 rounded-xl shadow-2xl w-64 border border-slate-700 pointer-events-auto" style="${boatId === 'shore' ? 'top: -5px; right: calc(100% + 2px);' : 'top: -5px; left: calc(100% + 2px);'}">
             ${noteCalloutHtml}
+            ${waitlistCalloutHtml}
             ${radioTimesHtml}
             <div class="max-h-none overflow-visible">${previewHtml}</div>
         </div>
