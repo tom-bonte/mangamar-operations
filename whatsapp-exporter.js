@@ -246,6 +246,7 @@ window.generateWhatsAppText = function() {
         if (!matchesDate) return false;
 
         if (t.assignedBoat === 'shore' || t.assignedBoat === 'aula') return false;
+        if (t.site === 'Bloqueado' || t.site === '⛔ Bloqueado') return false;
         
         const guestsCount = t.guests ? t.guests.length : 0;
         const tripCapacity = parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (t.assignedBoat && window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12);

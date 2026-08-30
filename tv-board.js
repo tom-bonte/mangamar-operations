@@ -260,6 +260,7 @@ window._buildTVContent = function(preserveActiveSlot = true) {
     // Helper: does this trip have any real content to show?
     const tripHasContent = trip => {
         if (!trip || trip.cancelled) return false;
+        if (trip.site === 'Bloqueado' || trip.site === '⛔ Bloqueado') return true;
         return (trip.groups || []).some(g => (g.guests || []).some(guest => !guest.cancelled) || g.guide || g.apoyo);
     };
 
@@ -530,18 +531,20 @@ window._buildTVContent = function(preserveActiveSlot = true) {
                     </div>`;
                 }
 
+                const isBlocked = (trip.site === 'Bloqueado' || trip.site === '⛔ Bloqueado');
+                const siteLabel = isBlocked ? '⛔ BLOQUEADO' : (trip.site || 'DESTINO POR CONFIRMAR');
                 const cardHtml = `
-                <div class="tv-card rounded-3xl overflow-hidden flex flex-col border border-orange-200 bg-orange-50 shadow-xl">
-                    <div class="p-5 bg-orange-100/60 flex justify-between items-center border-b border-orange-200">
+                <div class="tv-card rounded-3xl overflow-hidden flex flex-col border ${isBlocked ? 'border-red-200 bg-red-50/50' : 'border-orange-200 bg-orange-50'} shadow-xl">
+                    <div class="p-5 ${isBlocked ? 'bg-red-100/60 border-red-200' : 'bg-orange-100/60 border-orange-200'} flex justify-between items-center border-b">
                         <div class="inline-block px-5 py-3 rounded-xl text-2xl font-black uppercase tracking-widest shadow-sm ${siteColor}">
-                            ${trip.site || 'DESTINO POR CONFIRMAR'}
+                            ${siteLabel}
                         </div>
-                        <div class="px-4 py-2 bg-white border border-blue-100 rounded-full shadow-sm">
-                            <span class="text-blue-600 font-black text-lg uppercase">${totalDivers} BUZOS</span>
+                        <div class="px-4 py-2 bg-white ${isBlocked ? 'border border-red-200' : 'border border-blue-100'} rounded-full shadow-sm">
+                            <span class="${isBlocked ? 'text-red-600' : 'text-blue-600'} font-black text-lg uppercase">${isBlocked ? 'BLOQUEADO' : totalDivers + ' BUZOS'}</span>
                         </div>
                     </div>
                     <div class="p-6 flex-1">
-                        ${groupsHtml || '<div class="text-orange-300 text-base font-bold mt-2 text-center uppercase tracking-widest">Sin clientes asignados</div>'}
+                        ${isBlocked && !groupsHtml ? '<div class="text-red-400 text-lg font-black mt-2 text-center uppercase tracking-widest flex items-center justify-center gap-2">⛔ Salida Bloqueada</div>' : (groupsHtml || '<div class="text-orange-300 text-base font-bold mt-2 text-center uppercase tracking-widest">Sin clientes asignados</div>')}
                     </div>
                     ${prevTripHtml}
                 </div>`;

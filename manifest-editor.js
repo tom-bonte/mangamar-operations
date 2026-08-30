@@ -428,7 +428,10 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
         
         const siteSelect = document.getElementById('input-site');
         const boatSites = ALL_SITES.filter(s => s !== 'Shore' && s !== 'Aula');
-        siteSelect.innerHTML = boatSites.map(s => `<option value="${s}">${s}</option>`).join('');
+        siteSelect.innerHTML = boatSites.map(s => {
+            const label = (s === 'Bloqueado' || s === '⛔ Bloqueado') ? '⛔ Bloqueado' : s;
+            return `<option value="${s}">${label}</option>`;
+        }).join('');
         siteSelect.value = activeBoatItem.site || SITES_INTERNAL[0]; 
         
         if (activeBoatItem.isVisor) {
@@ -621,6 +624,8 @@ function updateModalSubtitle() {
     let subtitle = `${activeBoatItem.time} • ${total}/${capText} (total: ${totalPeople})`;
     if (activeBoatItem && activeBoatItem.cancelled) {
         subtitle = `⚠️ [ANULADA] • ${subtitle}`;
+    } else if (activeBoatItem && (activeBoatItem.site === 'Bloqueado' || activeBoatItem.site === '⛔ Bloqueado')) {
+        subtitle = `⛔ [BLOQUEADA] • ${subtitle}`;
     }
     document.getElementById('modal-boat-subtitle').innerText = subtitle;
 }

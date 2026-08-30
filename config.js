@@ -15,11 +15,11 @@ const firebaseConfig = {
 const TIMES = ['07:00', '09:00', '10:30', '12:00', '15:00', '16:30', '18:00'];
 
 const SITES_RESERVE = ['Bajo de Dentro', 'Piles I', 'Piles II', 'Testa', 'Morra'];
-const SITES_INTERNAL = ['Cala', 'Naranjito', 'Palomas', 'Fuera', 'Carbonero', 'Shore', 'Aula'];
+const SITES_INTERNAL = ['Cala', 'Naranjito', 'Palomas', 'Fuera', 'Carbonero', 'Shore', 'Aula', 'Bloqueado'];
 const ALL_SITES = [...SITES_RESERVE, ...SITES_INTERNAL];
 
 // EXCLUDES Cala, Shore, and Aula from the Monthly View
-const SITES_MONTHLY = ['Bajo de Dentro', 'Piles I', 'Piles II', 'Testa', 'Morra', 'Naranjito', 'Palomas', 'Fuera', 'Carbonero'];
+const SITES_MONTHLY = ['Bajo de Dentro', 'Piles I', 'Piles II', 'Testa', 'Morra', 'Naranjito', 'Palomas', 'Fuera', 'Carbonero', 'Bloqueado'];
 
 // Highly Distinct Colors for Every Dive Site
 const SITE_COLORS = {
@@ -34,7 +34,9 @@ const SITE_COLORS = {
     'Fuera': 'bg-cyan-100 text-cyan-800 border-cyan-500',
     'Carbonero': 'bg-teal-100 text-teal-800 border-teal-500',
     'Shore': 'bg-yellow-100 text-yellow-800 border-yellow-500',
-    'Aula': 'bg-red-100 text-red-800 border-red-500'
+    'Aula': 'bg-red-100 text-red-800 border-red-500',
+    'Bloqueado': 'bg-red-100 text-red-700 border-red-400',
+    '⛔ Bloqueado': 'bg-red-100 text-red-700 border-red-400'
 };
 
 // Fleet Data

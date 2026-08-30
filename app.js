@@ -462,9 +462,12 @@ function renderMonthlyCalendar() {
 
         let tripsHtml = '<div class="space-y-1 mt-2">';
         tripsToday.forEach(trip => {
-            const siteColor = SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-200';
+            const isBlocked = trip.site === 'Bloqueado' || trip.site === '⛔ Bloqueado';
+            const siteColor = isBlocked ? 'bg-red-100 text-red-700 border-red-300' : (SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-200');
             const guests = trip.guests ? trip.guests.filter(g => !g.cancelled).length : 0;
-            tripsHtml += `<div class="text-[10px] font-bold px-1.5 py-1 rounded border ${siteColor} flex justify-between items-center truncate"><span class="truncate pr-1">${trip.site}</span><span class="opacity-70 shrink-0">${guests} pax</span></div>`;
+            const siteLabel = isBlocked ? '⛔ Bloqueado' : trip.site;
+            const countLabel = isBlocked ? 'Bloq' : `${guests} pax`;
+            tripsHtml += `<div class="text-[10px] font-bold px-1.5 py-1 rounded border ${siteColor} flex justify-between items-center truncate"><span class="truncate pr-1">${siteLabel}</span><span class="opacity-70 shrink-0">${countLabel}</span></div>`;
         });
         tripsHtml += '</div>';
 
@@ -797,11 +800,12 @@ function renderDailyGrid() {
 function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflict = false) {
     const col = document.createElement('div');
     col.setAttribute('data-trip-id', trip.id);
+    const isBlocked = (trip.site === 'Bloqueado' || trip.site === '⛔ Bloqueado') && !trip.cancelled;
     const guests = trip.guests || [];
     const guestCount = guests.filter(g => !g.cancelled).length;
     const siteColorConfig = trip.cancelled
         ? 'bg-slate-200 text-slate-500 border-slate-350'
-        : (SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-300');
+        : (isBlocked ? 'bg-red-100 text-red-700 border-red-400' : (SITE_COLORS[trip.site] || 'bg-slate-100 text-slate-800 border-slate-300'));
     
     let hasVisorTag = (trip.isVisor && (!trip.isInternalTrip || trip.site === trip.originalVisorSite));
 
@@ -976,7 +980,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
 
     if(!previewHtml || guestCount === 0) previewHtml = `<div class="text-[10px] text-slate-400 italic text-center">Sin grupos</div>`;
 
-    const topBarColor = siteColorConfig.split(' ')[0] || 'bg-slate-200';
+    const topBarColor = isBlocked ? 'bg-red-500' : (siteColorConfig.split(' ')[0] || 'bg-slate-200');
     const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.maxDives) || parseInt(trip.pax) || parseInt(trip.plazas) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 12));
     const capacity = boatId === 'shore' ? '-' : capacityNum;
     
@@ -998,11 +1002,17 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     let isShore = boatId === 'shore';
     let percent = isShore ? 0 : Math.min(100, Math.round((guestCount / capacityNum) * 100));
     
-    let barColor = trip.cancelled ? 'bg-slate-300' : 'bg-orange-500';
+    let barColor = trip.cancelled ? 'bg-slate-300' : (isBlocked ? 'bg-red-500' : 'bg-orange-500');
 
     let cardBaseClass = trip.cancelled
         ? "bg-slate-50 border-slate-200 opacity-60 shadow-none border border-dashed"
-        : (isConflict ? "bg-red-50 border-red-500 shadow-md border-2" : "bg-white border-slate-200 shadow-sm border hover:shadow-md hover:border-blue-300");
+        : (isConflict 
+            ? "bg-red-50 border-red-500 shadow-md border-2" 
+            : (isBlocked 
+                ? "bg-red-50/70 border-red-300 shadow-sm border hover:shadow-md hover:border-red-400" 
+                : "bg-white border-slate-200 shadow-sm border hover:shadow-md hover:border-blue-300"
+            )
+        );
     
     // Increased height to 115px to fit the new lines comfortably
     col.className = `group-tooltip relative rounded-2xl transition-all flex flex-col h-[115px] shrink-0 z-10 hover:z-[100] ${isCompact ? 'flex-1 min-w-0' : 'w-full'} ${cardBaseClass}`;
@@ -1095,7 +1105,17 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
             <div class="h-1.5 w-full shrink-0 ${trip.cancelled ? 'bg-slate-300' : topBarColor}"></div> 
             <div class="p-2.5 flex-1 flex flex-col justify-between overflow-hidden gap-1">
                 <div class="flex items-center gap-1.5 overflow-hidden min-w-0 shrink-0 w-full">
+                    ${isBlocked ? `
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black border bg-red-100 text-red-700 border-red-400 flex items-center gap-1.5 leading-tight shrink-0 max-w-[85%] shadow-xs">
+                        <svg class="w-3.5 h-3.5 text-red-600 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="10" fill="#dc2626"/>
+                            <rect x="5" y="10" width="14" height="4" rx="1" fill="white"/>
+                        </svg>
+                        <span class="truncate">BLOQUEADO</span>
+                    </span>
+                    ` : `
                     <span class="px-2 py-0.5 rounded-md text-[10px] font-black border ${siteColorConfig} truncate leading-tight shrink-0 max-w-[70%]">${trip.site || 'Sin Destino'}</span>
+                    `}
                     ${trip.cancelled 
                         ? `<span class="text-[7px] font-black uppercase text-rose-700 tracking-widest bg-rose-50 px-1 rounded border border-rose-200 flex items-center shrink-0">ANULADA</span>`
                         : hasVisorTag 
@@ -1107,6 +1127,17 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                     }
                 </div>
 
+                ${isBlocked && guestCount === 0 && !guideNames && !capName ? `
+                <div class="flex-1 flex flex-col items-center justify-center min-w-0 w-full px-0.5 text-center">
+                    <div class="flex items-center gap-1.5 text-[11px] font-black text-red-600 uppercase tracking-wide">
+                        <svg class="w-4 h-4 text-red-600 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="10" fill="#dc2626"/>
+                            <rect x="5" y="10" width="14" height="4" rx="1" fill="white"/>
+                        </svg>
+                        <span>Salida Bloqueada</span>
+                    </div>
+                </div>
+                ` : `
                 <div class="flex-1 flex flex-col justify-center min-w-0 w-full px-0.5">
                     ${isShore ? '' : `<div class="text-[9px] truncate">
                         <span class="font-bold text-slate-400">Cap:</span> <span class="font-bold text-slate-700">${capName}</span>
@@ -1115,8 +1146,17 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                         <span class="font-bold text-slate-400">Guía:</span> <span class="font-bold text-slate-700">${guideNames}</span>
                     </div>
                 </div>
+                `}
 
                 <div class="mt-auto flex flex-col gap-1 w-full shrink-0">
+                    ${isBlocked && guestCount === 0 ? `
+                    <div class="flex justify-between items-end px-0.5">
+                        <span class="text-[10px] font-black text-red-600 leading-none">⛔ No disponible</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-red-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-red-500 rounded-full" style="width: 100%"></div>
+                    </div>
+                    ` : `
                     <div class="flex justify-between items-end px-0.5">
                         <span class="text-[10px] font-black ${(!isShore && guestCount >= capacityNum) ? 'text-red-500' : 'text-slate-800'} leading-none">${guestCount} ${isShore ? 'pax' : '/ ' + capacityNum} (total: ${window.calculateTotalPeopleOnBoat(trip)})</span>
                     </div>
@@ -1126,6 +1166,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                     </div>
                     ` : `
                     <div class="w-full h-1.5"></div>
+                    `}
                     `}
                 </div>
             </div>
