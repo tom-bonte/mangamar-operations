@@ -4,32 +4,43 @@
 
 // Track active visible time slot on TV screen
 window._tvActiveTimeSlot = null;
+window._isTvUpdating = false;
 
 function initTvScrollTracking() {
     const scrollContainer = document.getElementById('tv-scroll-container');
     if (!scrollContainer || scrollContainer._hasTvScrollListener) return;
     scrollContainer._hasTvScrollListener = true;
+    
+    let scrollTimeout = null;
     scrollContainer.addEventListener('scroll', () => {
-        const rows = scrollContainer.querySelectorAll('.snap-start[data-time]');
-        let closestTime = null;
-        let minDiff = Infinity;
-        const sTop = scrollContainer.scrollTop;
-        rows.forEach(r => {
-            const diff = Math.abs(r.offsetTop - sTop);
-            if (diff < minDiff) {
-                minDiff = diff;
-                closestTime = r.dataset.time;
+        if (window._isTvUpdating) return;
+        
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            if (window._isTvUpdating) return;
+            const rows = scrollContainer.querySelectorAll('.snap-start[data-time]');
+            if (!rows.length) return;
+            let closestTime = null;
+            let minDiff = Infinity;
+            const sTop = scrollContainer.scrollTop;
+            rows.forEach(r => {
+                const diff = Math.abs(r.offsetTop - sTop);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestTime = r.dataset.time;
+                }
+            });
+            if (closestTime) {
+                window._tvActiveTimeSlot = closestTime;
             }
-        });
-        if (closestTime) {
-            window._tvActiveTimeSlot = closestTime;
-        }
+        }, 80);
     }, { passive: true });
 }
 
 window.openTVView = function() {
     // Reset active slot when opening fresh
     window._tvActiveTimeSlot = null;
+    window._isTvUpdating = false;
     window._buildTVContent(false);
 
     document.getElementById('tv-view-modal').classList.remove('hidden');
@@ -42,21 +53,12 @@ window.openTVView = function() {
         const clockEl = document.getElementById('tv-clock');
         if (!clockEl || document.getElementById('tv-view-modal').classList.contains('hidden')) {
             clearInterval(window.tvClockInterval);
+            window.tvClockInterval = null;
             return;
         }
         const now = new Date();
         clockEl.innerText = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }, 1000);
-
-    // LIVE ARRIVED REFRESH: Re-render the content grid every 8s to show checkmark changes while strictly preserving the current salida
-    if (window.tvArrivedRefreshInterval) clearInterval(window.tvArrivedRefreshInterval);
-    window.tvArrivedRefreshInterval = setInterval(() => {
-        if (document.getElementById('tv-view-modal').classList.contains('hidden')) {
-            clearInterval(window.tvArrivedRefreshInterval);
-            return;
-        }
-        window._buildTVContent(true);
-    }, 8000);
 }
 
 // Helper to discover all birthdays for people who are active on the TV schedule for targetDateStr
@@ -200,6 +202,7 @@ window._buildTVContent = function(preserveActiveSlot = true) {
         });
     }
 
+    window._isTvUpdating = true;
     container.innerHTML = '';
 
     // Set dynamic date in top left above the clock
@@ -620,13 +623,19 @@ window.adjustCardScaling = function(targetTime = null) {
             scrollContainer.scrollTop = targetRow.offsetTop;
         }
     }
+
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            window._isTvUpdating = false;
+        }, 50);
+    });
 };
 
-// Listen to window resizing to dynamically scale cards in real-time
+// Listen to window resizing to dynamically scale cards in real-time while maintaining active slot
 window.addEventListener('resize', () => {
     const tvModal = document.getElementById('tv-view-modal');
     if (tvModal && !tvModal.classList.contains('hidden')) {
-        window.adjustCardScaling();
+        window.adjustCardScaling(window._tvActiveTimeSlot);
         const canvas = document.getElementById('tv-confetti-canvas');
         if (canvas) {
             canvas.width = tvModal.clientWidth || window.innerWidth;
@@ -782,6 +791,15 @@ window.changeTVDate = function(offset) {
 };
 
 window.closeTVView = function() {
+    if (window.tvClockInterval) {
+        clearInterval(window.tvClockInterval);
+        window.tvClockInterval = null;
+    }
+    if (window.tvArrivedRefreshInterval) {
+        clearInterval(window.tvArrivedRefreshInterval);
+        window.tvArrivedRefreshInterval = null;
+    }
+    window._isTvUpdating = false;
     if (typeof window.stopTvConfetti === 'function') {
         window.stopTvConfetti();
     }
