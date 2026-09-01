@@ -1316,9 +1316,9 @@ window.renderGroupDivesSummaryText = async function() {
     };
 
     const labels = {
-        es: { summary: "Resumen de Inmersiones del Grupo", group: "Grupo", range: "Rango de Fechas", members: "Miembros del Grupo", diver: "buzo", divers: "buzos", noDives: "No se encontraron inmersiones para los miembros de este grupo en este rango de fechas.", all: "Todas las fechas", from: "Desde", to: "Hasta" },
-        en: { summary: "Group Dive Summary", group: "Group", range: "Date Range", members: "Group Members", diver: "diver", divers: "divers", noDives: "No dives found for group members in this date range.", all: "All dates", from: "From", to: "To" },
-        nl: { summary: "Duikoverzicht Groep", group: "Groep", range: "Datumperiode", members: "Groepsleden", diver: "duiker", divers: "duikers", noDives: "Geen duiken gevonden voor groepsleden in deze periode.", all: "Alle data", from: "Vanaf", to: "Tot" }
+        es: { summary: "Resumen de Inmersiones", group: "Grupo", range: "Rango de Fechas", members: "Buceadores", diver: "buzo", divers: "buzos", noDives: "No se encontraron inmersiones para los miembros de este grupo en este rango de fechas.", all: "Todas las fechas", from: "Desde", to: "Hasta" },
+        en: { summary: "Dive Summary", group: "Group", range: "Date Range", members: "Divers", diver: "diver", divers: "divers", noDives: "No dives found for group members in this date range.", all: "All dates", from: "From", to: "To" },
+        nl: { summary: "Duikoverzicht", group: "Groep", range: "Datumperiode", members: "Duikers", diver: "duiker", divers: "duikers", noDives: "Geen duiken gevonden voor groepsleden in deze periode.", all: "Alle data", from: "Vanaf", to: "Tot" }
     };
 
     const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
@@ -1367,7 +1367,7 @@ window.renderGroupDivesSummaryText = async function() {
     }
 
     let text = `${headers[lang] || headers.es}\n\n`;
-    text += `🗓️ *${curLabels.summary} — ${group.name}*\n`;
+    text += `🗓️ *${curLabels.summary}*\n`;
     text += `${rangeStr}\n`;
     text += `${curLabels.members} (${memberDisplayNames.length}): ${memberDisplayNames.join(', ')}\n`;
     text += `========================================\n\n`;
