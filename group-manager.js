@@ -286,6 +286,7 @@ window.openGroupLinkModal = function(editGroupIdOrName = null, isNavBackForward 
     const memberListEl = document.getElementById('group-members-list');
     const memberCountEl = document.getElementById('group-member-count');
     const addAllBtn = document.getElementById('add-all-group-btn');
+    const summaryBtn = document.getElementById('btn-group-dives-summary');
 
     const targetIdx = (typeof window._activeSearchGroupIdx !== 'undefined') ? window._activeSearchGroupIdx : 0;
     const targetLabel = `Base ${targetIdx + 1}`;
@@ -362,6 +363,8 @@ window.openGroupLinkModal = function(editGroupIdOrName = null, isNavBackForward 
     const delBtn = document.getElementById('btn-delete-group-main');
     // Hide delete button in creation mode to prevent accidental deletion while assigning
     if (delBtn) delBtn.classList.toggle('hidden', !existingGlobal || isCreationMode);
+
+    if (summaryBtn) summaryBtn.classList.toggle('hidden', !existingGlobal || isCreationMode);
 
     document.getElementById('group-link-modal').classList.remove('hidden');
     if (isNavBackForward) {
@@ -1213,4 +1216,343 @@ window.filterGroupsList = function(query) {
             btn.classList.add('hidden');
         }
     });
+};
+
+// ==========================================
+// GROUP DIVES SUMMARY ENGINE
+// ==========================================
+window.groupSummaryCurrentLang = 'es';
+window._groupSummaryActiveGroupId = null;
+
+window.setGroupSummaryLang = function(lang) {
+    window.groupSummaryCurrentLang = lang || 'es';
+    ['es', 'en', 'nl'].forEach(l => {
+        const btn = document.getElementById(`group-summary-lang-${l}`);
+        if (btn) {
+            if (l === window.groupSummaryCurrentLang) {
+                btn.className = "w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-100 ring-2 ring-blue-500";
+            } else {
+                btn.className = "w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50";
+            }
+        }
+    });
+    window.renderGroupDivesSummaryText();
+};
+
+window.resetGroupSummaryDates = function() {
+    if (!window._groupSummaryActiveGroupId) return;
+    const group = (window.globalGroups || []).find(g => g.id === window._groupSummaryActiveGroupId);
+    if (!group) return;
+
+    const fromEl = document.getElementById('group-summary-from');
+    const toEl = document.getElementById('group-summary-to');
+    const defaultDate = window.activeBoatItem ? window.activeBoatItem.date : '';
+    if (fromEl) fromEl.value = group.startDate || defaultDate;
+    if (toEl) toEl.value = group.endDate || group.startDate || defaultDate;
+
+    window.renderGroupDivesSummaryText();
+};
+
+window.openGroupDivesSummaryModal = function(targetGroupId = null) {
+    const groupId = targetGroupId || window._editingGroupId;
+    if (!groupId) {
+        if (typeof showToast === 'function') showToast("⚠️ Selecciona primero un grupo", "warning");
+        return;
+    }
+    const group = (window.globalGroups || []).find(g => g.id === groupId);
+    if (!group) {
+        if (typeof showToast === 'function') showToast("⚠️ Grupo no encontrado", "error");
+        return;
+    }
+
+    window._groupSummaryActiveGroupId = group.id;
+
+    // Set badge name and styling
+    const badgeEl = document.getElementById('group-summary-badge');
+    if (badgeEl) {
+        badgeEl.innerText = group.name || 'Grupo';
+        const grpColor = typeof getGroupColorClass === 'function' ? getGroupColorClass(group.name) : null;
+        if (grpColor && grpColor !== '#ffffff') {
+            badgeEl.style.backgroundColor = grpColor + '20';
+            badgeEl.style.borderColor = grpColor + '60';
+            badgeEl.style.color = grpColor;
+        } else {
+            badgeEl.style.backgroundColor = '';
+            badgeEl.style.borderColor = '';
+            badgeEl.style.color = '';
+        }
+    }
+
+    // Set initial date range inputs
+    const fromEl = document.getElementById('group-summary-from');
+    const toEl = document.getElementById('group-summary-to');
+    const defaultDate = window.activeBoatItem ? window.activeBoatItem.date : '';
+    if (fromEl) fromEl.value = group.startDate || defaultDate;
+    if (toEl) toEl.value = group.endDate || group.startDate || defaultDate;
+
+    // Set language buttons UI
+    window.setGroupSummaryLang(window.groupSummaryCurrentLang || 'es');
+
+    const modal = document.getElementById('group-dives-summary-modal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.renderGroupDivesSummaryText = async function() {
+    if (!window._groupSummaryActiveGroupId) return;
+    const group = (window.globalGroups || []).find(g => g.id === window._groupSummaryActiveGroupId);
+    if (!group) return;
+
+    const fromEl = document.getElementById('group-summary-from');
+    const toEl = document.getElementById('group-summary-to');
+    const fromVal = fromEl ? fromEl.value : '';
+    const toVal = toEl ? toEl.value : '';
+
+    const lang = window.groupSummaryCurrentLang || 'es';
+
+    const headers = {
+        es: "⚠️ *Información importante:*\nLas horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco). Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.",
+        en: "⚠️ *Important notice:*\nPlease note that the times indicated are your arrival times at the dive center, not the boat departure times. Please be on time and remember to bring your physical DNI / Passport / ID card.",
+        nl: "⚠️ *Belangrijke informatie:*\nHoud er rekening mee dat de aangegeven tijden de verwachte aankomsttijden in het duikcentrum zijn (niet de vertrektijd van de boot). Wees alstublieft op tijd en neem je fysieke DNI / paspoort / ID-kaart mee."
+    };
+
+    const labels = {
+        es: { summary: "Resumen de Inmersiones del Grupo", group: "Grupo", range: "Rango de Fechas", members: "Miembros del Grupo", diver: "buzo", divers: "buzos", noDives: "No se encontraron inmersiones para los miembros de este grupo en este rango de fechas.", all: "Todas las fechas", from: "Desde", to: "Hasta" },
+        en: { summary: "Group Dive Summary", group: "Group", range: "Date Range", members: "Group Members", diver: "diver", divers: "divers", noDives: "No dives found for group members in this date range.", all: "All dates", from: "From", to: "To" },
+        nl: { summary: "Duikoverzicht Groep", group: "Groep", range: "Datumperiode", members: "Groepsleden", diver: "duiker", divers: "duikers", noDives: "Geen duiken gevonden voor groepsleden in deze periode.", all: "Alle data", from: "Vanaf", to: "Tot" }
+    };
+
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+    const curLabels = labels[lang] || labels.es;
+
+    // Show loading indicator
+    const loadingEl = document.getElementById('group-summary-loading');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    // Build member maps
+    const memberDnis = group.members || [];
+    const groupMembersMap = new Map();
+    const memberDisplayNames = [];
+
+    memberDnis.forEach(mDni => {
+        const cx = (window.customerDatabase || []).find(c => window.isSameDni(c.dni, mDni));
+        const isTemp = String(mDni).toLowerCase().startsWith('temp_');
+        let fullName = cx ? window.getFullName(cx) : null;
+        if (!fullName && isTemp && group.manualNames) {
+            const matchedKey = Object.keys(group.manualNames).find(k => k.toLowerCase() === String(mDni).toLowerCase());
+            if (matchedKey) fullName = group.manualNames[matchedKey];
+        }
+        if (!fullName) fullName = mDni;
+        memberDisplayNames.push(fullName);
+        groupMembersMap.set(String(mDni).trim().toUpperCase(), { dni: mDni, name: fullName });
+    });
+
+    const toDisplayDate = (s) => {
+        if (!s) return '';
+        const p = s.split('-');
+        if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+        return s;
+    };
+
+    let rangeStr = "";
+    if (fromVal && toVal) {
+        if (lang === 'en') rangeStr = `${curLabels.range}: ${toDisplayDate(fromVal)} to ${toDisplayDate(toVal)}`;
+        else if (lang === 'nl') rangeStr = `${curLabels.range}: ${toDisplayDate(fromVal)} tot ${toDisplayDate(toVal)}`;
+        else rangeStr = `${curLabels.range}: ${toDisplayDate(fromVal)} a ${toDisplayDate(toVal)}`;
+    } else if (fromVal) {
+        rangeStr = `${curLabels.from}: ${toDisplayDate(fromVal)}`;
+    } else if (toVal) {
+        rangeStr = `${curLabels.to}: ${toDisplayDate(toVal)}`;
+    } else {
+        rangeStr = curLabels.all;
+    }
+
+    let text = `${headers[lang] || headers.es}\n\n`;
+    text += `🗓️ *${curLabels.summary} — ${group.name}*\n`;
+    text += `${rangeStr}\n`;
+    text += `${curLabels.members} (${memberDisplayNames.length}): ${memberDisplayNames.join(', ')}\n`;
+    text += `========================================\n\n`;
+
+    let allTrips = [];
+    try {
+        if (fromVal && toVal && typeof window.fetchTripsForDateRange === 'function') {
+            allTrips = await window.fetchTripsForDateRange(fromVal, toVal);
+        } else if (fromVal && toVal) {
+            allTrips = (window.mergedAllocations || []).filter(t => t.date >= fromVal && t.date <= toVal);
+        } else {
+            allTrips = window.mergedAllocations || [];
+        }
+    } catch (e) {
+        console.warn("Fallback to in-memory mergedAllocations:", e);
+        allTrips = window.mergedAllocations || [];
+    }
+
+    const includeGasCheckbox = document.getElementById('group-summary-include-gas');
+    const includeGas = includeGasCheckbox ? includeGasCheckbox.checked : false;
+
+    // Scan trips and find group members
+    const groupedByDate = {};
+    let totalDivesCount = 0;
+
+    (allTrips || []).forEach(trip => {
+        if (!trip || trip.cancelled) return;
+        if (fromVal && trip.date < fromVal) return;
+        if (toVal && trip.date > toVal) return;
+
+        const matchedDiversInTrip = [];
+        const tripGuests = [];
+        if (trip.groups && trip.groups.length > 0) {
+            trip.groups.forEach(grp => {
+                if (grp.guests) tripGuests.push(...grp.guests);
+            });
+        }
+        if (trip.guests && trip.guests.length > 0) {
+            trip.guests.forEach(gst => {
+                if (!tripGuests.some(existing => existing === gst || (existing.dni && gst.dni && window.isSameDni(existing.dni, gst.dni)))) {
+                    tripGuests.push(gst);
+                }
+            });
+        }
+
+        tripGuests.forEach(g => {
+            if (!g || g.cancelled) return;
+            let isMember = false;
+            let memberDisplayName = g.nombre || '';
+
+            if (g.dni) {
+                for (const [mDniUpper, memberObj] of groupMembersMap.entries()) {
+                    if (window.isSameDni(mDniUpper, g.dni)) {
+                        isMember = true;
+                        memberDisplayName = memberObj.name || g.nombre;
+                        break;
+                    }
+                }
+            }
+
+            if (!isMember && g.tempId) {
+                for (const [mDniUpper, memberObj] of groupMembersMap.entries()) {
+                    if (mDniUpper === g.tempId.toUpperCase()) {
+                        isMember = true;
+                        memberDisplayName = memberObj.name || g.nombre;
+                        break;
+                    }
+                }
+            }
+
+            if (!isMember && g.nombre) {
+                for (const [mDniUpper, memberObj] of groupMembersMap.entries()) {
+                    if (memberObj.name && memberObj.name.toLowerCase() === g.nombre.toLowerCase()) {
+                        isMember = true;
+                        memberDisplayName = memberObj.name;
+                        break;
+                    }
+                }
+            }
+
+            if (!isMember && g.bookingTag && group.name && g.bookingTag.toLowerCase() === group.name.toLowerCase()) {
+                isMember = true;
+                memberDisplayName = g.nombre || 'Buceador';
+            }
+
+            if (isMember) {
+                let gasSuffix = "";
+                if (includeGas && g.gas) {
+                    const gasLower = g.gas.toLowerCase();
+                    if (!gasLower.includes('aire')) {
+                        let cleanGas = g.gas.replace('15L ', '').replace('12L ', '').trim();
+                        cleanGas = cleanGas.replace(/ean/i, 'Nitrox');
+                        gasSuffix = ` (${cleanGas})`;
+                    }
+                }
+
+                let courseSuffix = "";
+                const isSnorkel = (g.baseCourse === "Snorkeling" || g.courseBadge === "Snorkel" || (g.course && g.course.toLowerCase().includes("snorkel")));
+                if (isSnorkel) {
+                    courseSuffix = " [Snorkel]";
+                } else if (g.courseBadge || g.course) {
+                    courseSuffix = ` [${g.courseBadge || g.course}]`;
+                }
+
+                if (!matchedDiversInTrip.some(d => d.dni && g.dni && window.isSameDni(d.dni, g.dni))) {
+                    matchedDiversInTrip.push({
+                        name: memberDisplayName,
+                        dni: g.dni || '',
+                        gasSuffix: gasSuffix,
+                        courseSuffix: courseSuffix
+                    });
+                }
+            }
+        });
+
+        if (matchedDiversInTrip.length > 0) {
+            if (!groupedByDate[trip.date]) {
+                groupedByDate[trip.date] = [];
+            }
+            groupedByDate[trip.date].push({
+                trip: trip,
+                divers: matchedDiversInTrip
+            });
+            totalDivesCount++;
+        }
+    });
+
+    let servicesText = "";
+    Object.keys(groupedByDate).sort().forEach(dateStr => {
+        const parts = dateStr.split('-');
+        if (parts.length < 3) return;
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const dObj = new Date(year, month, day);
+
+        const weekday = dObj.toLocaleDateString(dateLocales[lang] || 'es-ES', { weekday: 'long' });
+        const monthName = dObj.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'long' });
+        const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+        const formattedDay = `${weekdayCap}, ${day} ${lang === 'es' ? 'de ' + monthName + ' de' : monthName} ${year}`;
+
+        servicesText += `${formattedDay}:\n`;
+
+        groupedByDate[dateStr].sort((a, b) => {
+            const timeA = a.trip.time || '00:00';
+            const timeB = b.trip.time || '00:00';
+            return timeA.localeCompare(timeB);
+        });
+
+        groupedByDate[dateStr].forEach(entry => {
+            const { trip, divers } = entry;
+            let timeStr = trip.time || '';
+            if (timeStr && timeStr.includes(':')) {
+                const timeParts = timeStr.split(':');
+                let hours = parseInt(timeParts[0], 10);
+                let minutes = parseInt(timeParts[1], 10);
+                hours = (hours - 1 + 24) % 24;
+                const minStr = String(minutes).padStart(2, '0');
+                timeStr = `${hours}:${minStr}`;
+            }
+
+            const siteStr = trip.site || (lang === 'en' ? 'Dive' : 'Inmersión');
+            const diverCountStr = divers.length === 1 ? `1 ${curLabels.diver}` : `${divers.length} ${curLabels.divers}`;
+
+            servicesText += ` - ${timeStr} ${siteStr} [${diverCountStr}]:\n`;
+            divers.sort((a, b) => a.name.localeCompare(b.name)).forEach(d => {
+                servicesText += `   • ${d.name}${d.gasSuffix}${d.courseSuffix}\n`;
+            });
+            servicesText += `\n`;
+        });
+    });
+
+    if (servicesText) {
+        text += servicesText.trim();
+    } else {
+        text += `${curLabels.noDives}\n`;
+    }
+
+    const textArea = document.getElementById('group-dives-summary-text');
+    if (textArea) textArea.value = text;
+
+    const statsEl = document.getElementById('group-summary-stats');
+    if (statsEl) {
+        statsEl.innerText = `${memberDisplayNames.length} ${memberDisplayNames.length === 1 ? 'miembro' : 'miembros'} • ${totalDivesCount} ${totalDivesCount === 1 ? 'inmersión encontrada' : 'inmersiones encontradas'}`;
+    }
+
+    if (loadingEl) loadingEl.classList.add('hidden');
 };

@@ -1602,7 +1602,11 @@
                             <div class="flex-1 flex flex-col min-h-0" id="group-members-container">
                                 <div class="flex justify-between items-center mb-3">
                                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Miembros (<span id="group-member-count">0</span>)</label>
-                                    <div class="flex gap-2">
+                                    <div class="flex gap-2 items-center">
+                                        <button id="btn-group-dives-summary" onclick="window.openGroupDivesSummaryModal()" class="text-[10px] font-black text-blue-700 hover:text-blue-900 uppercase tracking-widest px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors border border-blue-200 flex items-center gap-1.5 shadow-xs" title="Ver resumen de inmersiones del grupo">
+                                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                                            Resumen Inmersiones
+                                        </button>
                                         <button id="btn-delete-group-main" onclick="openDeleteGroupModal()" class="hidden text-[10px] font-black text-red-600 hover:text-white uppercase tracking-widest px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-500 transition-colors border border-red-100 hover:border-red-500">Eliminar Grupo</button>
                                         <button id="add-all-group-btn" class="text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors border border-blue-100">Añadir Todo al Barco</button>
                                     </div>
@@ -5026,6 +5030,77 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                     Copiar Contenido
                 </button>
+            </div>
+        </div>
+    </div>
+    <!-- ============================================ -->
+    <!-- GROUP DIVES SUMMARY EXPORT MODAL             -->
+    <!-- ============================================ -->
+    <div id="group-dives-summary-modal" class="fixed inset-0 z-[600] hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-scale-up" onclick="if(event.target === this) document.getElementById('group-dives-summary-modal').classList.add('hidden')">
+        <div class="bg-white rounded-2xl shadow-2xl w-[95vw] max-w-5xl border border-slate-200 overflow-hidden flex flex-col h-[88vh]">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                <div class="flex items-center gap-4">
+                    <h3 class="text-md font-black text-slate-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Resumen de Inmersiones del Grupo
+                    </h3>
+                    <span id="group-summary-badge" class="px-3 py-1 rounded-lg text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 truncate max-w-[220px]">Grupo</span>
+                    <div class="flex bg-slate-50 rounded-lg border border-slate-200 p-1 shadow-sm gap-1">
+                        <button id="group-summary-lang-es" onclick="window.setGroupSummaryLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-100 ring-2 ring-blue-500">🇪🇸</button>
+                        <button id="group-summary-lang-en" onclick="window.setGroupSummaryLang('en')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50">🇬🇧</button>
+                        <button id="group-summary-lang-nl" onclick="window.setGroupSummaryLang('nl')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50">🇳🇱</button>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('group-dives-summary-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-5 flex-1 flex flex-col gap-4 overflow-hidden bg-slate-50">
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm shrink-0">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Desde:</span>
+                            <input type="date" id="group-summary-from" onchange="window.renderGroupDivesSummaryText()" class="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Hasta:</span>
+                            <input type="date" id="group-summary-to" onchange="window.renderGroupDivesSummaryText()" class="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
+                        </div>
+                        <button onclick="window.resetGroupSummaryDates()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-colors border border-slate-200 shadow-xs" title="Restablecer a las fechas oficiales del grupo">
+                            Fechas Grupo
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="group-summary-include-gas" class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer" checked onchange="window.renderGroupDivesSummaryText()">
+                        <label for="group-summary-include-gas" class="text-xs font-black text-slate-700 cursor-pointer select-none">
+                            Incluir mezcla de gas (cuando no sea Aire)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex-1 min-h-0 flex flex-col relative">
+                    <div id="group-summary-loading" class="hidden absolute inset-0 bg-white/80 backdrop-blur-xs flex items-center justify-center rounded-xl z-10">
+                        <div class="flex items-center gap-2 text-blue-600 font-bold text-sm">
+                            <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                            <span>Buscando inmersiones del grupo...</span>
+                        </div>
+                    </div>
+                    <textarea id="group-dives-summary-text" class="flex-1 w-full p-4 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-inner resize-none text-slate-700 leading-relaxed" readonly></textarea>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-100 bg-white flex justify-between items-center gap-2 shrink-0">
+                <div id="group-summary-stats" class="text-xs font-bold text-slate-500 pl-2">0 miembros • 0 inmersiones</div>
+                <div class="flex items-center gap-2">
+                    <button onclick="document.getElementById('group-dives-summary-modal').classList.add('hidden')" class="px-4 py-2 border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold text-xs rounded-lg transition-colors">
+                        Cerrar
+                    </button>
+                    <button onclick="copyData(document.getElementById('group-dives-summary-text').value, '¡Resumen de Grupo Copiado!', true)" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        Copiar Contenido
+                    </button>
+                </div>
             </div>
         </div>
     </div>

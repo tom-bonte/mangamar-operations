@@ -2217,6 +2217,8 @@ async function fetchTripsForDateRange(startDateStr, endDateStr) {
         return t.date >= startDateStr && t.date <= endDateStr;
     });
 }
+window.fetchTripsForDateRange = fetchTripsForDateRange;
+window.getMonthsInRange = getMonthsInRange;
 
 window.downloadCsvExport = async function() {
     const startInput = document.getElementById('export-date-start');
