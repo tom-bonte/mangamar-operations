@@ -632,12 +632,21 @@ function startFirestoreListeners() {
                 window.appSettings = window.appSettings || {};
                 let resolvedMap = null;
 
-                if (Array.isArray(trackingData) && trackingData.length > 0) {
+                if (typeof data.staffOffTracking === 'object' && data.staffOffTracking && Object.keys(data.staffOffTracking).length > 0) {
+                    resolvedMap = { ...data.staffOffTracking };
+                } else if (Array.isArray(trackingData) && trackingData.length > 0) {
                     const map = {};
-                    trackingData.forEach(name => { map[name.trim()] = 'always'; });
+                    trackingData.forEach(name => { 
+                        const clean = name.trim();
+                        const isCap = (window.staffDatabase?.capitanes || []).some(c => c.nombre.trim() === clean);
+                        const isGui = (window.staffDatabase?.guias || []).some(g => g.nombre.trim() === clean);
+                        if (isCap) map[`cap:${clean}`] = 'always';
+                        else if (isGui) map[`guide:${clean}`] = 'always';
+                        else map[clean] = 'always';
+                    });
                     resolvedMap = map;
                 } else if (typeof trackingData === 'object' && trackingData && Object.keys(trackingData).length > 0) {
-                    resolvedMap = trackingData;
+                    resolvedMap = { ...trackingData };
                 }
 
                 if (resolvedMap) {

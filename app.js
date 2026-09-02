@@ -1654,21 +1654,23 @@ window.renderSettingsStaffTrackers = function() {
 
 window.handleStaffTrackToggle = function(key, isChecked) {
     const config = { ...getStaffTrackConfig() };
+    const raw = (key.startsWith('cap:') || key.startsWith('guide:')) ? key.split(':')[1] : key;
     if (isChecked) {
-        config[key] = config[key] === 'weekend' ? 'weekend' : 'always';
+        const prevMode = config[key] || (raw ? config[raw] : null);
+        config[key] = (prevMode === 'weekend') ? 'weekend' : 'always';
+        if (raw && raw !== key) delete config[raw];
     } else {
         delete config[key];
-        if (key.startsWith('cap:') || key.startsWith('guide:')) {
-            const raw = key.split(':')[1];
-            delete config[raw];
-        }
+        if (raw) delete config[raw];
     }
     saveStaffTrackConfig(config);
 };
 
 window.handleStaffTrackModeChange = function(key, newMode) {
     const config = { ...getStaffTrackConfig() };
+    const raw = (key.startsWith('cap:') || key.startsWith('guide:')) ? key.split(':')[1] : key;
     config[key] = newMode;
+    if (raw && raw !== key) delete config[raw];
     saveStaffTrackConfig(config);
 };
 
@@ -1689,11 +1691,15 @@ function saveStaffTrackConfig(config) {
         renderDailyAlerts(`${year}-${month}-${day}`);
     }
 
-    // Persist to Firestore settings
+    // Persist to Firestore settings and cleanup legacy trackedStaffOff field
     if (typeof db !== 'undefined' && db.collection) {
-        db.collection("mangamar_directory").doc("settings").set({
+        const updatePayload = {
             staffOffTracking: config
-        }, { merge: true }).catch(err => {
+        };
+        if (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue) {
+            updatePayload.trackedStaffOff = firebase.firestore.FieldValue.delete();
+        }
+        db.collection("mangamar_directory").doc("settings").set(updatePayload, { merge: true }).catch(err => {
             console.error("Error saving staffOffTracking to Firestore:", err);
         });
     }
