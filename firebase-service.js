@@ -1188,6 +1188,10 @@ window.updateLocalTripCache = function(tripId, date, updatedTrip) {
  * @async
  */
 async function saveInternalBoatData(id, date, boatInfoPayload) {
+    if (window.deletedTripIds && window.deletedTripIds.has(id)) {
+        console.warn("⚠️ saveInternalBoatData aborted because trip was deleted:", id);
+        return;
+    }
     if (!id) {
         console.error("saveInternalBoatData: Trip ID is missing!");
         showAppAlert("Error de guardado: ID de la salida ausente.");

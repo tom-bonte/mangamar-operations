@@ -145,8 +145,73 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
     if (isNavBackForward) window.hideAllNavModals('customer-profile-modal');
 
     try {
+        // 1. Immediately flush any pending manifest autosaves so new divers are queued and not delayed by debounce
+        if (window.hasPendingSave || window.isManifestDirty) {
+            if (typeof window.triggerInstantSave === 'function') {
+                try { await window.triggerInstantSave(); } catch (err) { console.warn("Flush save before opening ficha:", err); }
+            }
+        }
+
         const snapshot = await db.collection('mangamar_customers').doc(dni).collection('history').orderBy('date', 'desc').get();
-        if (snapshot.empty) {
+        
+        window.activeFichaRawDocs = [];
+        const existingTripIds = new Set();
+        if (!snapshot.empty) {
+            snapshot.forEach(doc => {
+                doc._ownerDni = window.normalizeDni(dni);
+                window.activeFichaRawDocs.push(doc);
+                existingTripIds.add(doc.id);
+            });
+        }
+
+        // 2. Instant RAM Fallback: Bridge any active trips in mergedAllocations that are missing from remote history
+        const normTargetDni = window.normalizeDni(dni);
+        const allTrips = window.mergedAllocations || [];
+        allTrips.forEach(trip => {
+            if (!trip.id || existingTripIds.has(trip.id)) return;
+            let foundGuest = null;
+            if (trip.guests && Array.isArray(trip.guests)) {
+                foundGuest = trip.guests.find(g => g.dni && window.normalizeDni(g.dni) === normTargetDni && !g.cancelled);
+            }
+            if (!foundGuest && trip.groups && Array.isArray(trip.groups)) {
+                for (const grp of trip.groups) {
+                    if (grp.guests && Array.isArray(grp.guests)) {
+                        foundGuest = grp.guests.find(g => g.dni && window.normalizeDni(g.dni) === normTargetDni && !g.cancelled);
+                        if (foundGuest) break;
+                    }
+                }
+            }
+            if (foundGuest) {
+                const dataObj = {
+                    date: trip.date,
+                    time: trip.time,
+                    site: trip.site || 'Inmersión',
+                    assignedBoat: trip.assignedBoat || 'ares',
+                    gas: foundGuest.gas || '15L Aire',
+                    rental: foundGuest.course ? 'INC' : (foundGuest.rental || 0),
+                    computer: foundGuest.course ? 'INC' : (foundGuest.computer || 0),
+                    computerPrice: foundGuest.course ? 0 : (foundGuest.computer ? (foundGuest.computerPrice || 7) : 0),
+                    insurance: foundGuest.course ? 'INC' : (foundGuest.insurance || 0),
+                    course: foundGuest.course || null,
+                    baseCourse: foundGuest.baseCourse || null,
+                    courseBadge: foundGuest.courseBadge || null,
+                    coursePrice: foundGuest.coursePrice || 0,
+                    hasBono: foundGuest.hasBono || false,
+                    localDeposit: foundGuest.localDeposit || 0,
+                    localDepositMethod: foundGuest.localDepositMethod || '',
+                    localDepositC: foundGuest.localDepositC || false,
+                    paymentStatus: foundGuest.paymentStatus || 'pending'
+                };
+                window.activeFichaRawDocs.push({
+                    id: trip.id,
+                    _ownerDni: normTargetDni,
+                    data: () => dataObj
+                });
+                existingTripIds.add(trip.id);
+            }
+        });
+
+        if (window.activeFichaRawDocs.length === 0) {
             document.getElementById('profile-history-list').innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-500 italic">No hay inmersiones registradas aún.</td></tr>';
 
             const pagosEl = document.getElementById('profile-pagos-list');
@@ -176,11 +241,6 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
             return;
         }
 
-        window.activeFichaRawDocs = [];
-        snapshot.forEach(doc => {
-            doc._ownerDni = window.normalizeDni(dni);
-            window.activeFichaRawDocs.push(doc);
-        });
         window.groupHistoryCache[window.normalizeDni(dni)] = window.activeFichaRawDocs;
         // Sort explicitly by date & time ascending so chronological calculations (like deposits/insurance)
         // are applied correctly, and reversing later yields strict descending order.

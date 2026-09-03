@@ -3839,7 +3839,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
     // This isolates active RAM edits that happen during the async save.
     const savedSnapshot = JSON.parse(JSON.stringify(itemToSave));
 
-    if (window.isDeletingTrip) {
+    if (window.isDeletingTrip || (window.deletedTripIds && window.deletedTripIds.has(itemToSave.id))) {
         console.warn("⚠️ Save aborted globally because a deletion is in progress!");
         return false;
     }
@@ -3932,7 +3932,64 @@ async function saveBoatData(itemToSave = activeBoatItem) {
         // We trigger this immediately and run it in the background so that the primary save completes in <50ms.
         (async () => {
             try {
-                // --- 1. AUTO-PROPAGATE EQUIPMENT TO ALL PENDING DIVES ---
+                // --- 1. TRACKER: SAVE DIVE HISTORY TO CUSTOMER PROFILE IMMEDIATELY ---
+                // Must be executed first so divers appear in their Ficha instantly (<100ms)
+                const historyBatch = db.batch();
+                let historyWrites = 0;
+                
+                // A. Delete ghost history for divers we calculated as REMOVED earlier
+                removedDnis.forEach(dni => {
+                    const historyRef = db.collection('mangamar_customers').doc(dni).collection('history').doc(targetTripId);
+                    historyBatch.delete(historyRef);
+                    historyWrites++;
+                });
+
+                // B. Fetch existing network history profiles to ensure we don't accidentally overwrite payment states via autosave
+                const validGuests = flatGuests.filter(g => g.dni && !g.cancelled);
+                const checkPromises = validGuests.map(gst => db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(targetTripId).get());
+                const historicSnaps = await Promise.all(checkPromises);
+                
+                validGuests.forEach((gst, idx) => {
+                    const historyRef = historicSnaps[idx].ref;
+                    const curDoc = historicSnaps[idx];
+                    // CRITICAL BUGFIX: Detect if the invoice was already liquidated manually in the CRM, never overwrite to pending.
+                    const persistentState = (curDoc.exists && curDoc.data().paymentStatus) ? curDoc.data().paymentStatus : (gst.paymentStatus || 'pending');
+
+                    historyBatch.set(historyRef, {
+                        date: targetDate,
+                        time: targetTime,
+                        site: targetSite,
+                        assignedBoat: targetAssignedBoat,
+                        gas: gst.gas || '15L Aire',
+                        rental: gst.course ? 'INC' : (gst.rental || 0),
+                        computer: gst.course ? 'INC' : (gst.computer || 0),
+                        computerPrice: gst.course ? 0 : (gst.computer ? (gst.computerPrice || 7) : 0),
+                        insurance: gst.course ? 'INC' : (gst.insurance || 0),
+                        course: gst.course || null,           
+                        baseCourse: gst.baseCourse || null,   
+                        courseBadge: gst.courseBadge || null, 
+                        coursePrice: gst.coursePrice || 0,    
+                        hasBono: gst.hasBono || false,
+                        localDeposit: gst.localDeposit || 0,
+                        localDepositMethod: gst.localDepositMethod || '',
+                        localDepositC: gst.localDepositC || false,
+                        certStatus: ((gst.course || gst.baseCourse) && (typeof window.isCertifiableCourse === 'function' ? window.isCertifiableCourse(gst.course || gst.baseCourse) : !(function(c){
+                            const norm = (c || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                            return norm.includes('acomp') || norm.includes('pasag') || norm.includes('pasaj') || norm.includes('passenger') || norm.includes('bautismo') || norm.includes('dsd') || norm.includes('discover scuba') || norm.includes('refresh') || norm.includes('repaso') || norm.includes('reactivate') || norm.includes('re-activate') || norm.includes('scuba review') || norm.includes('snorkel') || norm.includes('pax');
+                        })(gst.course || gst.baseCourse))) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+                    }, { merge: true });
+                    historyWrites++;
+                });
+                if (historyWrites > 0) {
+                    await historyBatch.commit();
+                    const affectedDnis = [...removedDnis, ...validGuests.map(g => g.dni)];
+                    if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
+                        window.updateMultipleCustomersOutstandingDebt(affectedDnis);
+                    }
+                }
+
+                // --- 2. AUTO-PROPAGATE EQUIPMENT TO ALL PENDING DIVES ---
                 let viewedDateStr = new Date().toISOString().split('T')[0];
                 if (typeof currentDate !== 'undefined' && currentDate) {
                     const year = currentDate.getFullYear();
@@ -4053,7 +4110,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                     });
                 }
                 
-                // --- 2. AUTO-SYNC EXACT TAG STATE TO OTHER BOATS RETROACTIVELY ---
+                // --- 3. AUTO-SYNC EXACT TAG STATE TO OTHER BOATS RETROACTIVELY ---
                 // This ensures if you disband/remove a tag, it removes it from their other dives that day too!
                 const otherTrips = internalTrips.filter(t => t.date === targetDate && t.id !== targetTripId);
                 let needsUpdate = false;
@@ -4105,62 +4162,6 @@ async function saveBoatData(itemToSave = activeBoatItem) {
 
                 if (needsUpdate) {
                     await db.collection('mangamar_monthly').doc(monthKey).update(updates);
-                }
-                
-                // --- 3. TRACKER: SAVE DIVE HISTORY TO CUSTOMER PROFILE ---
-                const historyBatch = db.batch();
-                let historyWrites = 0;
-                
-                // A. Delete ghost history for divers we calculated as REMOVED earlier
-                removedDnis.forEach(dni => {
-                    const historyRef = db.collection('mangamar_customers').doc(dni).collection('history').doc(targetTripId);
-                    historyBatch.delete(historyRef);
-                    historyWrites++;
-                });
-
-                // B. Fetch existing network history profiles to ensure we don't accidentally overwrite payment states via autosave
-                const validGuests = flatGuests.filter(g => g.dni && !g.cancelled);
-                const checkPromises = validGuests.map(gst => db.collection('mangamar_customers').doc(gst.dni).collection('history').doc(targetTripId).get());
-                const historicSnaps = await Promise.all(checkPromises);
-                
-                validGuests.forEach((gst, idx) => {
-                    const historyRef = historicSnaps[idx].ref;
-                    const curDoc = historicSnaps[idx];
-                    // CRITICAL BUGFIX: Detect if the invoice was already liquidated manually in the CRM, never overwrite to pending.
-                    const persistentState = (curDoc.exists && curDoc.data().paymentStatus) ? curDoc.data().paymentStatus : (gst.paymentStatus || 'pending');
-
-                    historyBatch.set(historyRef, {
-                        date: targetDate,
-                        time: targetTime,
-                        site: targetSite,
-                        assignedBoat: targetAssignedBoat,
-                        gas: gst.gas || '15L Aire',
-                        rental: gst.course ? 'INC' : (gst.rental || 0),
-                        computer: gst.course ? 'INC' : (gst.computer || 0),
-                        computerPrice: gst.course ? 0 : (gst.computer ? (gst.computerPrice || 7) : 0),
-                        insurance: gst.course ? 'INC' : (gst.insurance || 0),
-                        course: gst.course || null,           
-                        baseCourse: gst.baseCourse || null,   
-                        courseBadge: gst.courseBadge || null, 
-                        coursePrice: gst.coursePrice || 0,    
-                        hasBono: gst.hasBono || false,
-                        localDeposit: gst.localDeposit || 0,
-                        localDepositMethod: gst.localDepositMethod || '',
-                        localDepositC: gst.localDepositC || false,
-                        certStatus: ((gst.course || gst.baseCourse) && (typeof window.isCertifiableCourse === 'function' ? window.isCertifiableCourse(gst.course || gst.baseCourse) : !(function(c){
-                            const norm = (c || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                            return norm.includes('acomp') || norm.includes('pasag') || norm.includes('pasaj') || norm.includes('passenger') || norm.includes('bautismo') || norm.includes('dsd') || norm.includes('discover scuba') || norm.includes('refresh') || norm.includes('repaso') || norm.includes('reactivate') || norm.includes('re-activate') || norm.includes('scuba review') || norm.includes('snorkel') || norm.includes('pax');
-                        })(gst.course || gst.baseCourse))) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp() 
-                    }, { merge: true });
-                    historyWrites++;
-                });
-                if (historyWrites > 0) {
-                    await historyBatch.commit();
-                    const affectedDnis = [...removedDnis, ...validGuests.map(g => g.dni)];
-                    if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
-                        window.updateMultipleCustomersOutstandingDebt(affectedDnis);
-                    }
                 }
             } catch (backgroundErr) {
                 console.error("Background save updates failed:", backgroundErr);
@@ -4540,116 +4541,124 @@ function deleteBoatData() {
 }
 
 async function confirmDeleteBoatData() {
-    if (typeof autoSaveTimeout !== 'undefined') clearTimeout(autoSaveTimeout);
-    
-    // CRITICAL Safeguard: Wait for any active Firestore auto-saves to fully complete first 
-    // to prevent network race conditions from resurrecting the trip document in Firestore.
-    const activeQueue = window.saveQueues && window.saveQueues[activeBoatItem.id];
-    if (activeQueue && activeQueue.isSaving) {
-        while (activeQueue.isSaving) {
-            await new Promise(resolve => setTimeout(resolve, 50));
-        }
-    }
-    
-    try {
-        let originalTrip = mergedAllocations.find(t => t.id === activeBoatItem.id && t.isInternalTrip) || mergedAllocations.find(t => t.id === activeBoatItem.id);
-        const internalTargetMonth = originalTrip && originalTrip._sourceDocId ? originalTrip._sourceDocId : activeBoatItem.date.substring(0, 7);
-        
-        const historyBatch = db.batch();
-        let historyWrites = 0;
-        if (originalTrip && originalTrip.guests) {
-            originalTrip.guests.forEach(g => {
-                if (g.dni) {
-                    const ref = db.collection('mangamar_customers').doc(g.dni).collection('history').doc(activeBoatItem.id);
-                    historyBatch.delete(ref);
-                    historyWrites++;
-                }
-            });
-        }
-        const targetMonths = new Set();
-        targetMonths.add(activeBoatItem.date.substring(0, 7)); // Always include the target month of the date
-        if (window.internalTrips) {
-            window.internalTrips.forEach(t => {
-                if (t.id === activeBoatItem.id && t._sourceDocId) {
-                    targetMonths.add(t._sourceDocId);
-                }
-            });
-        }
+    if (!activeBoatItem) return;
+    const tripToDelete = activeBoatItem;
+    const tripId = tripToDelete.id;
+    const tripDate = tripToDelete.date;
+    const isVisor = !!(tripToDelete.isVisor || tripToDelete.isVisorTrip);
 
-        const deletePromises = [];
-        const INTERNAL_DB_NAME = 'mangamar_monthly';
-        targetMonths.forEach(monthKey => {
-            console.log(`🗑️ [HARD DELETE] Eliminando salida internamente de forma permanente: ${activeBoatItem.id} en ${INTERNAL_DB_NAME}/${monthKey}`);
+    // Cancel any pending auto-save timers immediately
+    if (typeof autoSaveTimeout !== 'undefined' && autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = null;
+    }
+
+    // Abort and neutralize any pending queues for this trip
+    window.deletedTripIds = window.deletedTripIds || new Set();
+    window.deletedTripIds.add(tripId);
+
+    const activeQueue = window.saveQueues && window.saveQueues[tripId];
+    if (activeQueue) {
+        activeQueue.hasPending = false;
+        activeQueue.isSaving = false;
+    }
+
+    // ── 1. INSTANT UI CLOSURE (<10ms) ─────────────────────────────────────────
+    // Hide both modals immediately so the user never sees lag or delay
+    const deleteModal = document.getElementById('delete-confirm-modal');
+    if (deleteModal) deleteModal.classList.add('hidden');
+    const manageModal = document.getElementById('manage-boat-modal');
+    if (manageModal) manageModal.classList.add('hidden');
+
+    showToast("Salida eliminada correctamente.");
+
+    // ── 2. INSTANT RAM FLUSH ──────────────────────────────────────────────────
+    if (isVisor) {
+        window.hiddenVisorTrips.add(tripId);
+    }
+    if (window.internalTrips) {
+        window.internalTrips = window.internalTrips.filter(t => t.id !== tripId);
+    }
+    if (window.mergedAllocations) {
+        window.mergedAllocations = window.mergedAllocations.filter(t => t.id !== tripId);
+    }
+
+    // Clear state
+    activeBoatItem = null;
+    window.activeBoatItem = null;
+    window.isDeletingTrip = false;
+    window.isManifestDirty = false;
+    if (typeof window.clearModalHistory === 'function') window.clearModalHistory();
+
+    // Re-render UI immediately
+    if (typeof window.mergeAndRender === 'function') {
+        window.mergeAndRender();
+    } else if (typeof renderDailyGrid === 'function') {
+        renderDailyGrid();
+    }
+
+    // ── 3. BACKGROUND DATABASE CLEANUP ───────────────────────────────────────
+    (async () => {
+        try {
+            let originalTrip = (window.mergedAllocations || []).find(t => t.id === tripId && t.isInternalTrip) 
+                || (window.internalTrips || []).find(t => t.id === tripId)
+                || tripToDelete;
             
-            // Soft delete for Visor trips, physical deletion for internal trips
-            const updatePayload = {};
-            if (activeBoatItem.isVisor || activeBoatItem.isVisorTrip) {
-                updatePayload[`allocations.${activeBoatItem.id}`] = { 
-                    _deleted: true, 
-                    date: activeBoatItem.date, 
-                    id: activeBoatItem.id 
-                };
-            } else {
-                updatePayload[`allocations.${activeBoatItem.id}`] = firebase.firestore.FieldValue.delete();
+            const historyBatch = db.batch();
+            let historyWrites = 0;
+            if (originalTrip && originalTrip.guests) {
+                originalTrip.guests.forEach(g => {
+                    if (g.dni) {
+                        const ref = db.collection('mangamar_customers').doc(g.dni).collection('history').doc(tripId);
+                        historyBatch.delete(ref);
+                        historyWrites++;
+                    }
+                });
             }
-            
-            deletePromises.push(
-                db.collection(INTERNAL_DB_NAME).doc(monthKey).update(updatePayload)
-                .catch(err => {
-                    console.warn(`Hard delete skipped for doc ${monthKey} (maybe it doesnt exist):`, err);
-                })
-            );
-        });
 
-        // Track tombstone for Visor trips (since we can't delete them from master DB)
-        if (activeBoatItem.isVisorTrip || activeBoatItem.isVisor) {
-            window.hiddenVisorTrips.add(activeBoatItem.id);
-        }
-        
-        // INSTANT RAM FLUSH: Remove from local array so UI doesn't lag
-        if (window.internalTrips) {
-            window.internalTrips = window.internalTrips.filter(t => t.id !== activeBoatItem.id);
-        }
-        
-        // Force an immediate UI re-render before waiting for Firebase round-trip
-        if (typeof window.mergeAndRender === 'function') {
-            window.mergeAndRender();
-        }
+            const targetMonths = new Set();
+            targetMonths.add(tripDate.substring(0, 7));
+            if (tripToDelete._sourceDocId) {
+                targetMonths.add(tripToDelete._sourceDocId);
+            }
 
-        // Clear activeBoatItem first to prevent closeManageBoatModal from reviving it!
-        activeBoatItem = null;
-        window.activeBoatItem = null;
-
-        // Unlock the autosave engine
-        window.isDeletingTrip = false;
-
-        // Close the modals instantly so the UI feels snappy and fast
-        document.getElementById('delete-confirm-modal').classList.add('hidden');
-        closeManageBoatModal();
-        showToast("Salida eliminada correctamente.");
-
-        // Run the deletion operations asynchronously in the background so the user doesn't wait
-        Promise.all(deletePromises)
-            .then(async () => {
-                if (historyWrites > 0) {
-                    await historyBatch.commit();
+            const deletePromises = [];
+            const INTERNAL_DB_NAME = 'mangamar_monthly';
+            targetMonths.forEach(monthKey => {
+                const updatePayload = {};
+                if (isVisor) {
+                    updatePayload[`allocations.${tripId}`] = { 
+                        _deleted: true, 
+                        date: tripDate, 
+                        id: tripId 
+                    };
+                } else {
+                    updatePayload[`allocations.${tripId}`] = firebase.firestore.FieldValue.delete();
                 }
-                // --- GARBAGE COLLECTOR TRIGGER ---
-                if (originalTrip && originalTrip.guests) {
-                    originalTrip.guests.forEach(g => {
-                        if (g.dni && window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(g.dni);
-                    });
-                }
-            })
-            .catch(err => {
-                console.error("Error performing background trip delete:", err);
-                showAppAlert("Error al completar la eliminación en segundo plano: " + err.message);
+                
+                deletePromises.push(
+                    db.collection(INTERNAL_DB_NAME).doc(monthKey).update(updatePayload)
+                    .catch(err => {
+                        console.warn(`Hard delete skipped for doc ${monthKey}:`, err);
+                    })
+                );
             });
-    } catch (e) {
-        window.isDeletingTrip = false; // Always unlock the autosave engine on error!
-        console.error(e); 
-        showAppAlert("Error al eliminar la salida: " + e.message);
-    }
+
+            await Promise.all(deletePromises);
+            if (historyWrites > 0) {
+                await historyBatch.commit();
+            }
+
+            // Clean up insurance profiles
+            if (originalTrip && originalTrip.guests) {
+                originalTrip.guests.forEach(g => {
+                    if (g.dni && window.cleanOrphanedInsurance) window.cleanOrphanedInsurance(g.dni);
+                });
+            }
+        } catch (err) {
+            console.error("Error performing background trip delete:", err);
+        }
+    })();
 }
 
 

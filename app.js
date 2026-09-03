@@ -617,7 +617,8 @@ function renderDailyGrid() {
     // Render Captain on Day Off alerts at the top
     renderDailyAlerts(targetDateStr);
 
-    const todaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
+    const rawTodaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
+    const todaysTrips = typeof getMergedTrips === 'function' ? getMergedTrips(rawTodaysTrips) : rawTodaysTrips;
     
     // We establish the 4 columns: Time, Ares, Kaiser, Shore
     container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-8 pb-12 px-2 md:min-w-[800px] min-w-0 w-full';
@@ -649,7 +650,7 @@ function renderDailyGrid() {
         tLabel.innerText = time;
         timeCol.appendChild(tLabel);
 
-        let finalTrips = getMergedTrips(todaysTrips.filter(t => t.time === time));
+        let finalTrips = todaysTrips.filter(t => t.time === time);
         
         let aTrip = null, kTrip = null, sTrip = null;
         let aConflicts = [], kConflicts = [], sConflicts = [];
