@@ -7,6 +7,7 @@
 // Initialize Firebase using the config from config.js
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+window.db = db;
 
 // --- DNI Normalization & CRM Consolidator helpers ---
 window.normalizeDni = function(dni) {
@@ -1285,14 +1286,15 @@ window.saveMultipleTripsData = async function(trips) {
             });
         }
         
+        const existingInternal = (window.internalTrips || []).find(t => String(t.id) === String(trip.id));
         const prefix = `allocations.${trip.id}`;
         updatesByMonth[monthKey][`${prefix}.id`] = trip.id;
         updatesByMonth[monthKey][`${prefix}.date`] = trip.date || '';
         updatesByMonth[monthKey][`${prefix}.time`] = trip.time || '';
-        updatesByMonth[monthKey][`${prefix}.assignedBoat`] = trip.assignedBoat || 'ares';
-        updatesByMonth[monthKey][`${prefix}.site`] = trip.site || 'Sin Destino';
-        updatesByMonth[monthKey][`${prefix}.captain`] = trip.captain || '';
-        updatesByMonth[monthKey][`${prefix}.guide`] = trip.guide || '';
+        updatesByMonth[monthKey][`${prefix}.assignedBoat`] = trip.assignedBoat || (existingInternal ? existingInternal.assignedBoat : 'ares') || 'ares';
+        updatesByMonth[monthKey][`${prefix}.site`] = trip.site || (existingInternal ? existingInternal.site : 'Sin Destino') || 'Sin Destino';
+        updatesByMonth[monthKey][`${prefix}.captain`] = trip.captain || (existingInternal ? existingInternal.captain : '') || '';
+        updatesByMonth[monthKey][`${prefix}.guide`] = trip.guide || (existingInternal ? existingInternal.guide : '') || '';
         updatesByMonth[monthKey][`${prefix}.groups`] = trip.groups || [];
         updatesByMonth[monthKey][`${prefix}.guests`] = flatGuests;
         updatesByMonth[monthKey][`${prefix}.waitlist`] = trip.waitlist || [];

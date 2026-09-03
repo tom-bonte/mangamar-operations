@@ -308,12 +308,25 @@ window.getTripLocationName = function(t) {
 window.getMergedTrips = function(tripsArray) {
     let deduplicated = new Map();
     tripsArray.forEach(t => {
-        if (t.isVisorTrip) deduplicated.set(t.id, { ...t, isVisor: true, originalVisorSite: t.site });
+        if (t.isVisorTrip || t.isVisor) deduplicated.set(t.id, { ...t, isVisor: true, originalVisorSite: t.site });
     });
     tripsArray.forEach(t => {
         if (t.isInternalTrip) {
-            if (deduplicated.has(t.id)) deduplicated.set(t.id, { ...deduplicated.get(t.id), ...t, isVisor: true });
-            else deduplicated.set(t.id, { ...t, isVisor: false });
+            if (deduplicated.has(t.id)) {
+                const existing = deduplicated.get(t.id);
+                const hasInternalGuests = (t.groups && t.groups.some(g => g.guests && g.guests.length > 0)) || (t.guests && t.guests.length > 0);
+                const merged = { ...existing, ...t, isVisor: true };
+                // Safeguard: if internal shadow has 0 passengers but Visor has passengers, preserve Visor passengers!
+                if (!hasInternalGuests && existing.guests && existing.guests.length > 0) {
+                    merged.guests = existing.guests;
+                    if (!merged.groups || merged.groups.length === 0) {
+                        merged.groups = [{ guide: t.guide || existing.guide || '', apoyo: t.apoyo || existing.apoyo || '', guests: existing.guests }];
+                    }
+                }
+                deduplicated.set(t.id, merged);
+            } else {
+                deduplicated.set(t.id, { ...t, isVisor: false });
+            }
         }
     });
     return Array.from(deduplicated.values());
