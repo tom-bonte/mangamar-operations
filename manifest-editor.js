@@ -4149,7 +4149,7 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                         localDepositC: gst.localDepositC || false,
                         certStatus: ((gst.course || gst.baseCourse) && (typeof window.isCertifiableCourse === 'function' ? window.isCertifiableCourse(gst.course || gst.baseCourse) : !(function(c){
                             const norm = (c || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                            return norm.includes('acomp') || norm.includes('bautismo') || norm.includes('dsd') || norm.includes('discover scuba') || norm.includes('refresh') || norm.includes('repaso') || norm.includes('reactivate') || norm.includes('re-activate') || norm.includes('scuba review') || norm.includes('snorkel') || norm.includes('pax');
+                            return norm.includes('acomp') || norm.includes('pasag') || norm.includes('pasaj') || norm.includes('passenger') || norm.includes('bautismo') || norm.includes('dsd') || norm.includes('discover scuba') || norm.includes('refresh') || norm.includes('repaso') || norm.includes('reactivate') || norm.includes('re-activate') || norm.includes('scuba review') || norm.includes('snorkel') || norm.includes('pax');
                         })(gst.course || gst.baseCourse))) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
                         timestamp: firebase.firestore.FieldValue.serverTimestamp() 
                     }, { merge: true });

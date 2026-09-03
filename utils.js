@@ -1030,6 +1030,9 @@ window.isNonCertifiableCourse = function(courseName) {
     const norm = courseName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     return (
         norm.includes('acomp') ||          // Acompañante, acompanante, acomp
+        norm.includes('pasag') ||          // Pasagero, pasagera
+        norm.includes('pasaj') ||          // Pasajero, pasajera
+        norm.includes('passenger') ||      // Passenger
         norm.includes('bautismo') ||       // Bautismo, DSD (Bautismo)...
         norm.includes('dsd') ||            // DSD
         norm.includes('discover scuba') || // Discover Scuba Diving

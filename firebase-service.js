@@ -725,7 +725,7 @@ function startFirestoreListeners() {
                     ? window.isNonCertifiableCourse(cleanCourse)
                     : (function(c) {
                         const norm = (c || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                        return norm.includes('acomp') || norm.includes('bautismo') || norm.includes('dsd') || norm.includes('discover scuba') || norm.includes('refresh') || norm.includes('repaso') || norm.includes('reactivate') || norm.includes('re-activate') || norm.includes('scuba review') || norm.includes('snorkel') || norm.includes('pax');
+                        return norm.includes('acomp') || norm.includes('pasag') || norm.includes('pasaj') || norm.includes('passenger') || norm.includes('bautismo') || norm.includes('dsd') || norm.includes('discover scuba') || norm.includes('refresh') || norm.includes('repaso') || norm.includes('reactivate') || norm.includes('re-activate') || norm.includes('scuba review') || norm.includes('snorkel') || norm.includes('pax');
                     })(cleanCourse);
                 if (cleanCourse && !isNonCert) {
                     if (!certMap.has(dni)) certMap.set(dni, []);
