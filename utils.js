@@ -1025,6 +1025,29 @@ window.matchCourseNames = function(a, b) {
     return listA.some(x => listB.includes(x));
 };
 
+window.isNonCertifiableCourse = function(courseName) {
+    if (!courseName) return true;
+    const norm = courseName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    return (
+        norm.includes('acomp') ||          // Acompañante, acompanante, acomp
+        norm.includes('bautismo') ||       // Bautismo, DSD (Bautismo)...
+        norm.includes('dsd') ||            // DSD
+        norm.includes('discover scuba') || // Discover Scuba Diving
+        norm.includes('refresh') ||        // Refresh
+        norm.includes('repaso') ||         // Repaso
+        norm.includes('reactivate') ||     // Reactivate
+        norm.includes('re-activate') ||    // Re-Activate
+        norm.includes('scuba review') ||   // Scuba Review
+        norm.includes('snorkel') ||        // Snorkel, Snorkeling
+        norm.includes('pax') ||            // Pax
+        norm === 'pax'
+    );
+};
+
+window.isCertifiableCourse = function(courseName) {
+    return !window.isNonCertifiableCourse(courseName);
+};
+
 function renderDailyGeneralStaffView(dateStr, container) {
     if (!container) return;
 

@@ -625,9 +625,14 @@ window.renderTodayCerts = async function (forceFetch = false) {
                 let rawCourse = data.course || data.baseCourse || 'Curso Desconocido';
                 let cleanCourse = rawCourse.split(' | ')[0].trim();
                 
-                // Skip snorkelers, refresh, and pax as they don't need to be certified
-                const lowerCourse = cleanCourse.toLowerCase();
-                if (lowerCourse.includes('snorkel') || lowerCourse.includes('refresh') || lowerCourse.includes('pax') || lowerCourse === 'pax') return;
+                // Skip non-certifiable activities: acompañante, refresh, bautismo/dsd, snorkel, pax
+                const isNonCert = (typeof window.isNonCertifiableCourse === 'function')
+                    ? window.isNonCertifiableCourse(cleanCourse)
+                    : (function(c) {
+                        const norm = (c || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                        return norm.includes('acomp') || norm.includes('bautismo') || norm.includes('dsd') || norm.includes('discover scuba') || norm.includes('refresh') || norm.includes('repaso') || norm.includes('reactivate') || norm.includes('re-activate') || norm.includes('scuba review') || norm.includes('snorkel') || norm.includes('pax');
+                    })(cleanCourse);
+                if (isNonCert) return;
 
                 let uniqKey = dni + '_' + cleanCourse;
 

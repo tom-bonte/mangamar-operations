@@ -4147,8 +4147,10 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                         localDeposit: gst.localDeposit || 0,
                         localDepositMethod: gst.localDepositMethod || '',
                         localDepositC: gst.localDepositC || false,
-                        paymentStatus: persistentState,
-                        certStatus: ((gst.course || gst.baseCourse) && !((gst.course || gst.baseCourse).toLowerCase().includes('refresh') || (gst.course || gst.baseCourse).toLowerCase().includes('snorkel') || (gst.course || gst.baseCourse).toLowerCase().includes('pax'))) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
+                        certStatus: ((gst.course || gst.baseCourse) && (typeof window.isCertifiableCourse === 'function' ? window.isCertifiableCourse(gst.course || gst.baseCourse) : !(function(c){
+                            const norm = (c || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                            return norm.includes('acomp') || norm.includes('bautismo') || norm.includes('dsd') || norm.includes('discover scuba') || norm.includes('refresh') || norm.includes('repaso') || norm.includes('reactivate') || norm.includes('re-activate') || norm.includes('scuba review') || norm.includes('snorkel') || norm.includes('pax');
+                        })(gst.course || gst.baseCourse))) ? ((curDoc.exists && curDoc.data().certStatus) ? curDoc.data().certStatus : 'pendiente') : firebase.firestore.FieldValue.delete(),
                         timestamp: firebase.firestore.FieldValue.serverTimestamp() 
                     }, { merge: true });
                     historyWrites++;
