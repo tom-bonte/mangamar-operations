@@ -932,6 +932,105 @@ window.safeEncodeJSON = function(obj) {
     return encodeURIComponent(str).replace(/'/g, "%27");
 };
 
+window.normalizeDateStr = window.normalizeDateStr || function(dateStr) {
+    if (!dateStr) return '';
+    const trimmed = String(dateStr).trim();
+    if (!trimmed) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/.test(trimmed)) {
+        const parts = trimmed.split(/[\/\-\.]/);
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+    if (/^\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}$/.test(trimmed)) {
+        const parts = trimmed.split(/[\/\-\.]/);
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    const monthNames = {
+        ene: '01', jan: '01', enero: '01', january: '01',
+        feb: '02', febrero: '02', february: '02',
+        mar: '03', marzo: '03', march: '03',
+        abr: '04', apr: '04', abril: '04', april: '04',
+        may: '05', mayo: '05',
+        jun: '06', junio: '06', june: '06',
+        jul: '07', julio: '07', july: '07',
+        ago: '08', aug: '08', agosto: '08', august: '08',
+        sep: '09', set: '09', septiembre: '09', september: '09',
+        oct: '10', octubre: '10', october: '10',
+        nov: '11', noviembre: '11', november: '11',
+        dic: '12', dec: '12', diciembre: '12', december: '12'
+    };
+    const parts = trimmed.split(/[\/\-\.\s]+/);
+    if (parts.length === 3) {
+        let day, month, year;
+        if (/^\d{4}$/.test(parts[2])) {
+            day = parts[0];
+            month = parts[1].toLowerCase();
+            year = parts[2];
+        } else if (/^\d{4}$/.test(parts[0])) {
+            year = parts[0];
+            month = parts[1].toLowerCase();
+            day = parts[2];
+        }
+        if (year && monthNames[month] && /^\d{1,2}$/.test(day)) {
+            return `${year}-${monthNames[month]}-${day.padStart(2, '0')}`;
+        }
+    }
+    if (trimmed.includes('GMT') || (isNaN(Number(trimmed)) && !isNaN(Date.parse(trimmed)))) {
+        const rawD = new Date(trimmed);
+        if (!isNaN(rawD.getTime())) {
+            const yyyy = rawD.getFullYear();
+            const mm = String(rawD.getMonth() + 1).padStart(2, '0');
+            const dd = String(rawD.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+    }
+    return trimmed;
+};
+
+window.isInsuranceValidForDate = function(insurance, targetDate) {
+    if (!insurance) return false;
+    let typeStr = '';
+    let expiryStr = '';
+    if (typeof insurance === 'string') {
+        typeStr = insurance.trim();
+    } else if (typeof insurance === 'object') {
+        typeStr = (insurance.type || '').toString().trim();
+        expiryStr = (insurance.expiry || '').toString().trim();
+    } else {
+        return false;
+    }
+
+    const lowerType = typeStr.toLowerCase();
+    if (!typeStr || typeStr === '0' || typeStr === '---' || lowerType === 'no' || lowerType === 'none' || lowerType === 's/n') {
+        return false;
+    }
+
+    const norm = typeof window.normalizeDateStr === 'function' ? window.normalizeDateStr : (s => s);
+    const normTarget = targetDate ? norm(targetDate) : '';
+
+    let testDateStr = expiryStr;
+    if (!testDateStr) {
+        const match = typeStr.match(/\d{4}-\d{2}-\d{2}/) || typeStr.match(/\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}/);
+        if (match) testDateStr = match[0];
+    }
+
+    if (testDateStr) {
+        const normExpiry = norm(testDateStr);
+        if (normExpiry && /^\d{4}-\d{2}-\d{2}$/.test(normExpiry)) {
+            if (normTarget && /^\d{4}-\d{2}-\d{2}$/.test(normTarget)) {
+                return normTarget <= normExpiry;
+            } else {
+                let dDate = new Date(normExpiry);
+                dDate.setHours(23, 59, 59, 999);
+                return !isNaN(dDate.getTime()) && dDate.getTime() >= Date.now();
+            }
+        }
+    }
+    return true;
+};
+
 window.formatInsuranceDate = function(dateStr) {
     if (!dateStr) return '---';
     const trimmed = dateStr.trim();

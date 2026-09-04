@@ -525,9 +525,9 @@ window.addDiverToBoat = function(identifier, groupTag, targetGroupIdx) {
         let localIns = 0;
         if (cx.insurance) {
             const insObj = cx.insurance;
-            const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
             const activeDate = activeBoatItem ? activeBoatItem.date : '';
-            if (expiry && expiry >= activeDate) {
+            const isValid = window.isInsuranceValidForDate ? window.isInsuranceValidForDate(insObj, activeDate) : true;
+            if (isValid) {
                 if (insObj.purchaseDate && insObj.purchaseDate === activeDate) {
                     localIns = insObj.type || 0;
                 } else {
@@ -680,9 +680,9 @@ window.addAllGroupToBoat = function(groupId, targetGroupIdx) {
                 let localIns = 0;
                 if (cx.insurance) {
                     const insObj = cx.insurance;
-                    const expiry = insObj.expiry ? window.normalizeDateStr(insObj.expiry) : '';
                     const activeDate = activeBoatItem ? activeBoatItem.date : '';
-                    if (expiry && expiry >= activeDate) {
+                    const isValid = window.isInsuranceValidForDate ? window.isInsuranceValidForDate(insObj, activeDate) : true;
+                    if (isValid) {
                         if (insObj.purchaseDate && insObj.purchaseDate === activeDate) {
                             localIns = insObj.type || 0;
                         } else {

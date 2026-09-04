@@ -1030,9 +1030,13 @@ function _renderGroupsCore(skipAutoSave = false) {
                 const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
                 if (profile && profile.insurance) {
                     globalIns = profile.insurance;
-                    const expiryStr = window.normalizeDateStr(globalIns.expiry);
-                    if (expiryStr < activeBoatItem.date) {
-                        isInsExpired = true;
+                    if (window.isInsuranceValidForDate) {
+                        isInsExpired = !window.isInsuranceValidForDate(globalIns, activeBoatItem ? activeBoatItem.date : '');
+                    } else {
+                        const expiryStr = window.normalizeDateStr(globalIns.expiry);
+                        if (expiryStr && activeBoatItem && expiryStr < activeBoatItem.date) {
+                            isInsExpired = true;
+                        }
                     }
                 }
             }
@@ -1903,9 +1907,13 @@ window.updateGuestInsuranceButton = function(groupIndex, guestIndex) {
         const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
         if (profile && profile.insurance) {
             globalIns = profile.insurance;
-            const expiryStr = window.normalizeDateStr(globalIns.expiry);
-            if (expiryStr < activeBoatItem.date) {
-                isInsExpired = true;
+            if (window.isInsuranceValidForDate) {
+                isInsExpired = !window.isInsuranceValidForDate(globalIns, activeBoatItem ? activeBoatItem.date : '');
+            } else {
+                const expiryStr = window.normalizeDateStr(globalIns.expiry);
+                if (expiryStr && activeBoatItem && expiryStr < activeBoatItem.date) {
+                    isInsExpired = true;
+                }
             }
         }
     }

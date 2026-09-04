@@ -423,7 +423,37 @@ setTimeout(() => {
         let isCovered = false;
         let cleanIns = (data.insurance || 0).toString().replace(' ✔', '');
 
-        if (['1D', '1W', '1M', '1Y'].includes(cleanIns)) {
+        // Check if customer has a valid global/profile insurance covering this dive date
+        const hasValidProfileIns = window.isInsuranceValidForDate && window.isInsuranceValidForDate(customerInfo.insurance, data.date);
+
+        if (hasValidProfileIns) {
+            isCovered = true;
+            p.insurance = 0;
+            if (cleanIns === '0' || cleanIns === 0 || !cleanIns) {
+                cleanIns = 'Propio';
+                data.insurance = 'Propio';
+                // Auto-heal background update to Firestore history doc
+                if (typeof db !== 'undefined' && item.id && !item.id.startsWith('temp_') && data.type !== 'pago' && data.type !== 'producto' && data.type !== 'servicio') {
+                    db.collection('mangamar_customers').doc(itemDni).collection('history').doc(item.id).update({
+                        insurance: 'Propio'
+                    }).catch(e => console.warn("Auto-heal insurance fail:", e));
+                }
+                // Auto-heal RAM trip
+                const healTripGuest = (trip) => {
+                    if (!trip) return;
+                    (trip.guests || []).forEach(g => {
+                        if (window.isSameDni(g.dni, itemDni) && (g.insurance === 0 || g.insurance === '0' || !g.insurance)) g.insurance = 'Propio';
+                    });
+                    (trip.groups || []).forEach(grp => {
+                        (grp.guests || []).forEach(g => {
+                            if (window.isSameDni(g.dni, itemDni) && (g.insurance === 0 || g.insurance === '0' || !g.insurance)) g.insurance = 'Propio';
+                        });
+                    });
+                };
+                if (window.internalTrips) healTripGuest(window.internalTrips.find(t => t.id === item.id));
+                if (window.mergedAllocations) healTripGuest(window.mergedAllocations.find(t => t.id === item.id));
+            }
+        } else if (['1D', '1W', '1M', '1Y'].includes(cleanIns)) {
             if (activeInsExpiry && data.date <= activeInsExpiry) {
                 isCovered = true;
                 p.insurance = 0;
@@ -696,19 +726,21 @@ window.renderFichaFromCache = function(dni, targetTab) {
             else if (dispComp === 'INC') { compHistClass = 'bg-emerald-500 text-white border-emerald-600 font-black shadow-inner'; compHistText = 'INC'; }
             let bonoClass = data.hasBono ? 'bg-indigo-500 text-white border-indigo-600 font-bold' : 'bg-diagonal-indigo text-indigo-300 border-indigo-200';
 
+            const itemOwnerDni = item._ownerDni || dni;
+            const itemCustInfo = customerDatabase.find(c => window.isSameDni(c.dni, itemOwnerDni));
+            const isProfileInsValid = itemCustInfo && window.isInsuranceValidForDate && window.isInsuranceValidForDate(itemCustInfo.insurance, data.date);
+
             let insClass = 'px-1.5 min-w-[36px] bg-red-500 text-white border-red-600';
             let insText = 'Seg 🛑';
             if (dispIns === 'INC') {
                 insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
                 insText = 'INC';
+            } else if (isCovered || isProfileInsValid) {
+                insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
+                insText = ['1D', '1W', '1M', '1Y'].includes(dispIns) ? `Seg ✔ (${dispIns})` : 'Seg ✔';
             } else if (dispIns !== '0' && dispIns !== 0) {
-                if (isCovered) {
-                    insClass = 'px-1.5 min-w-[36px] bg-emerald-500 text-white border-emerald-600 font-black shadow-inner';
-                    insText = ['1D', '1W', '1M', '1Y'].includes(dispIns) ? `Seg ✔ (${dispIns})` : 'Seg ✔';
-                } else {
-                    insClass = 'px-1.5 min-w-[36px] bg-blue-500 text-white border-blue-600 font-bold shadow-sm';
-                    insText = ['1D', '1W', '1M', '1Y'].includes(dispIns) ? `Seg 💳 (${dispIns})` : 'Seg 💳';
-                }
+                insClass = 'px-1.5 min-w-[36px] bg-blue-500 text-white border-blue-600 font-bold shadow-sm';
+                insText = ['1D', '1W', '1M', '1Y'].includes(dispIns) ? `Seg 💳 (${dispIns})` : 'Seg 💳';
             }
 
             const payTitle = isPaid ? `Cobrado con ${data.paymentMethod || 'Tarjeta'} por ${data.paidBy || 'N/A'}` : '';
