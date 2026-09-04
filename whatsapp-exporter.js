@@ -266,17 +266,17 @@ window.generateWhatsAppText = function() {
 
     const txt = {
         es: {
-            header: "⚠️ *Información importante:*\nLas horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco). Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.",
+            header: "⚠️ *Información importante:*\n- Las horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco).\n- Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.\n- Al llegar al centro, primero, hay que pasar por recepción para entregar tu DNI en físico.",
             spots: 'plazas libres',
             confirm: 'Por confirmar'
         },
         en: {
-            header: "⚠️ *Important notice:*\nPlease note that the times indicated are your arrival times at the dive center, not the boat departure times. Please be on time and remember to bring your physical DNI / Passport / ID card.",
+            header: "⚠️ *Important notice:*\n- The times indicated correspond to your arrival time at the dive center (not the boat departure).\n- Please be on time and remember to bring your physical DNI, Passport or ID card.\n- Upon arrival at the center, please first go to reception to hand in your physical ID.",
             spots: 'spots left',
             confirm: 'To be confirmed'
         },
         nl: {
-            header: "⚠️ *Belangrijke informatie:*\nHoud er rekening mee dat de aangegeven tijden de verwachte aankomsttijden in het duikcentrum zijn (niet de vertrektijd van de boot). Wees alstublieft op tijd en neem je fysieke DNI / paspoort / ID-kaart mee.",
+            header: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven.",
             spots: 'plaatsen vrij',
             confirm: 'Nog te bevestigen'
         }
