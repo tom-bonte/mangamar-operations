@@ -1316,9 +1316,9 @@ window.renderGroupDivesSummaryText = async function() {
     };
 
     const labels = {
-        es: { summary: "Resumen de Inmersiones", group: "Grupo", range: "Rango de Fechas", members: "Buceadores", diver: "buzo", divers: "buzos", noDives: "No se encontraron inmersiones para los miembros de este grupo en este rango de fechas.", all: "Todas las fechas", from: "Desde", to: "Hasta" },
-        en: { summary: "Dive Summary", group: "Group", range: "Date Range", members: "Divers", diver: "diver", divers: "divers", noDives: "No dives found for group members in this date range.", all: "All dates", from: "From", to: "To" },
-        nl: { summary: "Duikoverzicht", group: "Groep", range: "Datumperiode", members: "Duikers", diver: "duiker", divers: "duikers", noDives: "Geen duiken gevonden voor groepsleden in deze periode.", all: "Alle data", from: "Vanaf", to: "Tot" }
+        es: { summary: "Resumen de Inmersiones", group: "Grupo", range: "Rango de Fechas", members: "Buceadores", diver: "buzo", divers: "buzos", waitlistLabel: "Lista de espera", waitlistTag: "en lista de espera", noDives: "No se encontraron inmersiones para los miembros de este grupo en este rango de fechas.", all: "Todas las fechas", from: "Desde", to: "Hasta" },
+        en: { summary: "Dive Summary", group: "Group", range: "Date Range", members: "Divers", diver: "diver", divers: "divers", waitlistLabel: "Waitlist", waitlistTag: "on waitlist", noDives: "No dives found for group members in this date range.", all: "All dates", from: "From", to: "To" },
+        nl: { summary: "Duikoverzicht", group: "Groep", range: "Datumperiode", members: "Duikers", diver: "duiker", divers: "duikers", waitlistLabel: "Wachtlijst", waitlistTag: "op wachtlijst", noDives: "Geen duiken gevonden voor groepsleden in deze periode.", all: "Alle data", from: "Vanaf", to: "Tot" }
     };
 
     const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
@@ -1343,7 +1343,12 @@ window.renderGroupDivesSummaryText = async function() {
         }
         if (!fullName) fullName = mDni;
         memberDisplayNames.push(fullName);
-        groupMembersMap.set(String(mDni).trim().toUpperCase(), { dni: mDni, name: fullName });
+        groupMembersMap.set(String(mDni).trim().toUpperCase(), { 
+            dni: mDni, 
+            name: fullName, 
+            phone: cx ? cx.telefono : '', 
+            email: cx ? cx.email : '' 
+        });
     });
 
     const toDisplayDate = (s) => {
@@ -1477,8 +1482,108 @@ window.renderGroupDivesSummaryText = async function() {
                         name: memberDisplayName,
                         dni: g.dni || '',
                         gasSuffix: gasSuffix,
-                        courseSuffix: courseSuffix
+                        courseSuffix: courseSuffix,
+                        isWaitlist: false
                     });
+                }
+            }
+        });
+
+        // Scan trip waitlist for group members
+        const tripWaitlist = Array.isArray(trip.waitlist) ? trip.waitlist : [];
+        tripWaitlist.forEach(w => {
+            if (!w) return;
+            let isMember = false;
+            let memberDisplayName = (typeof w === 'object' ? w.name : w) || '';
+            let memberDni = (typeof w === 'object' ? w.dni : '') || '';
+
+            // 1. Match by DNI
+            if (typeof w === 'object' && w.dni) {
+                for (const [mDniUpper, memberObj] of groupMembersMap.entries()) {
+                    if (window.isSameDni(mDniUpper, w.dni)) {
+                        isMember = true;
+                        memberDisplayName = memberObj.name || w.name;
+                        memberDni = memberObj.dni;
+                        break;
+                    }
+                }
+            }
+
+            // 2. Match by Name
+            if (!isMember && typeof w === 'object' && w.name) {
+                const wClean = w.name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                for (const [mDniUpper, memberObj] of groupMembersMap.entries()) {
+                    const mClean = (memberObj.name || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    if (mClean && mClean === wClean) {
+                        isMember = true;
+                        memberDisplayName = memberObj.name;
+                        memberDni = memberObj.dni;
+                        break;
+                    }
+                }
+            }
+
+            // 3. Match by Phone
+            if (!isMember && typeof w === 'object' && w.phone) {
+                const p2 = String(w.phone).replace(/\D/g, '');
+                if (p2.length >= 7) {
+                    for (const [mDniUpper, memberObj] of groupMembersMap.entries()) {
+                        if (memberObj.phone) {
+                            const p1 = String(memberObj.phone).replace(/\D/g, '');
+                            if (p1.length >= 7 && (p1.endsWith(p2) || p2.endsWith(p1))) {
+                                isMember = true;
+                                memberDisplayName = memberObj.name;
+                                memberDni = memberObj.dni;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Match by Email
+            if (!isMember && typeof w === 'object' && w.email) {
+                const e2 = w.email.trim().toLowerCase();
+                if (e2) {
+                    for (const [mDniUpper, memberObj] of groupMembersMap.entries()) {
+                        if (memberObj.email && memberObj.email.trim().toLowerCase() === e2) {
+                            isMember = true;
+                            memberDisplayName = memberObj.name;
+                            memberDni = memberObj.dni;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (isMember) {
+                // If member is already confirmed on this trip, skip duplicate in waitlist
+                const alreadyConfirmed = matchedDiversInTrip.some(d => {
+                    if (!d.isWaitlist) {
+                        if (d.dni && memberDni && window.isSameDni(d.dni, memberDni)) return true;
+                        if (d.name && memberDisplayName && d.name.trim().toLowerCase() === memberDisplayName.trim().toLowerCase()) return true;
+                    }
+                    return false;
+                });
+
+                if (!alreadyConfirmed) {
+                    const alreadyInTripWl = matchedDiversInTrip.some(d => {
+                        if (d.isWaitlist) {
+                            if (d.dni && memberDni && window.isSameDni(d.dni, memberDni)) return true;
+                            if (d.name && memberDisplayName && d.name.trim().toLowerCase() === memberDisplayName.trim().toLowerCase()) return true;
+                        }
+                        return false;
+                    });
+
+                    if (!alreadyInTripWl) {
+                        matchedDiversInTrip.push({
+                            name: memberDisplayName,
+                            dni: memberDni,
+                            gasSuffix: '',
+                            courseSuffix: '',
+                            isWaitlist: true
+                        });
+                    }
                 }
             }
         });
@@ -1530,11 +1635,25 @@ window.renderGroupDivesSummaryText = async function() {
             }
 
             const siteStr = trip.site || (lang === 'en' ? 'Dive' : 'Inmersión');
-            const diverCountStr = divers.length === 1 ? `1 ${curLabels.diver}` : `${divers.length} ${curLabels.divers}`;
+            const confirmedDivers = divers.filter(d => !d.isWaitlist);
+            const waitlistDivers = divers.filter(d => d.isWaitlist);
+
+            let diverCountParts = [];
+            if (confirmedDivers.length > 0) {
+                diverCountParts.push(confirmedDivers.length === 1 ? `1 ${curLabels.diver}` : `${confirmedDivers.length} ${curLabels.divers}`);
+            }
+            if (waitlistDivers.length > 0) {
+                diverCountParts.push(`${waitlistDivers.length} ${curLabels.waitlistTag}`);
+            }
+            const diverCountStr = diverCountParts.join(', ');
 
             servicesText += ` - ${timeStr} ${siteStr} [${diverCountStr}]:\n`;
-            divers.sort((a, b) => a.name.localeCompare(b.name)).forEach(d => {
+
+            confirmedDivers.sort((a, b) => a.name.localeCompare(b.name)).forEach(d => {
                 servicesText += `   • ${d.name}${d.gasSuffix}${d.courseSuffix}\n`;
+            });
+            waitlistDivers.sort((a, b) => a.name.localeCompare(b.name)).forEach(d => {
+                servicesText += `   • ${d.name} (${curLabels.waitlistLabel})${d.courseSuffix}\n`;
             });
             servicesText += `\n`;
         });

@@ -2243,7 +2243,7 @@ window.setHistorialLang = function(lang) {
     window.openHistorialExportModal();
 };
 
-window.openHistorialExportModal = function() {
+window.openHistorialExportModal = async function() {
     if (!window.activeFichaDni) return;
     const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, window.activeFichaDni)) || {};
     const clientName = document.getElementById('profile-modal-name') ? document.getElementById('profile-modal-name').innerText : (window.getFullName(customerInfo) || 'Cliente');
@@ -2257,9 +2257,9 @@ window.openHistorialExportModal = function() {
     };
 
     const labels = {
-        es: { summary: "Resumen de Inmersiones", range: "Rango", from: "Desde", to: "Hasta", all: "Todo el historial", noDives: "No se encontraron inmersiones en este rango." },
-        en: { summary: "Dive Summary", range: "Range", from: "From", to: "To", all: "All history", noDives: "No dives found in this date range." },
-        nl: { summary: "Duikoverzicht", range: "Bereik", from: "Vanaf", to: "Tot", all: "Volledige geschiedenis", noDives: "Geen duiken gevonden in deze periode." }
+        es: { summary: "Resumen de Inmersiones", range: "Rango", from: "Desde", to: "Hasta", all: "Todo el historial", noDives: "No se encontraron inmersiones en este rango.", waitlistLabel: "Lista de espera" },
+        en: { summary: "Dive Summary", range: "Range", from: "From", to: "To", all: "All history", noDives: "No dives found in this date range.", waitlistLabel: "Waitlist" },
+        nl: { summary: "Duikoverzicht", range: "Bereik", from: "Vanaf", to: "Tot", all: "Volledige geschiedenis", noDives: "Geen duiken gevonden in deze periode.", waitlistLabel: "Wachtlijst" }
     };
 
     const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
@@ -2289,7 +2289,7 @@ window.openHistorialExportModal = function() {
     text += `========================================\n\n`;
     
     const groupedDives = {};
-    const sortedItems = [...window.activeFichaDives].reverse();
+    const sortedItems = [...(window.activeFichaDives || [])].reverse();
     
     sortedItems.forEach(item => {
         const { data } = item;
@@ -2305,7 +2305,88 @@ window.openHistorialExportModal = function() {
         if (!groupedDives[dateStr]) {
             groupedDives[dateStr] = [];
         }
-        groupedDives[dateStr].push(data);
+        groupedDives[dateStr].push({ ...data, isWaitlist: false });
+    });
+
+    // Check waitlists in candidate trips
+    let candidateTrips = [];
+    try {
+        if (fromVal && toVal && typeof window.fetchTripsForDateRange === 'function') {
+            candidateTrips = await window.fetchTripsForDateRange(fromVal, toVal);
+        } else {
+            candidateTrips = window.mergedAllocations || [];
+        }
+    } catch (e) {
+        console.warn("Fallback to in-memory mergedAllocations for waitlist:", e);
+        candidateTrips = window.mergedAllocations || [];
+    }
+
+    const customerDni = window.activeFichaDni;
+    const customerFullName = (window.getFullName(customerInfo) || '').trim();
+    const customerPhone = customerInfo.telefono || '';
+    const customerEmail = (customerInfo.email || '').trim().toLowerCase();
+
+    (candidateTrips || []).forEach(trip => {
+        if (!trip || trip.cancelled) return;
+        if (fromVal && trip.date < fromVal) return;
+        if (toVal && trip.date > toVal) return;
+
+        const waitlist = Array.isArray(trip.waitlist) ? trip.waitlist : [];
+        if (waitlist.length === 0) return;
+
+        const isOnWaitlist = waitlist.some(w => {
+            if (!w) return false;
+            // 1. DNI
+            if (typeof w === 'object' && w.dni && customerDni && window.isSameDni && window.isSameDni(w.dni, customerDni)) return true;
+            // 2. Name
+            const wName = (typeof w === 'object' ? w.name : w) || '';
+            if (wName && customerFullName) {
+                const wClean = wName.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const cClean = customerFullName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if (wClean && cClean && wClean === cClean) return true;
+            }
+            // 3. Phone
+            if (typeof w === 'object' && w.phone && customerPhone) {
+                const p1 = String(customerPhone).replace(/\D/g, '');
+                const p2 = String(w.phone).replace(/\D/g, '');
+                if (p1.length >= 7 && p2.length >= 7 && (p1.endsWith(p2) || p2.endsWith(p1))) return true;
+            }
+            // 4. Email
+            if (typeof w === 'object' && w.email && customerEmail) {
+                if (w.email.trim().toLowerCase() === customerEmail) return true;
+            }
+            return false;
+        });
+
+        if (isOnWaitlist) {
+            const dateStr = trip.date;
+            if (!dateStr) return;
+            if (!groupedDives[dateStr]) {
+                groupedDives[dateStr] = [];
+            }
+
+            // Don't add if already in groupedDives for the same trip/site/time
+            const alreadyExists = groupedDives[dateStr].some(d => {
+                if (d.docId && d.docId === trip.id) return true;
+                if (d.tripId && d.tripId === trip.id) return true;
+                const dTime = (d.time || '').trim();
+                const tTime = (trip.time || '').trim();
+                const dSite = (d.site || '').trim().toLowerCase();
+                const tSite = (trip.site || '').trim().toLowerCase();
+                if (dTime === tTime && (!dSite || !tSite || dSite === tSite)) return true;
+                return false;
+            });
+
+            if (!alreadyExists) {
+                groupedDives[dateStr].push({
+                    isWaitlist: true,
+                    date: trip.date,
+                    time: trip.time || '',
+                    site: trip.site || 'Buceo',
+                    tripId: trip.id
+                });
+            }
+        }
     });
     
     let servicesText = "";
@@ -2343,7 +2424,7 @@ window.openHistorialExportModal = function() {
             let gasSuffix = "";
             const includeGasCheckbox = document.getElementById('historial-export-include-gas');
             const includeGas = includeGasCheckbox ? includeGasCheckbox.checked : false;
-            if (includeGas && dive.gas) {
+            if (!dive.isWaitlist && includeGas && dive.gas) {
                 const gasLower = dive.gas.toLowerCase();
                 if (!gasLower.includes('aire')) {
                     let cleanGas = dive.gas.replace('15L ', '').replace('12L ', '').trim();
@@ -2352,7 +2433,9 @@ window.openHistorialExportModal = function() {
                 }
             }
             
-            servicesText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}\n`;
+            const waitlistSuffix = dive.isWaitlist ? ` (${curLabels.waitlistLabel})` : '';
+
+            servicesText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}${waitlistSuffix}\n`;
         });
         servicesText += `\n`;
     });
