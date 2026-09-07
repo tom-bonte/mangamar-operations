@@ -246,7 +246,7 @@
                     </div>
 
                     <!-- Dense Visual Dive List Container -->
-                    <div id="client-dives-cards-container" class="w-full bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 overflow-y-auto max-h-[50vh] sm:max-h-[55vh] pr-1 custom-scrollbar">
+                    <div id="client-dives-cards-container" class="w-full space-y-2 overflow-y-auto max-h-[50vh] sm:max-h-[55vh] pr-0.5 custom-scrollbar">
                         <!-- Rendered by window.renderClientDivesText() -->
                     </div>
 
@@ -266,36 +266,37 @@
                 <!-- PANEL 2: SALIDAS Y PLAZAS -->
                 <div id="client-panel-salidas" class="w-full space-y-2 hidden">
                     <!-- Minimizable Full Disclaimer Banner -->
-                    <div class="bg-amber-950/25 border border-amber-500/25 rounded-xl p-2.5 text-xs text-amber-200/90 leading-tight">
+                    <div class="bg-amber-950/25 border border-amber-500/25 rounded-xl p-2 text-xs text-amber-200/90 leading-tight">
                         <div class="flex items-center justify-between gap-2">
                             <span class="font-bold text-amber-300 text-[11px]" id="client-salidas-disclaimer-title">Aviso sobre disponibilidad</span>
                             <button type="button" onclick="document.getElementById('client-salidas-disclaimer-full').classList.toggle('hidden'); this.innerText = document.getElementById('client-salidas-disclaimer-full').classList.contains('hidden') ? '+ info' : '- info';" class="text-[10px] text-amber-400 hover:underline font-bold shrink-0">
                                 + info
                             </button>
                         </div>
-                        <div id="client-salidas-disclaimer-full" class="hidden mt-2 text-[11px] text-amber-200/80 font-normal leading-relaxed border-t border-amber-500/20 pt-1.5">
+                        <div id="client-salidas-disclaimer-full" class="hidden mt-1.5 text-[11px] text-amber-200/80 font-normal leading-relaxed border-t border-amber-500/20 pt-1.5">
                             <span id="client-salidas-disclaimer-text"></span>
                         </div>
                     </div>
 
-                    <!-- Date Filters & Preset Buttons (Dense Mobile Layout) -->
-                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-2 space-y-1.5 shadow-inner">
+                    <!-- Ultra-Compact Date Filters -->
+                    <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-1.5 space-y-1">
                         <!-- Presets Row -->
                         <div class="grid grid-cols-4 gap-1">
-                            <button onclick="window.setClientSalidasPreset('today')" id="client-preset-today" class="py-1 text-[10px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">Hoy</button>
-                            <button onclick="window.setClientSalidasPreset('weekend')" id="client-preset-weekend" class="py-1 text-[10px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">Fin de sem.</button>
-                            <button onclick="window.setClientSalidasPreset('7days')" id="client-preset-7days" class="py-1 text-[10px] font-bold rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center">7 Días</button>
-                            <button onclick="window.setClientSalidasPreset('14days')" id="client-preset-14days" class="py-1 text-[10px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">14 Días</button>
+                            <button onclick="window.setClientSalidasPreset('today')" id="client-preset-today" class="py-0.5 text-[9px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">Hoy</button>
+                            <button onclick="window.setClientSalidasPreset('weekend')" id="client-preset-weekend" class="py-0.5 text-[9px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">Fin de sem.</button>
+                            <button onclick="window.setClientSalidasPreset('7days')" id="client-preset-7days" class="py-0.5 text-[9px] font-bold rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center">7 Días</button>
+                            <button onclick="window.setClientSalidasPreset('14days')" id="client-preset-14days" class="py-0.5 text-[9px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">14 Días</button>
                         </div>
-                        <!-- Inline Date Range Row with compact font and zero overflow -->
-                        <div class="grid grid-cols-2 gap-1.5">
-                            <div class="flex items-center justify-between gap-1 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 min-w-0">
-                                <span id="client-lbl-from" class="text-[9px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Desde:</span>
-                                <input type="date" id="client-salidas-from" onchange="window.loadClientSalidasDisponibilidad()" class="bg-transparent text-[11px] text-slate-200 font-medium outline-none text-right cursor-pointer w-full min-w-0">
+                        <!-- Slim Date Range Row -->
+                        <div class="flex items-center justify-between px-1 text-[9px]">
+                            <div class="flex items-center gap-1">
+                                <span id="client-lbl-from" class="text-[8px] uppercase font-bold text-slate-500">Desde</span>
+                                <input type="date" id="client-salidas-from" onchange="window.loadClientSalidasDisponibilidad()" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-[9px] text-slate-200 font-medium outline-none cursor-pointer max-w-[95px]">
                             </div>
-                            <div class="flex items-center justify-between gap-1 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 min-w-0">
-                                <span id="client-lbl-to" class="text-[9px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Hasta:</span>
-                                <input type="date" id="client-salidas-to" onchange="window.loadClientSalidasDisponibilidad()" class="bg-transparent text-[11px] text-slate-200 font-medium outline-none text-right cursor-pointer w-full min-w-0">
+                            <span class="text-slate-600 text-[10px]">➔</span>
+                            <div class="flex items-center gap-1">
+                                <span id="client-lbl-to" class="text-[8px] uppercase font-bold text-slate-500">Hasta</span>
+                                <input type="date" id="client-salidas-to" onchange="window.loadClientSalidasDisponibilidad()" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-[9px] text-slate-200 font-medium outline-none cursor-pointer max-w-[95px]">
                             </div>
                         </div>
                     </div>
@@ -308,7 +309,7 @@
                                 <span id="client-salidas-loading-text">Consultando disponibilidad...</span>
                             </div>
                         </div>
-                        <div id="client-salidas-cards-container" class="w-full bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 overflow-y-auto max-h-[46vh] sm:max-h-[50vh] pr-1 custom-scrollbar">
+                        <div id="client-salidas-cards-container" class="w-full space-y-2 overflow-y-auto max-h-[48vh] sm:max-h-[52vh] pr-0.5 custom-scrollbar">
                             <!-- Rendered by window.loadClientSalidasDisponibilidad() -->
                         </div>
                         <!-- Hidden textarea for WhatsApp clipboard copying -->

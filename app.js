@@ -3012,9 +3012,9 @@ window.setClientSalidasPreset = function(preset) {
         const btn = document.getElementById(`client-preset-${p}`);
         if (btn) {
             if (p === preset) {
-                btn.className = "py-1 text-[10px] font-bold rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center";
+                btn.className = "py-0.5 text-[9px] font-bold rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center";
             } else {
-                btn.className = "py-1 text-[10px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center";
+                btn.className = "py-0.5 text-[9px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center";
             }
         }
     });
@@ -3122,7 +3122,8 @@ window.renderClientDivesText = function() {
             const weekday = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { weekday: 'long' });
             const monthName = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'short' });
             const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-            const formattedDay = `${weekdayCap}, ${d} ${monthName} ${y}`;
+            const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+            const formattedDay = `${weekdayCap}, ${d} ${monthCap} ${y}`;
 
             summaryText += `${formattedDay}:\n`;
 
@@ -3133,12 +3134,14 @@ window.renderClientDivesText = function() {
             });
 
             cardsHtml += `
-            <div class="pt-2 first:pt-0 pb-1">
-                <div class="text-[11px] font-bold text-slate-400 pb-1 border-b border-slate-800/80 flex items-center justify-between">
-                    <span>${formattedDay}</span>
-                    <span class="text-[10px] text-slate-500 font-normal">${dayDives.length} ${dayDives.length === 1 ? curLabels.divesCountSingular : curLabels.divesCountPlural}</span>
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 shadow-xs">
+                <div class="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-800/80">
+                    <span class="text-xs font-bold text-blue-400 tracking-wide">${formattedDay}</span>
+                    <span class="text-[9px] font-bold text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                        ${dayDives.length} ${dayDives.length === 1 ? curLabels.divesCountSingular : curLabels.divesCountPlural}
+                    </span>
                 </div>
-                <div class="divide-y divide-slate-850/50">`;
+                <div class="divide-y divide-slate-800/50">`;
 
             dayDives.forEach(dive => {
                 let timeStr = dive.time || '';
@@ -3301,19 +3304,22 @@ window.loadClientSalidasDisponibilidad = async function() {
                 const weekday = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { weekday: 'long' });
                 const monthName = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'short' });
                 const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-                const formattedDay = `${weekdayCap}, ${d} ${monthName} ${y}`;
+                const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                const formattedDay = `${weekdayCap}, ${d} ${monthCap} ${y}`;
 
                 output += `${formattedDay}:\n`;
 
                 const dayTrips = grouped[dStr].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
                 cardsHtml += `
-                <div class="pt-2 first:pt-0 pb-1">
-                    <div class="text-[11px] font-bold text-slate-400 pb-1 border-b border-slate-800/80 flex items-center justify-between">
-                        <span>${formattedDay}</span>
-                        <span class="text-[10px] text-slate-500 font-normal">${dayTrips.length} ${dayTrips.length === 1 ? curLabels.salidasCountSingular : curLabels.salidasCountPlural}</span>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 shadow-xs">
+                    <div class="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-800/80">
+                        <span class="text-xs font-bold text-white tracking-wide">${formattedDay}</span>
+                        <span class="text-[9px] font-bold text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                            ${dayTrips.length} ${dayTrips.length === 1 ? curLabels.salidasCountSingular : curLabels.salidasCountPlural}
+                        </span>
                     </div>
-                    <div class="divide-y divide-slate-850/50">`;
+                    <div class="divide-y divide-slate-800/50">`;
 
                 dayTrips.forEach(t => {
                     const freeSpots = t._clientFreeSpots !== undefined ? t._clientFreeSpots : 0;
