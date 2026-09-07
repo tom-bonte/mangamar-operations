@@ -2888,6 +2888,40 @@ const clientPortalDictionary = {
         divesCountPlural: "duiken",
         salidasCountSingular: "afvaart",
         salidasCountPlural: "afvaarten"
+    },
+    fr: {
+        portalSubtitle: "Portail du Plongeur",
+        importantNoticeTitle: "Information importante",
+        importantNoticeText: "• Les heures indiquées correspondent à l'heure d'arrivée au centre de plongée (non au départ du bateau).\n• Merci d'être ponctuel et d'apporter votre DNI, Passeport ou pièce d'identité physique.\n• À l'arrivée au centre, veuillez vous présenter d'abord à l'accueil pour présenter votre pièce d'identité physique.",
+        disclaimerTitle: "Avis sur les disponibilités",
+        disclaimerText: "Les places affichées sont données à titre indicatif et mises à jour en temps réel. Les sorties se remplissant rapidement et des demandes pouvant être en cours à l'accueil, la disponibilité n'est formellement garantie qu'après validation par le centre.",
+        myDivesTab: "Mes Plongées",
+        salidasTab: "Sorties & Places",
+        myDivesTitle: "Résumé des Plongées",
+        noDives: "Vous n'avez aucune prochaine plongée programmée.",
+        noDivesSub: "Consultez l'onglet Sorties & Places pour voir les créneaux disponibles.",
+        fromToday: "À partir d'aujourd'hui",
+        dateFrom: "Du :",
+        dateTo: "Au :",
+        btnToday: "Aujourd'hui",
+        btnWeekend: "Ce week-end",
+        btn7Days: "7 Jours",
+        btn14Days: "14 Jours",
+        spots: "places libres",
+        spot: "place libre",
+        full: "Complet",
+        noSalidas: "Aucune sortie avec des places disponibles pour les dates sélectionnées.",
+        tryAnotherRange: "Essayez de sélectionner une autre période ci-dessus.",
+        loadingSalidas: "Vérification des disponibilités...",
+        copyDives: "Copier pour WhatsApp",
+        copySalidas: "Copier pour WhatsApp",
+        logout: "Déconnexion",
+        waitlist: "Liste d'attente",
+        confirmed: "Confirmée",
+        divesCountSingular: "plongée",
+        divesCountPlural: "plongées",
+        salidasCountSingular: "sortie",
+        salidasCountPlural: "sorties"
     }
 };
 
@@ -2899,7 +2933,7 @@ window.setClientPortalLang = function(lang) {
 
     const curLabels = clientPortalDictionary[window.clientPortalCurrentLang] || clientPortalDictionary.es;
 
-    ['es', 'en', 'nl'].forEach(l => {
+    ['es', 'en', 'nl', 'fr'].forEach(l => {
         const btn = document.getElementById(`client-lang-${l}`);
         if (btn) {
             if (l === window.clientPortalCurrentLang) {
@@ -3029,7 +3063,7 @@ window.renderClientDivesText = function() {
 
     const lang = window.clientPortalCurrentLang || 'es';
     const curLabels = clientPortalDictionary[lang] || clientPortalDictionary.es;
-    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL', fr: 'fr-FR' };
 
     const dObj = new Date();
     const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
@@ -3086,7 +3120,7 @@ window.renderClientDivesText = function() {
                     isWaitlist: true,
                     date: trip.date,
                     time: trip.time || '',
-                    site: trip.site || (lang === 'en' ? 'Dive' : 'Buceo'),
+                    site: trip.site || (lang === 'en' ? 'Dive' : (lang === 'fr' ? 'Plongée' : (lang === 'nl' ? 'Duik' : 'Buceo'))),
                     tripId: trip.id,
                     boat: trip.assignedBoat || trip.boat || ''
                 });
@@ -3214,7 +3248,7 @@ window.loadClientSalidasDisponibilidad = async function() {
 
     const lang = window.clientPortalCurrentLang || 'es';
     const curLabels = clientPortalDictionary[lang] || clientPortalDictionary.es;
-    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL', fr: 'fr-FR' };
 
     try {
         let trips = [];
@@ -3333,7 +3367,7 @@ window.loadClientSalidasDisponibilidad = async function() {
                         cxTime = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
                     }
 
-                    const siteName = t.site || (lang === 'en' ? 'To be confirmed' : (lang === 'nl' ? 'Nog te bevestigen' : 'Por confirmar'));
+                    const siteName = t.site || (lang === 'en' ? 'To be confirmed' : (lang === 'nl' ? 'Nog te bevestigen' : (lang === 'fr' ? 'À confirmer' : 'Por confirmar')));
                     const spotWord = freeSpots === 1 ? curLabels.spot : curLabels.spots;
                     const isPlenty = freeSpots >= 6;
 

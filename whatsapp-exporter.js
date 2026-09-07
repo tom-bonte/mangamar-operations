@@ -203,7 +203,7 @@ window.waRemoveDate = function(dateStr) {
 
 window.setWaLang = function(lang) {
     waCurrentLang = lang;
-    ['es', 'en', 'nl'].forEach(l => {
+    ['es', 'en', 'nl', 'fr'].forEach(l => {
         const btn = document.getElementById(`wa-lang-${l}`);
         if(l === lang) {
             btn.classList.add('opacity-100', 'ring-2', 'ring-blue-500');
@@ -279,9 +279,14 @@ window.generateWhatsAppText = function() {
             header: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven.",
             spots: 'plaatsen vrij',
             confirm: 'Nog te bevestigen'
+        },
+        fr: {
+            header: "⚠️ *Information importante :*\n- Les heures indiquées correspondent à l'heure d'arrivée au centre de plongée (non au départ du bateau).\n- Merci d'être ponctuel et d'apporter votre DNI, Passeport ou pièce d'identité physique.\n- À l'arrivée au centre, veuillez vous présenter d'abord à l'accueil pour présenter votre pièce d'identité physique.",
+            spots: 'places libres',
+            confirm: 'À confirmer'
         }
     };
-    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL', fr: 'fr-FR' };
     
     let output = `${txt[waCurrentLang].header}\n\n`;
     

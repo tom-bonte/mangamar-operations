@@ -221,6 +221,7 @@
                             <button id="client-lang-es" onclick="window.setClientPortalLang('es')" class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-100 ring-2 ring-blue-500" title="Español">🇪🇸</button>
                             <button id="client-lang-en" onclick="window.setClientPortalLang('en')" class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-50" title="English">🇬🇧</button>
                             <button id="client-lang-nl" onclick="window.setClientPortalLang('nl')" class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-50" title="Nederlands">🇳🇱</button>
+                            <button id="client-lang-fr" onclick="window.setClientPortalLang('fr')" class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-50" title="Français">🇫🇷</button>
                         </div>
                         <button onclick="logoutClient()" class="px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
@@ -4483,9 +4484,10 @@
                 <div class="flex items-center gap-4">
                     <h3 class="text-lg font-black text-slate-800">Exportar Disponibilidad WhatsApp</h3>
                     <div class="flex bg-white rounded-lg border border-slate-200 p-1 shadow-sm gap-1">
-                        <button id="wa-lang-es" onclick="setWaLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-100 ring-2 ring-blue-500">🇪🇸</button>
-                        <button id="wa-lang-en" onclick="setWaLang('en')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50">🇬🇧</button>
-                        <button id="wa-lang-nl" onclick="setWaLang('nl')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50">🇳🇱</button>
+                        <button id="wa-lang-es" onclick="setWaLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-100 ring-2 ring-blue-500" title="Español">🇪🇸</button>
+                        <button id="wa-lang-en" onclick="setWaLang('en')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="English">🇬🇧</button>
+                        <button id="wa-lang-nl" onclick="setWaLang('nl')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="Nederlands">🇳🇱</button>
+                        <button id="wa-lang-fr" onclick="setWaLang('fr')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="Français">🇫🇷</button>
                     </div>
                 </div>
                 <button onclick="document.getElementById('whatsapp-export-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
@@ -5123,9 +5125,10 @@
                         Resumen del Historial
                     </h3>
                     <div class="flex bg-slate-50 rounded-lg border border-slate-200 p-1 shadow-sm gap-1">
-                        <button id="historial-lang-es" onclick="window.setHistorialLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-100 ring-2 ring-blue-500">🇪🇸</button>
+                        <button id="historial-lang-es" onclick="window.setHistorialLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-100 ring-2 ring-blue-500" title="Español">🇪🇸</button>
                         <button id="historial-lang-en" onclick="window.setHistorialLang('en')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50">🇬🇧</button>
                         <button id="historial-lang-nl" onclick="window.setHistorialLang('nl')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50">🇳🇱</button>
+                        <button id="historial-lang-fr" onclick="window.setHistorialLang('fr')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50" title="Français">🇫🇷</button>
                     </div>
                 </div>
                 <button onclick="document.getElementById('historial-export-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors">
@@ -5172,9 +5175,10 @@
                     </h3>
                     <span id="group-summary-badge" class="px-3 py-1 rounded-lg text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 truncate max-w-[220px]">Grupo</span>
                     <div class="flex bg-slate-50 rounded-lg border border-slate-200 p-1 shadow-sm gap-1">
-                        <button id="group-summary-lang-es" onclick="window.setGroupSummaryLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-100 ring-2 ring-blue-500">🇪🇸</button>
+                        <button id="group-summary-lang-es" onclick="window.setGroupSummaryLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-100 ring-2 ring-blue-500" title="Español">🇪🇸</button>
                         <button id="group-summary-lang-en" onclick="window.setGroupSummaryLang('en')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50">🇬🇧</button>
                         <button id="group-summary-lang-nl" onclick="window.setGroupSummaryLang('nl')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50">🇳🇱</button>
+                        <button id="group-summary-lang-fr" onclick="window.setGroupSummaryLang('fr')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-white transition-all opacity-50" title="Français">🇫🇷</button>
                     </div>
                 </div>
                 <button onclick="document.getElementById('group-dives-summary-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors">

@@ -1226,7 +1226,7 @@ window._groupSummaryActiveGroupId = null;
 
 window.setGroupSummaryLang = function(lang) {
     window.groupSummaryCurrentLang = lang || 'es';
-    ['es', 'en', 'nl'].forEach(l => {
+    ['es', 'en', 'nl', 'fr'].forEach(l => {
         const btn = document.getElementById(`group-summary-lang-${l}`);
         if (btn) {
             if (l === window.groupSummaryCurrentLang) {
@@ -1312,16 +1312,18 @@ window.renderGroupDivesSummaryText = async function() {
     const headers = {
         es: "⚠️ *Información importante:*\n- Las horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco).\n- Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.\n- Al llegar al centro, primero, hay que pasar por recepción para entregar tu DNI en físico.",
         en: "⚠️ *Important notice:*\n- The times indicated correspond to your arrival time at the dive center (not the boat departure).\n- Please be on time and remember to bring your physical DNI, Passport or ID card.\n- Upon arrival at the center, please first go to reception to hand in your physical ID.",
-        nl: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven."
+        nl: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven.",
+        fr: "⚠️ *Information importante :*\n- Les heures indiquées correspondent à l'heure d'arrivée au centre de plongée (non au départ du bateau).\n- Merci d'être ponctuel et d'apporter votre DNI, Passeport ou pièce d'identité physique.\n- À l'arrivée au centre, veuillez vous présenter d'abord à l'accueil pour présenter votre pièce d'identité physique."
     };
 
     const labels = {
         es: { summary: "Resumen de Inmersiones", group: "Grupo", range: "Rango de Fechas", members: "Buceadores", diver: "buzo", divers: "buzos", waitlistLabel: "Lista de espera", waitlistTag: "en lista de espera", noDives: "No se encontraron inmersiones para los miembros de este grupo en este rango de fechas.", all: "Todas las fechas", from: "Desde", to: "Hasta" },
         en: { summary: "Dive Summary", group: "Group", range: "Date Range", members: "Divers", diver: "diver", divers: "divers", waitlistLabel: "Waitlist", waitlistTag: "on waitlist", noDives: "No dives found for group members in this date range.", all: "All dates", from: "From", to: "To" },
-        nl: { summary: "Duikoverzicht", group: "Groep", range: "Datumperiode", members: "Duikers", diver: "duiker", divers: "duikers", waitlistLabel: "Wachtlijst", waitlistTag: "op wachtlijst", noDives: "Geen duiken gevonden voor groepsleden in deze periode.", all: "Alle data", from: "Vanaf", to: "Tot" }
+        nl: { summary: "Duikoverzicht", group: "Groep", range: "Datumperiode", members: "Duikers", diver: "duiker", divers: "duikers", waitlistLabel: "Wachtlijst", waitlistTag: "op wachtlijst", noDives: "Geen duiken gevonden voor groepsleden in deze periode.", all: "Alle data", from: "Vanaf", to: "Tot" },
+        fr: { summary: "Résumé des Plongées", group: "Groupe", range: "Période", members: "Plongeurs", diver: "plongeur", divers: "plongeurs", waitlistLabel: "Liste d'attente", waitlistTag: "sur liste d'attente", noDives: "Aucune plongée trouvée pour les membres de ce groupe sur cette période.", all: "Toutes les dates", from: "Du", to: "Au" }
     };
 
-    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL', fr: 'fr-FR' };
     const curLabels = labels[lang] || labels.es;
 
     // Show loading indicator
@@ -1362,6 +1364,7 @@ window.renderGroupDivesSummaryText = async function() {
     if (fromVal && toVal) {
         if (lang === 'en') rangeStr = `${curLabels.range}: ${toDisplayDate(fromVal)} to ${toDisplayDate(toVal)}`;
         else if (lang === 'nl') rangeStr = `${curLabels.range}: ${toDisplayDate(fromVal)} tot ${toDisplayDate(toVal)}`;
+        else if (lang === 'fr') rangeStr = `${curLabels.range}: ${toDisplayDate(fromVal)} au ${toDisplayDate(toVal)}`;
         else rangeStr = `${curLabels.range}: ${toDisplayDate(fromVal)} a ${toDisplayDate(toVal)}`;
     } else if (fromVal) {
         rangeStr = `${curLabels.from}: ${toDisplayDate(fromVal)}`;
@@ -1634,7 +1637,7 @@ window.renderGroupDivesSummaryText = async function() {
                 timeStr = `${hours}:${minStr}`;
             }
 
-            const siteStr = trip.site || (lang === 'en' ? 'Dive' : 'Inmersión');
+            const siteStr = trip.site || (lang === 'en' ? 'Dive' : (lang === 'fr' ? 'Plongée' : (lang === 'nl' ? 'Duik' : 'Inmersión')));
             const confirmedDivers = divers.filter(d => !d.isWaitlist);
             const waitlistDivers = divers.filter(d => d.isWaitlist);
 

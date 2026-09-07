@@ -2230,7 +2230,7 @@ window.historialCurrentLang = 'es';
 
 window.setHistorialLang = function(lang) {
     window.historialCurrentLang = lang || 'es';
-    ['es', 'en', 'nl'].forEach(l => {
+    ['es', 'en', 'nl', 'fr'].forEach(l => {
         const btn = document.getElementById(`historial-lang-${l}`);
         if (btn) {
             if (l === window.historialCurrentLang) {
@@ -2253,16 +2253,18 @@ window.openHistorialExportModal = async function() {
     const headers = {
         es: "⚠️ *Información importante:*\n- Las horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco).\n- Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.\n- Al llegar al centro, primero, hay que pasar por recepción para entregar tu DNI en físico.",
         en: "⚠️ *Important notice:*\n- The times indicated correspond to your arrival time at the dive center (not the boat departure).\n- Please be on time and remember to bring your physical DNI, Passport or ID card.\n- Upon arrival at the center, please first go to reception to hand in your physical ID.",
-        nl: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven."
+        nl: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven.",
+        fr: "⚠️ *Information importante :*\n- Les heures indiquées correspondent à l'heure d'arrivée au centre de plongée (non au départ du bateau).\n- Merci d'être ponctuel et d'apporter votre DNI, Passeport ou pièce d'identité physique.\n- À l'arrivée au centre, veuillez vous présenter d'abord à l'accueil pour présenter votre pièce d'identité physique."
     };
 
     const labels = {
         es: { summary: "Resumen de Inmersiones", range: "Rango", from: "Desde", to: "Hasta", all: "Todo el historial", noDives: "No se encontraron inmersiones en este rango.", waitlistLabel: "Lista de espera" },
         en: { summary: "Dive Summary", range: "Range", from: "From", to: "To", all: "All history", noDives: "No dives found in this date range.", waitlistLabel: "Waitlist" },
-        nl: { summary: "Duikoverzicht", range: "Bereik", from: "Vanaf", to: "Tot", all: "Volledige geschiedenis", noDives: "Geen duiken gevonden in deze periode.", waitlistLabel: "Wachtlijst" }
+        nl: { summary: "Duikoverzicht", range: "Bereik", from: "Vanaf", to: "Tot", all: "Volledige geschiedenis", noDives: "Geen duiken gevonden in deze periode.", waitlistLabel: "Wachtlijst" },
+        fr: { summary: "Résumé des Plongées", range: "Période", from: "Du", to: "Au", all: "Tout l'historique", noDives: "Aucune plongée trouvée dans cette période.", waitlistLabel: "Liste d'attente" }
     };
 
-    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL', fr: 'fr-FR' };
     const curLabels = labels[lang] || labels.es;
 
     const fromEl = document.getElementById('historial-filter-from');
@@ -2274,6 +2276,7 @@ window.openHistorialExportModal = async function() {
     if (fromVal && toVal) {
         if (lang === 'en') rangeStr = `${curLabels.range}: ${fromVal} to ${toVal}`;
         else if (lang === 'nl') rangeStr = `${curLabels.range}: ${fromVal} tot ${toVal}`;
+        else if (lang === 'fr') rangeStr = `${curLabels.range}: ${fromVal} au ${toVal}`;
         else rangeStr = `${curLabels.range}: ${fromVal} a ${toVal}`;
     } else if (fromVal) {
         rangeStr = `${curLabels.from}: ${fromVal}`;
@@ -2435,7 +2438,7 @@ window.openHistorialExportModal = async function() {
             
             const waitlistSuffix = dive.isWaitlist ? ` (${curLabels.waitlistLabel})` : '';
 
-            servicesText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}${waitlistSuffix}\n`;
+            servicesText += ` - ${timeStr} ${dive.site || (lang === 'en' ? 'Dive' : (lang === 'fr' ? 'Plongée' : (lang === 'nl' ? 'Duik' : 'Buceo')))}${gasSuffix}${waitlistSuffix}\n`;
         });
         servicesText += `\n`;
     });
