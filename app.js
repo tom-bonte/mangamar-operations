@@ -3012,9 +3012,9 @@ window.setClientSalidasPreset = function(preset) {
         const btn = document.getElementById(`client-preset-${p}`);
         if (btn) {
             if (p === preset) {
-                btn.className = "py-0.5 text-[9px] font-bold rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center";
+                btn.className = "py-1.5 text-xs font-bold rounded-xl bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center";
             } else {
-                btn.className = "py-0.5 text-[9px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center";
+                btn.className = "py-1.5 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center";
             }
         }
     });
@@ -3136,7 +3136,7 @@ window.renderClientDivesText = function() {
             cardsHtml += `
             <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 shadow-xs">
                 <div class="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-800/80">
-                    <span class="text-xs font-bold text-blue-400 tracking-wide">${formattedDay}</span>
+                    <span class="text-xs font-bold text-orange-500 tracking-wide">${formattedDay}</span>
                     <span class="text-[9px] font-bold text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
                         ${dayDives.length} ${dayDives.length === 1 ? curLabels.divesCountSingular : curLabels.divesCountPlural}
                     </span>
@@ -3314,7 +3314,7 @@ window.loadClientSalidasDisponibilidad = async function() {
                 cardsHtml += `
                 <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 shadow-xs">
                     <div class="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-800/80">
-                        <span class="text-xs font-bold text-white tracking-wide">${formattedDay}</span>
+                        <span class="text-xs font-bold text-orange-500 tracking-wide">${formattedDay}</span>
                         <span class="text-[9px] font-bold text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
                             ${dayTrips.length} ${dayTrips.length === 1 ? curLabels.salidasCountSingular : curLabels.salidasCountPlural}
                         </span>
