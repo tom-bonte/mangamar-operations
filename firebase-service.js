@@ -25,6 +25,22 @@ window.getClientKey = function(c) {
 };
 
 // --- CRM Load State & Safety Guard ---
+// Pre-load customerDatabase from localStorage cache to eliminate app start delays
+try {
+    const cachedCrm = localStorage.getItem('mangamar_cached_crm_v1');
+    if (cachedCrm) {
+        const parsed = JSON.parse(cachedCrm);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            customerDatabase = parsed;
+            window.customerDatabase = parsed;
+            window.crmLoadedFromCache = true;
+            console.log(`⚡ [CRM Cache] Pre-loaded ${parsed.length} clients from localStorage in 0ms.`);
+        }
+    }
+} catch (e) {
+    console.warn("Could not parse cached CRM:", e);
+}
+
 // Set to true ONLY after the full master_list has been fetched and loaded.
 // Any code that writes to master_list should check this flag first.
 window.crmLoaded = false;
@@ -549,6 +565,21 @@ function startFirestoreListeners() {
                     window.crmLoadedClientCount = cleanClients.length;
                     window.lastFetchedCerts = null; // Ensure certs will re-map with full CRM names
                     console.log(`✅ [CRM] Loaded ${cleanClients.length} clients. SafeWrite guards are now active.`);
+
+                    // Save lightweight cache to localStorage for instant app reload
+                    try {
+                        const minified = cleanClients.map(c => ({
+                            dni: c.dni,
+                            dob: c.dob,
+                            nombre: c.nombre,
+                            apellido: c.apellido,
+                            email: c.email,
+                            telefono: c.telefono
+                        }));
+                        localStorage.setItem('mangamar_cached_crm_v1', JSON.stringify(minified));
+                    } catch (cacheErr) {
+                        console.warn("Could not cache CRM to localStorage:", cacheErr);
+                    }
     
                     // Re-merge and render manifests now that the CRM database has loaded!
                     if (typeof compileAndMerge === 'function') {
@@ -600,7 +631,7 @@ function startFirestoreListeners() {
                 if (!window.crmLoaded) crmFetchStarted = false;
             });
         };
-        window.crmLoadTimeout = setTimeout(window.loadCrmDatabase, 4500);
+        window.crmLoadTimeout = setTimeout(window.loadCrmDatabase, 1500);
 
         // Global Settings Listener
         db.collection("mangamar_directory").doc("settings").onSnapshot((doc) => {

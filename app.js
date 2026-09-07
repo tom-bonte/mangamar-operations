@@ -1318,7 +1318,12 @@ window.checkSessionOnLoad = function() {
         document.body.classList.remove('staff-logged-in');
         if (gate) {
             gate.classList.remove('hidden');
-            window.showGateView('selection');
+            // Auto-restore client portal session if previously logged in!
+            if (typeof window.checkAndRestoreClientSession === 'function' && window.checkAndRestoreClientSession()) {
+                // Client portal session restored seamlessly
+            } else {
+                window.showGateView('selection');
+            }
         }
         
         const tvModal = document.getElementById('tv-view-modal');
@@ -2407,26 +2412,28 @@ window.showGateView = function(view) {
     const client = document.getElementById('gate-client-view');
     const overview = document.getElementById('gate-client-overview');
     const gateCard = document.getElementById('login-gate-card');
-    const overviewContainer = document.getElementById('client-overview-container');
+    const mainLogoBlock = document.getElementById('gate-main-logo-block');
 
     if (sel) sel.classList.add('hidden');
     if (staff) staff.classList.add('hidden');
     if (client) client.classList.add('hidden');
     if (overview) overview.classList.add('hidden');
 
-    if (gateCard) {
+    if (mainLogoBlock) {
         if (view === 'overview') {
-            gateCard.classList.replace('max-w-md', 'md:max-w-4xl');
+            mainLogoBlock.classList.add('hidden');
         } else {
-            gateCard.classList.replace('md:max-w-4xl', 'max-w-md');
+            mainLogoBlock.classList.remove('hidden');
         }
     }
-    
-    if (overviewContainer) {
+
+    if (gateCard) {
         if (view === 'overview') {
-            overviewContainer.style.height = "44vh";
+            gateCard.classList.remove('max-w-md');
+            gateCard.classList.add('sm:max-w-xl', 'md:max-w-3xl');
         } else {
-            overviewContainer.style.height = "35vh";
+            gateCard.classList.remove('sm:max-w-xl', 'md:max-w-3xl');
+            gateCard.classList.add('max-w-md');
         }
     }
 
@@ -2579,76 +2586,106 @@ window.attemptClientLogin = async function() {
     const paddedMonth = month.padStart(2, '0');
     const selectedDob = `${year}-${paddedMonth}-${paddedDay}`;
     const normDniInput = window.normalizeSearchString(dniInput);
+    const cleanDni = window.normalizeDni(dniInput);
 
     if (btn) {
         btn.disabled = true;
         btn.innerText = "Comprobando...";
     }
 
-    if (!window.crmLoaded) {
-        if (typeof window.loadCrmDatabase === 'function') {
-            window.loadCrmDatabase();
-        }
-        let checks = 0;
-        while (!window.crmLoaded && checks < 20) {
-            await new Promise(resolve => setTimeout(resolve, 250));
-            checks++;
-        }
-    }
-
-    if (!window.crmLoaded) {
-        showToast("⚠️ La base de datos no se ha cargado a tiempo. Por favor, reinténtalo.", "error");
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = "Comprobar Inmersiones";
-        }
-        return;
-    }
-
-    const client = (window.customerDatabase || []).find(c => {
-        if (!c.dni || !c.dob) return false;
-        const normDbDni = window.normalizeSearchString(c.dni);
-        const normDbDob = window.normalizeDateStr(c.dob);
-        return normDbDni === normDniInput && normDbDob === selectedDob;
-    });
-
-    if (!client) {
-        showToast("❌ No se ha encontrado ningún buceador con esos datos.", "error");
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = "Comprobar Inmersiones";
-        }
-        return;
-    }
-
-    // Update tracking stats
-    try {
-        const nowIso = new Date().toISOString();
-        const fullName = window.getFullName ? window.getFullName(client) : (client.nombre || 'Cliente');
-        
-        // Update local memory in CRM database immediately
-        client.portalLoginCount = (client.portalLoginCount || 0) + 1;
-        client.lastPortalLogin = nowIso;
-        
-        // 1. Update individual client document
-        db.collection('mangamar_customers').doc(client.dni).set({
-            portalLoginCount: firebase.firestore.FieldValue.increment(1),
-            lastPortalLogin: nowIso
-        }, { merge: true }).catch(err => console.error("Error updating customer portal logs:", err));
-        
-        // 2. Update dedicated portal access logs collection (immune to master_list overwrites)
-        db.collection('mangamar_portal_logs').doc(client.dni).set({
-            dni: client.dni,
-            nombre: fullName,
-            portalLoginCount: firebase.firestore.FieldValue.increment(1),
-            lastPortalLogin: nowIso
-        }, { merge: true }).catch(err => console.error("Error updating portal logs collection:", err));
-    } catch (e) {
-        console.error("Error tracking portal login:", e);
-    }
+    let client = null;
 
     try {
-        const snapshot = await db.collection('mangamar_customers').doc(client.dni).collection('history').get();
+        // Step 1: Check in-memory / pre-cached customerDatabase (0ms instant!)
+        client = (window.customerDatabase || []).find(c => {
+            if (!c.dni || !c.dob) return false;
+            const normDbDni = window.normalizeSearchString(c.dni);
+            const normDbDob = window.normalizeDateStr(c.dob);
+            return normDbDni === normDniInput && normDbDob === selectedDob;
+        });
+
+        // Step 2: If not found in cache, check individual document in Firestore (super fast direct fetch <200ms)
+        if (!client && window.db) {
+            try {
+                const directDoc = await window.db.collection('mangamar_customers').doc(cleanDni).get();
+                if (directDoc.exists) {
+                    const docData = directDoc.data();
+                    if (docData && docData.dob) {
+                        const normDbDob = window.normalizeDateStr(docData.dob);
+                        if (normDbDob === selectedDob) {
+                            client = { dni: cleanDni, ...docData };
+                            if (!window.customerDatabase) window.customerDatabase = [];
+                            window.customerDatabase.push(client);
+                        }
+                    }
+                }
+            } catch (docErr) {
+                console.warn("Direct customer doc check fallback error:", docErr);
+            }
+        }
+
+        // Step 3: Only if still not found and CRM hasn't loaded yet, trigger background load and wait briefly
+        if (!client && !window.crmLoaded) {
+            if (typeof window.loadCrmDatabase === 'function') {
+                window.loadCrmDatabase();
+            }
+            let checks = 0;
+            while (!window.crmLoaded && checks < 8) {
+                await new Promise(resolve => setTimeout(resolve, 250));
+                checks++;
+            }
+            client = (window.customerDatabase || []).find(c => {
+                if (!c.dni || !c.dob) return false;
+                const normDbDni = window.normalizeSearchString(c.dni);
+                const normDbDob = window.normalizeDateStr(c.dob);
+                return normDbDni === normDniInput && normDbDob === selectedDob;
+            });
+        }
+
+        if (!client) {
+            showToast("❌ No se ha encontrado ningún buceador con esos datos.", "error");
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "Comprobar Inmersiones";
+            }
+            return;
+        }
+
+        // Update tracking stats
+        try {
+            const nowIso = new Date().toISOString();
+            const fullName = window.getFullName ? window.getFullName(client) : (client.nombre || 'Cliente');
+            client.portalLoginCount = (client.portalLoginCount || 0) + 1;
+            client.lastPortalLogin = nowIso;
+            
+            if (window.db) {
+                window.db.collection('mangamar_customers').doc(client.dni).set({
+                    portalLoginCount: firebase.firestore.FieldValue.increment(1),
+                    lastPortalLogin: nowIso
+                }, { merge: true }).catch(err => console.error("Error updating customer portal logs:", err));
+                
+                window.db.collection('mangamar_portal_logs').doc(client.dni).set({
+                    dni: client.dni,
+                    nombre: fullName,
+                    portalLoginCount: firebase.firestore.FieldValue.increment(1),
+                    lastPortalLogin: nowIso
+                }, { merge: true }).catch(err => console.error("Error updating portal logs collection:", err));
+            }
+        } catch (e) {
+            console.error("Error tracking portal login:", e);
+        }
+
+        // Save session in localStorage so reopening the app bypasses login
+        try {
+            localStorage.setItem('mangamar_active_client_session', JSON.stringify({
+                dni: client.dni,
+                dob: client.dob,
+                client: client,
+                savedAt: Date.now()
+            }));
+        } catch (e) {}
+
+        const snapshot = await window.db.collection('mangamar_customers').doc(client.dni).collection('history').get();
         const rawDocs = [];
         snapshot.forEach(doc => rawDocs.push(doc));
 
@@ -2689,6 +2726,52 @@ window.attemptClientLogin = async function() {
     }
 };
 
+window.checkAndRestoreClientSession = function() {
+    try {
+        const raw = localStorage.getItem('mangamar_active_client_session');
+        if (!raw) return false;
+        const session = JSON.parse(raw);
+        if (!session || !session.dni) return false;
+
+        window.activeClient = session.client || { dni: session.dni, dob: session.dob, nombre: session.nombre || 'Cliente' };
+        window.activeClientRawDives = [];
+        window.clientPortalCurrentLang = window.clientPortalCurrentLang || localStorage.getItem('mangamar_client_lang') || 'es';
+
+        const clientName = window.getFullName ? window.getFullName(window.activeClient) : (window.activeClient.nombre || 'Cliente');
+        const nameEl = document.getElementById('client-overview-name');
+        if (nameEl) nameEl.innerText = clientName;
+
+        // Initialize default dates
+        const dObj = new Date();
+        const toIso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const endD = new Date(dObj);
+        endD.setDate(endD.getDate() + 6);
+
+        const fromInput = document.getElementById('client-salidas-from');
+        const toInput = document.getElementById('client-salidas-to');
+        if (fromInput) fromInput.value = toIso(dObj);
+        if (toInput) toInput.value = toIso(endD);
+
+        window.showGateView('overview');
+        window.setClientPortalLang(window.clientPortalCurrentLang);
+        window.switchClientPortalTab('dives');
+
+        // Fetch history in background and refresh dives
+        if (window.db) {
+            window.db.collection('mangamar_customers').doc(session.dni).collection('history').get().then(snapshot => {
+                const rawDocs = [];
+                snapshot.forEach(doc => rawDocs.push(doc));
+                window.activeClientRawDives = rawDocs;
+                window.renderClientDivesText();
+            }).catch(err => console.warn("Background dive history load failed:", err));
+        }
+        return true;
+    } catch (e) {
+        console.warn("Could not restore client session:", e);
+        return false;
+    }
+};
+
 window.clientPortalCurrentLang = 'es';
 window.activeClientPortalTab = 'dives';
 window.activeClient = null;
@@ -2697,12 +2780,13 @@ window.activeClientRawDives = [];
 const clientPortalDictionary = {
     es: {
         portalSubtitle: "Portal del Buceador",
-        disclaimerTitle: "Aviso sobre disponibilidad:",
+        disclaimerTitle: "Aviso sobre plazas:",
         disclaimerText: "Las plazas mostradas son orientativas y se actualizan en tiempo real. Debido a que las reservas se completan con rapidez y pueden existir solicitudes en curso en recepción, la disponibilidad no queda formalmente garantizada hasta ser procesada por el centro.",
         myDivesTab: "Mis Inmersiones",
         salidasTab: "Salidas y Plazas",
         myDivesTitle: "Resumen de Inmersiones",
         noDives: "No tienes próximas inmersiones programadas.",
+        noDivesSub: "Consulta la pestaña de Salidas y Plazas para ver horarios disponibles.",
         fromToday: "Desde hoy",
         dateFrom: "Desde:",
         dateTo: "Hasta:",
@@ -2712,23 +2796,34 @@ const clientPortalDictionary = {
         btn14Days: "14 Días",
         spots: "plazas libres",
         spot: "plaza libre",
-        full: "Completo (Lista de espera)",
-        noSalidas: "No hay salidas con plazas disponibles en el rango de fechas seleccionado.",
-        loadingSalidas: "Consultando disponibilidad de salidas...",
-        copyDives: "Copiar Mis Inmersiones",
-        copySalidas: "Copiar Disponibilidad",
+        full: "Completo",
+        noSalidas: "No hay salidas con plazas libres en las fechas seleccionadas.",
+        tryAnotherRange: "Prueba a seleccionar otro rango de fechas arriba.",
+        loadingSalidas: "Consultando disponibilidad...",
+        copyDives: "Copiar para WhatsApp",
+        copySalidas: "Copiar para WhatsApp",
         logout: "Salir",
         waitlistLabel: "Lista de espera",
+        waitlistBadge: "Espera",
+        confirmedLabel: "Confirmada",
+        confirmedBadge: "OK",
+        arrivalLabel: "Llegada",
+        departureLabel: "Salida barco",
+        divesCountSingular: "inmersión programada",
+        divesCountPlural: "inmersiones programadas",
+        salidasCountSingular: "salida disponible",
+        salidasCountPlural: "salidas disponibles",
         importantNotice: "⚠️ *Información importante:*\n- Las horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco).\n- Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.\n- Al llegar al centro, primero, hay que pasar por recepción para entregar tu DNI en físico."
     },
     en: {
         portalSubtitle: "Diver Portal",
-        disclaimerTitle: "Notice regarding availability:",
+        disclaimerTitle: "Availability Notice:",
         disclaimerText: "The spots shown are indicative and updated in real time. Because departures fill up quickly and bookings may be processing at reception, spots are not formally guaranteed until confirmed by the dive center.",
         myDivesTab: "My Dives",
         salidasTab: "Departures & Spots",
         myDivesTitle: "Dive Summary",
         noDives: "You have no upcoming dives scheduled.",
+        noDivesSub: "Check the Departures & Spots tab to see available schedules.",
         fromToday: "From today",
         dateFrom: "From:",
         dateTo: "To:",
@@ -2738,23 +2833,34 @@ const clientPortalDictionary = {
         btn14Days: "14 Days",
         spots: "spots left",
         spot: "spot left",
-        full: "Full (Waitlist)",
-        noSalidas: "No departures with available spots in the selected date range.",
-        loadingSalidas: "Checking departure availability...",
-        copyDives: "Copy My Dives",
-        copySalidas: "Copy Availability",
+        full: "Full",
+        noSalidas: "No departures with available spots in the selected dates.",
+        tryAnotherRange: "Try selecting a different date range above.",
+        loadingSalidas: "Checking availability...",
+        copyDives: "Copy for WhatsApp",
+        copySalidas: "Copy for WhatsApp",
         logout: "Log out",
         waitlistLabel: "Waitlist",
+        waitlistBadge: "Waitlist",
+        confirmedLabel: "Confirmed",
+        confirmedBadge: "OK",
+        arrivalLabel: "Arrival",
+        departureLabel: "Boat departure",
+        divesCountSingular: "scheduled dive",
+        divesCountPlural: "scheduled dives",
+        salidasCountSingular: "available departure",
+        salidasCountPlural: "available departures",
         importantNotice: "⚠️ *Important notice:*\n- The times indicated correspond to your arrival time at the dive center (not the boat departure).\n- Please be on time and remember to bring your physical DNI, Passport or ID card.\n- Upon arrival at the center, please first go to reception to hand in your physical ID."
     },
     nl: {
         portalSubtitle: "Duikersportaal",
-        disclaimerTitle: "Opmerking over beschikbaarheid:",
+        disclaimerTitle: "Opmerking over plaatsen:",
         disclaimerText: "De getoonde plaatsen zijn ter indicatie en worden realtime bijgewerkt. Omdat afvaarten snel volgeboekt raken en er aanvragen in behandeling kunnen zijn, is je plaats pas definitief na bevestiging door het duikcentrum.",
         myDivesTab: "Mijn Duiken",
         salidasTab: "Afvaarten & Plaatsen",
         myDivesTitle: "Duikoverzicht",
         noDives: "Je hebt geen geplande duiken in het vooruitzicht.",
+        noDivesSub: "Bekijk het tabblad Afvaarten & Plaatsen voor beschikbare schema's.",
         fromToday: "Vanaf vandaag",
         dateFrom: "Vanaf:",
         dateTo: "Tot:",
@@ -2764,28 +2870,42 @@ const clientPortalDictionary = {
         btn14Days: "14 Dagen",
         spots: "plaatsen vrij",
         spot: "plaats vrij",
-        full: "Volgeboekt (Wachtlijst)",
-        noSalidas: "Geen afvaarten met beschikbare plaatsen in de geselecteerde periode.",
-        loadingSalidas: "Beschikbaarheid van afvaarten controleren...",
-        copyDives: "Kopieer Mijn Duiken",
-        copySalidas: "Kopieer Beschikbaarheid",
+        full: "Volgeboekt",
+        noSalidas: "Geen afvaarten met beschikbare plaatsen in deze periode.",
+        tryAnotherRange: "Probeer hierboven een andere periode te selecteren.",
+        loadingSalidas: "Beschikbaarheid controleren...",
+        copyDives: "Kopieer voor WhatsApp",
+        copySalidas: "Kopieer voor WhatsApp",
         logout: "Uitloggen",
         waitlistLabel: "Wachtlijst",
+        waitlistBadge: "Wachtlijst",
+        confirmedLabel: "Bevestigd",
+        confirmedBadge: "OK",
+        arrivalLabel: "Aankomst",
+        departureLabel: "Boot vertrek",
+        divesCountSingular: "geplande duik",
+        divesCountPlural: "geplande duiken",
+        salidasCountSingular: "beschikbare afvaart",
+        salidasCountPlural: "beschikbare afvaarten",
         importantNotice: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven."
     }
 };
 
 window.setClientPortalLang = function(lang) {
     window.clientPortalCurrentLang = lang || 'es';
+    try {
+        localStorage.setItem('mangamar_client_lang', window.clientPortalCurrentLang);
+    } catch (e) {}
+
     const curLabels = clientPortalDictionary[window.clientPortalCurrentLang] || clientPortalDictionary.es;
 
     ['es', 'en', 'nl'].forEach(l => {
         const btn = document.getElementById(`client-lang-${l}`);
         if (btn) {
             if (l === window.clientPortalCurrentLang) {
-                btn.className = "w-7 h-7 rounded-md flex items-center justify-center text-sm hover:bg-slate-800 transition-all opacity-100 ring-2 ring-blue-500";
+                btn.className = "w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs sm:text-sm hover:bg-slate-800 transition-all opacity-100 ring-2 ring-blue-500";
             } else {
-                btn.className = "w-7 h-7 rounded-md flex items-center justify-center text-sm hover:bg-slate-800 transition-all opacity-50";
+                btn.className = "w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs sm:text-sm hover:bg-slate-800 transition-all opacity-50";
             }
         }
     });
@@ -2826,25 +2946,25 @@ window.switchClientPortalTab = function(tab) {
 
     if (tab === 'dives') {
         if (btnDives) {
-            btnDives.className = "flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-2";
+            btnDives.className = "flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-1.5";
         }
         if (btnSalidas) {
-            btnSalidas.className = "flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-2";
+            btnSalidas.className = "flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5";
         }
         if (panelDives) panelDives.classList.remove('hidden');
         if (panelSalidas) panelSalidas.classList.add('hidden');
     } else {
         if (btnSalidas) {
-            btnSalidas.className = "flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-2";
+            btnSalidas.className = "flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-1.5";
         }
         if (btnDives) {
-            btnDives.className = "flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-2";
+            btnDives.className = "flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5";
         }
         if (panelDives) panelDives.classList.add('hidden');
         if (panelSalidas) panelSalidas.classList.remove('hidden');
 
-        const textEl = document.getElementById('client-salidas-text');
-        if (textEl && !textEl.value) {
+        const cardsContainer = document.getElementById('client-salidas-cards-container');
+        if (cardsContainer && (!cardsContainer.children || cardsContainer.children.length === 0)) {
             window.loadClientSalidasDisponibilidad();
         }
     }
@@ -2890,9 +3010,9 @@ window.setClientSalidasPreset = function(preset) {
         const btn = document.getElementById(`client-preset-${p}`);
         if (btn) {
             if (p === preset) {
-                btn.className = "px-2.5 py-1 text-[10px] font-black rounded-lg bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-colors";
+                btn.className = "flex-1 min-w-[50px] py-1 text-[10px] font-black rounded-lg bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center";
             } else {
-                btn.className = "px-2.5 py-1 text-[10px] font-black rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors";
+                btn.className = "flex-1 min-w-[50px] py-1 text-[10px] font-black rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-all text-center";
             }
         }
     });
@@ -2965,7 +3085,8 @@ window.renderClientDivesText = function() {
                     date: trip.date,
                     time: trip.time || '',
                     site: trip.site || (lang === 'en' ? 'Dive' : 'Buceo'),
-                    tripId: trip.id
+                    tripId: trip.id,
+                    boat: trip.assignedBoat || trip.boat || ''
                 });
                 count++;
             }
@@ -2978,8 +3099,16 @@ window.renderClientDivesText = function() {
     summaryText += `${curLabels.fromToday}, ${dObj.toLocaleDateString(dateLocales[lang] || 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
     summaryText += `========================================\n\n`;
 
+    let cardsHtml = '';
+
     if (count === 0) {
         summaryText += `${curLabels.noDives}\n`;
+        cardsHtml = `
+        <div class="py-10 px-4 text-center flex flex-col items-center justify-center bg-slate-900/40 rounded-2xl border border-slate-800/80">
+            <span class="text-3xl mb-2 select-none">🤿</span>
+            <span class="text-xs font-black text-slate-300 mb-1">${curLabels.noDives}</span>
+            <span class="text-[10px] text-slate-500 font-medium">${curLabels.noDivesSub}</span>
+        </div>`;
     } else {
         Object.keys(groupedDives).sort().forEach(dateStr => {
             const parts = dateStr.split('-');
@@ -2996,14 +3125,27 @@ window.renderClientDivesText = function() {
 
             summaryText += `${formattedDay}:\n`;
 
-            groupedDives[dateStr].sort((a, b) => {
+            const dayDives = groupedDives[dateStr].sort((a, b) => {
                 const timeA = a.time || '00:00';
                 const timeB = b.time || '00:00';
                 return timeA.localeCompare(timeB);
             });
 
-            groupedDives[dateStr].forEach(dive => {
+            cardsHtml += `
+            <div class="space-y-1.5 pt-1">
+                <div class="sticky top-0 z-10 py-1 px-2.5 bg-slate-950/95 backdrop-blur-md rounded-lg border border-slate-800/80 flex items-center justify-between shadow-xs">
+                    <span class="text-[11px] font-black text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>📅</span> ${formattedDay}
+                    </span>
+                    <span class="text-[9px] font-black text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800">
+                        ${dayDives.length} ${dayDives.length === 1 ? curLabels.divesCountSingular : curLabels.divesCountPlural}
+                    </span>
+                </div>
+                <div class="space-y-1.5">`;
+
+            dayDives.forEach(dive => {
                 let timeStr = dive.time || '';
+                let boatDepartureTime = dive.time || '';
                 if (timeStr && timeStr.includes(':')) {
                     const timeParts = timeStr.split(':');
                     let hours = parseInt(timeParts[0], 10);
@@ -3014,24 +3156,69 @@ window.renderClientDivesText = function() {
                 }
 
                 let gasSuffix = "";
+                let cleanGasBadge = "";
                 if (!dive.isWaitlist && dive.gas) {
                     const gasLower = dive.gas.toLowerCase();
                     if (!gasLower.includes('aire')) {
-                        let cleanGas = dive.gas.replace('15L ', '').replace('12L ', '').trim();
-                        cleanGas = cleanGas.replace(/ean/i, 'Nitrox');
-                        gasSuffix = ` (${cleanGas})`;
+                        cleanGasBadge = dive.gas.replace('15L ', '').replace('12L ', '').trim().replace(/ean/i, 'Nitrox');
+                        gasSuffix = ` (${cleanGasBadge})`;
                     }
                 }
 
+                const boatName = dive.boat ? (dive.boat.charAt(0).toUpperCase() + dive.boat.slice(1)) : '';
                 const waitlistSuffix = dive.isWaitlist ? ` (${curLabels.waitlistLabel})` : '';
                 summaryText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}${waitlistSuffix}\n`;
+
+                cardsHtml += `
+                <div class="p-2.5 sm:p-3 bg-slate-900/90 hover:bg-slate-850 border ${dive.isWaitlist ? 'border-amber-500/30 bg-amber-950/15' : 'border-slate-800'} rounded-2xl flex items-center justify-between gap-2.5 shadow-sm transition-all">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="flex flex-col items-center justify-center px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-xl shrink-0 min-w-[48px]">
+                            <span class="text-xs font-black text-blue-400 leading-tight">${timeStr}</span>
+                            <span class="text-[8px] font-bold text-slate-500 uppercase tracking-tight leading-none mt-0.5">${curLabels.arrivalLabel}</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="text-xs sm:text-sm font-black text-white truncate flex items-center gap-1.5">
+                                <span>${dive.site || 'Buceo'}</span>
+                                ${cleanGasBadge ? `<span class="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-blue-950/80 text-blue-300 border border-blue-800/80">${cleanGasBadge}</span>` : ''}
+                            </div>
+                            <div class="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
+                                ${boatName ? `<span class="text-slate-300">🚤 ${boatName}</span>` : ''}
+                                ${boatName ? `<span class="text-slate-600">•</span>` : ''}
+                                <span>${curLabels.departureLabel} ${boatDepartureTime}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="shrink-0">
+                        ${dive.isWaitlist ? `
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1 shadow-xs">
+                                <span>⏳</span> ${curLabels.waitlistBadge}
+                            </span>
+                        ` : `
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shadow-xs">
+                                <span>✓</span> ${curLabels.confirmedBadge}
+                            </span>
+                        `}
+                    </div>
+                </div>`;
             });
+
+            cardsHtml += `
+                </div>
+            </div>`;
             summaryText += `\n`;
         });
     }
 
     const textEl = document.getElementById('client-overview-text');
     if (textEl) textEl.value = summaryText.trim();
+
+    const cardsContainer = document.getElementById('client-dives-cards-container');
+    if (cardsContainer) cardsContainer.innerHTML = cardsHtml;
+
+    const countLabel = document.getElementById('client-dives-count-label');
+    if (countLabel) {
+        countLabel.innerText = count > 0 ? `${count} ${count === 1 ? curLabels.divesCountSingular : curLabels.divesCountPlural}` : '';
+    }
 };
 
 window.loadClientSalidasDisponibilidad = async function() {
@@ -3107,16 +3294,25 @@ window.loadClientSalidasDisponibilidad = async function() {
         });
 
         const grouped = {};
+        let totalSalidasCount = 0;
         filteredTrips.forEach(t => {
             if (!grouped[t.date]) grouped[t.date] = [];
             grouped[t.date].push(t);
+            totalSalidasCount++;
         });
 
         let output = `${curLabels.importantNotice}\n\n`;
+        let cardsHtml = '';
 
         const sortedDates = Object.keys(grouped).sort();
         if (sortedDates.length === 0) {
             output += `${curLabels.noSalidas}\n`;
+            cardsHtml = `
+            <div class="py-10 px-4 text-center flex flex-col items-center justify-center bg-slate-900/40 rounded-2xl border border-slate-800/80">
+                <span class="text-3xl mb-2 select-none">🏖️</span>
+                <span class="text-xs font-black text-slate-300 mb-1">${curLabels.noSalidas}</span>
+                <span class="text-[10px] text-slate-500 font-medium">${curLabels.tryAnotherRange}</span>
+            </div>`;
         } else {
             sortedDates.forEach(dStr => {
                 const parts = dStr.split('-');
@@ -3133,10 +3329,25 @@ window.loadClientSalidasDisponibilidad = async function() {
 
                 output += `📅 *${formattedDay}*\n`;
 
-                grouped[dStr].sort((a, b) => (a.time || '').localeCompare(b.time || '')).forEach(t => {
+                const dayTrips = grouped[dStr].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+                cardsHtml += `
+                <div class="space-y-1.5 pt-1">
+                    <div class="sticky top-0 z-10 py-1 px-2.5 bg-slate-950/95 backdrop-blur-md rounded-lg border border-slate-800/80 flex items-center justify-between shadow-xs">
+                        <span class="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <span>📅</span> ${formattedDay}
+                        </span>
+                        <span class="text-[9px] font-black text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800">
+                            ${dayTrips.length} ${dayTrips.length === 1 ? curLabels.salidasCountSingular : curLabels.salidasCountPlural}
+                        </span>
+                    </div>
+                    <div class="space-y-1.5">`;
+
+                dayTrips.forEach(t => {
                     const freeSpots = t._clientFreeSpots !== undefined ? t._clientFreeSpots : 0;
 
                     let cxTime = t.time || '';
+                    const boatDepartureTime = t.time || '';
                     if (cxTime && cxTime.includes(':')) {
                         const timeParts = cxTime.split(':');
                         let hour = parseInt(timeParts[0], 10);
@@ -3146,22 +3357,59 @@ window.loadClientSalidasDisponibilidad = async function() {
                     }
 
                     const siteName = t.site || (lang === 'en' ? 'To be confirmed' : (lang === 'nl' ? 'Nog te bevestigen' : 'Por confirmar'));
+                    const isPlenty = freeSpots >= 6;
                     
                     let spotStr = "";
-                    if (freeSpots >= 6) {
+                    if (isPlenty) {
                         spotStr = `(🟢 ${freeSpots} ${curLabels.spots})`;
                     } else {
                         spotStr = `(🟡 ${freeSpots} ${freeSpots === 1 ? curLabels.spot : curLabels.spots})`;
                     }
 
                     output += ` • ${cxTime} - ${siteName} ${spotStr}\n`;
+
+                    const boatName = t.assignedBoat ? (t.assignedBoat.charAt(0).toUpperCase() + t.assignedBoat.slice(1)) : '';
+
+                    cardsHtml += `
+                    <div class="p-2.5 sm:p-3 bg-slate-900/90 hover:bg-slate-850 border border-slate-800 rounded-2xl flex items-center justify-between gap-2.5 shadow-sm transition-all">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="flex flex-col items-center justify-center px-2 py-1 bg-slate-800/90 border border-slate-700/80 rounded-xl shrink-0 min-w-[48px]">
+                                <span class="text-xs font-black text-white leading-tight">${cxTime}</span>
+                                <span class="text-[8px] font-bold text-slate-400 uppercase tracking-tight leading-none mt-0.5">${curLabels.arrivalLabel}</span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-xs sm:text-sm font-black text-white truncate">${siteName}</div>
+                                <div class="text-[10px] font-bold text-slate-500 flex items-center gap-1 mt-0.5">
+                                    ${boatName ? `<span class="text-slate-400">🚤 ${boatName}</span><span class="text-slate-700">•</span>` : ''}
+                                    <span>${curLabels.departureLabel} ${boatDepartureTime}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="shrink-0">
+                            <span class="px-2.5 py-1 rounded-full text-[11px] font-black ${isPlenty ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'} flex items-center gap-1.5 shadow-xs">
+                                <span class="w-1.5 h-1.5 rounded-full ${isPlenty ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
+                                ${freeSpots} ${freeSpots === 1 ? curLabels.spot : curLabels.spots}
+                            </span>
+                        </div>
+                    </div>`;
                 });
+                cardsHtml += `
+                    </div>
+                </div>`;
                 output += `\n`;
             });
         }
 
         const textEl = document.getElementById('client-salidas-text');
         if (textEl) textEl.value = output.trim();
+
+        const cardsContainer = document.getElementById('client-salidas-cards-container');
+        if (cardsContainer) cardsContainer.innerHTML = cardsHtml;
+
+        const countLabel = document.getElementById('client-salidas-count-label');
+        if (countLabel) {
+            countLabel.innerText = totalSalidasCount > 0 ? `${totalSalidasCount} ${totalSalidasCount === 1 ? curLabels.salidasCountSingular : curLabels.salidasCountPlural}` : '';
+        }
     } catch (e) {
         console.error("Error loading salidas for client:", e);
     } finally {
@@ -3170,10 +3418,19 @@ window.loadClientSalidasDisponibilidad = async function() {
 };
 
 window.logoutClient = function() {
-    document.getElementById('client-dni-input').value = "";
-    document.getElementById('client-dob-day').value = "";
-    document.getElementById('client-dob-month').value = "";
-    document.getElementById('client-dob-year').value = "";
+    try {
+        localStorage.removeItem('mangamar_active_client_session');
+    } catch (e) {}
+
+    const dniInput = document.getElementById('client-dni-input');
+    const day = document.getElementById('client-dob-day');
+    const month = document.getElementById('client-dob-month');
+    const year = document.getElementById('client-dob-year');
+    if (dniInput) dniInput.value = "";
+    if (day) day.value = "";
+    if (month) month.value = "";
+    if (year) year.value = "";
+
     window.activeClient = null;
     window.activeClientRawDives = [];
     window.showGateView('selection');
