@@ -68,8 +68,8 @@
     <!-- Full-Screen Premium Login Gate -->
     <div id="login-gate" class="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/95 backdrop-blur-md overflow-y-auto p-2 sm:p-4 hidden transition-all duration-500">
         <div id="login-gate-card" class="relative w-full max-w-md p-4 sm:p-6 md:p-8 bg-slate-900/40 border border-slate-800 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl flex flex-col items-center transition-all duration-300 my-auto">
-            <!-- Help PWA Button -->
-            <div class="absolute top-4 right-4 group">
+            <!-- Help PWA Button (Hidden on overview to avoid overlapping Salir) -->
+            <div id="gate-pwa-help-btn-container" class="absolute top-4 right-4 group">
                 <button onclick="document.getElementById('pwa-modal').classList.remove('hidden')" class="w-6 h-6 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors text-xs font-black flex items-center justify-center border border-slate-750">
                     ?
                 </button>
@@ -196,57 +196,57 @@
                 </button>
             </div>
 
-            <!-- 4. CLIENT OVERVIEW VIEW (MOBILE-FIRST NATIVE PORTAL) -->
-            <div id="gate-client-overview" class="w-full space-y-3 text-left hidden">
+            <!-- 4. CLIENT OVERVIEW VIEW (MOBILE-FIRST NATIVE DENSE PORTAL) -->
+            <div id="gate-client-overview" class="w-full space-y-2.5 text-left hidden">
                 <!-- Header with Favicon, Client Name, Language Buttons & Logout -->
-                <div class="flex justify-between items-center gap-2 pb-2.5 border-b border-slate-800/80">
-                    <div class="flex items-center gap-2.5 min-w-0">
-                        <img src="favicon_mangamar.webp" class="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0" alt="Mangamar">
+                <div class="flex justify-between items-center gap-2 pb-2 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <img src="favicon_mangamar.webp" class="w-6 h-6 sm:w-7 sm:h-7 object-contain shrink-0" alt="Mangamar">
                         <div class="min-w-0">
-                            <h3 id="client-overview-name" class="text-sm sm:text-base font-black text-white truncate leading-tight"></h3>
-                            <span id="client-portal-subtitle" class="text-[10px] text-slate-400 font-bold block truncate">Portal del Buceador</span>
+                            <h3 id="client-overview-name" class="text-sm font-bold text-white truncate leading-tight"></h3>
+                            <span id="client-portal-subtitle" class="text-[10px] text-slate-400 font-medium block truncate">Portal del Buceador</span>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
-                        <div class="flex bg-slate-950/80 rounded-lg border border-slate-800 p-0.5 shadow-sm gap-0.5">
-                            <button id="client-lang-es" onclick="window.setClientPortalLang('es')" class="w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs sm:text-sm hover:bg-slate-800 transition-all opacity-100 ring-2 ring-blue-500" title="Español">🇪🇸</button>
-                            <button id="client-lang-en" onclick="window.setClientPortalLang('en')" class="w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs sm:text-sm hover:bg-slate-800 transition-all opacity-50" title="English">🇬🇧</button>
-                            <button id="client-lang-nl" onclick="window.setClientPortalLang('nl')" class="w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs sm:text-sm hover:bg-slate-800 transition-all opacity-50" title="Nederlands">🇳🇱</button>
+                        <div class="flex bg-slate-950 rounded-lg border border-slate-800 p-0.5 shadow-sm gap-0.5">
+                            <button id="client-lang-es" onclick="window.setClientPortalLang('es')" class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-100 ring-2 ring-blue-500" title="Español">🇪🇸</button>
+                            <button id="client-lang-en" onclick="window.setClientPortalLang('en')" class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-50" title="English">🇬🇧</button>
+                            <button id="client-lang-nl" onclick="window.setClientPortalLang('nl')" class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-50" title="Nederlands">🇳🇱</button>
                         </div>
-                        <button onclick="logoutClient()" class="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 text-[10px] font-black uppercase tracking-wider transition-colors flex items-center gap-1">
+                        <button onclick="logoutClient()" class="px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                             <span id="client-logout-text">Salir</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Segmented Tabs Bar -->
-                <div class="flex bg-slate-950/90 p-1 rounded-2xl border border-slate-800 gap-1 shadow-inner">
-                    <button id="client-tab-btn-dives" onclick="window.switchClientPortalTab('dives')" class="flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-1.5">
-                        <span>🤿</span>
+                <!-- Segmented Tabs Bar (Clean, no emojis) -->
+                <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 shadow-inner">
+                    <button id="client-tab-btn-dives" onclick="window.switchClientPortalTab('dives')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow transition-all text-center">
                         <span id="client-tab-label-dives">Mis Inmersiones</span>
                     </button>
-                    <button id="client-tab-btn-salidas" onclick="window.switchClientPortalTab('salidas')" class="flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5">
-                        <span>📅</span>
+                    <button id="client-tab-btn-salidas" onclick="window.switchClientPortalTab('salidas')" class="flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition-all text-center">
                         <span id="client-tab-label-salidas">Salidas y Plazas</span>
                     </button>
                 </div>
 
                 <!-- PANEL 1: MIS INMERSIONES -->
-                <div id="client-panel-dives" class="w-full space-y-2.5">
-                    <!-- Compact Important Notice Banner -->
-                    <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2 sm:p-2.5 flex items-start gap-2 shadow-xs">
-                        <span class="text-xs shrink-0 select-none mt-0.5">⚠️</span>
-                        <div class="text-[10px] sm:text-[11px] text-amber-200/90 leading-tight">
-                            <div class="font-bold flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                                <span>⏱️ <strong class="text-amber-300">Hora = llegada</strong> al centro (1h antes)</span>
-                                <span>🪪 <strong class="text-amber-300">DNI/Pasaporte en físico</strong> a recepción</span>
-                            </div>
+                <div id="client-panel-dives" class="w-full space-y-2">
+                    <!-- Minimizable Full Important Notice Banner -->
+                    <div class="bg-amber-950/25 border border-amber-500/25 rounded-xl p-2.5 text-xs text-amber-200/90 leading-tight">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-bold text-amber-300 text-[11px]" id="client-dives-notice-title">Información importante</span>
+                            <button type="button" onclick="document.getElementById('client-dives-notice-full').classList.toggle('hidden'); this.innerText = document.getElementById('client-dives-notice-full').classList.contains('hidden') ? '+ info' : '- info';" class="text-[10px] text-amber-400 hover:underline font-bold shrink-0">
+                                + info
+                            </button>
+                        </div>
+                        <div id="client-dives-notice-full" class="hidden mt-2 text-[11px] text-amber-200/80 font-normal leading-relaxed border-t border-amber-500/20 pt-1.5 whitespace-pre-line">
+                            <span id="client-dives-notice-text"></span>
                         </div>
                     </div>
 
-                    <!-- Native Visual Dive Cards Container -->
-                    <div id="client-dives-cards-container" class="w-full space-y-2.5 overflow-y-auto max-h-[48vh] sm:max-h-[54vh] pr-0.5 custom-scrollbar">
+                    <!-- Dense Visual Dive List Container -->
+                    <div id="client-dives-cards-container" class="w-full bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 overflow-y-auto max-h-[50vh] sm:max-h-[55vh] pr-1 custom-scrollbar">
                         <!-- Rendered by window.renderClientDivesText() -->
                     </div>
 
@@ -254,9 +254,9 @@
                     <textarea id="client-overview-text" class="hidden" readonly></textarea>
 
                     <!-- Bottom Action Row -->
-                    <div class="flex justify-between items-center pt-2 border-t border-slate-800/80">
-                        <span class="text-[10px] text-slate-500 font-bold" id="client-dives-count-label"></span>
-                        <button onclick="copyData(document.getElementById('client-overview-text').value, '¡Inmersiones Copiadas!', true)" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white font-black text-[11px] rounded-xl transition-all shadow-sm flex items-center gap-1.5 active:scale-95">
+                    <div class="flex justify-between items-center pt-1.5 border-t border-slate-800/80">
+                        <span class="text-[10px] text-slate-500 font-medium" id="client-dives-count-label"></span>
+                        <button onclick="copyData(document.getElementById('client-overview-text').value, '¡Inmersiones Copiadas!', true)" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white font-bold text-[11px] rounded-lg transition-all shadow-xs flex items-center gap-1.5 active:scale-95">
                             <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                             <span id="client-copy-dives-btn-text">Copiar para WhatsApp</span>
                         </button>
@@ -264,55 +264,51 @@
                 </div>
 
                 <!-- PANEL 2: SALIDAS Y PLAZAS -->
-                <div id="client-panel-salidas" class="w-full space-y-2.5 hidden">
-                    <!-- Compact Disclaimer Banner with toggle -->
-                    <div class="bg-amber-950/30 border border-amber-500/30 rounded-xl p-2 sm:p-2.5 text-[10px] sm:text-[11px] text-amber-200/90 leading-tight">
+                <div id="client-panel-salidas" class="w-full space-y-2 hidden">
+                    <!-- Minimizable Full Disclaimer Banner -->
+                    <div class="bg-amber-950/25 border border-amber-500/25 rounded-xl p-2.5 text-xs text-amber-200/90 leading-tight">
                         <div class="flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-1.5 font-bold text-amber-300">
-                                <span class="select-none">ℹ️</span>
-                                <span id="client-salidas-disclaimer-title">Aviso sobre plazas:</span>
-                            </div>
-                            <button type="button" onclick="document.getElementById('client-salidas-disclaimer-full').classList.toggle('hidden')" class="text-[9px] text-amber-400 hover:underline font-black shrink-0">
+                            <span class="font-bold text-amber-300 text-[11px]" id="client-salidas-disclaimer-title">Aviso sobre disponibilidad</span>
+                            <button type="button" onclick="document.getElementById('client-salidas-disclaimer-full').classList.toggle('hidden'); this.innerText = document.getElementById('client-salidas-disclaimer-full').classList.contains('hidden') ? '+ info' : '- info';" class="text-[10px] text-amber-400 hover:underline font-bold shrink-0">
                                 + info
                             </button>
                         </div>
-                        <div id="client-salidas-disclaimer-full" class="hidden mt-1 text-[10px] text-amber-200/80 font-medium leading-normal border-t border-amber-500/20 pt-1">
+                        <div id="client-salidas-disclaimer-full" class="hidden mt-2 text-[11px] text-amber-200/80 font-normal leading-relaxed border-t border-amber-500/20 pt-1.5">
                             <span id="client-salidas-disclaimer-text"></span>
                         </div>
                     </div>
 
-                    <!-- Date Filters & Preset Buttons (Compact Mobile Layout) -->
-                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-2 sm:p-2.5 space-y-2 shadow-inner">
+                    <!-- Date Filters & Preset Buttons (Dense Mobile Layout) -->
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-2 space-y-1.5 shadow-inner">
                         <!-- Presets Row -->
-                        <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-                            <button onclick="window.setClientSalidasPreset('today')" id="client-preset-today" class="flex-1 min-w-[50px] py-1 text-[10px] font-black rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-all text-center">Hoy</button>
-                            <button onclick="window.setClientSalidasPreset('weekend')" id="client-preset-weekend" class="flex-1 min-w-[70px] py-1 text-[10px] font-black rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-all text-center">Fin de Semana</button>
-                            <button onclick="window.setClientSalidasPreset('7days')" id="client-preset-7days" class="flex-1 min-w-[50px] py-1 text-[10px] font-black rounded-lg bg-blue-600/30 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 transition-all text-center">7 Días</button>
-                            <button onclick="window.setClientSalidasPreset('14days')" id="client-preset-14days" class="flex-1 min-w-[50px] py-1 text-[10px] font-black rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-all text-center">14 Días</button>
+                        <div class="grid grid-cols-4 gap-1">
+                            <button onclick="window.setClientSalidasPreset('today')" id="client-preset-today" class="py-1 text-[10px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">Hoy</button>
+                            <button onclick="window.setClientSalidasPreset('weekend')" id="client-preset-weekend" class="py-1 text-[10px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">Fin de sem.</button>
+                            <button onclick="window.setClientSalidasPreset('7days')" id="client-preset-7days" class="py-1 text-[10px] font-bold rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center">7 Días</button>
+                            <button onclick="window.setClientSalidasPreset('14days')" id="client-preset-14days" class="py-1 text-[10px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center">14 Días</button>
                         </div>
-                        <!-- Inline Date Range Row -->
-                        <div class="flex items-center gap-2">
-                            <div class="flex items-center gap-1.5 flex-1 bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1">
-                                <span id="client-lbl-from" class="text-[9px] font-black text-slate-500 uppercase shrink-0">Desde:</span>
-                                <input type="date" id="client-salidas-from" onchange="window.loadClientSalidasDisponibilidad()" class="bg-transparent text-[11px] font-black text-white outline-none w-full cursor-pointer">
+                        <!-- Inline Date Range Row with compact font and zero overflow -->
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <div class="flex items-center justify-between gap-1 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 min-w-0">
+                                <span id="client-lbl-from" class="text-[9px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Desde:</span>
+                                <input type="date" id="client-salidas-from" onchange="window.loadClientSalidasDisponibilidad()" class="bg-transparent text-[11px] text-slate-200 font-medium outline-none text-right cursor-pointer w-full min-w-0">
                             </div>
-                            <span class="text-slate-600 text-xs">➔</span>
-                            <div class="flex items-center gap-1.5 flex-1 bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1">
-                                <span id="client-lbl-to" class="text-[9px] font-black text-slate-500 uppercase shrink-0">Hasta:</span>
-                                <input type="date" id="client-salidas-to" onchange="window.loadClientSalidasDisponibilidad()" class="bg-transparent text-[11px] font-black text-white outline-none w-full cursor-pointer">
+                            <div class="flex items-center justify-between gap-1 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 min-w-0">
+                                <span id="client-lbl-to" class="text-[9px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Hasta:</span>
+                                <input type="date" id="client-salidas-to" onchange="window.loadClientSalidasDisponibilidad()" class="bg-transparent text-[11px] text-slate-200 font-medium outline-none text-right cursor-pointer w-full min-w-0">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Native Visual Salidas Cards Container -->
+                    <!-- Dense Visual Salidas Container -->
                     <div class="relative w-full">
-                        <div id="client-salidas-loading" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center rounded-2xl z-10">
-                            <div class="flex items-center gap-2 text-blue-400 font-bold text-xs">
-                                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <div id="client-salidas-loading" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center rounded-xl z-10">
+                            <div class="flex items-center gap-2 text-blue-400 font-medium text-xs">
+                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                                 <span id="client-salidas-loading-text">Consultando disponibilidad...</span>
                             </div>
                         </div>
-                        <div id="client-salidas-cards-container" class="w-full space-y-2.5 overflow-y-auto max-h-[44vh] sm:max-h-[50vh] pr-0.5 custom-scrollbar">
+                        <div id="client-salidas-cards-container" class="w-full bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 overflow-y-auto max-h-[46vh] sm:max-h-[50vh] pr-1 custom-scrollbar">
                             <!-- Rendered by window.loadClientSalidasDisponibilidad() -->
                         </div>
                         <!-- Hidden textarea for WhatsApp clipboard copying -->
@@ -320,9 +316,9 @@
                     </div>
 
                     <!-- Bottom Action Row -->
-                    <div class="flex justify-between items-center pt-2 border-t border-slate-800/80">
-                        <span class="text-[10px] text-slate-500 font-bold" id="client-salidas-count-label"></span>
-                        <button onclick="copyData(document.getElementById('client-salidas-text').value, '¡Disponibilidad Copiada!', true)" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white font-black text-[11px] rounded-xl transition-all shadow-sm flex items-center gap-1.5 active:scale-95">
+                    <div class="flex justify-between items-center pt-1.5 border-t border-slate-800/80">
+                        <span class="text-[10px] text-slate-500 font-medium" id="client-salidas-count-label"></span>
+                        <button onclick="copyData(document.getElementById('client-salidas-text').value, '¡Disponibilidad Copiada!', true)" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white font-bold text-[11px] rounded-lg transition-all shadow-xs flex items-center gap-1.5 active:scale-95">
                             <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                             <span id="client-copy-salidas-btn-text">Copiar para WhatsApp</span>
                         </button>

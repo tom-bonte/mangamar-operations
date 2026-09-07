@@ -2427,6 +2427,15 @@ window.showGateView = function(view) {
         }
     }
 
+    const helpBtn = document.getElementById('gate-pwa-help-btn-container');
+    if (helpBtn) {
+        if (view === 'overview') {
+            helpBtn.classList.add('hidden');
+        } else {
+            helpBtn.classList.remove('hidden');
+        }
+    }
+
     if (gateCard) {
         if (view === 'overview') {
             gateCard.classList.remove('max-w-md');
@@ -2780,7 +2789,9 @@ window.activeClientRawDives = [];
 const clientPortalDictionary = {
     es: {
         portalSubtitle: "Portal del Buceador",
-        disclaimerTitle: "Aviso sobre plazas:",
+        importantNoticeTitle: "Información importante",
+        importantNoticeText: "• Las horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco).\n• Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.\n• Al llegar al centro, primero, hay que pasar por recepción para entregar tu DNI en físico.",
+        disclaimerTitle: "Aviso sobre disponibilidad",
         disclaimerText: "Las plazas mostradas son orientativas y se actualizan en tiempo real. Debido a que las reservas se completan con rapidez y pueden existir solicitudes en curso en recepción, la disponibilidad no queda formalmente garantizada hasta ser procesada por el centro.",
         myDivesTab: "Mis Inmersiones",
         salidasTab: "Salidas y Plazas",
@@ -2791,7 +2802,7 @@ const clientPortalDictionary = {
         dateFrom: "Desde:",
         dateTo: "Hasta:",
         btnToday: "Hoy",
-        btnWeekend: "Fin de Semana",
+        btnWeekend: "Fin de sem.",
         btn7Days: "7 Días",
         btn14Days: "14 Días",
         spots: "plazas libres",
@@ -2803,21 +2814,18 @@ const clientPortalDictionary = {
         copyDives: "Copiar para WhatsApp",
         copySalidas: "Copiar para WhatsApp",
         logout: "Salir",
-        waitlistLabel: "Lista de espera",
-        waitlistBadge: "Espera",
-        confirmedLabel: "Confirmada",
-        confirmedBadge: "OK",
-        arrivalLabel: "Llegada",
-        departureLabel: "Salida barco",
-        divesCountSingular: "inmersión programada",
-        divesCountPlural: "inmersiones programadas",
-        salidasCountSingular: "salida disponible",
-        salidasCountPlural: "salidas disponibles",
-        importantNotice: "⚠️ *Información importante:*\n- Las horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco).\n- Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.\n- Al llegar al centro, primero, hay que pasar por recepción para entregar tu DNI en físico."
+        waitlist: "Lista de espera",
+        confirmed: "Confirmada",
+        divesCountSingular: "inmersión",
+        divesCountPlural: "inmersiones",
+        salidasCountSingular: "salida",
+        salidasCountPlural: "salidas"
     },
     en: {
         portalSubtitle: "Diver Portal",
-        disclaimerTitle: "Availability Notice:",
+        importantNoticeTitle: "Important Notice",
+        importantNoticeText: "• The times indicated correspond to your arrival time at the dive center (not the boat departure).\n• Please be on time and remember to bring your physical DNI, Passport or ID card.\n• Upon arrival at the center, please first go to reception to hand in your physical ID.",
+        disclaimerTitle: "Availability Notice",
         disclaimerText: "The spots shown are indicative and updated in real time. Because departures fill up quickly and bookings may be processing at reception, spots are not formally guaranteed until confirmed by the dive center.",
         myDivesTab: "My Dives",
         salidasTab: "Departures & Spots",
@@ -2840,21 +2848,18 @@ const clientPortalDictionary = {
         copyDives: "Copy for WhatsApp",
         copySalidas: "Copy for WhatsApp",
         logout: "Log out",
-        waitlistLabel: "Waitlist",
-        waitlistBadge: "Waitlist",
-        confirmedLabel: "Confirmed",
-        confirmedBadge: "OK",
-        arrivalLabel: "Arrival",
-        departureLabel: "Boat departure",
-        divesCountSingular: "scheduled dive",
-        divesCountPlural: "scheduled dives",
-        salidasCountSingular: "available departure",
-        salidasCountPlural: "available departures",
-        importantNotice: "⚠️ *Important notice:*\n- The times indicated correspond to your arrival time at the dive center (not the boat departure).\n- Please be on time and remember to bring your physical DNI, Passport or ID card.\n- Upon arrival at the center, please first go to reception to hand in your physical ID."
+        waitlist: "Waitlist",
+        confirmed: "Confirmed",
+        divesCountSingular: "dive",
+        divesCountPlural: "dives",
+        salidasCountSingular: "departure",
+        salidasCountPlural: "departures"
     },
     nl: {
         portalSubtitle: "Duikersportaal",
-        disclaimerTitle: "Opmerking over plaatsen:",
+        importantNoticeTitle: "Belangrijke Informatie",
+        importantNoticeText: "• De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n• Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n• Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven.",
+        disclaimerTitle: "Opmerking over plaatsen",
         disclaimerText: "De getoonde plaatsen zijn ter indicatie en worden realtime bijgewerkt. Omdat afvaarten snel volgeboekt raken en er aanvragen in behandeling kunnen zijn, is je plaats pas definitief na bevestiging door het duikcentrum.",
         myDivesTab: "Mijn Duiken",
         salidasTab: "Afvaarten & Plaatsen",
@@ -2877,17 +2882,12 @@ const clientPortalDictionary = {
         copyDives: "Kopieer voor WhatsApp",
         copySalidas: "Kopieer voor WhatsApp",
         logout: "Uitloggen",
-        waitlistLabel: "Wachtlijst",
-        waitlistBadge: "Wachtlijst",
-        confirmedLabel: "Bevestigd",
-        confirmedBadge: "OK",
-        arrivalLabel: "Aankomst",
-        departureLabel: "Boot vertrek",
-        divesCountSingular: "geplande duik",
-        divesCountPlural: "geplande duiken",
-        salidasCountSingular: "beschikbare afvaart",
-        salidasCountPlural: "beschikbare afvaarten",
-        importantNotice: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven."
+        waitlist: "Wachtlijst",
+        confirmed: "Bevestigd",
+        divesCountSingular: "duik",
+        divesCountPlural: "duiken",
+        salidasCountSingular: "afvaart",
+        salidasCountPlural: "afvaarten"
     }
 };
 
@@ -2903,9 +2903,9 @@ window.setClientPortalLang = function(lang) {
         const btn = document.getElementById(`client-lang-${l}`);
         if (btn) {
             if (l === window.clientPortalCurrentLang) {
-                btn.className = "w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs sm:text-sm hover:bg-slate-800 transition-all opacity-100 ring-2 ring-blue-500";
+                btn.className = "w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-100 ring-2 ring-blue-500";
             } else {
-                btn.className = "w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center text-xs sm:text-sm hover:bg-slate-800 transition-all opacity-50";
+                btn.className = "w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-800 transition-all opacity-50";
             }
         }
     });
@@ -2919,6 +2919,8 @@ window.setClientPortalLang = function(lang) {
     setTxt('client-logout-text', curLabels.logout);
     setTxt('client-tab-label-dives', curLabels.myDivesTab);
     setTxt('client-tab-label-salidas', curLabels.salidasTab);
+    setTxt('client-dives-notice-title', curLabels.importantNoticeTitle);
+    setTxt('client-dives-notice-text', curLabels.importantNoticeText);
     setTxt('client-salidas-disclaimer-title', curLabels.disclaimerTitle);
     setTxt('client-salidas-disclaimer-text', curLabels.disclaimerText);
     setTxt('client-copy-dives-btn-text', curLabels.copyDives);
@@ -2946,19 +2948,19 @@ window.switchClientPortalTab = function(tab) {
 
     if (tab === 'dives') {
         if (btnDives) {
-            btnDives.className = "flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-1.5";
+            btnDives.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow transition-all text-center";
         }
         if (btnSalidas) {
-            btnSalidas.className = "flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5";
+            btnSalidas.className = "flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition-all text-center";
         }
         if (panelDives) panelDives.classList.remove('hidden');
         if (panelSalidas) panelSalidas.classList.add('hidden');
     } else {
         if (btnSalidas) {
-            btnSalidas.className = "flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-1.5";
+            btnSalidas.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow transition-all text-center";
         }
         if (btnDives) {
-            btnDives.className = "flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5";
+            btnDives.className = "flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition-all text-center";
         }
         if (panelDives) panelDives.classList.add('hidden');
         if (panelSalidas) panelSalidas.classList.remove('hidden');
@@ -3010,9 +3012,9 @@ window.setClientSalidasPreset = function(preset) {
         const btn = document.getElementById(`client-preset-${p}`);
         if (btn) {
             if (p === preset) {
-                btn.className = "flex-1 min-w-[50px] py-1 text-[10px] font-black rounded-lg bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center";
+                btn.className = "py-1 text-[10px] font-bold rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-all text-center";
             } else {
-                btn.className = "flex-1 min-w-[50px] py-1 text-[10px] font-black rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-all text-center";
+                btn.className = "py-1 text-[10px] font-bold rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-center";
             }
         }
     });
@@ -3094,20 +3096,19 @@ window.renderClientDivesText = function() {
     });
 
     const clientName = window.getFullName ? window.getFullName(client) : (client.nombre || 'Cliente');
-    let summaryText = `${curLabels.importantNotice}\n\n`;
-    summaryText += `📅 *${curLabels.myDivesTitle} — ${clientName}*\n`;
+    let summaryText = `${curLabels.importantNoticeTitle}:\n${curLabels.importantNoticeText}\n\n`;
+    summaryText += `*${curLabels.myDivesTitle} — ${clientName}*\n`;
     summaryText += `${curLabels.fromToday}, ${dObj.toLocaleDateString(dateLocales[lang] || 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
-    summaryText += `========================================\n\n`;
+    summaryText += `----------------------------------------\n\n`;
 
     let cardsHtml = '';
 
     if (count === 0) {
         summaryText += `${curLabels.noDives}\n`;
         cardsHtml = `
-        <div class="py-10 px-4 text-center flex flex-col items-center justify-center bg-slate-900/40 rounded-2xl border border-slate-800/80">
-            <span class="text-3xl mb-2 select-none">🤿</span>
-            <span class="text-xs font-black text-slate-300 mb-1">${curLabels.noDives}</span>
-            <span class="text-[10px] text-slate-500 font-medium">${curLabels.noDivesSub}</span>
+        <div class="py-8 px-4 text-center flex flex-col items-center justify-center bg-slate-900/40 rounded-xl border border-slate-800">
+            <span class="text-xs font-bold text-slate-300 mb-1">${curLabels.noDives}</span>
+            <span class="text-[10px] text-slate-500 font-normal">${curLabels.noDivesSub}</span>
         </div>`;
     } else {
         Object.keys(groupedDives).sort().forEach(dateStr => {
@@ -3119,9 +3120,9 @@ window.renderClientDivesText = function() {
             const dDate = new Date(y, m, d);
 
             const weekday = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { weekday: 'long' });
-            const monthName = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'long' });
+            const monthName = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'short' });
             const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-            const formattedDay = `${weekdayCap}, ${d} ${lang === 'es' ? 'de ' + monthName + ' de' : monthName} ${y}`;
+            const formattedDay = `${weekdayCap}, ${d} ${monthName} ${y}`;
 
             summaryText += `${formattedDay}:\n`;
 
@@ -3132,20 +3133,15 @@ window.renderClientDivesText = function() {
             });
 
             cardsHtml += `
-            <div class="space-y-1.5 pt-1">
-                <div class="sticky top-0 z-10 py-1 px-2.5 bg-slate-950/95 backdrop-blur-md rounded-lg border border-slate-800/80 flex items-center justify-between shadow-xs">
-                    <span class="text-[11px] font-black text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <span>📅</span> ${formattedDay}
-                    </span>
-                    <span class="text-[9px] font-black text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800">
-                        ${dayDives.length} ${dayDives.length === 1 ? curLabels.divesCountSingular : curLabels.divesCountPlural}
-                    </span>
+            <div class="pt-2 first:pt-0 pb-1">
+                <div class="text-[11px] font-bold text-slate-400 pb-1 border-b border-slate-800/80 flex items-center justify-between">
+                    <span>${formattedDay}</span>
+                    <span class="text-[10px] text-slate-500 font-normal">${dayDives.length} ${dayDives.length === 1 ? curLabels.divesCountSingular : curLabels.divesCountPlural}</span>
                 </div>
-                <div class="space-y-1.5">`;
+                <div class="divide-y divide-slate-850/50">`;
 
             dayDives.forEach(dive => {
                 let timeStr = dive.time || '';
-                let boatDepartureTime = dive.time || '';
                 if (timeStr && timeStr.includes(':')) {
                     const timeParts = timeStr.split(':');
                     let hours = parseInt(timeParts[0], 10);
@@ -3165,40 +3161,21 @@ window.renderClientDivesText = function() {
                     }
                 }
 
-                const boatName = dive.boat ? (dive.boat.charAt(0).toUpperCase() + dive.boat.slice(1)) : '';
-                const waitlistSuffix = dive.isWaitlist ? ` (${curLabels.waitlistLabel})` : '';
+                const waitlistSuffix = dive.isWaitlist ? ` (${curLabels.waitlist})` : '';
                 summaryText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}${waitlistSuffix}\n`;
 
                 cardsHtml += `
-                <div class="p-2.5 sm:p-3 bg-slate-900/90 hover:bg-slate-850 border ${dive.isWaitlist ? 'border-amber-500/30 bg-amber-950/15' : 'border-slate-800'} rounded-2xl flex items-center justify-between gap-2.5 shadow-sm transition-all">
-                    <div class="flex items-center gap-2.5 min-w-0">
-                        <div class="flex flex-col items-center justify-center px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-xl shrink-0 min-w-[48px]">
-                            <span class="text-xs font-black text-blue-400 leading-tight">${timeStr}</span>
-                            <span class="text-[8px] font-bold text-slate-500 uppercase tracking-tight leading-none mt-0.5">${curLabels.arrivalLabel}</span>
-                        </div>
-                        <div class="min-w-0">
-                            <div class="text-xs sm:text-sm font-black text-white truncate flex items-center gap-1.5">
-                                <span>${dive.site || 'Buceo'}</span>
-                                ${cleanGasBadge ? `<span class="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-blue-950/80 text-blue-300 border border-blue-800/80">${cleanGasBadge}</span>` : ''}
-                            </div>
-                            <div class="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
-                                ${boatName ? `<span class="text-slate-300">🚤 ${boatName}</span>` : ''}
-                                ${boatName ? `<span class="text-slate-600">•</span>` : ''}
-                                <span>${curLabels.departureLabel} ${boatDepartureTime}</span>
-                            </div>
-                        </div>
+                <div class="py-1.5 flex items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="font-bold text-blue-400 text-xs w-10 shrink-0">${timeStr}</span>
+                        <span class="text-slate-200 font-medium truncate">${dive.site || 'Buceo'}</span>
+                        ${cleanGasBadge ? `<span class="text-[9px] text-blue-300 bg-blue-950/80 px-1 py-0.2 rounded border border-blue-800/50 shrink-0">${cleanGasBadge}</span>` : ''}
                     </div>
-                    <div class="shrink-0">
-                        ${dive.isWaitlist ? `
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1 shadow-xs">
-                                <span>⏳</span> ${curLabels.waitlistBadge}
-                            </span>
-                        ` : `
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shadow-xs">
-                                <span>✓</span> ${curLabels.confirmedBadge}
-                            </span>
-                        `}
-                    </div>
+                    ${dive.isWaitlist ? `
+                        <span class="text-[10px] font-bold text-amber-400 shrink-0">${curLabels.waitlist}</span>
+                    ` : `
+                        <span class="text-[10px] font-bold text-emerald-400 shrink-0">${curLabels.confirmed}</span>
+                    `}
                 </div>`;
             });
 
@@ -3301,17 +3278,16 @@ window.loadClientSalidasDisponibilidad = async function() {
             totalSalidasCount++;
         });
 
-        let output = `${curLabels.importantNotice}\n\n`;
+        let output = `${curLabels.disclaimerTitle}:\n${curLabels.disclaimerText}\n\n`;
         let cardsHtml = '';
 
         const sortedDates = Object.keys(grouped).sort();
         if (sortedDates.length === 0) {
             output += `${curLabels.noSalidas}\n`;
             cardsHtml = `
-            <div class="py-10 px-4 text-center flex flex-col items-center justify-center bg-slate-900/40 rounded-2xl border border-slate-800/80">
-                <span class="text-3xl mb-2 select-none">🏖️</span>
-                <span class="text-xs font-black text-slate-300 mb-1">${curLabels.noSalidas}</span>
-                <span class="text-[10px] text-slate-500 font-medium">${curLabels.tryAnotherRange}</span>
+            <div class="py-8 px-4 text-center flex flex-col items-center justify-center bg-slate-900/40 rounded-xl border border-slate-800">
+                <span class="text-xs font-bold text-slate-300 mb-1">${curLabels.noSalidas}</span>
+                <span class="text-[10px] text-slate-500 font-normal">${curLabels.tryAnotherRange}</span>
             </div>`;
         } else {
             sortedDates.forEach(dStr => {
@@ -3323,31 +3299,26 @@ window.loadClientSalidasDisponibilidad = async function() {
                 const dDate = new Date(y, m, d);
 
                 const weekday = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { weekday: 'long' });
-                const monthName = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'long' });
+                const monthName = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'short' });
                 const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-                const formattedDay = `${weekdayCap}, ${d} ${lang === 'es' ? 'de ' + monthName + ' de' : monthName} ${y}`;
+                const formattedDay = `${weekdayCap}, ${d} ${monthName} ${y}`;
 
-                output += `📅 *${formattedDay}*\n`;
+                output += `${formattedDay}:\n`;
 
                 const dayTrips = grouped[dStr].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
                 cardsHtml += `
-                <div class="space-y-1.5 pt-1">
-                    <div class="sticky top-0 z-10 py-1 px-2.5 bg-slate-950/95 backdrop-blur-md rounded-lg border border-slate-800/80 flex items-center justify-between shadow-xs">
-                        <span class="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <span>📅</span> ${formattedDay}
-                        </span>
-                        <span class="text-[9px] font-black text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800">
-                            ${dayTrips.length} ${dayTrips.length === 1 ? curLabels.salidasCountSingular : curLabels.salidasCountPlural}
-                        </span>
+                <div class="pt-2 first:pt-0 pb-1">
+                    <div class="text-[11px] font-bold text-slate-400 pb-1 border-b border-slate-800/80 flex items-center justify-between">
+                        <span>${formattedDay}</span>
+                        <span class="text-[10px] text-slate-500 font-normal">${dayTrips.length} ${dayTrips.length === 1 ? curLabels.salidasCountSingular : curLabels.salidasCountPlural}</span>
                     </div>
-                    <div class="space-y-1.5">`;
+                    <div class="divide-y divide-slate-850/50">`;
 
                 dayTrips.forEach(t => {
                     const freeSpots = t._clientFreeSpots !== undefined ? t._clientFreeSpots : 0;
 
                     let cxTime = t.time || '';
-                    const boatDepartureTime = t.time || '';
                     if (cxTime && cxTime.includes(':')) {
                         const timeParts = cxTime.split(':');
                         let hour = parseInt(timeParts[0], 10);
@@ -3357,42 +3328,23 @@ window.loadClientSalidasDisponibilidad = async function() {
                     }
 
                     const siteName = t.site || (lang === 'en' ? 'To be confirmed' : (lang === 'nl' ? 'Nog te bevestigen' : 'Por confirmar'));
+                    const spotWord = freeSpots === 1 ? curLabels.spot : curLabels.spots;
                     const isPlenty = freeSpots >= 6;
-                    
-                    let spotStr = "";
-                    if (isPlenty) {
-                        spotStr = `(🟢 ${freeSpots} ${curLabels.spots})`;
-                    } else {
-                        spotStr = `(🟡 ${freeSpots} ${freeSpots === 1 ? curLabels.spot : curLabels.spots})`;
-                    }
 
-                    output += ` • ${cxTime} - ${siteName} ${spotStr}\n`;
-
-                    const boatName = t.assignedBoat ? (t.assignedBoat.charAt(0).toUpperCase() + t.assignedBoat.slice(1)) : '';
+                    output += ` • ${cxTime} – ${siteName} (${freeSpots} ${spotWord})\n`;
 
                     cardsHtml += `
-                    <div class="p-2.5 sm:p-3 bg-slate-900/90 hover:bg-slate-850 border border-slate-800 rounded-2xl flex items-center justify-between gap-2.5 shadow-sm transition-all">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <div class="flex flex-col items-center justify-center px-2 py-1 bg-slate-800/90 border border-slate-700/80 rounded-xl shrink-0 min-w-[48px]">
-                                <span class="text-xs font-black text-white leading-tight">${cxTime}</span>
-                                <span class="text-[8px] font-bold text-slate-400 uppercase tracking-tight leading-none mt-0.5">${curLabels.arrivalLabel}</span>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="text-xs sm:text-sm font-black text-white truncate">${siteName}</div>
-                                <div class="text-[10px] font-bold text-slate-500 flex items-center gap-1 mt-0.5">
-                                    ${boatName ? `<span class="text-slate-400">🚤 ${boatName}</span><span class="text-slate-700">•</span>` : ''}
-                                    <span>${curLabels.departureLabel} ${boatDepartureTime}</span>
-                                </div>
-                            </div>
+                    <div class="py-1.5 flex items-center justify-between gap-2 text-xs">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="font-bold text-slate-200 text-xs w-10 shrink-0">${cxTime}</span>
+                            <span class="text-slate-300 truncate font-medium">${siteName}</span>
                         </div>
-                        <div class="shrink-0">
-                            <span class="px-2.5 py-1 rounded-full text-[11px] font-black ${isPlenty ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'} flex items-center gap-1.5 shadow-xs">
-                                <span class="w-1.5 h-1.5 rounded-full ${isPlenty ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
-                                ${freeSpots} ${freeSpots === 1 ? curLabels.spot : curLabels.spots}
-                            </span>
-                        </div>
+                        <span class="text-[11px] font-semibold ${isPlenty ? 'text-emerald-400' : 'text-amber-400'} shrink-0 whitespace-nowrap">
+                            ${freeSpots} ${spotWord}
+                        </span>
                     </div>`;
                 });
+
                 cardsHtml += `
                     </div>
                 </div>`;
