@@ -2424,7 +2424,7 @@ window.showGateView = function(view) {
     
     if (overviewContainer) {
         if (view === 'overview') {
-            overviewContainer.style.height = "55vh";
+            overviewContainer.style.height = "44vh";
         } else {
             overviewContainer.style.height = "35vh";
         }
@@ -2652,86 +2652,29 @@ window.attemptClientLogin = async function() {
         const rawDocs = [];
         snapshot.forEach(doc => rawDocs.push(doc));
 
-        const dObj = new Date();
-        const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
-
-        const groupedDives = {};
-        let count = 0;
-
-        rawDocs.forEach(doc => {
-            const data = doc.data();
-            const dateStr = data.date;
-
-            if (!dateStr || dateStr < todayStr) return;
-            if (data.type) return;
-
-            if (!groupedDives[dateStr]) {
-                groupedDives[dateStr] = [];
-            }
-            groupedDives[dateStr].push(data);
-            count++;
-        });
+        window.activeClient = client;
+        window.activeClientRawDives = rawDocs;
+        window.clientPortalCurrentLang = window.clientPortalCurrentLang || 'es';
 
         const clientName = window.getFullName ? window.getFullName(client) : (client.nombre || 'Cliente');
-        document.getElementById('client-overview-name').innerText = clientName;
+        const nameEl = document.getElementById('client-overview-name');
+        if (nameEl) nameEl.innerText = clientName;
 
-        let summaryText = `Resumen de Inmersiones — ${clientName}\n`;
-        summaryText += `Desde hoy, ${dObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
-        summaryText += `========================================\n\n`;
+        // Initialize default dates for salidas (today to today + 6 days = 7 days)
+        const dObj = new Date();
+        const toIso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const endD = new Date(dObj);
+        endD.setDate(endD.getDate() + 6);
 
-        if (count === 0) {
-            summaryText += `No tienes próximas inmersiones programadas.\n`;
-        } else {
-            Object.keys(groupedDives).sort().forEach(dateStr => {
-                const parts = dateStr.split('-');
-                if (parts.length < 3) return;
-                const y = parseInt(parts[0], 10);
-                const m = parseInt(parts[1], 10) - 1;
-                const d = parseInt(parts[2], 10);
-                const dDate = new Date(y, m, d);
+        const fromInput = document.getElementById('client-salidas-from');
+        const toInput = document.getElementById('client-salidas-to');
+        if (fromInput) fromInput.value = toIso(dObj);
+        if (toInput) toInput.value = toIso(endD);
 
-                const weekday = dDate.toLocaleDateString('es-ES', { weekday: 'long' });
-                const monthName = dDate.toLocaleDateString('es-ES', { month: 'long' });
-                const formattedDay = `${weekday}, ${d} ${monthName} ${y}`;
+        // Render UI with chosen language and default to 'dives' tab
+        window.setClientPortalLang(window.clientPortalCurrentLang || 'es');
+        window.switchClientPortalTab('dives');
 
-                summaryText += `${formattedDay}:\n`;
-
-                groupedDives[dateStr].sort((a, b) => {
-                    const timeA = a.time || '00:00';
-                    const timeB = b.time || '00:00';
-                    return timeA.localeCompare(timeB);
-                });
-
-                groupedDives[dateStr].forEach(dive => {
-                    let timeStr = dive.time || '';
-                    if (timeStr && timeStr.includes(':')) {
-                        const timeParts = timeStr.split(':');
-                        let hours = parseInt(timeParts[0], 10);
-                        let minutes = parseInt(timeParts[1], 10);
-                        
-                        hours = (hours - 1 + 24) % 24;
-                        
-                        const minStr = String(minutes).padStart(2, '0');
-                        timeStr = `${hours}:${minStr}`;
-                    }
-
-                    let gasSuffix = "";
-                    if (dive.gas) {
-                        const gasLower = dive.gas.toLowerCase();
-                        if (!gasLower.includes('aire')) {
-                            let cleanGas = dive.gas.replace('15L ', '').replace('12L ', '').trim();
-                            cleanGas = cleanGas.replace(/ean/i, 'Nitrox');
-                            gasSuffix = ` (${cleanGas})`;
-                        }
-                    }
-
-                    summaryText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}\n`;
-                });
-                summaryText += `\n`;
-            });
-        }
-
-        document.getElementById('client-overview-text').value = summaryText;
         window.showGateView('overview');
         showToast("✅ Inmersiones cargadas con éxito.");
 
@@ -2746,11 +2689,493 @@ window.attemptClientLogin = async function() {
     }
 };
 
+window.clientPortalCurrentLang = 'es';
+window.activeClientPortalTab = 'dives';
+window.activeClient = null;
+window.activeClientRawDives = [];
+
+const clientPortalDictionary = {
+    es: {
+        portalSubtitle: "Portal del Buceador",
+        disclaimerTitle: "Aviso sobre disponibilidad:",
+        disclaimerText: "Las plazas mostradas son orientativas y se actualizan en tiempo real. Debido a que las reservas se completan con rapidez y pueden existir solicitudes en curso en recepción, la disponibilidad no queda formalmente garantizada hasta ser procesada por el centro.",
+        myDivesTab: "Mis Inmersiones",
+        salidasTab: "Salidas y Plazas",
+        myDivesTitle: "Resumen de Inmersiones",
+        noDives: "No tienes próximas inmersiones programadas.",
+        fromToday: "Desde hoy",
+        dateFrom: "Desde:",
+        dateTo: "Hasta:",
+        btnToday: "Hoy",
+        btnWeekend: "Fin de Semana",
+        btn7Days: "7 Días",
+        btn14Days: "14 Días",
+        spots: "plazas libres",
+        spot: "plaza libre",
+        full: "Completo (Lista de espera)",
+        noSalidas: "No hay salidas con plazas disponibles en el rango de fechas seleccionado.",
+        loadingSalidas: "Consultando disponibilidad de salidas...",
+        copyDives: "Copiar Mis Inmersiones",
+        copySalidas: "Copiar Disponibilidad",
+        logout: "Salir",
+        waitlistLabel: "Lista de espera",
+        importantNotice: "⚠️ *Información importante:*\n- Las horas indicadas corresponden a la hora de llegada al centro de buceo (no a la salida del barco).\n- Por favor, sé puntual y trae tu DNI, Pasaporte o documento de identidad en físico.\n- Al llegar al centro, primero, hay que pasar por recepción para entregar tu DNI en físico."
+    },
+    en: {
+        portalSubtitle: "Diver Portal",
+        disclaimerTitle: "Notice regarding availability:",
+        disclaimerText: "The spots shown are indicative and updated in real time. Because departures fill up quickly and bookings may be processing at reception, spots are not formally guaranteed until confirmed by the dive center.",
+        myDivesTab: "My Dives",
+        salidasTab: "Departures & Spots",
+        myDivesTitle: "Dive Summary",
+        noDives: "You have no upcoming dives scheduled.",
+        fromToday: "From today",
+        dateFrom: "From:",
+        dateTo: "To:",
+        btnToday: "Today",
+        btnWeekend: "Weekend",
+        btn7Days: "7 Days",
+        btn14Days: "14 Days",
+        spots: "spots left",
+        spot: "spot left",
+        full: "Full (Waitlist)",
+        noSalidas: "No departures with available spots in the selected date range.",
+        loadingSalidas: "Checking departure availability...",
+        copyDives: "Copy My Dives",
+        copySalidas: "Copy Availability",
+        logout: "Log out",
+        waitlistLabel: "Waitlist",
+        importantNotice: "⚠️ *Important notice:*\n- The times indicated correspond to your arrival time at the dive center (not the boat departure).\n- Please be on time and remember to bring your physical DNI, Passport or ID card.\n- Upon arrival at the center, please first go to reception to hand in your physical ID."
+    },
+    nl: {
+        portalSubtitle: "Duikersportaal",
+        disclaimerTitle: "Opmerking over beschikbaarheid:",
+        disclaimerText: "De getoonde plaatsen zijn ter indicatie en worden realtime bijgewerkt. Omdat afvaarten snel volgeboekt raken en er aanvragen in behandeling kunnen zijn, is je plaats pas definitief na bevestiging door het duikcentrum.",
+        myDivesTab: "Mijn Duiken",
+        salidasTab: "Afvaarten & Plaatsen",
+        myDivesTitle: "Duikoverzicht",
+        noDives: "Je hebt geen geplande duiken in het vooruitzicht.",
+        fromToday: "Vanaf vandaag",
+        dateFrom: "Vanaf:",
+        dateTo: "Tot:",
+        btnToday: "Vandaag",
+        btnWeekend: "Weekend",
+        btn7Days: "7 Dagen",
+        btn14Days: "14 Dagen",
+        spots: "plaatsen vrij",
+        spot: "plaats vrij",
+        full: "Volgeboekt (Wachtlijst)",
+        noSalidas: "Geen afvaarten met beschikbare plaatsen in de geselecteerde periode.",
+        loadingSalidas: "Beschikbaarheid van afvaarten controleren...",
+        copyDives: "Kopieer Mijn Duiken",
+        copySalidas: "Kopieer Beschikbaarheid",
+        logout: "Uitloggen",
+        waitlistLabel: "Wachtlijst",
+        importantNotice: "⚠️ *Belangrijke informatie:*\n- De aangegeven tijden zijn de aankomsttijden bij het duikcentrum (niet de vertrektijd van de boot).\n- Wees alsjeblieft op tijd en neem je fysieke DNI, paspoort of ID-kaart mee.\n- Ga bij aankomst in het centrum eerst langs de receptie om je fysieke DNI/ID-kaart af te geven."
+    }
+};
+
+window.setClientPortalLang = function(lang) {
+    window.clientPortalCurrentLang = lang || 'es';
+    const curLabels = clientPortalDictionary[window.clientPortalCurrentLang] || clientPortalDictionary.es;
+
+    ['es', 'en', 'nl'].forEach(l => {
+        const btn = document.getElementById(`client-lang-${l}`);
+        if (btn) {
+            if (l === window.clientPortalCurrentLang) {
+                btn.className = "w-7 h-7 rounded-md flex items-center justify-center text-sm hover:bg-slate-800 transition-all opacity-100 ring-2 ring-blue-500";
+            } else {
+                btn.className = "w-7 h-7 rounded-md flex items-center justify-center text-sm hover:bg-slate-800 transition-all opacity-50";
+            }
+        }
+    });
+
+    const setTxt = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = txt;
+    };
+
+    setTxt('client-portal-subtitle', curLabels.portalSubtitle);
+    setTxt('client-logout-text', curLabels.logout);
+    setTxt('client-tab-label-dives', curLabels.myDivesTab);
+    setTxt('client-tab-label-salidas', curLabels.salidasTab);
+    setTxt('client-salidas-disclaimer-title', curLabels.disclaimerTitle);
+    setTxt('client-salidas-disclaimer-text', curLabels.disclaimerText);
+    setTxt('client-copy-dives-btn-text', curLabels.copyDives);
+    setTxt('client-copy-salidas-btn-text', curLabels.copySalidas);
+    setTxt('client-lbl-from', curLabels.dateFrom);
+    setTxt('client-lbl-to', curLabels.dateTo);
+    setTxt('client-preset-today', curLabels.btnToday);
+    setTxt('client-preset-weekend', curLabels.btnWeekend);
+    setTxt('client-preset-7days', curLabels.btn7Days);
+    setTxt('client-preset-14days', curLabels.btn14Days);
+    setTxt('client-salidas-loading-text', curLabels.loadingSalidas);
+
+    window.renderClientDivesText();
+    if (window.activeClientPortalTab === 'salidas') {
+        window.loadClientSalidasDisponibilidad();
+    }
+};
+
+window.switchClientPortalTab = function(tab) {
+    window.activeClientPortalTab = tab;
+    const btnDives = document.getElementById('client-tab-btn-dives');
+    const btnSalidas = document.getElementById('client-tab-btn-salidas');
+    const panelDives = document.getElementById('client-panel-dives');
+    const panelSalidas = document.getElementById('client-panel-salidas');
+
+    if (tab === 'dives') {
+        if (btnDives) {
+            btnDives.className = "flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-2";
+        }
+        if (btnSalidas) {
+            btnSalidas.className = "flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-2";
+        }
+        if (panelDives) panelDives.classList.remove('hidden');
+        if (panelSalidas) panelSalidas.classList.add('hidden');
+    } else {
+        if (btnSalidas) {
+            btnSalidas.className = "flex-1 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md transition-all flex items-center justify-center gap-2";
+        }
+        if (btnDives) {
+            btnDives.className = "flex-1 py-2 text-xs font-black rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-all flex items-center justify-center gap-2";
+        }
+        if (panelDives) panelDives.classList.add('hidden');
+        if (panelSalidas) panelSalidas.classList.remove('hidden');
+
+        const textEl = document.getElementById('client-salidas-text');
+        if (textEl && !textEl.value) {
+            window.loadClientSalidasDisponibilidad();
+        }
+    }
+};
+
+window.setClientSalidasPreset = function(preset) {
+    const dObj = new Date();
+    const toIso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    let fromDate = new Date(dObj);
+    let toDate = new Date(dObj);
+
+    if (preset === 'today') {
+        // Same day
+    } else if (preset === 'weekend') {
+        const dayOfWeek = dObj.getDay(); // 0 is Sunday, 6 is Saturday
+        if (dayOfWeek === 0) {
+            fromDate = new Date(dObj);
+            toDate = new Date(dObj);
+        } else if (dayOfWeek === 6) {
+            fromDate = new Date(dObj);
+            toDate = new Date(dObj);
+            toDate.setDate(toDate.getDate() + 1);
+        } else {
+            const daysUntilSat = 6 - dayOfWeek;
+            fromDate = new Date(dObj);
+            fromDate.setDate(fromDate.getDate() + daysUntilSat);
+            toDate = new Date(fromDate);
+            toDate.setDate(toDate.getDate() + 1);
+        }
+    } else if (preset === '7days') {
+        toDate.setDate(toDate.getDate() + 6);
+    } else if (preset === '14days') {
+        toDate.setDate(toDate.getDate() + 13);
+    }
+
+    const fromEl = document.getElementById('client-salidas-from');
+    const toEl = document.getElementById('client-salidas-to');
+    if (fromEl) fromEl.value = toIso(fromDate);
+    if (toEl) toEl.value = toIso(toDate);
+
+    ['today', 'weekend', '7days', '14days'].forEach(p => {
+        const btn = document.getElementById(`client-preset-${p}`);
+        if (btn) {
+            if (p === preset) {
+                btn.className = "px-2.5 py-1 text-[10px] font-black rounded-lg bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-colors";
+            } else {
+                btn.className = "px-2.5 py-1 text-[10px] font-black rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors";
+            }
+        }
+    });
+
+    window.loadClientSalidasDisponibilidad();
+};
+
+window.renderClientDivesText = function() {
+    if (!window.activeClient || !window.activeClientRawDives) return;
+    const client = window.activeClient;
+    const rawDocs = window.activeClientRawDives;
+
+    const lang = window.clientPortalCurrentLang || 'es';
+    const curLabels = clientPortalDictionary[lang] || clientPortalDictionary.es;
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+
+    const dObj = new Date();
+    const todayStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
+
+    const groupedDives = {};
+    let count = 0;
+
+    rawDocs.forEach(doc => {
+        const data = typeof doc.data === 'function' ? doc.data() : doc;
+        const dateStr = data.date;
+        if (!dateStr || dateStr < todayStr) return;
+        if (data.type) return;
+
+        if (!groupedDives[dateStr]) {
+            groupedDives[dateStr] = [];
+        }
+        groupedDives[dateStr].push({ ...data, isWaitlist: false });
+        count++;
+    });
+
+    // Also check waitlist entries for this client in upcoming memory trips
+    const candidateTrips = window.mergedAllocations || [];
+    const clientFullName = (window.getFullName ? window.getFullName(client) : (client.nombre || '')).trim();
+    const clientDni = client.dni || '';
+
+    (candidateTrips || []).forEach(trip => {
+        if (!trip || trip.cancelled || !trip.date || trip.date < todayStr) return;
+        const wl = Array.isArray(trip.waitlist) ? trip.waitlist : [];
+        if (wl.length === 0) return;
+
+        const onWl = wl.some(w => {
+            if (!w) return false;
+            if (typeof w === 'object' && w.dni && clientDni && window.isSameDni && window.isSameDni(w.dni, clientDni)) return true;
+            const wName = (typeof w === 'object' ? w.name : w) || '';
+            if (wName && clientFullName) {
+                const wClean = wName.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const cClean = clientFullName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if (wClean && cClean && wClean === cClean) return true;
+            }
+            return false;
+        });
+
+        if (onWl) {
+            if (!groupedDives[trip.date]) groupedDives[trip.date] = [];
+            const alreadyExists = groupedDives[trip.date].some(d => {
+                if (d.docId && d.docId === trip.id) return true;
+                if (d.tripId && d.tripId === trip.id) return true;
+                const dTime = (d.time || '').trim();
+                const tTime = (trip.time || '').trim();
+                return dTime === tTime;
+            });
+            if (!alreadyExists) {
+                groupedDives[trip.date].push({
+                    isWaitlist: true,
+                    date: trip.date,
+                    time: trip.time || '',
+                    site: trip.site || (lang === 'en' ? 'Dive' : 'Buceo'),
+                    tripId: trip.id
+                });
+                count++;
+            }
+        }
+    });
+
+    const clientName = window.getFullName ? window.getFullName(client) : (client.nombre || 'Cliente');
+    let summaryText = `${curLabels.importantNotice}\n\n`;
+    summaryText += `📅 *${curLabels.myDivesTitle} — ${clientName}*\n`;
+    summaryText += `${curLabels.fromToday}, ${dObj.toLocaleDateString(dateLocales[lang] || 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
+    summaryText += `========================================\n\n`;
+
+    if (count === 0) {
+        summaryText += `${curLabels.noDives}\n`;
+    } else {
+        Object.keys(groupedDives).sort().forEach(dateStr => {
+            const parts = dateStr.split('-');
+            if (parts.length < 3) return;
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) - 1;
+            const d = parseInt(parts[2], 10);
+            const dDate = new Date(y, m, d);
+
+            const weekday = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { weekday: 'long' });
+            const monthName = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'long' });
+            const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+            const formattedDay = `${weekdayCap}, ${d} ${lang === 'es' ? 'de ' + monthName + ' de' : monthName} ${y}`;
+
+            summaryText += `${formattedDay}:\n`;
+
+            groupedDives[dateStr].sort((a, b) => {
+                const timeA = a.time || '00:00';
+                const timeB = b.time || '00:00';
+                return timeA.localeCompare(timeB);
+            });
+
+            groupedDives[dateStr].forEach(dive => {
+                let timeStr = dive.time || '';
+                if (timeStr && timeStr.includes(':')) {
+                    const timeParts = timeStr.split(':');
+                    let hours = parseInt(timeParts[0], 10);
+                    let minutes = parseInt(timeParts[1], 10);
+                    hours = (hours - 1 + 24) % 24;
+                    const minStr = String(minutes).padStart(2, '0');
+                    timeStr = `${hours}:${minStr}`;
+                }
+
+                let gasSuffix = "";
+                if (!dive.isWaitlist && dive.gas) {
+                    const gasLower = dive.gas.toLowerCase();
+                    if (!gasLower.includes('aire')) {
+                        let cleanGas = dive.gas.replace('15L ', '').replace('12L ', '').trim();
+                        cleanGas = cleanGas.replace(/ean/i, 'Nitrox');
+                        gasSuffix = ` (${cleanGas})`;
+                    }
+                }
+
+                const waitlistSuffix = dive.isWaitlist ? ` (${curLabels.waitlistLabel})` : '';
+                summaryText += ` - ${timeStr} ${dive.site || 'Buceo'}${gasSuffix}${waitlistSuffix}\n`;
+            });
+            summaryText += `\n`;
+        });
+    }
+
+    const textEl = document.getElementById('client-overview-text');
+    if (textEl) textEl.value = summaryText.trim();
+};
+
+window.loadClientSalidasDisponibilidad = async function() {
+    const fromEl = document.getElementById('client-salidas-from');
+    const toEl = document.getElementById('client-salidas-to');
+    if (!fromEl || !toEl) return;
+    const fromVal = fromEl.value;
+    const toVal = toEl.value;
+    if (!fromVal || !toVal) return;
+
+    const loadingEl = document.getElementById('client-salidas-loading');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    const lang = window.clientPortalCurrentLang || 'es';
+    const curLabels = clientPortalDictionary[lang] || clientPortalDictionary.es;
+    const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL' };
+
+    try {
+        let trips = [];
+        if (typeof window.fetchTripsForDateRange === 'function') {
+            trips = await window.fetchTripsForDateRange(fromVal, toVal);
+        } else {
+            trips = (window.mergedAllocations || []).filter(t => t.date >= fromVal && t.date <= toVal);
+        }
+
+        const filteredTrips = (trips || []).filter(t => {
+            if (!t || t.cancelled) return false;
+            if (t.date < fromVal || t.date > toVal) return false;
+
+            // 1. Exclude shore / aula
+            const boatKey = (t.assignedBoat || t.boat || '').toLowerCase().trim();
+            const siteKey = (t.site || '').toLowerCase().trim();
+            if (boatKey === 'shore' || boatKey === 'aula') return false;
+            if (siteKey.includes('shore') || siteKey.includes('aula')) return false;
+
+            // 2. Exclude bloqueadas
+            if (siteKey.includes('bloquead') || (t.notes && t.notes.toLowerCase().includes('bloquead'))) return false;
+
+            // 3. Exclude complete salidas (freeSpots <= 0)
+            const uniquePax = new Set();
+            let guestsCount = 0;
+            if (Array.isArray(t.groups)) {
+                t.groups.forEach(grp => {
+                    if (Array.isArray(grp.guests)) {
+                        grp.guests.forEach(g => {
+                            if (!g || g.cancelled) return;
+                            const k = g.dni ? window.normalizeDni(g.dni) : (g.tempId || (g.nombre ? g.nombre.toLowerCase().trim() : '') || Math.random());
+                            if (!uniquePax.has(k)) {
+                                uniquePax.add(k);
+                                guestsCount++;
+                            }
+                        });
+                    }
+                });
+            }
+            if (Array.isArray(t.guests)) {
+                t.guests.forEach(g => {
+                    if (!g || g.cancelled) return;
+                    const k = g.dni ? window.normalizeDni(g.dni) : (g.tempId || (g.nombre ? g.nombre.toLowerCase().trim() : '') || Math.random());
+                    if (!uniquePax.has(k)) {
+                        uniquePax.add(k);
+                        guestsCount++;
+                    }
+                });
+            }
+
+            const tripCapacity = parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (t.assignedBoat && window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12);
+            const freeSpots = Math.max(0, tripCapacity - guestsCount);
+            if (freeSpots <= 0) return false;
+
+            t._clientFreeSpots = freeSpots;
+            return true;
+        });
+
+        const grouped = {};
+        filteredTrips.forEach(t => {
+            if (!grouped[t.date]) grouped[t.date] = [];
+            grouped[t.date].push(t);
+        });
+
+        let output = `${curLabels.importantNotice}\n\n`;
+
+        const sortedDates = Object.keys(grouped).sort();
+        if (sortedDates.length === 0) {
+            output += `${curLabels.noSalidas}\n`;
+        } else {
+            sortedDates.forEach(dStr => {
+                const parts = dStr.split('-');
+                if (parts.length < 3) return;
+                const y = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10) - 1;
+                const d = parseInt(parts[2], 10);
+                const dDate = new Date(y, m, d);
+
+                const weekday = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { weekday: 'long' });
+                const monthName = dDate.toLocaleDateString(dateLocales[lang] || 'es-ES', { month: 'long' });
+                const weekdayCap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+                const formattedDay = `${weekdayCap}, ${d} ${lang === 'es' ? 'de ' + monthName + ' de' : monthName} ${y}`;
+
+                output += `📅 *${formattedDay}*\n`;
+
+                grouped[dStr].sort((a, b) => (a.time || '').localeCompare(b.time || '')).forEach(t => {
+                    const freeSpots = t._clientFreeSpots !== undefined ? t._clientFreeSpots : 0;
+
+                    let cxTime = t.time || '';
+                    if (cxTime && cxTime.includes(':')) {
+                        const timeParts = cxTime.split(':');
+                        let hour = parseInt(timeParts[0], 10);
+                        let min = parseInt(timeParts[1], 10);
+                        hour = (hour - 1 + 24) % 24;
+                        cxTime = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+                    }
+
+                    const siteName = t.site || (lang === 'en' ? 'To be confirmed' : (lang === 'nl' ? 'Nog te bevestigen' : 'Por confirmar'));
+                    
+                    let spotStr = "";
+                    if (freeSpots >= 6) {
+                        spotStr = `(🟢 ${freeSpots} ${curLabels.spots})`;
+                    } else {
+                        spotStr = `(🟡 ${freeSpots} ${freeSpots === 1 ? curLabels.spot : curLabels.spots})`;
+                    }
+
+                    output += ` • ${cxTime} - ${siteName} ${spotStr}\n`;
+                });
+                output += `\n`;
+            });
+        }
+
+        const textEl = document.getElementById('client-salidas-text');
+        if (textEl) textEl.value = output.trim();
+    } catch (e) {
+        console.error("Error loading salidas for client:", e);
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+};
+
 window.logoutClient = function() {
     document.getElementById('client-dni-input').value = "";
     document.getElementById('client-dob-day').value = "";
     document.getElementById('client-dob-month').value = "";
     document.getElementById('client-dob-year').value = "";
+    window.activeClient = null;
+    window.activeClientRawDives = [];
     window.showGateView('selection');
 };
 
