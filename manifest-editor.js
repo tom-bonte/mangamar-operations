@@ -704,6 +704,100 @@ window.handleDiverMove = function(event, targetGroupIdx, targetGuestIdx = -1) {
     renderGroups();
 };
 
+window.clearGuestSelection = function() {
+    window.selectedGuestsForGroup = [];
+    renderGroups();
+};
+
+window.moveSelectedDiversToBase = function(targetGroupIdx) {
+    if (!window.isLoggedIn) return;
+    if (!window.activeBoatItem || !Array.isArray(window.activeBoatItem.groups)) return;
+    if (!window.selectedGuestsForGroup || window.selectedGuestsForGroup.length === 0) return;
+
+    if (targetGroupIdx === 'new') {
+        window.activeBoatItem.groups.push({ guide: '', apoyo: '', guests: [] });
+        targetGroupIdx = window.activeBoatItem.groups.length - 1;
+    } else {
+        targetGroupIdx = parseInt(targetGroupIdx, 10);
+    }
+
+    if (isNaN(targetGroupIdx) || targetGroupIdx < 0 || targetGroupIdx >= window.activeBoatItem.groups.length) return;
+
+    // Collect all valid selected guests
+    const items = [];
+    window.selectedGuestsForGroup.forEach(s => {
+        const grp = window.activeBoatItem.groups[s.groupIndex];
+        if (grp && Array.isArray(grp.guests) && grp.guests[s.guestIndex]) {
+            items.push({
+                groupIndex: s.groupIndex,
+                guestIndex: s.guestIndex,
+                guest: grp.guests[s.guestIndex]
+            });
+        }
+    });
+
+    if (items.length === 0) return;
+
+    // Filter to those that actually need to move
+    const toMove = items.filter(it => it.groupIndex !== targetGroupIdx);
+    if (toMove.length === 0) {
+        if (typeof showToast === 'function') showToast(`Los buceadores ya están en la Base ${targetGroupIdx + 1}`);
+        return;
+    }
+
+    // Sort descending by guestIndex so splicing from source arrays does not shift earlier indices in the same group
+    toMove.sort((a, b) => b.guestIndex - a.guestIndex);
+
+    const movedGuests = [];
+    toMove.forEach(it => {
+        const removed = window.activeBoatItem.groups[it.groupIndex].guests.splice(it.guestIndex, 1)[0];
+        if (removed) movedGuests.unshift(removed); // retain relative order
+    });
+
+    // Append to target group
+    const startIdx = window.activeBoatItem.groups[targetGroupIdx].guests.length;
+    window.activeBoatItem.groups[targetGroupIdx].guests.push(...movedGuests);
+
+    // Keep the moved divers selected in their new position
+    window.selectedGuestsForGroup = movedGuests.map((_, i) => ({
+        groupIndex: targetGroupIdx,
+        guestIndex: startIdx + i
+    }));
+
+    if (typeof showToast === 'function') {
+        const diverWord = movedGuests.length === 1 ? 'buceador' : 'buceadores';
+        showToast(`✅ ${movedGuests.length} ${diverWord} a Base ${targetGroupIdx + 1}`);
+    }
+
+    if (typeof window.triggerInstantSave === 'function') {
+        window.triggerInstantSave(window.activeBoatItem);
+    }
+    renderGroups();
+};
+
+window.moveSelectedDiversDirection = function(direction) {
+    if (!window.isLoggedIn) return;
+    if (!window.activeBoatItem || !Array.isArray(window.activeBoatItem.groups)) return;
+    if (!window.selectedGuestsForGroup || window.selectedGuestsForGroup.length === 0) return;
+
+    // Use the first selected diver's group index as reference
+    const currentGroupIdx = window.selectedGuestsForGroup[0].groupIndex;
+    let targetIdx = currentGroupIdx + direction;
+
+    if (targetIdx < 0) {
+        if (typeof showToast === 'function') showToast("Ya está en la primera Base (arriba)", "warning");
+        return;
+    }
+
+    if (targetIdx >= window.activeBoatItem.groups.length) {
+        // Automatically create a new base if going downwards past the last one
+        window.activeBoatItem.groups.push({ guide: '', apoyo: '', guests: [] });
+        targetIdx = window.activeBoatItem.groups.length - 1;
+    }
+
+    window.moveSelectedDiversToBase(targetIdx);
+};
+
 
 // RAF-debounced public entry point for group rendering.
 // Any calls fired within the same animation frame are coalesced: only the last one
@@ -745,14 +839,63 @@ function _renderGroupsCore(skipAutoSave = false) {
     
     // --- INJECT LINK ACTION BAR ---
     if (window.selectedGuestsForGroup.length > 0) {
+        const selCount = window.selectedGuestsForGroup.length;
+
+        // Determine if selected divers are from a single base
+        const sourceBaseIndices = Array.from(new Set(window.selectedGuestsForGroup.map(s => s.groupIndex)));
+        const singleSource = sourceBaseIndices.length === 1 ? sourceBaseIndices[0] : null;
+
+        // Build base options for the select dropdown
+        const baseOptionsHtml = activeBoatItem.groups.map((grp, gIdx) => {
+            const guideName = grp.guide ? grp.guide : (activeBoatItem.assignedBoat === 'shore' ? 'Sin Instr.' : 'Sin Guía');
+            const count = (grp.guests || []).filter(g => !g.cancelled).length;
+            const isCurrent = singleSource !== null && singleSource === gIdx;
+            const currentBadge = isCurrent ? ' (Actual)' : '';
+            return `<option value="${gIdx}" ${isCurrent ? 'class="text-slate-400 bg-slate-100 font-normal"' : 'class="font-bold"'}>Base ${gIdx + 1}: ${guideName} (${count} buzos)${currentBadge}</option>`;
+        }).join('');
+
         const bar = document.createElement('div');
         // Added 'sticky top-0 z-[60]' so it floats when you scroll!
-        bar.className = 'sticky top-0 z-[60] bg-blue-50/90 backdrop-blur border border-blue-200 rounded-xl p-3 mb-4 flex justify-between items-center shadow-md';
+        bar.className = 'sticky top-0 z-[60] bg-blue-50/95 backdrop-blur-md border border-blue-200 rounded-xl p-2.5 mb-4 flex flex-wrap justify-between items-center shadow-md gap-2.5';
         bar.innerHTML = `
-            <span class="text-sm font-black text-blue-800">${window.selectedGuestsForGroup.length} seleccionados</span>
-            <div class="flex gap-2">
-                <button onclick="openGroupLinkModal()" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-700 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg> Group</button>
-                <button onclick="unlinkSelected()" class="px-3 py-1.5 bg-white text-red-600 border border-red-200 text-xs font-bold rounded-lg shadow-sm hover:bg-red-50">Disband</button>
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center shadow-xs">${selCount}</span>
+                <span class="text-xs font-black text-blue-950">${selCount === 1 ? '1 buceador seleccionado' : `${selCount} buceadores seleccionados`}</span>
+                <button onclick="window.clearGuestSelection()" title="Desmarcar selección" class="text-[11px] text-slate-400 hover:text-slate-700 font-bold underline ml-1">Desmarcar</button>
+            </div>
+
+            <!-- CHANGE BASE CONTROLS -->
+            <div class="flex items-center gap-1.5 bg-white border border-blue-200 rounded-lg p-1 shadow-xs">
+                <span class="text-[10px] font-black text-slate-500 uppercase px-1.5 flex items-center gap-1 shrink-0">
+                    <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    Mover a:
+                </span>
+                <button onclick="window.moveSelectedDiversDirection(-1)" title="Subir a la Base anterior (arriba)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 rounded text-xs font-black transition-colors flex items-center gap-1 shrink-0 active:scale-95 border border-slate-200">
+                    ↑ Subir Base
+                </button>
+                <button onclick="window.moveSelectedDiversDirection(1)" title="Bajar a la Base siguiente (abajo)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 rounded text-xs font-black transition-colors flex items-center gap-1 shrink-0 active:scale-95 border border-slate-200">
+                    ↓ Bajar Base
+                </button>
+                <div class="relative shrink-0">
+                    <select id="move-to-base-select" onchange="window.moveSelectedDiversToBase(this.value); this.value='';" class="text-xs font-bold text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded px-2.5 py-1 cursor-pointer focus:ring-2 focus:ring-blue-500 focus:outline-none pr-6 appearance-none">
+                        <option value="" disabled selected>Cambiar a Base...</option>
+                        ${baseOptionsHtml}
+                        <option value="new" class="text-blue-600 font-black">+ Nueva Base...</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-400">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GROUP ACTIONS -->
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="openGroupLinkModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs flex items-center gap-1 transition-all active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg> Group
+                </button>
+                <button onclick="unlinkSelected()" class="px-3 py-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-lg shadow-xs transition-all active:scale-95">
+                    Disband
+                </button>
             </div>
         `;
         container.appendChild(bar);
@@ -817,10 +960,11 @@ function _renderGroupsCore(skipAutoSave = false) {
                  ondragleave="this.classList.remove('bg-orange-200')"
                  ondrop="event.preventDefault(); this.classList.remove('bg-orange-200'); handleDiverMove(event, ${groupIndex})"
                  class="bg-orange-100 px-4 py-3 border-b border-orange-300 flex items-center justify-between rounded-t-xl transition-colors">
-                <div class="flex items-center gap-4 flex-1">
+                <div class="flex items-center gap-3 flex-1 flex-wrap">
+                    <span class="px-2.5 py-1 rounded-lg bg-orange-200 text-orange-950 font-black text-xs border border-orange-300 tracking-wide shrink-0 shadow-2xs">Base ${groupIndex + 1}</span>
                     <div class="flex items-center gap-1.5">
                         <span class="text-xs font-black text-black uppercase tracking-wider">${activeBoatItem.assignedBoat === 'shore' ? 'INSTR:' : 'GUÍA:'}</span>
-                        <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[380px] cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
+                        <select id="guide-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[240px] sm:w-[320px] cursor-pointer" onchange="updateGuide(${groupIndex}, this.value)">
                             <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Guía'}</option>
                             <option value="CUSTOM_NAME_PROMPT" class="text-orange-600 font-black">+ Nombre Personalizado...</option>
                             ${customGuideOpt}
@@ -832,7 +976,7 @@ function _renderGroupsCore(skipAutoSave = false) {
                     
                     <div class="flex items-center gap-1.5">
                         <span class="text-xs font-black text-black uppercase tracking-wider">APOYO:</span>
-                        <select id="apoyo-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[380px] cursor-pointer" onchange="updateApoyo(${groupIndex}, this.value)">
+                        <select id="apoyo-select-${groupIndex}" onfocus="window._activeSearchGroupIdx = ${groupIndex}" class="px-2 py-1 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold text-slate-800 w-[240px] sm:w-[320px] cursor-pointer" onchange="updateApoyo(${groupIndex}, this.value)">
                             <option value="">${window.isLoggedIn ? 'Seleccionar...' : 'Sin Apoyo'}</option>
                             <option value="CUSTOM_NAME_PROMPT" class="text-orange-600 font-black">+ Nombre Personalizado...</option>
                             ${customApoyoOpt}
@@ -842,7 +986,15 @@ function _renderGroupsCore(skipAutoSave = false) {
                         <button onclick="window.copyStaffDni('guias', '${(group.apoyo || '').replace(/'/g, "\\'")}', ${groupIndex})" title="Copiar DNI del Apoyo" class="text-slate-400 hover:text-black transition-colors bg-white px-2 py-1 rounded border border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"></path></svg></button>
                     </div>
                 </div>
-                <button onclick="removeGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 p-1" title="Eliminar Grupo"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                <div class="flex items-center gap-2 shrink-0">
+                    ${window.selectedGuestsForGroup && window.selectedGuestsForGroup.length > 0 && window.selectedGuestsForGroup.some(s => s.groupIndex !== groupIndex) ? `
+                        <button onclick="window.moveSelectedDiversToBase(${groupIndex})" title="Mover los ${window.selectedGuestsForGroup.length} buceadores seleccionados a esta Base" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-xs font-black shadow-xs flex items-center gap-1.5 transition-all shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            Mover aquí (${window.selectedGuestsForGroup.length})
+                        </button>
+                    ` : ''}
+                    <button onclick="removeGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 p-1" title="Eliminar Grupo"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                </div>
             </div>
             
             <div class="rounded-b-xl overflow-visible"> 
