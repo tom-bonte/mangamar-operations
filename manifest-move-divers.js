@@ -125,7 +125,7 @@ window.renderMoveDiversModalContent = function(timeSlot, targetDateStr) {
                     : 'bg-gradient-to-r from-slate-600/70 to-slate-700/70';
             }
             const guestsCount = (trip.groups || []).reduce((acc, g) => acc + (g.guests ? g.guests.filter(x => !x.cancelled).length : 0), 0);
-            const capacity = parseInt(trip.maxDives) || parseInt(trip.pax) || parseInt(trip.plazas) || 12;
+            const capacity = parseInt(trip.maxDives) || parseInt(trip.pax) || parseInt(trip.plazas) || (window.BOATS && window.BOATS[trip.assignedBoat] ? window.BOATS[trip.assignedBoat].maxGuests : 11);
             capacityText = `(${guestsCount}/${capacity} Plazas)`;
         }
 

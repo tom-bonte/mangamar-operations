@@ -982,7 +982,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
     if(!previewHtml || guestCount === 0) previewHtml = `<div class="text-[10px] text-slate-400 italic text-center">Sin grupos</div>`;
 
     const topBarColor = isBlocked ? 'bg-red-500' : (siteColorConfig.split(' ')[0] || 'bg-slate-200');
-    const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.maxDives) || parseInt(trip.pax) || parseInt(trip.plazas) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 12));
+    const capacityNum = boatId === 'shore' ? 0 : (parseInt(trip.maxDives) || parseInt(trip.pax) || parseInt(trip.plazas) || (BOATS[boatId] ? BOATS[boatId].maxGuests : 11));
     const capacity = boatId === 'shore' ? '-' : capacityNum;
     
     if (!window.isStaffLoggedIn) {
@@ -3299,7 +3299,7 @@ window.loadClientSalidasDisponibilidad = async function() {
                 });
             }
 
-            const tripCapacity = parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (t.assignedBoat && window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 12);
+            const tripCapacity = parseInt(t.maxDives) || parseInt(t.pax) || parseInt(t.plazas) || (t.assignedBoat && window.BOATS && window.BOATS[t.assignedBoat] ? window.BOATS[t.assignedBoat].maxGuests : 11);
             const freeSpots = Math.max(0, tripCapacity - guestsCount);
             if (freeSpots <= 0) return false;
 

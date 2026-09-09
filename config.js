@@ -41,8 +41,8 @@ const SITE_COLORS = {
 
 // Fleet Data
 const BOATS = {
-    'ares': { name: 'Ares', maxGuests: 12 },
-    'kaiser': { name: 'Kaiser', maxGuests: 12 },
+    'ares': { name: 'Ares', maxGuests: 11 },
+    'kaiser': { name: 'Kaiser', maxGuests: 11 },
     'shore': { name: 'Shore / Aula', maxGuests: 99 }
 };
 

@@ -382,7 +382,11 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
         if (maxDivesContainer) maxDivesContainer.classList.add('hidden');
     } else {
         if (maxDivesContainer) maxDivesContainer.classList.remove('hidden');
-        if (maxDivesInput) maxDivesInput.value = activeBoatItem.maxDives || '';
+        if (maxDivesInput) {
+            maxDivesInput.value = activeBoatItem.maxDives || '';
+            const defCap = window.BOATS && window.BOATS[activeBoatItem.assignedBoat || boatId] ? window.BOATS[activeBoatItem.assignedBoat || boatId].maxGuests : 11;
+            maxDivesInput.placeholder = defCap;
+        }
     }
     
     // Dynamic Options for Boat
@@ -618,7 +622,7 @@ function closeManageBoatModal() {
 
 function updateModalSubtitle() {
     let total = 0; activeBoatItem.groups.forEach(g => total += g.guests.filter(guest => !guest.cancelled).length);
-    let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.pax) || parseInt(activeBoatItem.plazas) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 12);
+    let capacityNum = parseInt(activeBoatItem.maxDives) || parseInt(activeBoatItem.pax) || parseInt(activeBoatItem.plazas) || (window.BOATS && window.BOATS[activeBoatItem.assignedBoat] ? window.BOATS[activeBoatItem.assignedBoat].maxGuests : 11);
     let capText = activeBoatItem.assignedBoat === 'shore' ? 'Personas' : `${capacityNum} Plazas Ocupadas`;
     const totalPeople = typeof window.calculateTotalPeopleOnBoat === 'function' ? window.calculateTotalPeopleOnBoat(activeBoatItem) : total;
     let subtitle = `${activeBoatItem.time} • ${total}/${capText} (total: ${totalPeople})`;
