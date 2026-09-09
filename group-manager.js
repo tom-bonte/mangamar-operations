@@ -1087,9 +1087,12 @@ window.addMemberToGlobalGroup = async function() {
     if (cxByDni) {
         matchedId = window.normalizeDni(cxByDni.dni);
     } else {
-        const cxByName = (window.customerDatabase || []).find(c => c.nombre && c.nombre.toLowerCase() === lowerVal);
+        const cxByName = (window.customerDatabase || []).find(c => {
+            const full = (typeof window.getFullName === 'function' ? window.getFullName(c) : c.nombre || '').trim().toLowerCase();
+            return full === lowerVal || (!c.apellido && (c.nombre || '').trim().toLowerCase() === lowerVal);
+        });
         if (cxByName) {
-            matchedId = cxByName.dni ? window.normalizeDni(cxByName.dni) : cxByName.nombre;
+            matchedId = cxByName.dni ? window.normalizeDni(cxByName.dni) : (typeof window.getFullName === 'function' ? window.getFullName(cxByName) : cxByName.nombre);
         }
     }
 

@@ -3370,36 +3370,34 @@ function checkEnter(event, groupIndex) {
         if (d) d.classList.add('hidden');
  
         const input = document.getElementById(`search-${groupIndex}`);
-        let rawName = input.value.trim();
-        let dummy = { nombre: rawName };
-        if (typeof window.enrichCustomerFromJotform === 'function') {
-            dummy = window.enrichCustomerFromJotform(dummy);
-        }
-        const fullName = window.getFullName(dummy) || window.formatNameStr(rawName);
+        let rawName = input ? input.value.trim() : '';
+        if (!rawName) return;
+
+        const fullName = window.formatNameStr(rawName);
         if (fullName !== '') {
-            const conflict = checkDiverConflict(dummy.dni || null, fullName);
+            const conflict = checkDiverConflict(null, fullName);
             if (conflict.conflict) { showAppAlert(`Imposible: Asignado en ${conflict.where}`); return; }
-            const tag = typeof findActiveTagForGuest === 'function' ? findActiveTagForGuest(dummy.dni || null, fullName) : null;
+            const tag = typeof findActiveTagForGuest === 'function' ? findActiveTagForGuest(null, fullName) : null;
             const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             activeBoatItem.groups[groupIndex].guests.push({
                 nombre: fullName,
-                titulacion: dummy.titulacion || '',
-                telefono: dummy.telefono || '',
-                email: dummy.email || '',
-                dni: dummy.dni || '',
+                titulacion: '',
+                telefono: '',
+                email: '',
+                dni: '',
                 gas: '15L Aire',
-                isManual: !window.isProfileComplete(dummy),
+                isManual: true,
                 bookingTag: tag,
                 tempId: tempId,
-                insurance: dummy.insurance || 0
+                insurance: 0
             });
-            input.value = '';
+            if (input) input.value = '';
             updateModalSubtitle(); 
             renderGroups();
-            
-            // Auto-open Edit Guest modal to let user add DNI and details immediately
-            const newGuestIdx = activeBoatItem.groups[groupIndex].guests.length - 1;
-            openEditGuestModal(groupIndex, newGuestIdx);
+            setTimeout(() => {
+                const refreshedInput = document.getElementById(`search-${groupIndex}`);
+                if (refreshedInput) refreshedInput.focus();
+            }, 50);
         }
     }
 }

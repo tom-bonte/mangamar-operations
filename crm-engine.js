@@ -2031,15 +2031,17 @@ window.enrichCustomerFromJotform = function(c) {
         }
         if (!match && c.nombre) {
             const normName = window.normalizeSearchString(c.nombre);
-            match = (cached.findLast ? cached.findLast(j => {
+            const normApellido = c.apellido ? window.normalizeSearchString(c.apellido) : '';
+            const isMatch = (j) => {
                 const jFull = window.normalizeSearchString(window.combineFirstAndLastName(j.nombre, j.apellido));
                 const jFirst = window.normalizeSearchString(j.nombre || '');
-                return jFull === normName || jFirst === normName;
-            }) : null) || [...cached].reverse().find(j => {
-                const jFull = window.normalizeSearchString(window.combineFirstAndLastName(j.nombre, j.apellido));
-                const jFirst = window.normalizeSearchString(j.nombre || '');
-                return jFull === normName || jFirst === normName;
-            });
+                const jLast = window.normalizeSearchString(j.apellido || '');
+                if (normApellido && jLast) {
+                    return jFirst === normName && jLast === normApellido;
+                }
+                return jFull === normName || (!j.apellido && jFirst === normName);
+            };
+            match = (cached.findLast ? cached.findLast(isMatch) : null) || [...cached].reverse().find(isMatch);
         }
 
         if (match) {
