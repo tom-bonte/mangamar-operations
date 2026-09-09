@@ -3391,10 +3391,10 @@ function checkEnter(event, groupIndex) {
             if (input) input.value = '';
             updateModalSubtitle(); 
             renderGroups();
-            setTimeout(() => {
-                const refreshedInput = document.getElementById(`search-${groupIndex}`);
-                if (refreshedInput) refreshedInput.focus();
-            }, 50);
+            
+            // Open the "Editar Temporal" modal to let user optionally add more info
+            const newGuestIdx = activeBoatItem.groups[groupIndex].guests.length - 1;
+            openEditGuestModal(groupIndex, newGuestIdx);
         }
     }
 }
