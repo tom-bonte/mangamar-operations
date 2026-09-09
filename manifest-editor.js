@@ -1038,25 +1038,22 @@ function _renderGroupsCore(skipAutoSave = false) {
                 if (guest.dni) {
                     const normDni = window.normalizeSearchString(guest.dni);
                     crmMatch = customerDatabase.find(c => c.dni && window.normalizeSearchString(c.dni) === normDni);
-                }
-                if (!crmMatch && guest.nombre) {
+                } else if (guest.nombre && !guest.isManual) {
                     const normName = window.normalizeSearchString(guest.nombre);
                     crmMatch = customerDatabase.find(c => {
                         const cFull = window.normalizeSearchString(window.combineFirstAndLastName(c.nombre, c.apellido));
-                        const cName = window.normalizeSearchString(c.nombre || '');
-                        const cApodo = c.apodo ? window.normalizeSearchString(c.apodo) : '';
-                        return (cFull && cFull === normName) || (cName && cName === normName) || (cApodo && cApodo === normName);
+                        return cFull && cFull === normName;
                     });
                 }
             }
 
-            if (crmMatch) {
+            if (crmMatch && !guest.isManual) {
                 if (!guest.dni && crmMatch.dni) guest.dni = crmMatch.dni;
                 if (!guest.telefono && crmMatch.telefono) guest.telefono = crmMatch.telefono;
                 if (!guest.email && crmMatch.email) guest.email = crmMatch.email;
                 if (!guest.titulacion && crmMatch.titulacion) guest.titulacion = crmMatch.titulacion;
                 guest.isManual = !(window.isProfileComplete(crmMatch) || window.isProfileComplete(guest));
-            } else if (window.crmLoaded) {
+            } else if (window.crmLoaded && !guest.isManual) {
                 guest.isManual = !window.isProfileComplete(guest);
             }
 
@@ -3273,7 +3270,7 @@ window.selectCustomer = function(groupIndex, encodedData) {
         for (let gIdx = 0; gIdx < activeBoatItem.groups.length; gIdx++) {
             for (let gstIdx = 0; gstIdx < activeBoatItem.groups[gIdx].guests.length; gstIdx++) {
                 const gst = activeBoatItem.groups[gIdx].guests[gstIdx];
-                if (!gst.dni && gst.nombre && gst.nombre.toLowerCase() === data.nombre.toLowerCase()) {
+                if (!gst.dni && gst.nombre && fullName && gst.nombre.trim().toLowerCase() === fullName.trim().toLowerCase()) {
                     window.executeRelink(gIdx, gstIdx, encodedData);
                     intercepted = true;
                     break;

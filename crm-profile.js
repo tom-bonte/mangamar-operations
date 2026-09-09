@@ -56,15 +56,16 @@ window.openCustomerProfile = async function (dni, nombre, isNavBackForward = fal
 
     const customerInfo = customerDatabase.find(c => window.isSameDni(c.dni, dni)) || { telefono: '', email: '', discount: 0 };
     const contactStr = [customerInfo.telefono, customerInfo.email].filter(Boolean).join(' • ');
+    const officialName = (typeof window.getFullName === 'function' ? window.getFullName(customerInfo) : '') || nombre;
 
-    document.getElementById('profile-modal-name').innerText = nombre;
+    document.getElementById('profile-modal-name').innerText = officialName;
     document.getElementById('profile-modal-dni').innerText = contactStr ? `${dni}  —  ${contactStr}` : dni;
     window.activeFichaDni = dni;
 
     // Ficha auto-population details
     try {
         if (document.getElementById('ficha-tab-nombre')) {
-            document.getElementById('ficha-tab-nombre').innerText = nombre || '---';
+            document.getElementById('ficha-tab-nombre').innerText = officialName || '---';
             document.getElementById('ficha-tab-dni').innerText = dni || '---';
             document.getElementById('ficha-tab-dob').innerText = window.formatInsuranceDate(customerInfo.dob);
             document.getElementById('ficha-tab-telefono').innerText = customerInfo.telefono || '---';
