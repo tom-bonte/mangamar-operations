@@ -692,13 +692,13 @@ function renderDailyGrid() {
 
     const aresCol = createCol('Ares');
     const kaiserCol = createCol('Kaiser');
-    kaiserCol.classList.add('relative');
+    kaiserCol.classList.add('group', 'relative');
     
     let astecCol;
     
     if (showAstec) {
         astecCol = createCol('Astec');
-        astecCol.classList.add('relative');
+        astecCol.classList.add('group', 'relative');
         
         if (!hasAstecTrips) {
             const delBtn = document.createElement('button');
