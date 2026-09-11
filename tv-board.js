@@ -221,6 +221,23 @@ window._buildTVContent = function(preserveActiveSlot = true) {
     const targetDateStr = `${year}-${month}-${day}`;
 
     const todaysTrips = getMergedTrips(mergedAllocations.filter(t => t.date === targetDateStr));
+    
+    // Determine if Astec is active today
+    const hasAstecTrips = todaysTrips.some(t => t.assignedBoat === 'astec');
+    const showAstec = hasAstecTrips || window.thirdBoatEnabled === targetDateStr;
+    
+    // Adjust TV headers
+    const tvHeadersGrid = document.getElementById('tv-headers-grid');
+    const tvHeaderAstec = document.getElementById('tv-header-astec');
+    if (tvHeadersGrid && tvHeaderAstec) {
+        if (showAstec) {
+            tvHeadersGrid.className = "max-w-[1800px] mx-auto grid grid-cols-[200px_1fr_1fr_1fr] gap-8 items-center";
+            tvHeaderAstec.classList.remove('hidden');
+        } else {
+            tvHeadersGrid.className = "max-w-[1800px] mx-auto grid grid-cols-[200px_1fr_1fr] gap-8 items-center";
+            tvHeaderAstec.classList.add('hidden');
+        }
+    }
 
     // Birthday Discovery for all active people on the TV today
     const birthdayPeople = window.getTVBirthdays ? window.getTVBirthdays(todaysTrips, targetDateStr) : [];
@@ -336,7 +353,7 @@ window._buildTVContent = function(preserveActiveSlot = true) {
         // min-h-full ensures each row takes up at least the visible height of the bottom panel
         // snap-start tells the browser to align this row's top to the container's top
         const rowWrapper = document.createElement('div');
-        rowWrapper.className = "grid grid-cols-[200px_1fr_1fr_1fr] gap-x-8 items-stretch min-h-full snap-start py-12 border-b border-slate-100 last:border-0 shrink-0";
+        rowWrapper.className = `grid ${showAstec ? 'grid-cols-[200px_1fr_1fr_1fr]' : 'grid-cols-[200px_1fr_1fr]'} gap-x-8 items-stretch min-h-full snap-start py-12 border-b border-slate-100 last:border-0 shrink-0`;
         rowWrapper.dataset.time = time;
         rowWrapper.id = `tv-row-${time.replace(':', '')}`;
 
@@ -374,7 +391,8 @@ window._buildTVContent = function(preserveActiveSlot = true) {
         rowWrapper.appendChild(timeLabel);
 
         // ── B. Ares + Kaiser + Astec ───────────────────────────────────────────
-        ['ares', 'kaiser', 'astec'].forEach(boatId => {
+        const boatsToRender = showAstec ? ['ares', 'kaiser', 'astec'] : ['ares', 'kaiser'];
+        boatsToRender.forEach(boatId => {
             const trip      = (boatId === 'ares') ? aresTrip : (boatId === 'kaiser' ? kaiserTrip : astecTrip);
             const hasContent = tripHasContent(trip);
 
