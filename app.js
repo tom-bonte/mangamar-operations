@@ -610,8 +610,26 @@ window.enableThirdBoat = function() {
     const day = String(currentDate.getDate()).padStart(2, '0');
     const targetDateStr = `${year}-${month}-${day}`;
     
+    const currentName = (window.appSettings && window.appSettings.thirdBoatNames && window.appSettings.thirdBoatNames[targetDateStr]) || 'Astec';
+    const customName = prompt("Nombre para el 3er barco (ej. Astec, Gota, Zodiac):", currentName);
+    if (customName === null) return; // User cancelled
+    
+    // Save to Firestore
+    if (typeof db !== 'undefined' && db.collection) {
+        db.collection("mangamar_directory").doc("settings").set({
+            thirdBoatNames: {
+                [targetDateStr]: customName.trim() || 'Astec'
+            }
+        }, { merge: true }).catch(err => console.error("Error saving boat name:", err));
+    }
+    
     window.thirdBoatEnabled = targetDateStr;
     renderDailyGrid();
+};
+
+window.renameThirdBoat = function() {
+    // Only rename if it's the 3rd boat for today
+    window.enableThirdBoat();
 };
 
 window.disableThirdBoat = function() {
@@ -679,14 +697,19 @@ function renderDailyGrid() {
     const timeCol = document.createElement('div');
     timeCol.className = 'flex flex-col gap-4 pt-[60px] relative';
     
-    const createCol = (title) => {
+    const createCol = (title, isThirdBoat = false) => {
         const col = document.createElement('div');
         col.className = 'bg-orange-100/60 rounded-[24px] p-3 flex flex-col gap-4 border border-orange-200/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] min-h-[600px] w-full min-w-0';
         
-        // Enlarged font and applied the solid Mangamar Orange gradient
-        col.innerHTML = `<div class="h-12 flex items-center justify-center bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl mb-1 shadow-md border border-orange-300 shrink-0 z-20">
-            <span class="text-sm font-black text-white uppercase tracking-widest">${title}</span>
-        </div>`;
+        if (isThirdBoat) {
+            col.innerHTML = `<div class="h-12 flex items-center justify-center bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl mb-1 shadow-md border border-orange-300 shrink-0 z-20 relative cursor-pointer hover:brightness-110 transition-all" onclick="window.renameThirdBoat()" title="Haz clic para cambiar el nombre del barco">
+                <span class="text-sm font-black text-white uppercase tracking-widest">${title} <svg class="inline-block w-3 h-3 ml-1 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></span>
+            </div>`;
+        } else {
+            col.innerHTML = `<div class="h-12 flex items-center justify-center bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl mb-1 shadow-md border border-orange-300 shrink-0 z-20 relative">
+                <span class="text-sm font-black text-white uppercase tracking-widest">${title}</span>
+            </div>`;
+        }
         return col;
     };
 
@@ -697,7 +720,13 @@ function renderDailyGrid() {
     let astecCol;
     
     if (showAstec) {
-        astecCol = createCol('Astec');
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const targetDateStr = `${year}-${month}-${day}`;
+        const astecTitle = (window.appSettings && window.appSettings.thirdBoatNames && window.appSettings.thirdBoatNames[targetDateStr]) || 'Astec';
+        
+        astecCol = createCol(astecTitle, true);
         astecCol.classList.add('group', 'relative');
         
         if (!hasAstecTrips) {
