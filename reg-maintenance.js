@@ -708,6 +708,16 @@ window.renderRegHistoryList = function() {
                 btnEdit: 'bg-slate-200/80 text-slate-800 border-slate-300 hover:bg-slate-300',
                 btnPrint: 'bg-white/90 text-slate-700 border-slate-300 hover:bg-slate-200'
             };
+        } else if (t.status === 'Cancelado') {
+            theme = {
+                card: 'bg-red-50/90 border-red-200 opacity-70 hover:opacity-100',
+                icon: 'bg-red-100 text-red-800 border-red-300',
+                ticketTag: 'bg-red-100/90 text-red-900 border-red-300',
+                badge: 'bg-red-600 text-white border-red-700 shadow-sm',
+                select: 'bg-white/90 border-red-300 text-red-900 focus:ring-red-500',
+                btnEdit: 'bg-red-100/80 text-red-900 border-red-300 hover:bg-red-200',
+                btnPrint: 'bg-white/90 text-red-900 border-red-300 hover:bg-red-100'
+            };
         }
 
         return `
@@ -737,6 +747,7 @@ window.renderRegHistoryList = function() {
                     <option value="En Taller" ${t.status === 'En Taller' ? 'selected' : ''}>En Taller</option>
                     <option value="Listo para Recoger" ${t.status === 'Listo para Recoger' ? 'selected' : ''}>Listo para Recoger</option>
                     <option value="Entregado" ${t.status === 'Entregado' ? 'selected' : ''}>Entregado</option>
+                    <option value="Cancelado" ${t.status === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
                 </select>
                 <button onclick="window.openRegMaintenanceModal('${t.id}')" class="px-3 py-1.5 rounded-lg text-xs font-black transition-colors flex items-center gap-1 shadow-sm border ${theme.btnEdit}">
                     ✏️ Ver / Editar
