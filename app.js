@@ -855,6 +855,25 @@ function renderDailyGrid() {
                 slotContainer.appendChild(gapZone);
             }
 
+            // Append the hover gap zone between Kaiser and Astec
+            if (boatId === 'kaiser' && kTrip && asTrip && showAstec) {
+                const gapZone = document.createElement('div');
+                gapZone.className = "absolute top-0 flex items-center justify-center group/gap z-20 cursor-default";
+                gapZone.style.right = "-45px";
+                gapZone.style.width = "32px";
+                gapZone.style.height = "130px";
+                gapZone.innerHTML = `
+                    <button onclick="window.openMoveDiversModal('${timeSlot}')" 
+                            title="Mover buceadores/grupos" 
+                            class="hidden group-hover/gap:flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-md border border-orange-400 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
+                        </svg>
+                    </button>
+                `;
+                slotContainer.appendChild(gapZone);
+            }
+
             parentCol.appendChild(slotContainer);
         };
 
