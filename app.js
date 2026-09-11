@@ -692,13 +692,13 @@ function renderDailyGrid() {
 
     const aresCol = createCol('Ares');
     const kaiserCol = createCol('Kaiser');
-    kaiserCol.classList.add('group', 'relative');
+    kaiserCol.classList.add('relative');
     
     let astecCol;
     
     if (showAstec) {
         astecCol = createCol('Astec');
-        astecCol.classList.add('group', 'relative');
+        astecCol.classList.add('relative');
         
         if (!hasAstecTrips) {
             const delBtn = document.createElement('button');
@@ -987,7 +987,7 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                     mobileCourseHtml = `<span class="inline-block text-[8.5px] font-black text-white rounded px-1.5 py-0.5 ml-1.5 uppercase tracking-wide shrink-0 leading-none shadow-sm" style="background-color: #f97316 !important; border-color: #ea580c !important; color: #ffffff !important;">${courseText}</span>`;
                 }
 
-                const cancelledClass = g.cancelled ? 'line-through text-slate-400/80 opacity-60' : 'text-white group-hover:text-blue-300 hover:text-blue-400';
+                const cancelledClass = g.cancelled ? 'line-through text-slate-400/80 opacity-60' : 'text-white group-hover/item:text-blue-300 hover:text-blue-400';
 
                 // Paid indicator (gold euro coin badge)
                 let outstandingDebt = undefined;
