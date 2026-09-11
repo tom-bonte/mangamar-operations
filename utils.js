@@ -300,6 +300,7 @@ window.isProfileComplete = function(p) {
 window.getTripLocationName = function(t) {
     if (t.assignedBoat === 'ares') return 'Ares';
     if (t.assignedBoat === 'kaiser') return 'Kaiser';
+    if (t.assignedBoat === 'astec') return 'Astec';
     if (t.assignedBoat === 'shore') return 'Shore / Aula';
     return t.site ? `${t.site} (Visor)` : 'Visor';
 };

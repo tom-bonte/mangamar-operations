@@ -359,10 +359,11 @@ body.is-dragging .tooltip-content {
         display: none !important;
     }
 
-    /* Hide Ares, Kaiser, Shore columns by default */
+    /* Hide Ares, Kaiser, Astec, Shore columns by default */
     #daily-grid-container > div:nth-child(2),
     #daily-grid-container > div:nth-child(3),
-    #daily-grid-container > div:nth-child(4) {
+    #daily-grid-container > div:nth-child(4),
+    #daily-grid-container > div:nth-child(5) {
         display: none !important;
     }
 
@@ -373,7 +374,10 @@ body.is-dragging .tooltip-content {
     #daily-grid-container.show-kaiser > div:nth-child(3) {
         display: flex !important;
     }
-    #daily-grid-container.show-shore > div:nth-child(4) {
+    #daily-grid-container.show-astec > div:nth-child(4) {
+        display: flex !important;
+    }
+    #daily-grid-container.show-shore > div:nth-child(5) {
         display: flex !important;
     }
 

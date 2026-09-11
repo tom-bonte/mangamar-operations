@@ -5078,8 +5078,8 @@ window.getSameDayBoatTrips = function(dateStr, boatId) {
     activeTimes.forEach(time => {
         let finalTrips = window.getMergedTrips ? window.getMergedTrips(todaysTrips.filter(t => t.time === time)) : todaysTrips.filter(t => t.time === time);
         
-        let aTrip = null, kTrip = null, sTrip = null;
-        let aConflicts = [], kConflicts = [], sConflicts = [];
+        let aTrip = null, kTrip = null, asTrip = null, sTrip = null;
+        let aConflicts = [], kConflicts = [], asConflicts = [], sConflicts = [];
 
         // Helper to forcefully place a trip in its requested boat
         const forcePlace = (t, targetBoat) => {
@@ -5087,6 +5087,8 @@ window.getSameDayBoatTrips = function(dateStr, boatId) {
                 if (!aTrip) aTrip = t; else aConflicts.push(t);
             } else if (targetBoat === 'kaiser') {
                 if (!kTrip) kTrip = t; else kConflicts.push(t);
+            } else if (targetBoat === 'astec') {
+                if (!asTrip) asTrip = t; else asConflicts.push(t);
             } else if (targetBoat === 'shore') {
                 if (!sTrip) sTrip = t; else sConflicts.push(t);
             }
@@ -5096,6 +5098,7 @@ window.getSameDayBoatTrips = function(dateStr, boatId) {
         const findEmptyBoat = (t) => {
             if (!aTrip) { t.assignedBoat = 'ares'; aTrip = t; }
             else if (!kTrip) { t.assignedBoat = 'kaiser'; kTrip = t; }
+            else if (!asTrip) { t.assignedBoat = 'astec'; asTrip = t; }
             else { t.assignedBoat = 'ares'; aConflicts.push(t); } 
         };
 
@@ -5114,6 +5117,9 @@ window.getSameDayBoatTrips = function(dateStr, boatId) {
         } else if (boatId === 'kaiser') {
             if (kTrip) { kTrip.assignedBoat = 'kaiser'; boatTrips.push(kTrip); }
             kConflicts.forEach(c => { c.assignedBoat = 'kaiser'; boatTrips.push(c); });
+        } else if (boatId === 'astec') {
+            if (asTrip) { asTrip.assignedBoat = 'astec'; boatTrips.push(asTrip); }
+            asConflicts.forEach(c => { c.assignedBoat = 'astec'; boatTrips.push(c); });
         } else if (boatId === 'shore') {
             if (sTrip) { sTrip.assignedBoat = 'shore'; boatTrips.push(sTrip); }
             sConflicts.forEach(c => { c.assignedBoat = 'shore'; boatTrips.push(c); });
@@ -5301,6 +5307,7 @@ document.getElementById('guest-note-input') && document.getElementById('guest-no
             const b = boat.toLowerCase();
             if (b === 'ares') return 'Ares';
             if (b === 'kaiser') return 'Kaiser';
+            if (b === 'astec') return 'Astec';
             if (b === 'shore') return 'Shore';
             return boat;
         };

@@ -46,14 +46,16 @@ window.getDeduplicatedTripsWithDynamicBoats = function(timeSlot, targetDateStr) 
     const todaysTrips = typeof getMergedTrips === 'function' ? getMergedTrips(rawCopies) : rawCopies;
 
     // Apply the same boat assignment algorithm as app.js
-    let aTrip = null, kTrip = null, sTrip = null;
-    let aConflicts = [], kConflicts = [], sConflicts = [];
+    let aTrip = null, kTrip = null, asTrip = null, sTrip = null;
+    let aConflicts = [], kConflicts = [], asConflicts = [], sConflicts = [];
 
     const forcePlace = (t, targetBoat) => {
         if (targetBoat === 'ares') {
             if (!aTrip) aTrip = t; else aConflicts.push(t);
         } else if (targetBoat === 'kaiser') {
             if (!kTrip) kTrip = t; else kConflicts.push(t);
+        } else if (targetBoat === 'astec') {
+            if (!asTrip) asTrip = t; else asConflicts.push(t);
         } else if (targetBoat === 'shore') {
             if (!sTrip) sTrip = t; else sConflicts.push(t);
         }
@@ -62,6 +64,7 @@ window.getDeduplicatedTripsWithDynamicBoats = function(timeSlot, targetDateStr) 
     const findEmptyBoat = (t) => {
         if (!aTrip) { t.assignedBoat = 'ares'; aTrip = t; }
         else if (!kTrip) { t.assignedBoat = 'kaiser'; kTrip = t; }
+        else if (!asTrip) { t.assignedBoat = 'astec'; asTrip = t; }
         else { t.assignedBoat = 'ares'; aConflicts.push(t); } 
     };
 
@@ -91,6 +94,7 @@ window.renderMoveDiversModalContent = function(timeSlot, targetDateStr) {
     const columns = [];
     const aresTrips = todaysTrips.filter(t => t.assignedBoat === 'ares');
     const kaiserTrips = todaysTrips.filter(t => t.assignedBoat === 'kaiser');
+    const astecTrips = todaysTrips.filter(t => t.assignedBoat === 'astec');
 
     if (aresTrips.length === 0) {
         columns.push({ type: 'empty', boatId: 'ares' });
@@ -108,12 +112,20 @@ window.renderMoveDiversModalContent = function(timeSlot, targetDateStr) {
         kaiserTrips.forEach(t => columns.push({ type: 'trip', trip: t, boatId: 'kaiser' }));
     }
 
+    if (astecTrips.length === 0) {
+        columns.push({ type: 'empty', boatId: 'astec' });
+    } else {
+        // Sort so active trip is first
+        astecTrips.sort((a, b) => (a.cancelled ? 1 : 0) - (b.cancelled ? 1 : 0));
+        astecTrips.forEach(t => columns.push({ type: 'trip', trip: t, boatId: 'astec' }));
+    }
+
     columns.forEach(col => {
         const colDiv = document.createElement('div');
         colDiv.className = "flex-1 flex flex-col min-w-[320px] max-w-[480px] bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm";
         
-        let titleText = col.boatId === 'ares' ? 'Ares' : 'Kaiser';
-        let bgClass = col.boatId === 'ares' ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'bg-gradient-to-r from-slate-700 to-slate-800';
+        let titleText = col.boatId === 'ares' ? 'Ares' : (col.boatId === 'kaiser' ? 'Kaiser' : 'Astec');
+        let bgClass = col.boatId === 'ares' ? 'bg-gradient-to-r from-orange-500 to-orange-600' : (col.boatId === 'kaiser' ? 'bg-gradient-to-r from-slate-700 to-slate-800' : 'bg-gradient-to-r from-blue-700 to-blue-800');
         let capacityText = '';
         
         if (col.type === 'trip') {
@@ -122,7 +134,7 @@ window.renderMoveDiversModalContent = function(timeSlot, targetDateStr) {
                 titleText += ' (ANULADA)';
                 bgClass = col.boatId === 'ares' 
                     ? 'bg-gradient-to-r from-orange-600/70 to-orange-700/70' 
-                    : 'bg-gradient-to-r from-slate-600/70 to-slate-700/70';
+                    : (col.boatId === 'kaiser' ? 'bg-gradient-to-r from-slate-600/70 to-slate-700/70' : 'bg-gradient-to-r from-blue-600/70 to-blue-700/70');
             }
             const guestsCount = (trip.groups || []).reduce((acc, g) => acc + (g.guests ? g.guests.filter(x => !x.cancelled).length : 0), 0);
             const capacity = parseInt(trip.maxDives) || parseInt(trip.pax) || parseInt(trip.plazas) || (window.BOATS && window.BOATS[trip.assignedBoat] ? window.BOATS[trip.assignedBoat].maxGuests : 11);
@@ -357,7 +369,7 @@ window.toggleMoveGroupDropdown = function(event, timeSlot, targetDateStr, source
             : [{ guide: '', apoyo: '', guests: [] }];
     }
 
-    const otherTrips = todaysTrips.filter(t => String(t.id) !== String(sourceTripId) && (t.assignedBoat === 'ares' || t.assignedBoat === 'kaiser'));
+    const otherTrips = todaysTrips.filter(t => String(t.id) !== String(sourceTripId) && (t.assignedBoat === 'ares' || t.assignedBoat === 'kaiser' || t.assignedBoat === 'astec'));
     if (otherTrips.length === 0) return;
 
     const btn = event.currentTarget;
@@ -420,7 +432,7 @@ window.toggleMoveGroupBtnDropdown = function(event, timeSlot, targetDateStr, sou
             : [{ guide: '', apoyo: '', guests: [] }];
     }
 
-    const otherTrips = todaysTrips.filter(t => String(t.id) !== String(sourceTripId) && (t.assignedBoat === 'ares' || t.assignedBoat === 'kaiser'));
+    const otherTrips = todaysTrips.filter(t => String(t.id) !== String(sourceTripId) && (t.assignedBoat === 'ares' || t.assignedBoat === 'kaiser' || t.assignedBoat === 'astec'));
     if (otherTrips.length === 0) return;
 
     if (otherTrips.length === 1) {
@@ -624,6 +636,7 @@ window.moveDiverBetweenTrips = function(timeSlot, targetDateStr, sourceTripId, t
                     const targetBoat = targetTrip.assignedBoat 
                         || (String(targetTripId).toLowerCase().includes('ares') ? 'ares' : '')
                         || (String(targetTripId).toLowerCase().includes('kaiser') ? 'kaiser' : '')
+                        || (String(targetTripId).toLowerCase().includes('astec') ? 'astec' : '')
                         || 'ares';
 
                     historyData.assignedBoat = targetBoat;
@@ -774,6 +787,8 @@ window.moveGroupBetweenTrips = function(timeSlot, targetDateStr, sourceTripId, t
                             const targetBoat = targetTrip.assignedBoat 
                                 || (String(targetTripId).toLowerCase().includes('ares') ? 'ares' : '')
                                 || (String(targetTripId).toLowerCase().includes('kaiser') ? 'kaiser' : '')
+                                || (String(targetTripId).toLowerCase().includes('astec') ? 'astec' : '')
+                                || (String(targetTripId).toLowerCase().includes('astec') ? 'astec' : '')
                                 || 'ares';
 
                             historyData.assignedBoat = targetBoat;

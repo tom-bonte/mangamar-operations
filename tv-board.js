@@ -311,7 +311,8 @@ window._buildTVContent = function(preserveActiveSlot = true) {
     const activeSlots = TIMES.filter(time => {
         const a = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time && !t.cancelled);
         const k = todaysTrips.find(t => t.assignedBoat === 'kaiser' && t.time === time && !t.cancelled);
-        return tripHasContent(a) || tripHasContent(k);
+        const as = todaysTrips.find(t => t.assignedBoat === 'astec' && t.time === time && !t.cancelled);
+        return tripHasContent(a) || tripHasContent(k) || tripHasContent(as);
     });
 
     if (activeSlots.length === 0) {
@@ -329,12 +330,13 @@ window._buildTVContent = function(preserveActiveSlot = true) {
     activeSlots.forEach((time, slotIdx) => {
         const aresTrip   = todaysTrips.find(t => t.assignedBoat === 'ares'   && t.time === time && !t.cancelled);
         const kaiserTrip = todaysTrips.find(t => t.assignedBoat === 'kaiser' && t.time === time && !t.cancelled);
+        const astecTrip  = todaysTrips.find(t => t.assignedBoat === 'astec'  && t.time === time && !t.cancelled);
 
         // CREATE A SNAP ROW WRAPPER
         // min-h-full ensures each row takes up at least the visible height of the bottom panel
         // snap-start tells the browser to align this row's top to the container's top
         const rowWrapper = document.createElement('div');
-        rowWrapper.className = "grid grid-cols-[200px_1fr_1fr] gap-x-8 items-stretch min-h-full snap-start py-12 border-b border-slate-100 last:border-0 shrink-0";
+        rowWrapper.className = "grid grid-cols-[200px_1fr_1fr_1fr] gap-x-8 items-stretch min-h-full snap-start py-12 border-b border-slate-100 last:border-0 shrink-0";
         rowWrapper.dataset.time = time;
         rowWrapper.id = `tv-row-${time.replace(':', '')}`;
 
@@ -371,9 +373,9 @@ window._buildTVContent = function(preserveActiveSlot = true) {
         timeLabel.innerHTML = `<span class="text-6xl font-black text-orange-500 tracking-tighter rotate-[-90deg] origin-center whitespace-nowrap drop-shadow-sm">${time}</span>`;
         rowWrapper.appendChild(timeLabel);
 
-        // ── B. Ares + Kaiser ───────────────────────────────────────────
-        ['ares', 'kaiser'].forEach(boatId => {
-            const trip      = (boatId === 'ares') ? aresTrip : kaiserTrip;
+        // ── B. Ares + Kaiser + Astec ───────────────────────────────────────────
+        ['ares', 'kaiser', 'astec'].forEach(boatId => {
+            const trip      = (boatId === 'ares') ? aresTrip : (boatId === 'kaiser' ? kaiserTrip : astecTrip);
             const hasContent = tripHasContent(trip);
 
             if (hasContent) {

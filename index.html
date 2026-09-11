@@ -641,6 +641,7 @@
                     <div id="mobile-boat-selector" class="flex md:hidden bg-slate-100 p-1 rounded-xl border border-slate-200/60 mb-6 justify-between gap-1">
                         <button onclick="selectMobileBoat('ares')" id="m-btn-ares" class="flex-1 py-2 text-xs font-black rounded-lg transition-all text-center bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-sm">Ares</button>
                         <button onclick="selectMobileBoat('kaiser')" id="m-btn-kaiser" class="flex-1 py-2 text-xs font-bold transition-all text-center text-slate-500 hover:text-slate-800">Kaiser</button>
+                        <button onclick="selectMobileBoat('astec')" id="m-btn-astec" class="flex-1 py-2 text-xs font-bold transition-all text-center text-slate-500 hover:text-slate-800">Astec</button>
                         <button onclick="selectMobileBoat('shore')" id="m-btn-shore" class="flex-1 py-2 text-xs font-bold transition-all text-center text-slate-500 hover:text-slate-800">Shore / Aula</button>
                     </div>
 
@@ -912,6 +913,7 @@
                             <select id="input-boat" onchange="window.adjustSelectElWidth(this); triggerAutoSave();" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs font-bold text-slate-700 cursor-pointer h-[32px]">
                                 <option value="ares">Ares</option>
                                 <option value="kaiser">Kaiser</option>
+                                <option value="astec">Astec</option>
                                 <option value="shore">Shore / Aula</option>
                             </select>
                         </div>
@@ -1148,7 +1150,7 @@
                 <div class="flex items-center justify-between p-5 bg-slate-50/80 border border-slate-200 rounded-2xl hover:bg-slate-100/60 transition-colors">
                     <div class="flex-1 pr-4">
                         <span class="block text-sm font-black text-slate-800 uppercase tracking-tight">Tiempos de Radio en TV</span>
-                        <span class="block text-xs font-bold text-slate-500 mt-1">Muestra la sección inferior de 'Salida Anterior' con los horarios de comunicación por radio de Ares y Kaiser en la pantalla TV.</span>
+                        <span class="block text-xs font-bold text-slate-500 mt-1">Muestra la sección inferior de 'Salida Anterior' con los horarios de comunicación por radio de Ares, Kaiser y Astec en la pantalla TV.</span>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
                         <input type="checkbox" id="setting-toggle-radio-times" class="sr-only peer" onchange="window.handleSettingsRadioTimesToggle(this.checked)">
@@ -2681,6 +2683,7 @@
                                     <option value="">— Barco —</option>
                                     <option value="6ª CT-4-14-19">Ares (6ª CT-4-14-19)</option>
                                     <option value="6ª CT-4-4-17">Kaiser (6ª CT-4-4-17)</option>
+                                    <option value="ASTEC 6CT42024">Astec (6CT42024)</option>
                                     <option value="__custom__" style="color:#2563eb;font-weight:bold">✏️ Otro (personalizado)...</option>
                                 </select>
                                 <input type="text" id="inc-matricula" class="inc-inp" placeholder="Matrícula..." style="display:none;border-top:1px solid #ccc;">
@@ -3934,13 +3937,14 @@
 
         <!-- ── TOP PANEL: just the boat-name bar + close button ───────── -->
         <div class="shrink-0 bg-slate-50 px-8 pt-6 pb-4 border-b-2 border-slate-200 relative">
-            <div class="max-w-[1800px] mx-auto grid grid-cols-[200px_1fr_1fr] gap-8 items-center">
+            <div class="max-w-[1800px] mx-auto grid grid-cols-[200px_1fr_1fr_1fr] gap-8 items-center">
                 <div class="flex flex-col items-start justify-center gap-1 leading-none">
                     <div id="tv-date" class="text-2xl font-black text-slate-400 uppercase tracking-tight whitespace-nowrap">Cargando...</div>
                     <div id="tv-clock" class="text-2xl font-black text-slate-400 font-mono tracking-tighter">00:00:00</div>
                 </div>
                 <div class="text-center py-5 bg-orange-500 border border-orange-600 rounded-2xl font-black text-white text-4xl uppercase tracking-[0.2em] shadow-md">ARES</div>
                 <div class="text-center py-5 bg-orange-500 border border-orange-600 rounded-2xl font-black text-white text-4xl uppercase tracking-[0.2em] shadow-md">KAISER</div>
+                <div class="text-center py-5 bg-blue-600 border border-blue-700 rounded-2xl font-black text-white text-4xl uppercase tracking-[0.2em] shadow-md">ASTEC</div>
             </div>
             <!-- Birthday Celebration Banner on top of TV Screen -->
             <div id="tv-birthday-banner-container" class="max-w-[1800px] mx-auto hidden mt-3"></div>

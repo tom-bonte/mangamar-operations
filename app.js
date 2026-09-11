@@ -604,6 +604,50 @@ function renderDailyAlerts(targetDateStr) {
     }
 }
 
+window.enableThirdBoat = function() {
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentDate.getDate()).padStart(2, '0');
+    const targetDateStr = `${year}-${month}-${day}`;
+    
+    window.thirdBoatEnabled = targetDateStr;
+    renderDailyGrid();
+};
+
+window.disableThirdBoat = function() {
+    // Custom confirm modal
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 transition-opacity';
+    
+    const modal = document.createElement('div');
+    modal.className = 'bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100';
+    
+    modal.innerHTML = `
+        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-500 mx-auto mb-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        </div>
+        <h3 class="text-xl font-black text-center text-slate-800 mb-2">¿Ocultar 3er Barco?</h3>
+        <p class="text-center text-slate-500 text-sm font-bold mb-6">El barco Astec se ocultará del cuadrante. Solo puedes hacer esto si no tiene salidas asignadas.</p>
+        <div class="flex gap-3">
+            <button id="cancel-hide-btn" class="flex-1 py-2.5 rounded-xl text-sm font-black text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Cancelar</button>
+            <button id="confirm-hide-btn" class="flex-1 py-2.5 rounded-xl text-sm font-black text-white bg-red-500 hover:bg-red-600 shadow-sm transition-colors">Ocultar</button>
+        </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    document.getElementById('cancel-hide-btn').onclick = () => {
+        overlay.remove();
+    };
+    
+    document.getElementById('confirm-hide-btn').onclick = () => {
+        window.thirdBoatEnabled = null;
+        renderDailyGrid();
+        overlay.remove();
+    };
+};
+
 function renderDailyGrid() {
     const container = document.getElementById('daily-grid-container');
     if(!container) return;
@@ -620,11 +664,20 @@ function renderDailyGrid() {
     const rawTodaysTrips = mergedAllocations.filter(t => t.date === targetDateStr);
     const todaysTrips = typeof getMergedTrips === 'function' ? getMergedTrips(rawTodaysTrips) : rawTodaysTrips;
     
-    // We establish the 4 columns: Time, Ares, Kaiser, Shore
-    container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-8 pb-12 px-2 md:min-w-[800px] min-w-0 w-full';
+    // Determine if we need the 3rd boat column today
+    const hasAstecTrips = todaysTrips.some(t => t.assignedBoat === 'astec');
+    const showAstec = hasAstecTrips || window.thirdBoatEnabled === targetDateStr;
+
+    if (showAstec) {
+        // We establish the 5 columns: Time, Ares, Kaiser, Astec, Shore
+        container.className = 'grid grid-cols-[60px_1fr_1fr_1fr_1fr] gap-8 pb-12 px-2 md:min-w-[1000px] min-w-0 w-full';
+    } else {
+        // Fallback to 4 columns
+        container.className = 'grid grid-cols-[60px_1fr_1fr_1fr] gap-8 pb-12 px-2 md:min-w-[800px] min-w-0 w-full relative';
+    }
 
     const timeCol = document.createElement('div');
-    timeCol.className = 'flex flex-col gap-4 pt-[60px]';
+    timeCol.className = 'flex flex-col gap-4 pt-[60px] relative';
     
     const createCol = (title) => {
         const col = document.createElement('div');
@@ -639,6 +692,31 @@ function renderDailyGrid() {
 
     const aresCol = createCol('Ares');
     const kaiserCol = createCol('Kaiser');
+    kaiserCol.classList.add('group', 'relative');
+    
+    let astecCol;
+    
+    if (showAstec) {
+        astecCol = createCol('Astec');
+        astecCol.classList.add('group', 'relative');
+        
+        if (!hasAstecTrips) {
+            const delBtn = document.createElement('button');
+            delBtn.onclick = window.disableThirdBoat;
+            delBtn.className = "absolute -right-[24px] top-[14px] z-30 w-8 h-8 flex items-center justify-center rounded-full bg-red-100 border-2 border-red-400 text-red-500 shadow-sm transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-110 hover:!bg-red-500 hover:!text-white";
+            delBtn.title = "Ocultar 3er Barco";
+            delBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+            astecCol.appendChild(delBtn);
+        }
+    } else {
+        const addBtn = document.createElement('button');
+        addBtn.onclick = window.enableThirdBoat;
+        addBtn.className = "absolute -right-[24px] top-[14px] z-30 w-8 h-8 flex items-center justify-center rounded-full bg-orange-100 border-2 border-orange-400 text-orange-500 shadow-sm transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-110 hover:!bg-orange-500 hover:!text-white";
+        addBtn.title = "Añadir 3er Barco (Astec)";
+        addBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>`;
+        kaiserCol.appendChild(addBtn);
+    }
+    
     const shoreCol = createCol('Shore / Aula');
 
     const activeTimes = todaysTrips.some(t => t.time === '07:00') ? TIMES : TIMES.filter(t => t !== '07:00');
@@ -652,8 +730,8 @@ function renderDailyGrid() {
 
         let finalTrips = todaysTrips.filter(t => t.time === time);
         
-        let aTrip = null, kTrip = null, sTrip = null;
-        let aConflicts = [], kConflicts = [], sConflicts = [];
+        let aTrip = null, kTrip = null, asTrip = null, sTrip = null;
+        let aConflicts = [], kConflicts = [], asConflicts = [], sConflicts = [];
 
         // Helper to forcefully place a trip in its requested boat
         const forcePlace = (t, targetBoat) => {
@@ -661,6 +739,8 @@ function renderDailyGrid() {
                 if (!aTrip) aTrip = t; else aConflicts.push(t);
             } else if (targetBoat === 'kaiser') {
                 if (!kTrip) kTrip = t; else kConflicts.push(t);
+            } else if (targetBoat === 'astec') {
+                if (!asTrip) asTrip = t; else asConflicts.push(t);
             } else if (targetBoat === 'shore') {
                 if (!sTrip) sTrip = t; else sConflicts.push(t);
             }
@@ -670,6 +750,7 @@ function renderDailyGrid() {
         const findEmptyBoat = (t) => {
             if (!aTrip) { t.assignedBoat = 'ares'; aTrip = t; }
             else if (!kTrip) { t.assignedBoat = 'kaiser'; kTrip = t; }
+            else if (!asTrip) { t.assignedBoat = 'astec'; asTrip = t; }
             else { t.assignedBoat = 'ares'; aConflicts.push(t); } 
         };
 
@@ -779,12 +860,14 @@ function renderDailyGrid() {
 
         appendSlot(aresCol, aTrip, aConflicts, 'ares', time);
         appendSlot(kaiserCol, kTrip, kConflicts, 'kaiser', time);
+        if (showAstec) appendSlot(astecCol, asTrip, asConflicts, 'astec', time);
         appendSlot(shoreCol, sTrip, sConflicts, 'shore', time);
     });
 
     container.appendChild(timeCol);
     container.appendChild(aresCol);
     container.appendChild(kaiserCol);
+    if (showAstec) container.appendChild(astecCol);
     container.appendChild(shoreCol);
 
     // Automatically re-run live search on render if a query is active
@@ -1867,7 +1950,7 @@ window.executeDailySearch = function(query) {
                     const dniMatch = g.dni && window.normalizeSearchString(g.dni).includes(normQuery);
 
                     if (nameMatch || dniMatch) {
-                        const boatName = trip.assignedBoat === 'ares' ? 'Ares' : (trip.assignedBoat === 'kaiser' ? 'Kaiser' : 'Shore');
+                        const boatName = trip.assignedBoat === 'ares' ? 'Ares' : (trip.assignedBoat === 'kaiser' ? 'Kaiser' : (trip.assignedBoat === 'astec' ? 'Astec' : 'Shore'));
                         const siteName = trip.site || 'Sin Destino';
                         const timeVal = trip.time || '';
 
@@ -2002,12 +2085,12 @@ window.selectMobileBoat = function(boat) {
     window.activeMobileBoat = boat;
     const grid = document.getElementById('daily-grid-container');
     if (grid) {
-        grid.classList.remove('show-ares', 'show-kaiser', 'show-shore');
+        grid.classList.remove('show-ares', 'show-kaiser', 'show-astec', 'show-shore');
         grid.classList.add(`show-${boat}`);
     }
     
     // Style active tab
-    ['ares', 'kaiser', 'shore'].forEach(b => {
+    ['ares', 'kaiser', 'astec', 'shore'].forEach(b => {
         const btn = document.getElementById(`m-btn-${b}`);
         if (!btn) return;
         if (b === boat) {
