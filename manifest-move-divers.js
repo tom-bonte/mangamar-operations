@@ -112,12 +112,17 @@ window.renderMoveDiversModalContent = function(timeSlot, targetDateStr) {
         kaiserTrips.forEach(t => columns.push({ type: 'trip', trip: t, boatId: 'kaiser' }));
     }
 
-    if (astecTrips.length === 0) {
-        columns.push({ type: 'empty', boatId: 'astec' });
-    } else {
-        // Sort so active trip is first
-        astecTrips.sort((a, b) => (a.cancelled ? 1 : 0) - (b.cancelled ? 1 : 0));
-        astecTrips.forEach(t => columns.push({ type: 'trip', trip: t, boatId: 'astec' }));
+    const hasAstecTrips = astecTrips.length > 0;
+    const showAstec = hasAstecTrips || window.thirdBoatEnabled === targetDateStr;
+
+    if (showAstec) {
+        if (astecTrips.length === 0) {
+            columns.push({ type: 'empty', boatId: 'astec' });
+        } else {
+            // Sort so active trip is first
+            astecTrips.sort((a, b) => (a.cancelled ? 1 : 0) - (b.cancelled ? 1 : 0));
+            astecTrips.forEach(t => columns.push({ type: 'trip', trip: t, boatId: 'astec' }));
+        }
     }
 
     columns.forEach(col => {
