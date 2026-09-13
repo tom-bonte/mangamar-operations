@@ -391,6 +391,10 @@
                     
                     <div class="absolute left-0 top-full mt-1 w-64 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
                         <div class="bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-100 ring-1 ring-black/5 overflow-hidden">
+                            <button onclick="openBonosManagerModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-fuchsia-50 hover:text-fuchsia-700 flex items-center gap-2.5 transition-colors">
+                                <svg class="w-4 h-4 text-fuchsia-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path></svg>
+                                <span>Bonos de Regalo</span>
+                            </button>
                             <button onclick="openProjectManagerModal()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2.5 transition-colors">
                                 <svg class="w-4 h-4 text-orange-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                                 <span>Proyectos</span>
@@ -3930,6 +3934,129 @@
                 <button onclick="confirmAppConfirm()" class="px-4 py-2 bg-red-500 text-white font-black rounded-xl hover:scale-105 hover:bg-red-600 text-xs shadow-sm transition-all">Sí, Confirmar</button>
             </div>
         </div>
+    </div>
+
+    <!-- Bonos de Regalo Manager Modal -->
+    <div id="bonos-manager-modal" class="fixed inset-0 z-[900] hidden flex flex-col items-center justify-start bg-slate-900/60 backdrop-blur-sm p-4 pt-10" onclick="if(event.target === this) window.closeBonosManagerModal()">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] border border-slate-200 overflow-hidden relative">
+            <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-fuchsia-50/50">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-2xl bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center text-xl shadow-inner border border-fuchsia-200">
+                        🎁
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-black text-slate-800 tracking-tight">Gestión de Bonos de Regalo</h2>
+                        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Control de vouchers, compras y canjes</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="window.openBonoEditorModal()" class="px-4 py-2 bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 hover:from-fuchsia-600 hover:to-fuchsia-700 text-white text-xs font-black rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        Nuevo Bono
+                    </button>
+                    <button onclick="window.closeBonosManagerModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors">✕</button>
+                </div>
+            </div>
+            
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-4">
+                <div class="relative flex-1 max-w-md">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="bonos-search-input" oninput="window.renderBonosList()" placeholder="Buscar por comprador o destinatario..." class="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 transition-all">
+                </div>
+                <select id="bonos-filter-select" onchange="window.renderBonosList()" class="px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 cursor-pointer">
+                    <option value="all">Todos los bonos</option>
+                    <option value="active" selected>Activos (Disponibles)</option>
+                    <option value="unpaid">Pendientes de Pago</option>
+                    <option value="used">Ya Utilizados</option>
+                    <option value="expired">Caducados</option>
+                </select>
+                <div class="text-xs font-black text-slate-500 ml-auto" id="bonos-count-indicator">Cargando...</div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+                <div id="bonos-list-container" class="flex flex-col gap-3">
+                    <!-- Cards injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit/Create Bono Modal -->
+    <div id="bono-editor-modal" class="fixed inset-0 z-[1000] hidden flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onclick="if(event.target === this) window.closeBonoEditorModal()">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-slate-200 overflow-hidden relative">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-fuchsia-50/50">
+                <h3 class="text-base font-black text-slate-800" id="bono-editor-title">Nuevo Bono de Regalo</h3>
+                <button onclick="window.closeBonoEditorModal()" class="text-slate-400 hover:text-slate-600 transition-colors">✕</button>
+            </div>
+            <div class="p-6 flex flex-col gap-4">
+                <input type="hidden" id="bono-id-input">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Comprador (Quien paga)</label>
+                        <input type="text" id="bono-buyer-input" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">DNI/NIE Comprador</label>
+                        <input type="text" id="bono-buyer-dni-input" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="Opcional">
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Destinatario (Quien lo recibe)</label>
+                    <input type="text" id="bono-recipient-input" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500">
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Actividad / Regalo</label>
+                    <input type="text" id="bono-activity-input" list="bono-activity-options" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="Ej: Bautizo de buceo">
+                    <datalist id="bono-activity-options">
+                        <option value="Bautizo de Buceo (DSD)">
+                        <option value="1 Inmersión en Reserva Marina">
+                        <option value="2 Inmersiones (Doble Tanque)">
+                        <option value="Bono 10 Inmersiones">
+                        <option value="Curso Open Water Diver">
+                        <option value="Excursión de Snorkel">
+                    </datalist>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Fecha Compra</label>
+                        <input type="date" id="bono-purchase-date" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Válido Hasta</label>
+                        <input type="date" id="bono-expiry-date" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500">
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Notas Adicionales</label>
+                    <textarea id="bono-notes-input" rows="2" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 resize-none" placeholder="Opcional..."></textarea>
+                </div>
+
+                <div class="flex items-center gap-6 mt-2 pt-4 border-t border-slate-100">
+                    <label class="flex items-center gap-2.5 cursor-pointer group">
+                        <input type="checkbox" id="bono-paid-check" class="w-5 h-5 rounded border-slate-300 text-fuchsia-500 focus:ring-fuchsia-500 transition-all cursor-pointer">
+                        <span class="text-sm font-black text-slate-700 group-hover:text-slate-900 transition-colors">Marcar como PAGADO</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 cursor-pointer group">
+                        <input type="checkbox" id="bono-used-check" class="w-5 h-5 rounded border-slate-300 text-fuchsia-500 focus:ring-fuchsia-500 transition-all cursor-pointer">
+                        <span class="text-sm font-black text-slate-700 group-hover:text-slate-900 transition-colors">Marcar como USADO</span>
+                    </label>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                <button onclick="window.closeBonoEditorModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 text-xs transition-colors">Cancelar</button>
+                <button onclick="window.saveBono()" class="px-4 py-2 bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 text-white font-black rounded-xl hover:scale-105 text-xs shadow-sm transition-all">Guardar Bono</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printable Voucher View (Hidden from regular flow, made visible for printing via PDF print logic) -->
+    <div id="bono-print-container" class="hidden">
+        <!-- The actual voucher design will be built dynamically in JS, but placed here when generating -->
     </div>
 
     <!-- TV View Modal — two-panel layout so cards can NEVER bleed above the boat-name bar -->
