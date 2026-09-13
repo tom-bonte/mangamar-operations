@@ -447,6 +447,14 @@ window.generateBonoPdf = function(bonoId) {
     const expDateStr = b.expiryDate ? new Date(b.expiryDate).toLocaleDateString('es-ES') : 'N/A';
     const code = b.id.substring(0,8).toUpperCase();
     
+    const capitalize = (str) => {
+        if (!str) return '';
+        return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+    };
+    
+    const recipientName = capitalize(b.recipientName);
+    const buyerName = capitalize(b.buyerName);
+    
     let iframe = document.getElementById('bono-print-iframe');
     if (!iframe) {
         iframe = document.createElement('iframe');
@@ -462,7 +470,7 @@ window.generateBonoPdf = function(bonoId) {
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Bono de Regalo - ${b.recipientName}</title>
+        <title>Bono de Regalo - ${recipientName}</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
         <style>
@@ -496,7 +504,7 @@ window.generateBonoPdf = function(bonoId) {
             .overlay {
                 position: absolute;
                 inset: 0;
-                background: linear-gradient(to right, transparent 0%, rgba(15, 23, 42, 0.6) 40%, rgba(15, 23, 42, 0.95) 100%);
+                background: linear-gradient(to right, transparent 0%, rgba(15, 23, 42, 0.7) 45%, rgba(15, 23, 42, 0.95) 100%);
                 z-index: 1;
             }
             
@@ -508,49 +516,43 @@ window.generateBonoPdf = function(bonoId) {
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
-                border-left: 1px solid rgba(255,255,255,0.1);
-                backdrop-filter: blur(8px);
-                background: rgba(15, 23, 42, 0.4);
+                border-left: 1px solid rgba(255,255,255,0.05);
+                backdrop-filter: blur(4px);
+                background: rgba(15, 23, 42, 0.3);
             }
             
             .header {
                 display: flex;
-                align-items: center;
-                gap: 15px;
-                margin-bottom: 20px;
-            }
-            
-            .logo {
-                height: 50px;
-                object-fit: contain;
-                filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+                flex-direction: column;
+                margin-bottom: 25px;
             }
             
             .brand-name {
-                font-size: 1.5rem;
+                font-size: 2rem;
                 font-weight: 900;
                 color: #f97316; /* Mangamar Orange */
-                letter-spacing: 0.1em;
-                line-height: 1.1;
+                letter-spacing: 0.15em;
+                line-height: 1;
                 text-transform: uppercase;
             }
             
             .brand-subtitle {
-                font-size: 0.8rem;
+                font-size: 0.85rem;
                 font-weight: 600;
-                color: #cbd5e1;
-                letter-spacing: 0.2em;
+                color: #94a3b8;
+                letter-spacing: 0.3em;
+                margin-top: 4px;
             }
             
-            h1 { font-size: 2.2rem; font-weight: 900; margin: 0 0 5px 0; letter-spacing: -0.02em; line-height: 1.1; color: white; text-transform: uppercase; }
+            h1 { font-size: 1.8rem; font-weight: 900; margin: 0 0 5px 0; letter-spacing: -0.02em; line-height: 1.1; color: white; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; display: inline-block; }
             
             .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; }
             .data-box { background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
             .data-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: #94a3b8; font-weight: 700; margin-bottom: 4px; }
-            .data-value { font-size: 1.1rem; font-weight: 700; color: white; line-height: 1.2; }
+            .data-value { font-size: 0.95rem; font-weight: 600; color: white; line-height: 1.2; } /* Smaller font for names */
             
             .activity-box { grid-column: span 2; background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%); border-color: rgba(249, 115, 22, 0.3); }
-            .activity-box .data-value { font-size: 1.5rem; color: #f97316; font-weight: 900; }
+            .activity-box .data-value { font-size: 1.3rem; color: #f97316; font-weight: 800; }
             
             .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 20px; }
             .footer-info { font-size: 0.7rem; color: #94a3b8; max-width: 65%; line-height: 1.5; }
@@ -558,7 +560,7 @@ window.generateBonoPdf = function(bonoId) {
             
             .validity-box { text-align: right; background: rgba(0,0,0,0.3); padding: 10px 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); }
             .validity-label { font-size: 0.65rem; color: #f97316; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-            .validity-date { font-size: 1.2rem; font-weight: 900; color: white; margin: 2px 0; }
+            .validity-date { font-size: 1.1rem; font-weight: 900; color: white; margin: 2px 0; }
             .ref-code { font-size: 0.55rem; color: #64748b; font-family: monospace; letter-spacing: 0.1em; }
         </style>
     </head>
@@ -569,11 +571,8 @@ window.generateBonoPdf = function(bonoId) {
             <div class="main-content">
                 <div>
                     <div class="header">
-                        <img src="${window.location.origin}/Mangamar.png" class="logo" alt="Logo" onerror="this.style.display='none'">
-                        <div>
-                            <div class="brand-name">Mangamar</div>
-                            <div class="brand-subtitle">DIVE CENTER</div>
-                        </div>
+                        <div class="brand-name">Mangamar</div>
+                        <div class="brand-subtitle">DIVE CENTER</div>
                     </div>
                     
                     <h1>Bono de Regalo</h1>
@@ -585,11 +584,11 @@ window.generateBonoPdf = function(bonoId) {
                         </div>
                         <div class="data-box">
                             <div class="data-label">Para (Destinatario)</div>
-                            <div class="data-value">${b.recipientName}</div>
+                            <div class="data-value">${recipientName}</div>
                         </div>
                         <div class="data-box">
                             <div class="data-label">De parte de</div>
-                            <div class="data-value">${b.buyerName}</div>
+                            <div class="data-value">${buyerName}</div>
                         </div>
                     </div>
                 </div>
