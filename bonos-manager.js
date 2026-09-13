@@ -456,7 +456,7 @@ window.generateBonoPdf = function(bonoId) {
                 width: 250mm;
                 height: 120mm;
                 background-color: #0f172a;
-                background-image: url('${window.location.origin}/bono-bg.png');
+                background-image: url('${window.location.origin}/bono-bg.jpg');
                 background-size: cover;
                 background-position: center;
                 background-blend-mode: overlay;
