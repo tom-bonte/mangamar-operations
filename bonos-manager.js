@@ -621,7 +621,7 @@ window.generateBonoPdf = function(bonoId) {
 };
 
 window.generateBonoPng = function(bonoId) {
-    if(window.showAppAlert) window.showAppAlert("⏳ Generando imagen JPG, por favor espera...", "info");
+    if(window.showAppAlert) window.showAppAlert("⏳ Generando imagen PNG, por favor espera...", "info");
     
     // Load html2canvas dynamically if not present
     if (!window.html2canvas) {
@@ -669,7 +669,7 @@ function doGeneratePng(bonoId) {
                 width: ${pxWidth}px;
                 height: ${pxHeight}px;
                 background-color: #0f172a;
-                background-image: url('data:image/jpeg;base64,B64_PLACEHOLDER');
+                
                 background-size: cover;
                 background-position: center;
                 border-radius: 40px;
@@ -719,6 +719,7 @@ function doGeneratePng(bonoId) {
         </style>
         
         <div class="jpg-ticket" id="jpg-ticket-element">
+            <img src="data:image/jpeg;base64,B64_PLACEHOLDER" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;" />
             <div class="jpg-overlay"></div>
             
             <div class="jpg-main-content">
