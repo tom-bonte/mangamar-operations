@@ -160,10 +160,8 @@ window.renderBonosList = function() {
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                         PDF
                     </button>
-                    <button onclick="window.generateBonoJpg('${b.id}')" class="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-blue-600 text-xs font-black transition-colors shadow-sm flex items-center gap-1 ml-1">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        JPG
-                    </button>
+                    <button onclick="window.generateBonoPng('${b.id}')" class="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-blue-600 text-xs font-black transition-colors shadow-sm flex items-center gap-1 ml-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> PNG </button>
                     <button onclick="window.deleteBono('${b.id}')" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors ml-1" title="Eliminar bono">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
@@ -622,21 +620,21 @@ window.generateBonoPdf = function(bonoId) {
     }, 500);
 };
 
-window.generateBonoJpg = function(bonoId) {
+window.generateBonoPng = function(bonoId) {
     if(window.showAppAlert) window.showAppAlert("⏳ Generando imagen JPG, por favor espera...", "info");
     
     // Load html2canvas dynamically if not present
     if (!window.html2canvas) {
         const script = document.createElement('script');
         script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-        script.onload = () => doGenerateJpg(bonoId);
+        script.onload = () => doGeneratePng(bonoId);
         document.head.appendChild(script);
     } else {
-        doGenerateJpg(bonoId);
+        doGeneratePng(bonoId);
     }
 };
 
-function doGenerateJpg(bonoId) {
+function doGeneratePng(bonoId) {
     const b = window.bonosCache.find(x => x.id === bonoId);
     if (!b) return;
     
@@ -769,7 +767,7 @@ function doGenerateJpg(bonoId) {
     setTimeout(() => {
         const el = document.getElementById('jpg-ticket-element');
         window.html2canvas(el, { 
-            scale: 2, // High resolution
+            scale: 4, // High resolution
             useCORS: true,
             backgroundColor: null
         }).then(canvas => {
@@ -777,15 +775,15 @@ function doGenerateJpg(bonoId) {
             
             // Create download link
             const link = document.createElement('a');
-            link.download = `Bono_Mangamar_${recipientName.replace(/\s+/g, '_')}_${code}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.download = `Bono_Mangamar_${recipientName.replace(/\s+/g, '_')}_${code}.png`;
+            link.href = canvas.toDataURL('image/png');
             link.click();
             
-            if(window.showAppAlert) window.showAppAlert("✅ JPG descargado correctamente.");
+            if(window.showAppAlert) window.showAppAlert("✅ PNG descargado correctamente.");
         }).catch(err => {
             console.error(err);
             document.body.removeChild(container);
-            if(window.showAppAlert) window.showAppAlert("⚠️ Error generando el JPG.");
+            if(window.showAppAlert) window.showAppAlert("⚠️ Error generando el PNG.");
         });
     }, 1000);
 }
