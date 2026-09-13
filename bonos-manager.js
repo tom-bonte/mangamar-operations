@@ -296,17 +296,31 @@ window.saveBono = async function() {
 };
 
 window.deleteBono = async function(id) {
-    if (!confirm("¿Estás seguro de que deseas eliminar este bono de regalo? Esta acción no se puede deshacer.")) {
-        return;
-    }
-    const database = getBonosDb();
-    if (!database) return;
-    
-    try {
-        await database.collection('mangamar_bonos').doc(id).delete();
-    } catch (err) {
-        console.error("Error deleting bono:", err);
-        if(window.showAppAlert) window.showAppAlert("⚠️ Error al eliminar el bono.");
+    if (window.showAppConfirm) {
+        window.showAppConfirm("¿Estás seguro de que deseas eliminar este bono de regalo? Esta acción no se puede deshacer.", async () => {
+            const database = getBonosDb();
+            if (!database) return;
+            
+            try {
+                await database.collection('mangamar_bonos').doc(id).delete();
+            } catch (err) {
+                console.error("Error deleting bono:", err);
+                if(window.showAppAlert) window.showAppAlert("⚠️ Error al eliminar el bono.");
+            }
+        });
+    } else {
+        if (!confirm("¿Estás seguro de que deseas eliminar este bono de regalo? Esta acción no se puede deshacer.")) {
+            return;
+        }
+        const database = getBonosDb();
+        if (!database) return;
+        
+        try {
+            await database.collection('mangamar_bonos').doc(id).delete();
+        } catch (err) {
+            console.error("Error deleting bono:", err);
+            if(window.showAppAlert) window.showAppAlert("⚠️ Error al eliminar el bono.");
+        }
     }
 };
 
