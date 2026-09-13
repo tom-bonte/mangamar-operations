@@ -180,6 +180,16 @@ window.openBonoEditorModal = function(bonoId = null) {
     
     // Reset Form
     document.getElementById('bono-id-input').value = '';
+    
+    // CRM Search reset
+    const searchInput = document.getElementById('bono-crm-search-input');
+    if (searchInput) searchInput.value = '';
+    const resultsContainer = document.getElementById('bono-crm-search-results');
+    if (resultsContainer) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.classList.add('hidden');
+    }
+
     document.getElementById('bono-buyer-input').value = '';
     document.getElementById('bono-buyer-dni-input').value = '';
     document.getElementById('bono-email-input').value = '';
@@ -323,21 +333,74 @@ window.handleBuyerDniChange = function(dni) {
     const match = window.customerDatabase.find(c => c.dni && isSameDni(c.dni, normDni));
     
     if (match) {
-        const nameInput = document.getElementById('bono-buyer-input');
-        const emailInput = document.getElementById('bono-email-input');
-        const phoneInput = document.getElementById('bono-phone-input');
-        
-        if (nameInput && !nameInput.value) {
-            nameInput.value = window.getFullName ? window.getFullName(match) : match.nombre;
-        }
-        
-        if (emailInput && !emailInput.value && match.email) {
-            emailInput.value = match.email;
-        }
-        if (phoneInput && !phoneInput.value && match.telefono) {
-            phoneInput.value = match.telefono;
-        }
+        window.selectBonoCustomer(
+            match.dni,
+            window.getFullName ? window.getFullName(match) : match.nombre,
+            match.email,
+            match.telefono
+        );
     }
+};
+
+window.searchBonoCustomer = function(query) {
+    const resultsContainer = document.getElementById('bono-crm-search-results');
+    if (!resultsContainer || !window.customerDatabase) return;
+    
+    if (!query || query.length < 2) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.classList.add('hidden');
+        return;
+    }
+    
+    const normQuery = query.toLowerCase().trim();
+    const isSameDni = window.isSameDni || ((a, b) => a.toLowerCase().trim() === b.toLowerCase().trim());
+    const getFullName = window.getFullName || (c => c.nombre || '');
+    
+    const results = window.customerDatabase.filter(c => {
+        const fullName = getFullName(c).toLowerCase();
+        return fullName.includes(normQuery) || (c.dni && c.dni.toLowerCase().includes(normQuery));
+    }).slice(0, 5); // top 5 results
+    
+    if (results.length === 0) {
+        resultsContainer.innerHTML = '<div class="p-3 text-xs text-slate-500 text-center">No hay coincidencias</div>';
+        resultsContainer.classList.remove('hidden');
+        return;
+    }
+    
+    resultsContainer.innerHTML = results.map(c => {
+        const name = getFullName(c);
+        const dni = c.dni || '';
+        const email = c.email || '';
+        const phone = c.telefono || '';
+        
+        return `<div class="p-3 border-b border-slate-100 hover:bg-fuchsia-50 cursor-pointer transition-colors" 
+                    onclick="window.selectBonoCustomer('${dni}', '${name.replace(/'/g, "\\'")}', '${email.replace(/'/g, "\\'")}', '${phone.replace(/'/g, "\\'")}')">
+            <div class="text-sm font-bold text-slate-800">${name}</div>
+            <div class="text-xs font-bold text-slate-500 font-mono">${dni}</div>
+        </div>`;
+    }).join('');
+    
+    resultsContainer.classList.remove('hidden');
+};
+
+window.selectBonoCustomer = function(dni, name, email, phone) {
+    const searchInput = document.getElementById('bono-crm-search-input');
+    const resultsContainer = document.getElementById('bono-crm-search-results');
+    
+    if (searchInput) searchInput.value = name;
+    if (resultsContainer) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.classList.add('hidden');
+    }
+    
+    document.getElementById('bono-buyer-dni-input').value = dni || '';
+    document.getElementById('bono-buyer-input').value = name || '';
+    
+    const emailInput = document.getElementById('bono-email-input');
+    const phoneInput = document.getElementById('bono-phone-input');
+    
+    if (emailInput && email && !emailInput.value) emailInput.value = email;
+    if (phoneInput && phone && !phoneInput.value) phoneInput.value = phone;
 };
 
 // ==========================================
@@ -379,7 +442,7 @@ window.generateBonoPdf = function(bonoId) {
                 width: 250mm;
                 height: 120mm;
                 background-color: #0f172a;
-                background-image: url('bono-bg.jpg');
+                background-image: url('${window.location.origin}/bono-bg.jpg');
                 background-size: cover;
                 background-position: center;
                 background-blend-mode: overlay;

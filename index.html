@@ -3983,13 +3983,25 @@
 
     <!-- Edit/Create Bono Modal -->
     <div id="bono-editor-modal" class="fixed inset-0 z-[1000] hidden flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onclick="if(event.target === this) window.closeBonoEditorModal()">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-slate-200 overflow-hidden relative">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-fuchsia-50/50">
-                <h3 class="text-base font-black text-slate-800" id="bono-editor-title">Nuevo Bono de Regalo</h3>
-                <button onclick="window.closeBonoEditorModal()" class="text-slate-400 hover:text-slate-600 transition-colors">✕</button>
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col border border-slate-200 overflow-hidden relative">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="text-base font-black text-slate-800 flex items-center gap-2" id="bono-editor-title">
+                    <span class="text-xl">🎁</span> Nuevo Bono de Regalo
+                </h3>
+                <button onclick="window.closeBonoEditorModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-500 transition-colors">✕</button>
             </div>
             <div class="p-6 flex flex-col gap-4">
                 <input type="hidden" id="bono-id-input">
+                
+                <div class="relative">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Buscar Cliente en CRM (Relleno automático)</label>
+                    <div class="relative">
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        <input type="text" id="bono-crm-search-input" oninput="window.searchBonoCustomer(this.value)" placeholder="Escribe nombre o DNI..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 transition-all shadow-inner">
+                    </div>
+                    <!-- CRM Autocomplete Results -->
+                    <div id="bono-crm-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 max-h-56 overflow-y-auto hidden z-50 divide-y divide-slate-100"></div>
+                </div>
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="flex flex-col gap-1.5">
