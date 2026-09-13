@@ -119,36 +119,51 @@ window.renderBonosList = function() {
         div.className = `p-4 rounded-2xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${cardTheme}`;
         
         div.innerHTML = `
-            <div class="flex items-start gap-3">
+            <div class="flex items-start gap-3 flex-1 min-w-0">
                 <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black text-2xl shrink-0 ${b.isUsed ? 'bg-slate-200 grayscale' : 'bg-white shadow-inner'}">
                     🎁
                 </div>
-                <div>
+                <div class="min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                         <span class="font-mono text-[10px] font-black px-2 py-0.5 rounded border border-slate-300 text-slate-500 bg-white shadow-sm">${b.id.substring(0,8).toUpperCase()}</span>
-                        <h4 class="text-sm font-black text-slate-800">${b.recipientName || 'Sin destinatario'}</h4>
+                        <h4 class="text-sm font-black text-slate-800 truncate">${b.recipientName || 'Sin destinatario'}</h4>
                         ${statusBadge}
                     </div>
                     <div class="text-xs text-slate-600 font-bold flex flex-col gap-0.5">
-                        <span class="text-fuchsia-700">Comprado por: <span class="text-slate-800">${b.buyerName || '?'} ${b.buyerDni ? '('+b.buyerDni+')' : ''}</span></span>
-                        <span>Actividad: ${b.activity || 'No especificada'}</span>
+                        <span class="text-fuchsia-700 truncate">Comprador: <span class="text-slate-800">${b.buyerName || '?'} ${b.buyerDni ? '('+b.buyerDni+')' : ''}</span></span>
+                        ${b.buyerEmail ? `<span class="truncate text-slate-500">Email: ${b.buyerEmail}</span>` : ''}
+                        ${b.buyerPhone ? `<span class="truncate text-slate-500">Tel: ${b.buyerPhone}</span>` : ''}
+                        <span class="truncate text-slate-700 mt-1">Actividad: ${b.activity || 'No especificada'}</span>
                         <span class="text-[10px] text-slate-400">Válido hasta: ${b.expiryDate ? new Date(b.expiryDate).toLocaleDateString('es-ES') : '-'}</span>
                     </div>
                 </div>
             </div>
             
-            <div class="flex flex-wrap items-center gap-2 shrink-0 justify-end md:justify-start">
-                <button onclick="window.openBonoEditorModal('${b.id}')" class="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-fuchsia-600 text-xs font-black transition-colors shadow-sm flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    Editar
-                </button>
-                <button onclick="window.generateBonoPdf('${b.id}')" class="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-fuchsia-50 hover:text-fuchsia-600 text-xs font-black transition-colors shadow-sm flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                    PDF
-                </button>
-                <button onclick="window.deleteBono('${b.id}')" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors ml-1" title="Eliminar bono">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                </button>
+            <div class="flex flex-col gap-2 shrink-0 border-l border-slate-200 pl-4">
+                <div class="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" ${b.isPaid ? 'checked' : ''} onchange="window.toggleBonoStatus('${b.id}', 'isPaid', this.checked)" class="w-4 h-4 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500">
+                        <span class="text-[10px] font-black uppercase text-slate-600">Pagado</span>
+                    </label>
+                    <div class="w-px h-4 bg-slate-200"></div>
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" ${b.isUsed ? 'checked' : ''} onchange="window.toggleBonoStatus('${b.id}', 'isUsed', this.checked)" class="w-4 h-4 text-slate-600 rounded border-slate-300 focus:ring-slate-500">
+                        <span class="text-[10px] font-black uppercase text-slate-600">Usado</span>
+                    </label>
+                </div>
+                <div class="flex items-center gap-2 justify-end">
+                    <button onclick="window.openBonoEditorModal('${b.id}')" class="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-fuchsia-600 text-xs font-black transition-colors shadow-sm flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        Editar
+                    </button>
+                    <button onclick="window.generateBonoPdf('${b.id}')" class="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-fuchsia-50 hover:text-fuchsia-600 text-xs font-black transition-colors shadow-sm flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        PDF
+                    </button>
+                    <button onclick="window.deleteBono('${b.id}')" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors ml-1" title="Eliminar bono">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>
             </div>
         `;
         container.appendChild(div);
@@ -167,6 +182,8 @@ window.openBonoEditorModal = function(bonoId = null) {
     document.getElementById('bono-id-input').value = '';
     document.getElementById('bono-buyer-input').value = '';
     document.getElementById('bono-buyer-dni-input').value = '';
+    document.getElementById('bono-email-input').value = '';
+    document.getElementById('bono-phone-input').value = '';
     document.getElementById('bono-recipient-input').value = '';
     document.getElementById('bono-activity-input').value = '';
     document.getElementById('bono-notes-input').value = '';
@@ -188,6 +205,8 @@ window.openBonoEditorModal = function(bonoId = null) {
             document.getElementById('bono-id-input').value = b.id;
             document.getElementById('bono-buyer-input').value = b.buyerName || '';
             document.getElementById('bono-buyer-dni-input').value = b.buyerDni || '';
+            document.getElementById('bono-email-input').value = b.buyerEmail || '';
+            document.getElementById('bono-phone-input').value = b.buyerPhone || '';
             document.getElementById('bono-recipient-input').value = b.recipientName || '';
             document.getElementById('bono-activity-input').value = b.activity || '';
             document.getElementById('bono-notes-input').value = b.notes || '';
@@ -216,6 +235,8 @@ window.saveBono = async function() {
     const id = document.getElementById('bono-id-input').value;
     const buyerName = document.getElementById('bono-buyer-input').value.trim();
     const buyerDni = document.getElementById('bono-buyer-dni-input').value.trim();
+    const buyerEmail = document.getElementById('bono-email-input').value.trim();
+    const buyerPhone = document.getElementById('bono-phone-input').value.trim();
     const recipientName = document.getElementById('bono-recipient-input').value.trim();
     const activity = document.getElementById('bono-activity-input').value.trim();
     const notes = document.getElementById('bono-notes-input').value.trim();
@@ -232,6 +253,8 @@ window.saveBono = async function() {
     const bonoData = {
         buyerName,
         buyerDni,
+        buyerEmail,
+        buyerPhone,
         recipientName,
         activity,
         notes,
@@ -277,6 +300,46 @@ window.deleteBono = async function(id) {
     }
 };
 
+window.toggleBonoStatus = async function(id, field, value) {
+    const database = getBonosDb();
+    if (!database) return;
+    try {
+        await database.collection('mangamar_bonos').doc(id).update({
+            [field]: value,
+            updatedAt: new Date().toISOString()
+        });
+    } catch (err) {
+        console.error("Error toggling bono status:", err);
+        if(window.showAppAlert) window.showAppAlert("⚠️ Error al actualizar el estado del bono.");
+    }
+};
+
+window.handleBuyerDniChange = function(dni) {
+    if (!dni || !window.customerDatabase) return;
+    
+    const normDni = window.normalizeDni ? window.normalizeDni(dni) : dni.toLowerCase().trim();
+    const isSameDni = window.isSameDni || ((a, b) => a.toLowerCase().trim() === b.toLowerCase().trim());
+    
+    const match = window.customerDatabase.find(c => c.dni && isSameDni(c.dni, normDni));
+    
+    if (match) {
+        const nameInput = document.getElementById('bono-buyer-input');
+        const emailInput = document.getElementById('bono-email-input');
+        const phoneInput = document.getElementById('bono-phone-input');
+        
+        if (nameInput && !nameInput.value) {
+            nameInput.value = window.getFullName ? window.getFullName(match) : match.nombre;
+        }
+        
+        if (emailInput && !emailInput.value && match.email) {
+            emailInput.value = match.email;
+        }
+        if (phoneInput && !phoneInput.value && match.telefono) {
+            phoneInput.value = match.telefono;
+        }
+    }
+};
+
 // ==========================================
 // VOUCHER HTML->PDF GENERATOR
 // ==========================================
@@ -315,7 +378,11 @@ window.generateBonoPdf = function(bonoId) {
             .ticket {
                 width: 250mm;
                 height: 120mm;
-                background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+                background-color: #0f172a;
+                background-image: url('bono-bg.jpg');
+                background-size: cover;
+                background-position: center;
+                background-blend-mode: overlay;
                 border-radius: 24px;
                 position: relative;
                 overflow: hidden;
@@ -366,6 +433,7 @@ window.generateBonoPdf = function(bonoId) {
                 flex-direction: column;
                 justify-content: space-between;
                 position: relative;
+                background: linear-gradient(to right, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%);
             }
             
             /* Watermark Logo */

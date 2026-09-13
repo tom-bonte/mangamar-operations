@@ -3938,7 +3938,7 @@
 
     <!-- Bonos de Regalo Manager Modal -->
     <div id="bonos-manager-modal" class="fixed inset-0 z-[900] hidden flex flex-col items-center justify-start bg-slate-900/60 backdrop-blur-sm p-4 pt-10" onclick="if(event.target === this) window.closeBonosManagerModal()">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] border border-slate-200 overflow-hidden relative">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] border border-slate-200 overflow-hidden relative">
             <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-fuchsia-50/50">
                 <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-2xl bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center text-xl shadow-inner border border-fuchsia-200">
@@ -3993,12 +3993,23 @@
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">DNI/NIE Comprador</label>
+                        <input type="text" id="bono-buyer-dni-input" onchange="window.handleBuyerDniChange(this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="Autocompleta de CRM">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Comprador (Quien paga)</label>
                         <input type="text" id="bono-buyer-input" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500">
                     </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
                     <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">DNI/NIE Comprador</label>
-                        <input type="text" id="bono-buyer-dni-input" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="Opcional">
+                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email (Comprador)</label>
+                        <input type="email" id="bono-email-input" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="Opcional">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Teléfono (Comprador)</label>
+                        <input type="tel" id="bono-phone-input" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="Opcional">
                     </div>
                 </div>
 
