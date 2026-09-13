@@ -200,7 +200,7 @@ window.openBonoEditorModal = function(bonoId = null) {
     document.getElementById('bono-phone-input').value = '';
     document.getElementById('bono-recipient-input').value = '';
     document.getElementById('bono-activity-input').value = '';
-    document.getElementById('bono-notes-input').value = '';
+    
     document.getElementById('bono-paid-check').checked = false;
     document.getElementById('bono-used-check').checked = false;
     
@@ -223,7 +223,7 @@ window.openBonoEditorModal = function(bonoId = null) {
             document.getElementById('bono-phone-input').value = b.buyerPhone || '';
             document.getElementById('bono-recipient-input').value = b.recipientName || '';
             document.getElementById('bono-activity-input').value = b.activity || '';
-            document.getElementById('bono-notes-input').value = b.notes || '';
+            
             document.getElementById('bono-paid-check').checked = b.isPaid || false;
             document.getElementById('bono-used-check').checked = b.isUsed || false;
             
@@ -253,7 +253,7 @@ window.saveBono = async function() {
     const buyerPhone = document.getElementById('bono-phone-input').value.trim();
     const recipientName = document.getElementById('bono-recipient-input').value.trim();
     const activity = document.getElementById('bono-activity-input').value.trim();
-    const notes = document.getElementById('bono-notes-input').value.trim();
+    const notes = "";
     const purchaseDate = document.getElementById('bono-purchase-date').value;
     const expiryDate = document.getElementById('bono-expiry-date').value;
     const isPaid = document.getElementById('bono-paid-check').checked;
