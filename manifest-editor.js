@@ -1037,7 +1037,7 @@ function _renderGroupsCore(skipAutoSave = false) {
             if (typeof customerDatabase !== 'undefined' && Array.isArray(customerDatabase)) {
                 if (guest.dni) {
                     const normDni = window.normalizeSearchString(guest.dni);
-                    crmMatch = customerDatabase.find(c => c.dni && window.normalizeSearchString(c.dni) === normDni);
+                    crmMatch = customerDatabase.find(c => c.dni && (window.isSameDni ? window.isSameDni(c.dni, guest.dni) : window.normalizeSearchString(c.dni) === normDni));
                 } else if (guest.nombre && !guest.isManual) {
                     const normName = window.normalizeSearchString(guest.nombre);
                     crmMatch = customerDatabase.find(c => {
@@ -1047,13 +1047,13 @@ function _renderGroupsCore(skipAutoSave = false) {
                 }
             }
 
-            if (crmMatch && !guest.isManual) {
+            if (crmMatch) {
                 if (!guest.dni && crmMatch.dni) guest.dni = crmMatch.dni;
                 if (!guest.telefono && crmMatch.telefono) guest.telefono = crmMatch.telefono;
                 if (!guest.email && crmMatch.email) guest.email = crmMatch.email;
                 if (!guest.titulacion && crmMatch.titulacion) guest.titulacion = crmMatch.titulacion;
                 guest.isManual = !(window.isProfileComplete(crmMatch) || window.isProfileComplete(guest));
-            } else if (window.crmLoaded && !guest.isManual) {
+            } else if (window.crmLoaded) {
                 guest.isManual = !window.isProfileComplete(guest);
             }
 

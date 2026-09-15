@@ -2259,6 +2259,9 @@ window.syncJotformCustomers = async function() {
             if (!document.getElementById('crm-modal').classList.contains('hidden') && typeof window.renderCrmTable === 'function') {
                 window.renderCrmTable();
             }
+            if (window.activeBoatItem && typeof renderGroups === 'function') {
+                renderGroups();
+            }
         } else if (!isLiveUpdate) {
             showToast("✓ Todos los perfiles locales están al día.");
         }

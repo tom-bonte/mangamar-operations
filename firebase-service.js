@@ -625,6 +625,11 @@ function startFirestoreListeners() {
                     if (groupModal && !groupModal.classList.contains('hidden') && typeof window.openGroupLinkModal === 'function') {
                         window.openGroupLinkModal(window._editingGroupId || window._editingGroupName, true, true);
                     }
+
+                    // If Manifest modal is open, re-render it now that CRM data has loaded
+                    if (typeof activeBoatItem !== 'undefined' && activeBoatItem && typeof renderGroups === 'function') {
+                        renderGroups();
+                    }
                 }
             }, (e) => {
                 console.error("Error loading CRM database snapshot:", e);
