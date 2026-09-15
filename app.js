@@ -28,14 +28,24 @@ console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
             return;
         }
 
-        // 3. Cmd+F or Ctrl+F to focus and open our premium Daily Search Box
+        // 3. Cmd+F or Ctrl+F to focus and open our premium Daily Search Box (selects all text on repeat)
         const isF = (e.key === 'f' || e.key === 'F');
         if ((e.metaKey || e.ctrlKey) && isF) {
             e.preventDefault();
             const input = document.getElementById('daily-search-input');
             if (input) {
-                input.focus();
                 window.expandDailySearch();
+                input.focus();
+                input.select();
+                try {
+                    input.setSelectionRange(0, input.value.length);
+                } catch(_) {}
+                setTimeout(() => {
+                    input.select();
+                    try {
+                        input.setSelectionRange(0, input.value.length);
+                    } catch(_) {}
+                }, 0);
             }
             return;
         }
