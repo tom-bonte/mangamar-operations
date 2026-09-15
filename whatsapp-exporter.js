@@ -645,3 +645,71 @@ window.redoWaTemplateText = function() {
         document.execCommand('redo');
     }
 };
+
+window.translateAllWaTemplates = async function() {
+    let templates = window.waTemplates ? [...window.waTemplates] : [];
+    if (templates.length === 0) {
+        if (window.showAppAlert) window.showAppAlert("No hay templates para traducir.");
+        return;
+    }
+
+    if (window.showAppConfirm) {
+        window.showAppConfirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todos los templates?", async () => {
+            await executeTranslateAll(templates);
+        });
+    } else {
+        if (!confirm("This will automatically translate all templates into the missing languages. Continue?")) return;
+        await executeTranslateAll(templates);
+    }
+};
+
+async function executeTranslateAll(templates) {
+    if (window.showToast) window.showToast("Traduciendo templates, por favor espera (esto puede tardar unos segundos)...", 5000);
+
+    const languages = ['es', 'en', 'nl', 'fr'];
+    const uniqueNames = [...new Set(templates.map(t => t.name))];
+    let changesMade = false;
+
+    for (const name of uniqueNames) {
+        const sourceTemplate = templates.find(t => t.name === name);
+        if (!sourceTemplate) continue;
+
+        for (const targetLang of languages) {
+            const exists = templates.some(t => t.name === name && t.lang === targetLang);
+            if (!exists) {
+                try {
+                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceTemplate.body)}&langpair=${sourceTemplate.lang}|${targetLang}`);
+                    const data = await res.json();
+                    
+                    if (data.responseData && data.responseData.translatedText) {
+                        templates.push({
+                            id: 'tpl_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                            name: name,
+                            body: data.responseData.translatedText,
+                            lang: targetLang
+                        });
+                        changesMade = true;
+                        await new Promise(r => setTimeout(r, 600)); // Respect rate limits
+                    }
+                } catch (e) {
+                    console.error("Translation error", e);
+                }
+            }
+        }
+    }
+
+    if (changesMade) {
+        if (typeof window.saveWaTemplatesToFirebase === 'function') {
+            const success = await window.saveWaTemplatesToFirebase(templates);
+            if (success) {
+                window.waTemplates = templates;
+                if (window.showToast) window.showToast("¡Traducciones completadas y guardadas!");
+                window.renderWaTemplateList();
+            } else {
+                if (window.showAppAlert) window.showAppAlert("Error al guardar traducciones.");
+            }
+        }
+    } else {
+        if (window.showToast) window.showToast("Todos los templates ya están traducidos en todos los idiomas.");
+    }
+}
