@@ -424,7 +424,7 @@ window.selectWaTemplate = function(templateId) {
 window.waActiveTemplateId = null; // Currently applied template in WhatsApp exporter
 window.waTemplateLang = 'es';
 let activeTemplateId = null; // Currently editing template ID
-window.waCollapsedSections = window.waCollapsedSections || new Set();
+window.waExpandedSections = window.waExpandedSections || new Set();
 window.waTemplateSearchQuery = '';
 
 // Helper to get all available sections
@@ -448,25 +448,42 @@ window.getWaSections = function() {
 window.setWaTemplateLang = function(lang) {
     window.waTemplateLang = lang;
     
-    // Update tabs UI with modern active styling
+    // Update tabs UI with modern active styling (flags only)
     ['es', 'en', 'nl', 'fr'].forEach(l => {
         const btn = document.getElementById(`wa-tpl-lang-${l}`);
         if (!btn) return;
         if (l === lang) {
-            btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-blue-600 ring-1 ring-slate-200/80';
+            btn.className = 'w-9 h-8 rounded-lg flex items-center justify-center text-base transition-all shadow-xs bg-white ring-1 ring-slate-200/80';
         } else {
-            btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100/70 transition-all';
+            btn.className = 'w-9 h-8 rounded-lg flex items-center justify-center text-base text-slate-500 hover:text-slate-800 hover:bg-slate-100/70 transition-all';
         }
     });
     
-    window.renderWaTemplateList();
-    
-    const templates = (window.waTemplates || []).filter(t => (t.lang || 'es') === window.waTemplateLang);
-    if (templates.length > 0) {
-        window.loadWaTemplateIntoEditor(templates[0].id);
-    } else {
-        window.createNewWaTemplate();
+    // If an active template is currently open, attempt to switch to its counterpart in the new language
+    if (activeTemplateId) {
+        const allTemplates = window.waTemplates || [];
+        const curTpl = allTemplates.find(t => t.id === activeTemplateId);
+        if (curTpl && curTpl.name) {
+            const matchInLang = allTemplates.find(t => (t.lang || 'es') === lang && t.name.trim().toLowerCase() === curTpl.name.trim().toLowerCase());
+            if (matchInLang) {
+                window.loadWaTemplateIntoEditor(matchInLang.id);
+                window.renderWaTemplateList();
+                return;
+            }
+        }
     }
+    
+    // By standard: Do NOT auto-load or auto-create a new template; leave space empty
+    activeTemplateId = null;
+    const emptyState = document.getElementById('wa-template-empty-state');
+    if (emptyState) emptyState.classList.remove('hidden');
+    const nameEl = document.getElementById('wa-tpl-name');
+    if (nameEl) nameEl.value = '';
+    const bodyEl = document.getElementById('wa-tpl-body');
+    if (bodyEl) bodyEl.value = '';
+    window.updateWaTemplateStats();
+    
+    window.renderWaTemplateList();
 };
 
 window.openWaTemplateModal = function() {
@@ -474,7 +491,20 @@ window.openWaTemplateModal = function() {
     if (!modal) return;
     modal.classList.remove('hidden');
     
-    // Default to the language currently selected in the main export view
+    // All sections standard show as closed on fresh open
+    window.waExpandedSections = new Set();
+    
+    // Leave space empty by default
+    activeTemplateId = null;
+    const emptyState = document.getElementById('wa-template-empty-state');
+    if (emptyState) emptyState.classList.remove('hidden');
+    const nameEl = document.getElementById('wa-tpl-name');
+    if (nameEl) nameEl.value = '';
+    const bodyEl = document.getElementById('wa-tpl-body');
+    if (bodyEl) bodyEl.value = '';
+    window.updateWaTemplateStats();
+    
+    // Default to current language without auto-selecting any template
     window.setWaTemplateLang(typeof waCurrentLang !== 'undefined' ? waCurrentLang : 'es');
 };
 
@@ -484,10 +514,11 @@ window.filterWaTemplates = function(query) {
 };
 
 window.toggleWaSectionCollapse = function(secName) {
-    if (window.waCollapsedSections.has(secName)) {
-        window.waCollapsedSections.delete(secName);
+    window.waExpandedSections = window.waExpandedSections || new Set();
+    if (window.waExpandedSections.has(secName)) {
+        window.waExpandedSections.delete(secName);
     } else {
-        window.waCollapsedSections.add(secName);
+        window.waExpandedSections.add(secName);
     }
     window.renderWaTemplateList();
 };
@@ -532,7 +563,8 @@ window.renderWaTemplateList = function() {
         if (query && items.length === 0) return;
         
         totalVisible += items.length;
-        const isCollapsed = window.waCollapsedSections.has(secName);
+        const isExpanded = query ? true : (window.waExpandedSections && window.waExpandedSections.has(secName));
+        const isCollapsed = !isExpanded;
         
         const secContainer = document.createElement('div');
         secContainer.className = 'mb-2.5 bg-white/70 rounded-xl border border-slate-200/70 overflow-hidden shadow-2xs transition-all';
@@ -552,7 +584,7 @@ window.renderWaTemplateList = function() {
                 <span class="px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-slate-200/70 text-slate-600">${items.length}</span>
             </div>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                <button type="button" onclick="event.stopPropagation(); window.createNewWaTemplate('${window.escapeHtml(secName)}')" class="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Nueva plantilla en ${window.escapeHtml(secName)}">
+                <button type="button" onclick="event.stopPropagation(); window.createNewWaTemplate('${window.escapeHtml(secName)}')" class="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Nuevo template en ${window.escapeHtml(secName)}">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
                 </button>
                 ${!isDefaultGeneral ? `
@@ -575,8 +607,8 @@ window.renderWaTemplateList = function() {
             if (items.length === 0) {
                 bodyContainer.innerHTML = `
                     <div class="py-2 px-3 text-[11px] text-slate-400 italic text-center">
-                        Sin plantillas
-                        <button type="button" onclick="window.createNewWaTemplate('${window.escapeHtml(secName)}')" class="block mx-auto mt-0.5 text-blue-600 font-bold hover:underline">+ Crear una</button>
+                        Sin templates
+                        <button type="button" onclick="window.createNewWaTemplate('${window.escapeHtml(secName)}')" class="block mx-auto mt-0.5 text-blue-600 font-bold hover:underline">+ Crear uno</button>
                     </div>
                 `;
             } else {
@@ -642,9 +674,33 @@ window.populateWaTemplateSectionDropdown = function(selectedSec = 'General') {
     sel.appendChild(newOpt);
 };
 
-window.onWaTemplateSectionChange = function(val) {
+window.onWaTemplateSectionChange = async function(val) {
     if (val === '__NEW_SECTION__') {
         window.promptCreateWaSection(true);
+        return;
+    }
+    
+    // Find current template name
+    const nameEl = document.getElementById('wa-tpl-name');
+    const curName = (nameEl ? nameEl.value : '').trim();
+    const curTpl = (window.waTemplates || []).find(t => t.id === activeTemplateId);
+    const targetName = curName || (curTpl ? curTpl.name : '');
+    
+    if (targetName && window.waTemplates) {
+        let changed = false;
+        window.waTemplates.forEach(t => {
+            if (t.name && t.name.trim().toLowerCase() === targetName.toLowerCase()) {
+                t.section = val;
+                changed = true;
+            }
+        });
+        if (curTpl) curTpl.section = val;
+        
+        if (changed && typeof window.saveWaTemplatesToFirebase === 'function') {
+            await window.saveWaTemplatesToFirebase(window.waTemplates, window.getWaSections());
+            if (window.showToast) window.showToast(`Sección actualizada en todos los idiomas.`);
+            window.renderWaTemplateList();
+        }
     }
 };
 
@@ -656,14 +712,17 @@ window.loadWaTemplateIntoEditor = function(id) {
     const emptyState = document.getElementById('wa-template-empty-state');
     
     if (tpl) {
-        emptyState.classList.add('hidden');
+        if (emptyState) emptyState.classList.add('hidden');
         document.getElementById('wa-tpl-name').value = tpl.name || '';
         const sec = tpl.section || tpl.category || 'General';
         window.populateWaTemplateSectionDropdown(sec);
         document.getElementById('wa-tpl-body').value = tpl.body || '';
         window.updateWaTemplateStats();
+        
+        window.waExpandedSections = window.waExpandedSections || new Set();
+        window.waExpandedSections.add(sec);
     } else {
-        emptyState.classList.remove('hidden');
+        if (emptyState) emptyState.classList.remove('hidden');
     }
     
     window.renderWaTemplateList();
@@ -672,18 +731,24 @@ window.loadWaTemplateIntoEditor = function(id) {
 window.createNewWaTemplate = function(targetSection = 'General') {
     activeTemplateId = 'temp_' + Date.now();
     const emptyState = document.getElementById('wa-template-empty-state');
-    emptyState.classList.add('hidden');
+    if (emptyState) emptyState.classList.add('hidden');
     
     const nameEl = document.getElementById('wa-tpl-name');
-    nameEl.value = 'Nueva Plantilla';
+    if (nameEl) nameEl.value = 'Nuevo Template';
     window.populateWaTemplateSectionDropdown(targetSection);
     
-    document.getElementById('wa-tpl-body').value = "Hola,\n\nEsta es nuestra disponibilidad:\n\n{{SCHEDULE}}\n\n¡Te esperamos!";
+    const bodyEl = document.getElementById('wa-tpl-body');
+    if (bodyEl) bodyEl.value = '';
+    
+    window.waExpandedSections = window.waExpandedSections || new Set();
+    window.waExpandedSections.add(targetSection);
     
     window.updateWaTemplateStats();
     window.renderWaTemplateList();
-    nameEl.focus();
-    nameEl.select();
+    if (nameEl) {
+        nameEl.focus();
+        nameEl.select();
+    }
 };
 
 window.updateWaTemplateStats = function() {
@@ -697,22 +762,6 @@ window.updateWaTemplateStats = function() {
     const lineCount = text ? text.split('\n').length : 0;
     
     statsEl.textContent = `${charCount} caracteres • ${wordCount} palabras • ${lineCount} líneas`;
-};
-
-window.insertWaTemplateVariable = function(varName) {
-    const textarea = document.getElementById('wa-tpl-body');
-    if (!textarea) return;
-    
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const current = textarea.value;
-    
-    const replacement = varName;
-    textarea.value = current.substring(0, start) + replacement + current.substring(end);
-    textarea.focus();
-    const newPos = start + replacement.length;
-    textarea.setSelectionRange(newPos, newPos);
-    window.updateWaTemplateStats();
 };
 
 window.saveWaTemplate = async function() {
@@ -746,6 +795,13 @@ window.saveWaTemplate = async function() {
         activeTemplateId = newId;
     }
     
+    // Multi-language instant sync: update all language variants of this template to have the same section
+    templates.forEach(t => {
+        if (t.name && t.name.trim().toLowerCase() === name.toLowerCase()) {
+            t.section = section;
+        }
+    });
+    
     // Ensure section exists in waTemplateSections
     let sections = window.getWaSections();
     if (!sections.includes(section)) {
@@ -766,11 +822,11 @@ window.saveWaTemplate = async function() {
         if (success) {
             window.waTemplates = templates;
             window.waTemplateSections = sections;
-            if (window.showToast) window.showToast("Plantilla guardada correctamente.");
+            if (window.showToast) window.showToast("Template guardado correctamente.");
             window.renderWaTemplateList();
             window.populateWaTemplateSectionDropdown(section);
         } else {
-            if (window.showAppAlert) window.showAppAlert("Error al guardar la plantilla.");
+            if (window.showAppAlert) window.showAppAlert("Error al guardar el template.");
         }
     }
     
@@ -791,7 +847,7 @@ window.deleteCurrentWaTemplate = function() {
             const success = await window.saveWaTemplatesToFirebase(templates, window.getWaSections());
             if (success) {
                 window.waTemplates = templates;
-                if (window.showToast) window.showToast("Plantilla eliminada.");
+                if (window.showToast) window.showToast("Template eliminado.");
                 
                 activeTemplateId = null;
                 const remaining = templates.filter(t => (t.lang || 'es') === window.waTemplateLang);
@@ -811,42 +867,50 @@ window.deleteCurrentWaTemplate = function() {
     };
     
     if (window.showAppConfirm) {
-        window.showAppConfirm("¿Estás seguro de que quieres eliminar esta plantilla?", doDelete);
+        window.showAppConfirm("¿Estás seguro de que quieres eliminar este template?", doDelete);
     } else {
-        if (confirm("¿Estás seguro de que quieres eliminar esta plantilla?")) doDelete();
+        if (confirm("¿Estás seguro de que quieres eliminar este template?")) doDelete();
     }
 };
 
 window.promptCreateWaSection = async function(selectInEditor = false) {
-    const secName = prompt("Nombre de la nueva sección (ej: Cursos, Tarifas, WhatsApp):");
-    if (!secName || !secName.trim()) return;
-    
-    const cleanName = secName.trim();
-    let sections = window.getWaSections();
-    if (sections.map(s => s.toLowerCase()).includes(cleanName.toLowerCase())) {
-        if (window.showToast) window.showToast("La sección ya existe.");
-        if (selectInEditor) {
-            const match = sections.find(s => s.toLowerCase() === cleanName.toLowerCase());
-            window.populateWaTemplateSectionDropdown(match);
+    const handleCreate = async (secName) => {
+        if (!secName || !secName.trim()) return;
+        
+        const cleanName = secName.trim();
+        let sections = window.getWaSections();
+        if (sections.map(s => s.toLowerCase()).includes(cleanName.toLowerCase())) {
+            if (window.showToast) window.showToast("La sección ya existe.");
+            if (selectInEditor) {
+                const match = sections.find(s => s.toLowerCase() === cleanName.toLowerCase());
+                window.populateWaTemplateSectionDropdown(match);
+            }
+            return;
         }
-        return;
-    }
-    
-    sections.push(cleanName);
-    window.waTemplateSections = sections;
-    
-    if (typeof window.saveWaTemplatesToFirebase === 'function') {
-        await window.saveWaTemplatesToFirebase(window.waTemplates || [], sections);
-    }
-    
-    if (window.showToast) window.showToast(`Sección "${cleanName}" creada.`);
-    window.renderWaTemplateList();
-    
-    if (selectInEditor) {
-        window.populateWaTemplateSectionDropdown(cleanName);
+        
+        sections.push(cleanName);
+        window.waTemplateSections = sections;
+        
+        if (typeof window.saveWaTemplatesToFirebase === 'function') {
+            await window.saveWaTemplatesToFirebase(window.waTemplates || [], sections);
+        }
+        
+        if (window.showToast) window.showToast(`Sección "${cleanName}" creada.`);
+        window.renderWaTemplateList();
+        
+        if (selectInEditor) {
+            window.populateWaTemplateSectionDropdown(cleanName);
+        } else {
+            const curSec = document.getElementById('wa-tpl-section')?.value || 'General';
+            window.populateWaTemplateSectionDropdown(curSec);
+        }
+    };
+
+    if (typeof window.showAppPrompt === 'function') {
+        window.showAppPrompt("Nombre de la nueva sección (ej: Cursos, Tarifas, WhatsApp):", "", handleCreate);
     } else {
-        const curSec = document.getElementById('wa-tpl-section')?.value || 'General';
-        window.populateWaTemplateSectionDropdown(curSec);
+        const res = prompt("Nombre de la nueva sección (ej: Cursos, Tarifas, WhatsApp):");
+        if (res) handleCreate(res);
     }
 };
 
@@ -856,30 +920,38 @@ window.promptRenameWaSection = async function(oldName) {
         return;
     }
     
-    const newName = prompt(`Renombrar sección "${oldName}" a:`, oldName);
-    if (!newName || !newName.trim() || newName.trim() === oldName) return;
-    
-    const cleanNew = newName.trim();
-    let sections = window.getWaSections().map(s => s === oldName ? cleanNew : s);
-    window.waTemplateSections = sections;
-    
-    let templates = window.waTemplates ? [...window.waTemplates] : [];
-    templates.forEach(t => {
-        if ((t.section || t.category) === oldName) {
-            t.section = cleanNew;
+    const handleRename = async (newName) => {
+        if (!newName || !newName.trim() || newName.trim() === oldName) return;
+        
+        const cleanNew = newName.trim();
+        let sections = window.getWaSections().map(s => s === oldName ? cleanNew : s);
+        window.waTemplateSections = sections;
+        
+        let templates = window.waTemplates ? [...window.waTemplates] : [];
+        templates.forEach(t => {
+            if ((t.section || t.category) === oldName) {
+                t.section = cleanNew;
+            }
+        });
+        window.waTemplates = templates;
+        
+        if (typeof window.saveWaTemplatesToFirebase === 'function') {
+            await window.saveWaTemplatesToFirebase(templates, sections);
         }
-    });
-    window.waTemplates = templates;
-    
-    if (typeof window.saveWaTemplatesToFirebase === 'function') {
-        await window.saveWaTemplatesToFirebase(templates, sections);
+        
+        if (window.showToast) window.showToast(`Sección renombrada a "${cleanNew}".`);
+        window.renderWaTemplateList();
+        
+        const curSec = document.getElementById('wa-tpl-section')?.value;
+        window.populateWaTemplateSectionDropdown(curSec === oldName ? cleanNew : curSec);
+    };
+
+    if (typeof window.showAppPrompt === 'function') {
+        window.showAppPrompt(`Renombrar sección "${oldName}" a:`, oldName, handleRename);
+    } else {
+        const res = prompt(`Renombrar sección "${oldName}" a:`, oldName);
+        if (res) handleRename(res);
     }
-    
-    if (window.showToast) window.showToast(`Sección renombrada a "${cleanNew}".`);
-    window.renderWaTemplateList();
-    
-    const curSec = document.getElementById('wa-tpl-section')?.value;
-    window.populateWaTemplateSectionDropdown(curSec === oldName ? cleanNew : curSec);
 };
 
 window.promptDeleteWaSection = async function(secName) {
@@ -888,29 +960,35 @@ window.promptDeleteWaSection = async function(secName) {
         return;
     }
     
-    const confirmDelete = confirm(`¿Eliminar la sección "${secName}"?\nLas plantillas dentro de esta sección se moverán a "General".`);
-    if (!confirmDelete) return;
-    
-    let sections = window.getWaSections().filter(s => s !== secName);
-    window.waTemplateSections = sections;
-    
-    let templates = window.waTemplates ? [...window.waTemplates] : [];
-    templates.forEach(t => {
-        if ((t.section || t.category) === secName) {
-            t.section = 'General';
+    const doDelete = async () => {
+        let sections = window.getWaSections().filter(s => s !== secName);
+        window.waTemplateSections = sections;
+        
+        let templates = window.waTemplates ? [...window.waTemplates] : [];
+        templates.forEach(t => {
+            if ((t.section || t.category) === secName) {
+                t.section = 'General';
+            }
+        });
+        window.waTemplates = templates;
+        
+        if (typeof window.saveWaTemplatesToFirebase === 'function') {
+            await window.saveWaTemplatesToFirebase(templates, sections);
         }
-    });
-    window.waTemplates = templates;
-    
-    if (typeof window.saveWaTemplatesToFirebase === 'function') {
-        await window.saveWaTemplatesToFirebase(templates, sections);
+        
+        if (window.showToast) window.showToast(`Sección "${secName}" eliminada.`);
+        window.renderWaTemplateList();
+        
+        const curSec = document.getElementById('wa-tpl-section')?.value;
+        window.populateWaTemplateSectionDropdown(curSec === secName ? 'General' : curSec);
+    };
+
+    const confirmMsg = `¿Eliminar la sección "${secName}"?\nLos templates dentro de esta sección se moverán a "General".`;
+    if (typeof window.showAppConfirm === 'function') {
+        window.showAppConfirm(confirmMsg, doDelete);
+    } else {
+        if (confirm(confirmMsg)) doDelete();
     }
-    
-    if (window.showToast) window.showToast(`Sección "${secName}" eliminada.`);
-    window.renderWaTemplateList();
-    
-    const curSec = document.getElementById('wa-tpl-section')?.value;
-    window.populateWaTemplateSectionDropdown(curSec === secName ? 'General' : curSec);
 };
 
 window.copyWaTemplateText = function() {
@@ -1035,7 +1113,7 @@ window.redoWaTemplateText = function() {
 window.translateAllWaTemplates = async function() {
     let templates = window.waTemplates ? [...window.waTemplates] : [];
     if (templates.length === 0) {
-        if (window.showAppAlert) window.showAppAlert("No hay plantillas para traducir.");
+        if (window.showAppAlert) window.showAppAlert("No hay templates para traducir.");
         return;
     }
 
@@ -1044,14 +1122,14 @@ window.translateAllWaTemplates = async function() {
     };
 
     if (window.showAppConfirm) {
-        window.showAppConfirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todas las plantillas?", doTranslate);
+        window.showAppConfirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todos los templates?", doTranslate);
     } else {
-        if (confirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todas las plantillas?")) doTranslate();
+        if (confirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todos los templates?")) doTranslate();
     }
 };
 
 async function executeTranslateAll(templates) {
-    if (window.showToast) window.showToast("Traduciendo plantillas, por favor espera...", 6000);
+    if (window.showToast) window.showToast("Traduciendo templates, por favor espera...", 6000);
 
     const languages = ['es', 'en', 'nl', 'fr'];
     const uniqueNames = [...new Set(templates.map(t => t.name))];
@@ -1098,6 +1176,6 @@ async function executeTranslateAll(templates) {
             }
         }
     } else {
-        if (window.showToast) window.showToast("Todas las plantillas ya están traducidas en todos los idiomas.");
+        if (window.showToast) window.showToast("Todos los templates ya están traducidos en todos los idiomas.");
     }
 }
