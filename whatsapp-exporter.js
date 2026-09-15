@@ -25,6 +25,7 @@ window.openWhatsAppModal = function() {
     waRenderDateList();
     renderWaCalendar(); // Render native calendar
     setWaLang('es'); 
+    if (window.populateWaTemplateDropdown) window.populateWaTemplateDropdown();
     document.getElementById('whatsapp-export-modal').classList.remove('hidden');
 };
 
@@ -203,6 +204,8 @@ window.waRemoveDate = function(dateStr) {
 
 window.setWaLang = function(lang) {
     waCurrentLang = lang;
+    window.waActiveTemplateId = null; // Reset custom template on language switch
+    
     ['es', 'en', 'nl', 'fr'].forEach(l => {
         const btn = document.getElementById(`wa-lang-${l}`);
         if(l === lang) {
@@ -289,6 +292,7 @@ window.generateWhatsAppText = function() {
     const dateLocales = { es: 'es-ES', en: 'en-GB', nl: 'nl-NL', fr: 'fr-FR' };
     
     let output = `${txt[waCurrentLang].header}\n\n`;
+    let scheduleText = '';
     
     Object.keys(grouped).sort().forEach(d => {
         const dateParts = d.split('-');
@@ -296,7 +300,7 @@ window.generateWhatsAppText = function() {
         let dateTitle = dateObj.toLocaleDateString(dateLocales[waCurrentLang], { weekday: 'long', day: 'numeric', month: 'long' });
         dateTitle = dateTitle.charAt(0).toUpperCase() + dateTitle.slice(1);
         
-        output += `📅 *${dateTitle}*\n`;
+        scheduleText += `📅 *${dateTitle}*\n`;
         
         grouped[d].sort((a,b) => a.time.localeCompare(b.time)).forEach(t => {
             const guestsCount = t.guests ? t.guests.length : 0;
@@ -320,13 +324,29 @@ window.generateWhatsAppText = function() {
             const showSpots = document.getElementById('wa-toggle-plazas').checked;
             
             if (showSpots) {
-                output += `${cxTime} - ${siteName} (${emoji} ${freeSpots} ${txt[waCurrentLang].spots})\n`;
+                scheduleText += `${cxTime} - ${siteName} (${emoji} ${freeSpots} ${txt[waCurrentLang].spots})\n`;
             } else {
-                output += `${cxTime} - ${siteName}\n`;
+                scheduleText += `${cxTime} - ${siteName}\n`;
             }
         });
-        output += `\n`;
+        scheduleText += `\n`;
     });
+
+    if (window.waActiveTemplateId && window.waTemplates) {
+        const selectedTpl = window.waTemplates.find(t => t.id === window.waActiveTemplateId);
+        if (selectedTpl && selectedTpl.body) {
+            let templateBody = selectedTpl.body;
+            if (templateBody.includes('{{SCHEDULE}}')) {
+                output = templateBody.replace('{{SCHEDULE}}', scheduleText.trim());
+            } else {
+                output = templateBody + "\n\n" + scheduleText.trim();
+            }
+        } else {
+            output += scheduleText;
+        }
+    } else {
+        output += scheduleText;
+    }
 
     document.getElementById('wa-output-text').value = output.trim();
 };
@@ -340,4 +360,288 @@ window.copyWhatsAppText = function() {
         console.error('Error copying text: ', err);
         showAppAlert('Error al copiar el texto.');
     });
+};
+
+// ==========================================
+// WhatsApp Templates CRUD Logic
+// ==========================================
+
+window.waActiveTemplateId = null; // Currently applied template
+window.waTemplateLang = 'es';
+let activeTemplateId = null; // Currently editing template
+
+window.setWaTemplateLang = function(lang) {
+    window.waTemplateLang = lang;
+    
+    // Update tabs UI
+    ['es', 'en', 'nl', 'fr'].forEach(l => {
+        const btn = document.getElementById(`wa-tpl-lang-${l}`);
+        if (!btn) return;
+        if(l === lang) {
+            btn.classList.add('opacity-100', 'ring-2', 'ring-blue-500');
+            btn.classList.remove('opacity-50', 'hover:bg-slate-50');
+        } else {
+            btn.classList.add('opacity-50', 'hover:bg-slate-50');
+            btn.classList.remove('opacity-100', 'ring-2', 'ring-blue-500');
+        }
+    });
+    
+    window.renderWaTemplateList();
+    
+    const templates = (window.waTemplates || []).filter(t => t.lang === window.waTemplateLang);
+    if (templates.length > 0) {
+        window.loadWaTemplateIntoEditor(templates[0].id);
+    } else {
+        window.createNewWaTemplate();
+    }
+};
+
+window.openWaTemplateModal = function() {
+    const modal = document.getElementById('wa-template-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    
+    // Default to the same language currently selected in the main view
+    window.setWaTemplateLang(waCurrentLang);
+};
+
+window.renderWaTemplateList = function() {
+    const list = document.getElementById('wa-template-list');
+    if (!list) return;
+    
+    const allTemplates = window.waTemplates || [];
+    const templates = allTemplates.filter(t => t.lang === window.waTemplateLang);
+    list.innerHTML = '';
+    
+    templates.forEach(t => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `w-full text-left px-3 py-2 rounded-lg text-sm font-bold truncate transition-colors ${activeTemplateId === t.id ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`;
+        btn.textContent = t.name || 'Sin nombre';
+        btn.onclick = () => window.loadWaTemplateIntoEditor(t.id);
+        list.appendChild(btn);
+    });
+};
+
+window.loadWaTemplateIntoEditor = function(id) {
+    activeTemplateId = id;
+    const templates = window.waTemplates || [];
+    const tpl = templates.find(t => t.id === id);
+    
+    const emptyState = document.getElementById('wa-template-empty-state');
+    
+    if (tpl) {
+        emptyState.classList.add('hidden');
+        document.getElementById('wa-tpl-name').value = tpl.name || '';
+        document.getElementById('wa-tpl-body').value = tpl.body || '';
+    } else {
+        emptyState.classList.remove('hidden');
+    }
+    
+    window.renderWaTemplateList();
+};
+
+window.createNewWaTemplate = function() {
+    activeTemplateId = 'temp_' + Date.now();
+    const emptyState = document.getElementById('wa-template-empty-state');
+    emptyState.classList.add('hidden');
+    
+    document.getElementById('wa-tpl-name').value = 'New Template';
+    document.getElementById('wa-tpl-body').value = "Hello,\n\nHere is our availability:\n\n{{SCHEDULE}}\n\nSee you soon!";
+    
+    // Deselect list items
+    const list = document.getElementById('wa-template-list');
+    if (list) {
+        Array.from(list.children).forEach(child => {
+            child.className = 'w-full text-left px-3 py-2 rounded-lg text-sm font-bold truncate transition-colors text-slate-600 hover:bg-slate-100';
+        });
+    }
+};
+
+window.saveWaTemplate = async function() {
+    if (!activeTemplateId) return;
+    
+    const name = document.getElementById('wa-tpl-name').value.trim() || 'Sin nombre';
+    const body = document.getElementById('wa-tpl-body').value;
+    
+    let templates = window.waTemplates ? [...window.waTemplates] : [];
+    
+    // Check if updating existing
+    const existingIndex = templates.findIndex(t => t.id === activeTemplateId);
+    
+    if (existingIndex >= 0) {
+        templates[existingIndex].name = name;
+        templates[existingIndex].body = body;
+    } else {
+        // It's a new template, assign a real ID
+        const newId = 'tpl_' + Date.now();
+        templates.push({
+            id: newId,
+            name: name,
+            body: body,
+            lang: window.waTemplateLang
+        });
+        activeTemplateId = newId;
+    }
+    
+    if (typeof window.saveWaTemplatesToFirebase === 'function') {
+        const success = await window.saveWaTemplatesToFirebase(templates);
+        if (success) {
+            window.waTemplates = templates;
+            if (window.showToast) window.showToast("Template saved successfully.");
+            
+            activeTemplateId = null;
+            document.getElementById('wa-tpl-name').value = '';
+            document.getElementById('wa-tpl-body').value = '';
+            const emptyState = document.getElementById('wa-template-empty-state');
+            if (emptyState) emptyState.classList.remove('hidden');
+            
+            window.renderWaTemplateList();
+        } else {
+            if (window.showAppAlert) window.showAppAlert("Error al guardar la plantilla.");
+        }
+    }
+};
+
+window.deleteCurrentWaTemplate = function() {
+    if (!activeTemplateId) return;
+    
+    if (window.showAppConfirm) {
+        window.showAppConfirm("¿Estás seguro de que quieres eliminar este template?", async () => {
+            await executeDeleteWaTemplate();
+        });
+    } else {
+        if (!confirm("Are you sure you want to delete this template?")) return;
+        executeDeleteWaTemplate();
+    }
+};
+
+async function executeDeleteWaTemplate() {
+    let templates = window.waTemplates ? [...window.waTemplates] : [];
+    templates = templates.filter(t => t.id !== activeTemplateId);
+    
+    if (typeof window.saveWaTemplatesToFirebase === 'function') {
+        const success = await window.saveWaTemplatesToFirebase(templates);
+        if (success) {
+            window.waTemplates = templates;
+            if (window.showToast) window.showToast("Template deleted.");
+            
+            activeTemplateId = null;
+            document.getElementById('wa-tpl-name').value = '';
+            document.getElementById('wa-tpl-body').value = '';
+            const emptyState = document.getElementById('wa-template-empty-state');
+            if (emptyState) emptyState.classList.remove('hidden');
+            
+            window.renderWaTemplateList();
+        } else {
+            if (window.showAppAlert) window.showAppAlert("Error al eliminar.");
+        }
+    }
+}
+
+window.copyWaTemplateText = function() {
+    const text = document.getElementById('wa-tpl-body').value;
+    
+    if (!text.trim()) {
+        if (window.showAppAlert) window.showAppAlert("No hay texto para copiar.");
+        return;
+    }
+    
+    navigator.clipboard.writeText(text).then(() => {
+        if (window.showToast) window.showToast("¡Texto copiado al portapapeles!");
+    }).catch(err => {
+        console.error('Error copying text: ', err);
+        if (window.showAppAlert) window.showAppAlert('Error al copiar el texto.');
+    });
+};
+window.formatWaTemplateText = function(type) {
+    const textarea = document.getElementById('wa-tpl-body');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    let beforeText = textarea.value.substring(0, start);
+    let afterText = textarea.value.substring(end);
+    
+    let marker = '';
+    switch (type) {
+        case 'bold': marker = '*'; break;
+        case 'italic': marker = '_'; break;
+        case 'strikethrough': marker = '~'; break;
+        case 'monospace': marker = '```'; break;
+    }
+
+    let leadingSpace = '';
+    let trailingSpace = '';
+    let coreText = selectedText;
+
+    if (selectedText) {
+        const matchLeading = selectedText.match(/^\s*/);
+        if (matchLeading) leadingSpace = matchLeading[0];
+        
+        const matchTrailing = selectedText.match(/\s*$/);
+        if (matchTrailing) trailingSpace = matchTrailing[0];
+        
+        if (leadingSpace.length + trailingSpace.length < selectedText.length) {
+            coreText = selectedText.substring(leadingSpace.length, selectedText.length - trailingSpace.length);
+        } else {
+            coreText = '';
+        }
+    }
+    
+    let isWrappedInside = coreText.length >= marker.length * 2 && coreText.startsWith(marker) && coreText.endsWith(marker);
+    let isWrappedOutside = beforeText.endsWith(marker) && afterText.startsWith(marker);
+    
+    let replacement, startAction, endAction, newStart, newSelectionLength;
+
+    if (isWrappedInside) {
+        coreText = coreText.substring(marker.length, coreText.length - marker.length);
+        replacement = leadingSpace + coreText + trailingSpace;
+        startAction = start;
+        endAction = end;
+        newStart = start + leadingSpace.length;
+        newSelectionLength = coreText.length;
+    } else if (isWrappedOutside) {
+        beforeText = beforeText.substring(0, beforeText.length - marker.length);
+        afterText = afterText.substring(marker.length);
+        replacement = selectedText; 
+        startAction = start - marker.length;
+        endAction = end + marker.length;
+        newStart = start - marker.length;
+        newSelectionLength = selectedText.length;
+    } else {
+        replacement = leadingSpace + marker + coreText + marker + trailingSpace;
+        startAction = start;
+        endAction = end;
+        newStart = start + leadingSpace.length + marker.length;
+        newSelectionLength = coreText.length;
+    }
+    
+    textarea.focus();
+    textarea.setSelectionRange(startAction, endAction);
+    
+    // Using execCommand preserves the native undo stack
+    if (!document.execCommand('insertText', false, replacement)) {
+        // Fallback for browsers that don't support execCommand on textarea
+        textarea.value = beforeText + replacement + afterText;
+    }
+    
+    // Reselect the core text inside/outside the markers
+    textarea.setSelectionRange(newStart, newStart + newSelectionLength);
+};
+
+window.undoWaTemplateText = function() {
+    const textarea = document.getElementById('wa-tpl-body');
+    if (textarea) {
+        textarea.focus();
+        document.execCommand('undo');
+    }
+};
+
+window.redoWaTemplateText = function() {
+    const textarea = document.getElementById('wa-tpl-body');
+    if (textarea) {
+        textarea.focus();
+        document.execCommand('redo');
+    }
 };

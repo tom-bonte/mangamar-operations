@@ -551,31 +551,31 @@
                     <!-- 1-CLICK CORE ACCESS BUTTONS -->
                     <div class="space-y-2 pt-1">
                         <!-- 1. Pizarra TV -->
-                        <button onclick="openTVView()" class="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 border border-indigo-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide staff-allow">
+                        <button type="button" onclick="openTVView()" class="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 border border-indigo-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide staff-allow">
                             <svg class="w-4 h-4 text-indigo-500 group-hover:text-indigo-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> 
                             <span>Pizarra TV</span>
                         </button>
                             
                         <!-- 2. Disponibilidad (WhatsApp / Spots) -->
-                        <button onclick="openWhatsAppModal()" class="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide">
+                        <button type="button" onclick="openWhatsAppModal()" class="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide">
                             <svg class="w-4 h-4 text-emerald-500 group-hover:text-emerald-700 group-hover:scale-110 transition-transform shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.885-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                             <span>Disponibilidad</span>
                         </button>
 
                         <!-- 3. Directorio CRM -->
-                        <button onclick="openCrmModal()" class="w-full py-2.5 bg-purple-50 hover:bg-purple-100/80 text-purple-700 border border-purple-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide">
+                        <button type="button" onclick="openCrmModal()" class="w-full py-2.5 bg-purple-50 hover:bg-purple-100/80 text-purple-700 border border-purple-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide">
                             <svg class="w-4 h-4 text-purple-500 group-hover:text-purple-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                             <span>Directorio CRM</span>
                         </button>
 
                         <!-- 4. Horario Staff -->
-                        <button onclick="window.openStaffScheduleModal()" class="w-full py-2.5 bg-violet-50 hover:bg-violet-100/80 text-violet-700 border border-violet-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide staff-allow">
+                        <button type="button" onclick="window.openStaffScheduleModal()" class="w-full py-2.5 bg-violet-50 hover:bg-violet-100/80 text-violet-700 border border-violet-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide staff-allow">
                             <svg class="w-4 h-4 text-violet-500 group-hover:text-violet-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             <span>Horario Staff</span>
                         </button>
 
                         <!-- 5. Previsión Nitrox (1-Click) -->
-                        <button onclick="openNitroxForecastModal()" class="w-full py-2.5 bg-cyan-50 hover:bg-cyan-100/80 text-cyan-800 border border-cyan-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide staff-allow">
+                        <button type="button" onclick="openNitroxForecastModal()" class="w-full py-2.5 bg-cyan-50 hover:bg-cyan-100/80 text-cyan-800 border border-cyan-200/80 rounded-xl text-xs font-black transition-all flex items-center justify-start px-3.5 gap-2.5 shadow-xs group active:scale-[0.98] auth-hide staff-allow">
                             <svg class="w-4 h-4 text-cyan-600 group-hover:text-cyan-700 group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                             <span>Previsión Nitrox</span>
                         </button>
@@ -4642,6 +4642,10 @@
                         <button id="wa-lang-en" onclick="setWaLang('en')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="English">🇬🇧</button>
                         <button id="wa-lang-nl" onclick="setWaLang('nl')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="Nederlands">🇳🇱</button>
                         <button id="wa-lang-fr" onclick="setWaLang('fr')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="Français">🇫🇷</button>
+                        <div class="w-px h-6 bg-slate-200 mx-2 self-center"></div>
+                        <button type="button" onclick="window.openWaTemplateModal()" class="px-3 py-1 rounded-md flex items-center justify-center text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all">
+                            Templates
+                        </button>
                     </div>
                 </div>
                 <button onclick="document.getElementById('whatsapp-export-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
@@ -5172,39 +5176,44 @@
             </div>
             <div class="p-6 grid grid-cols-2 gap-4 bg-slate-50/50">
                 <!-- WhatsApp -->
-                <button onclick="openWhatsAppModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-green-50 hover:border-green-200 transition-all text-center gap-2 group auth-hide">
+                <button type="button" onclick="openWhatsAppModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-green-50 hover:border-green-200 transition-all text-center gap-2 group auth-hide">
                     <div class="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.885-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></div>
                     <span class="text-xs font-black text-slate-700">WhatsApp</span>
                 </button>
                 <!-- CRM -->
-                <button onclick="openCrmModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-purple-50 hover:border-purple-200 transition-all text-center gap-2 group auth-hide">
+                <button type="button" onclick="openCrmModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-purple-50 hover:border-purple-200 transition-all text-center gap-2 group auth-hide">
                     <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg></div>
                     <span class="text-xs font-black text-slate-700">CRM</span>
                 </button>
                 <!-- Previsión Nitrox -->
-                <button onclick="openNitroxForecastModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-cyan-50 hover:border-cyan-200 transition-all text-center gap-2 group auth-hide staff-allow">
+                <button type="button" onclick="openNitroxForecastModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-cyan-50 hover:border-cyan-200 transition-all text-center gap-2 group auth-hide staff-allow">
                     <div class="w-10 h-10 bg-cyan-50 text-cyan-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg></div>
                     <span class="text-xs font-black text-slate-700">Nitrox</span>
                 </button>
+                <!-- TV Board -->
+                <button type="button" onclick="openTVView(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-indigo-50 hover:border-indigo-200 transition-all text-center gap-2 group auth-hide staff-allow">
+                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></div>
+                    <span class="text-xs font-black text-slate-700">Pizarra TV</span>
+                </button>
                 <!-- Contabilidad -->
-                <button onclick="openContabilidadView(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-rose-50 hover:border-rose-200 transition-all text-center gap-2 group auth-hide">
+                <button type="button" onclick="openContabilidadView(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-rose-50 hover:border-rose-200 transition-all text-center gap-2 group auth-hide">
                     <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg></div>
                     <span class="text-xs font-black text-slate-700">Contabilidad</span>
                 </button>
                 <!-- Contactos Importantes -->
-                <button onclick="openContactsModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-teal-50 hover:border-teal-200 transition-all text-center gap-2 group auth-hide">
+                <button type="button" onclick="openContactsModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-teal-50 hover:border-teal-200 transition-all text-center gap-2 group auth-hide">
                     <div class="w-10 h-10 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
                     </div>
                     <span class="text-xs font-black text-slate-700">Contactos</span>
                 </button>
                 <!-- Día de Hoy -->
-                <button onclick="openTodayDiversModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-emerald-50 hover:border-emerald-200 transition-all text-center gap-2 group auth-hide">
+                <button type="button" onclick="openTodayDiversModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-emerald-50 hover:border-emerald-200 transition-all text-center gap-2 group auth-hide">
                     <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
                     <span class="text-xs font-black text-slate-700">Hoy</span>
                 </button>
                 <!-- Horario Staff -->
-                <button onclick="window.openStaffScheduleModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-violet-50 hover:border-violet-200 transition-all text-center gap-2 group auth-hide staff-allow">
+                <button type="button" onclick="window.openStaffScheduleModal(); toggleMobileToolsModal();" class="flex flex-col items-center justify-center p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:bg-violet-50 hover:border-violet-200 transition-all text-center gap-2 group auth-hide staff-allow col-span-2">
                     <div class="w-10 h-10 bg-violet-50 text-violet-600 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
                     <span class="text-xs font-black text-slate-700">Horario Staff</span>
                 </button>
@@ -5384,6 +5393,85 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                         Copiar Contenido
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WhatsApp Templates Modal (CRUD) -->
+    <div id="wa-template-modal" onclick="if(event.target===this) document.getElementById('wa-template-modal').classList.add('hidden')" class="fixed inset-0 z-[600] hidden flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 cursor-pointer">
+        <div class="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] border border-slate-200 overflow-hidden flex flex-col h-[85vh] cursor-default">
+            
+            <!-- Modal Header with Language Tabs -->
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <div class="flex items-center gap-4">
+                    <h3 class="text-lg font-black text-slate-800">Templates</h3>
+                    <div class="flex bg-white rounded-lg border border-slate-200 p-1 shadow-sm gap-1">
+                        <button id="wa-tpl-lang-es" onclick="window.setWaTemplateLang('es')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg transition-all opacity-100 ring-2 ring-blue-500" title="Español">🇪🇸</button>
+                        <button id="wa-tpl-lang-en" onclick="window.setWaTemplateLang('en')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="English">🇬🇧</button>
+                        <button id="wa-tpl-lang-nl" onclick="window.setWaTemplateLang('nl')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="Nederlands">🇳🇱</button>
+                        <button id="wa-tpl-lang-fr" onclick="window.setWaTemplateLang('fr')" class="w-8 h-8 rounded-md flex items-center justify-center text-lg hover:bg-slate-50 transition-all opacity-50" title="Français">🇫🇷</button>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('wa-template-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+
+            <div class="flex flex-1 overflow-hidden">
+                <!-- Sidebar: List of Templates -->
+                <div class="w-64 bg-slate-50 border-r border-slate-200 flex flex-col shrink-0">
+                    <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
+                        <h3 class="font-black text-slate-700">Templates</h3>
+                        <button type="button" onclick="window.createNewWaTemplate()" class="p-1.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors" title="New Template">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>
+                        </button>
+                    </div>
+                    <div id="wa-template-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <!-- Template items will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Main Editor Area -->
+                <div class="flex-1 flex flex-col bg-white overflow-hidden relative">
+                    <!-- Overlay when no template is selected -->
+                    <div id="wa-template-empty-state" class="absolute inset-0 bg-white z-10 flex flex-col items-center justify-center text-slate-400 hidden">
+                        <svg class="w-16 h-16 mb-4 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <p class="font-bold text-lg">Selecciona o crea un template</p>
+                    </div>
+
+                    <div class="p-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                        <input type="text" id="wa-tpl-name" class="text-lg font-black text-slate-800 bg-transparent border-b-2 border-transparent hover:border-slate-200 focus:border-blue-500 focus:outline-none px-1 py-1 w-2/3 transition-colors" placeholder="Template title...">
+                        <div class="flex gap-2">
+                            <button type="button" onclick="window.deleteCurrentWaTemplate()" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar Template">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 p-6 overflow-y-auto flex flex-col">
+                        <label class="block text-xs font-black text-slate-800 uppercase tracking-widest mb-2">Cuerpo del Mensaje</label>
+                        <div class="flex items-center gap-1 mb-2 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit">
+                            <button type="button" onclick="formatWaTemplateText('bold')" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded transition-all" title="Negrita (*texto*)"><span class="font-black">B</span></button>
+                            <button type="button" onclick="formatWaTemplateText('italic')" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded transition-all italic font-serif" title="Cursiva (_texto_)">I</button>
+                            <button type="button" onclick="formatWaTemplateText('strikethrough')" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded transition-all line-through" title="Tachado (~texto~)">S</button>
+                            <button type="button" onclick="formatWaTemplateText('monospace')" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded transition-all font-mono text-xs" title="Monoespaciado (```texto```)">&lt;/&gt;</button>
+                            <div class="w-px h-5 bg-slate-300 mx-1"></div>
+                            <button type="button" onclick="undoWaTemplateText()" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded transition-all" title="Deshacer"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg></button>
+                            <button type="button" onclick="redoWaTemplateText()" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded transition-all" title="Rehacer"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path></svg></button>
+                        </div>
+                        <textarea id="wa-tpl-body" class="w-full flex-1 min-h-[300px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none leading-relaxed" placeholder="Hola, esta es nuestra disponibilidad:
+
+{{SCHEDULE}}
+
+¡Te esperamos!"></textarea>
+                    </div>
+
+                    <div class="p-4 border-t border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                        <button type="button" onclick="window.copyWaTemplateText()" class="px-8 py-2.5 bg-green-600 text-white font-black rounded-xl shadow-md hover:bg-green-700 transition-all text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                            Copiar Texto
+                        </button>
+                        <button type="button" onclick="window.saveWaTemplate()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm">Guardar Template</button>
+                    </div>
                 </div>
             </div>
         </div>

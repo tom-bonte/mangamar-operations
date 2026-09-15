@@ -640,6 +640,15 @@ function startFirestoreListeners() {
                 window.adminPassword = data.adminPassword || "manga321";
                 window.dniRedirects = data.dniRedirects || {};
                 
+                // Load WhatsApp Templates if available
+                window.waTemplates = data.waTemplates || [];
+                if (typeof window.renderWaTemplateList === 'function') {
+                    window.renderWaTemplateList();
+                }
+                if (typeof window.populateWaTemplateDropdown === 'function') {
+                    window.populateWaTemplateDropdown();
+                }
+                
                 if (data.showTVRadioTimes !== undefined) {
                     const checked = data.showTVRadioTimes !== false;
                     window.appSettings = window.appSettings || {};
@@ -1475,5 +1484,16 @@ window.repairAllManifestNames = async function() {
         console.log(`✅ [CRM Sweep] Repair complete. Updated ${totalUpdatedTrips} trips across ${totalDocsUpdated} monthly documents.`);
     } catch (err) {
         console.error("❌ [CRM Sweep] Error running repair sweep:", err);
+    }
+};
+window.saveWaTemplatesToFirebase = async function(templates) {
+    try {
+        await db.collection("mangamar_directory").doc("settings").set({
+            waTemplates: templates
+        }, { merge: true });
+        return true;
+    } catch(e) {
+        console.error("Error saving WA Templates: ", e);
+        return false;
     }
 };
