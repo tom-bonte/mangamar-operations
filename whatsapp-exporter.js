@@ -216,6 +216,9 @@ window.setWaLang = function(lang) {
             btn.classList.remove('opacity-100', 'ring-2', 'ring-blue-500');
         }
     });
+    if (typeof window.populateWaTemplateDropdown === 'function') {
+        window.populateWaTemplateDropdown();
+    }
     generateWhatsAppText();
 };
 
@@ -362,33 +365,103 @@ window.copyWhatsAppText = function() {
     });
 };
 
+window.populateWaTemplateDropdown = function() {
+    const selector = document.getElementById('wa-template-selector');
+    if (!selector) return;
+    
+    const curLang = typeof waCurrentLang !== 'undefined' ? waCurrentLang : 'es';
+    const templates = (window.waTemplates || []).filter(t => (t.lang || 'es') === curLang);
+    const sections = typeof window.getWaSections === 'function' ? window.getWaSections() : ['General'];
+    const currentVal = selector.value || window.waActiveTemplateId;
+    
+    selector.innerHTML = '';
+    
+    const optDefault = document.createElement('option');
+    optDefault.value = '';
+    optDefault.textContent = 'Predeterminado (Automático)';
+    selector.appendChild(optDefault);
+    
+    // Group templates by section
+    const grouped = {};
+    sections.forEach(s => grouped[s] = []);
+    templates.forEach(t => {
+        const sec = t.section || t.category || 'General';
+        if (!grouped[sec]) grouped[sec] = [];
+        grouped[sec].push(t);
+    });
+    
+    sections.forEach(sec => {
+        const list = grouped[sec] || [];
+        if (list.length === 0) return;
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = sec;
+        list.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name || 'Sin nombre';
+            if (t.id === currentVal) opt.selected = true;
+            optgroup.appendChild(opt);
+        });
+        selector.appendChild(optgroup);
+    });
+    
+    if (currentVal && templates.some(t => t.id === currentVal)) {
+        selector.value = currentVal;
+    }
+};
+
+window.selectWaTemplate = function(templateId) {
+    window.waActiveTemplateId = templateId || null;
+    if (typeof generateWhatsAppText === 'function') {
+        generateWhatsAppText();
+    }
+};
+
 // ==========================================
-// WhatsApp Templates CRUD Logic
+// WhatsApp Templates CRUD Logic with Sections
 // ==========================================
 
-window.waActiveTemplateId = null; // Currently applied template
+window.waActiveTemplateId = null; // Currently applied template in WhatsApp exporter
 window.waTemplateLang = 'es';
-let activeTemplateId = null; // Currently editing template
+let activeTemplateId = null; // Currently editing template ID
+window.waCollapsedSections = window.waCollapsedSections || new Set();
+window.waTemplateSearchQuery = '';
+
+// Helper to get all available sections
+window.getWaSections = function() {
+    let sections = (window.waTemplateSections && Array.isArray(window.waTemplateSections) && window.waTemplateSections.length > 0) 
+        ? [...window.waTemplateSections] 
+        : ['General', 'WhatsApp', 'Cursos', 'Tarifas', 'Logística'];
+    
+    // Ensure 'General' is always first
+    if (!sections.includes('General')) sections.unshift('General');
+    
+    // Include any custom section already stored on existing templates
+    (window.waTemplates || []).forEach(t => {
+        const s = t.section || t.category;
+        if (s && !sections.includes(s)) sections.push(s);
+    });
+    
+    return sections;
+};
 
 window.setWaTemplateLang = function(lang) {
     window.waTemplateLang = lang;
     
-    // Update tabs UI
+    // Update tabs UI with modern active styling
     ['es', 'en', 'nl', 'fr'].forEach(l => {
         const btn = document.getElementById(`wa-tpl-lang-${l}`);
         if (!btn) return;
-        if(l === lang) {
-            btn.classList.add('opacity-100', 'ring-2', 'ring-blue-500');
-            btn.classList.remove('opacity-50', 'hover:bg-slate-50');
+        if (l === lang) {
+            btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-blue-600 ring-1 ring-slate-200/80';
         } else {
-            btn.classList.add('opacity-50', 'hover:bg-slate-50');
-            btn.classList.remove('opacity-100', 'ring-2', 'ring-blue-500');
+            btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100/70 transition-all';
         }
     });
     
     window.renderWaTemplateList();
     
-    const templates = (window.waTemplates || []).filter(t => t.lang === window.waTemplateLang);
+    const templates = (window.waTemplates || []).filter(t => (t.lang || 'es') === window.waTemplateLang);
     if (templates.length > 0) {
         window.loadWaTemplateIntoEditor(templates[0].id);
     } else {
@@ -401,8 +474,22 @@ window.openWaTemplateModal = function() {
     if (!modal) return;
     modal.classList.remove('hidden');
     
-    // Default to the same language currently selected in the main view
-    window.setWaTemplateLang(waCurrentLang);
+    // Default to the language currently selected in the main export view
+    window.setWaTemplateLang(typeof waCurrentLang !== 'undefined' ? waCurrentLang : 'es');
+};
+
+window.filterWaTemplates = function(query) {
+    window.waTemplateSearchQuery = (query || '').toLowerCase().trim();
+    window.renderWaTemplateList();
+};
+
+window.toggleWaSectionCollapse = function(secName) {
+    if (window.waCollapsedSections.has(secName)) {
+        window.waCollapsedSections.delete(secName);
+    } else {
+        window.waCollapsedSections.add(secName);
+    }
+    window.renderWaTemplateList();
 };
 
 window.renderWaTemplateList = function() {
@@ -410,17 +497,155 @@ window.renderWaTemplateList = function() {
     if (!list) return;
     
     const allTemplates = window.waTemplates || [];
-    const templates = allTemplates.filter(t => t.lang === window.waTemplateLang);
+    const langTemplates = allTemplates.filter(t => (t.lang || 'es') === window.waTemplateLang);
+    const sections = window.getWaSections();
+    const query = window.waTemplateSearchQuery;
+    
     list.innerHTML = '';
     
-    templates.forEach(t => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `w-full text-left px-3 py-2 rounded-lg text-sm font-bold truncate transition-colors ${activeTemplateId === t.id ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`;
-        btn.textContent = t.name || 'Sin nombre';
-        btn.onclick = () => window.loadWaTemplateIntoEditor(t.id);
-        list.appendChild(btn);
+    // Group templates by section
+    const grouped = {};
+    sections.forEach(s => { grouped[s] = []; });
+    
+    langTemplates.forEach(t => {
+        const sec = t.section || t.category || 'General';
+        if (!grouped[sec]) {
+            grouped[sec] = [];
+            sections.push(sec);
+        }
+        if (query) {
+            const matchName = (t.name || '').toLowerCase().includes(query);
+            const matchBody = (t.body || '').toLowerCase().includes(query);
+            const matchSec = sec.toLowerCase().includes(query);
+            if (matchName || matchBody || matchSec) {
+                grouped[sec].push(t);
+            }
+        } else {
+            grouped[sec].push(t);
+        }
     });
+
+    let totalVisible = 0;
+    
+    sections.forEach(secName => {
+        const items = grouped[secName] || [];
+        if (query && items.length === 0) return;
+        
+        totalVisible += items.length;
+        const isCollapsed = window.waCollapsedSections.has(secName);
+        
+        const secContainer = document.createElement('div');
+        secContainer.className = 'mb-2.5 bg-white/70 rounded-xl border border-slate-200/70 overflow-hidden shadow-2xs transition-all';
+        
+        // Section Header
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between px-3 py-2 bg-slate-50/90 hover:bg-slate-100/80 cursor-pointer select-none transition-colors border-b border-slate-100 group';
+        
+        const isDefaultGeneral = secName === 'General';
+        
+        header.innerHTML = `
+            <div class="flex items-center gap-2 min-w-0 flex-1" onclick="window.toggleWaSectionCollapse('${window.escapeHtml(secName)}')">
+                <svg class="w-3.5 h-3.5 text-slate-400 transform transition-transform duration-200 ${isCollapsed ? '-rotate-90' : 'rotate-0'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                </svg>
+                <span class="font-black text-xs text-slate-700 tracking-tight truncate">${window.escapeHtml(secName)}</span>
+                <span class="px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-slate-200/70 text-slate-600">${items.length}</span>
+            </div>
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                <button type="button" onclick="event.stopPropagation(); window.createNewWaTemplate('${window.escapeHtml(secName)}')" class="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Nueva plantilla en ${window.escapeHtml(secName)}">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                </button>
+                ${!isDefaultGeneral ? `
+                <button type="button" onclick="event.stopPropagation(); window.promptRenameWaSection('${window.escapeHtml(secName)}')" class="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Renombrar sección">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
+                <button type="button" onclick="event.stopPropagation(); window.promptDeleteWaSection('${window.escapeHtml(secName)}')" class="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Eliminar sección">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>` : ''}
+            </div>
+        `;
+        
+        secContainer.appendChild(header);
+        
+        // Section Items
+        if (!isCollapsed) {
+            const bodyContainer = document.createElement('div');
+            bodyContainer.className = 'p-1.5 space-y-1';
+            
+            if (items.length === 0) {
+                bodyContainer.innerHTML = `
+                    <div class="py-2 px-3 text-[11px] text-slate-400 italic text-center">
+                        Sin plantillas
+                        <button type="button" onclick="window.createNewWaTemplate('${window.escapeHtml(secName)}')" class="block mx-auto mt-0.5 text-blue-600 font-bold hover:underline">+ Crear una</button>
+                    </div>
+                `;
+            } else {
+                items.forEach(t => {
+                    const isSelected = activeTemplateId === t.id;
+                    const itemBtn = document.createElement('button');
+                    itemBtn.type = 'button';
+                    itemBtn.className = `w-full text-left p-2.5 rounded-lg transition-all flex flex-col gap-0.5 border ${
+                        isSelected 
+                            ? 'bg-blue-50/90 border-blue-200 text-blue-900 shadow-xs ring-1 ring-blue-400/20' 
+                            : 'bg-transparent border-transparent hover:bg-slate-100/80 text-slate-700'
+                    }`;
+                    
+                    const previewText = (t.body || '').replace(/[\r\n]+/g, ' ').trim();
+                    
+                    itemBtn.innerHTML = `
+                        <div class="flex items-center justify-between w-full">
+                            <span class="text-xs font-bold truncate flex-1 ${isSelected ? 'text-blue-900' : 'text-slate-800'}">${window.escapeHtml(t.name || 'Sin nombre')}</span>
+                            ${isSelected ? '<span class="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 ml-1.5"></span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-400 truncate w-full font-normal leading-tight">${window.escapeHtml(previewText || 'Vacía')}</p>
+                    `;
+                    
+                    itemBtn.onclick = () => window.loadWaTemplateIntoEditor(t.id);
+                    bodyContainer.appendChild(itemBtn);
+                });
+            }
+            secContainer.appendChild(bodyContainer);
+        }
+        
+        list.appendChild(secContainer);
+    });
+    
+    if (query && totalVisible === 0) {
+        list.innerHTML = `
+            <div class="p-6 text-center text-slate-400 text-xs">
+                <svg class="w-8 h-8 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                No hay resultados para "${window.escapeHtml(query)}"
+            </div>
+        `;
+    }
+};
+
+window.populateWaTemplateSectionDropdown = function(selectedSec = 'General') {
+    const sel = document.getElementById('wa-tpl-section');
+    if (!sel) return;
+    
+    const sections = window.getWaSections();
+    sel.innerHTML = '';
+    
+    sections.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s;
+        if (s === selectedSec) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    
+    // Add separator & option to create a new section
+    const newOpt = document.createElement('option');
+    newOpt.value = '__NEW_SECTION__';
+    newOpt.textContent = '➕ Nueva sección...';
+    sel.appendChild(newOpt);
+};
+
+window.onWaTemplateSectionChange = function(val) {
+    if (val === '__NEW_SECTION__') {
+        window.promptCreateWaSection(true);
+    }
 };
 
 window.loadWaTemplateIntoEditor = function(id) {
@@ -433,7 +658,10 @@ window.loadWaTemplateIntoEditor = function(id) {
     if (tpl) {
         emptyState.classList.add('hidden');
         document.getElementById('wa-tpl-name').value = tpl.name || '';
+        const sec = tpl.section || tpl.category || 'General';
+        window.populateWaTemplateSectionDropdown(sec);
         document.getElementById('wa-tpl-body').value = tpl.body || '';
+        window.updateWaTemplateStats();
     } else {
         emptyState.classList.remove('hidden');
     }
@@ -441,27 +669,60 @@ window.loadWaTemplateIntoEditor = function(id) {
     window.renderWaTemplateList();
 };
 
-window.createNewWaTemplate = function() {
+window.createNewWaTemplate = function(targetSection = 'General') {
     activeTemplateId = 'temp_' + Date.now();
     const emptyState = document.getElementById('wa-template-empty-state');
     emptyState.classList.add('hidden');
     
-    document.getElementById('wa-tpl-name').value = 'New Template';
-    document.getElementById('wa-tpl-body').value = "Hello,\n\nHere is our availability:\n\n{{SCHEDULE}}\n\nSee you soon!";
+    const nameEl = document.getElementById('wa-tpl-name');
+    nameEl.value = 'Nueva Plantilla';
+    window.populateWaTemplateSectionDropdown(targetSection);
     
-    // Deselect list items
-    const list = document.getElementById('wa-template-list');
-    if (list) {
-        Array.from(list.children).forEach(child => {
-            child.className = 'w-full text-left px-3 py-2 rounded-lg text-sm font-bold truncate transition-colors text-slate-600 hover:bg-slate-100';
-        });
-    }
+    document.getElementById('wa-tpl-body').value = "Hola,\n\nEsta es nuestra disponibilidad:\n\n{{SCHEDULE}}\n\n¡Te esperamos!";
+    
+    window.updateWaTemplateStats();
+    window.renderWaTemplateList();
+    nameEl.focus();
+    nameEl.select();
+};
+
+window.updateWaTemplateStats = function() {
+    const textarea = document.getElementById('wa-tpl-body');
+    const statsEl = document.getElementById('wa-tpl-stats');
+    if (!textarea || !statsEl) return;
+    
+    const text = textarea.value;
+    const charCount = text.length;
+    const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const lineCount = text ? text.split('\n').length : 0;
+    
+    statsEl.textContent = `${charCount} caracteres • ${wordCount} palabras • ${lineCount} líneas`;
+};
+
+window.insertWaTemplateVariable = function(varName) {
+    const textarea = document.getElementById('wa-tpl-body');
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const current = textarea.value;
+    
+    const replacement = varName;
+    textarea.value = current.substring(0, start) + replacement + current.substring(end);
+    textarea.focus();
+    const newPos = start + replacement.length;
+    textarea.setSelectionRange(newPos, newPos);
+    window.updateWaTemplateStats();
 };
 
 window.saveWaTemplate = async function() {
     if (!activeTemplateId) return;
     
     const name = document.getElementById('wa-tpl-name').value.trim() || 'Sin nombre';
+    const sectionEl = document.getElementById('wa-tpl-section');
+    let section = (sectionEl ? sectionEl.value : 'General');
+    if (section === '__NEW_SECTION__') section = 'General';
+    
     const body = document.getElementById('wa-tpl-body').value;
     
     let templates = window.waTemplates ? [...window.waTemplates] : [];
@@ -471,77 +732,189 @@ window.saveWaTemplate = async function() {
     
     if (existingIndex >= 0) {
         templates[existingIndex].name = name;
+        templates[existingIndex].section = section;
         templates[existingIndex].body = body;
     } else {
-        // It's a new template, assign a real ID
         const newId = 'tpl_' + Date.now();
         templates.push({
             id: newId,
             name: name,
+            section: section,
             body: body,
-            lang: window.waTemplateLang
+            lang: window.waTemplateLang || 'es'
         });
         activeTemplateId = newId;
     }
     
+    // Ensure section exists in waTemplateSections
+    let sections = window.getWaSections();
+    if (!sections.includes(section)) {
+        sections.push(section);
+        window.waTemplateSections = sections;
+    }
+    
+    const saveBtn = document.getElementById('btn-save-wa-template');
+    let originalHtml = '';
+    if (saveBtn) {
+        originalHtml = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<svg class="animate-spin w-4 h-4 text-white inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
+    }
+    
     if (typeof window.saveWaTemplatesToFirebase === 'function') {
-        const success = await window.saveWaTemplatesToFirebase(templates);
+        const success = await window.saveWaTemplatesToFirebase(templates, sections);
         if (success) {
             window.waTemplates = templates;
-            if (window.showToast) window.showToast("Template saved successfully.");
-            
-            activeTemplateId = null;
-            document.getElementById('wa-tpl-name').value = '';
-            document.getElementById('wa-tpl-body').value = '';
-            const emptyState = document.getElementById('wa-template-empty-state');
-            if (emptyState) emptyState.classList.remove('hidden');
-            
+            window.waTemplateSections = sections;
+            if (window.showToast) window.showToast("Plantilla guardada correctamente.");
             window.renderWaTemplateList();
+            window.populateWaTemplateSectionDropdown(section);
         } else {
             if (window.showAppAlert) window.showAppAlert("Error al guardar la plantilla.");
         }
+    }
+    
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalHtml;
     }
 };
 
 window.deleteCurrentWaTemplate = function() {
     if (!activeTemplateId) return;
     
+    const doDelete = async () => {
+        let templates = window.waTemplates ? [...window.waTemplates] : [];
+        templates = templates.filter(t => t.id !== activeTemplateId);
+        
+        if (typeof window.saveWaTemplatesToFirebase === 'function') {
+            const success = await window.saveWaTemplatesToFirebase(templates, window.getWaSections());
+            if (success) {
+                window.waTemplates = templates;
+                if (window.showToast) window.showToast("Plantilla eliminada.");
+                
+                activeTemplateId = null;
+                const remaining = templates.filter(t => (t.lang || 'es') === window.waTemplateLang);
+                if (remaining.length > 0) {
+                    window.loadWaTemplateIntoEditor(remaining[0].id);
+                } else {
+                    document.getElementById('wa-tpl-name').value = '';
+                    document.getElementById('wa-tpl-body').value = '';
+                    const emptyState = document.getElementById('wa-template-empty-state');
+                    if (emptyState) emptyState.classList.remove('hidden');
+                    window.renderWaTemplateList();
+                }
+            } else {
+                if (window.showAppAlert) window.showAppAlert("Error al eliminar.");
+            }
+        }
+    };
+    
     if (window.showAppConfirm) {
-        window.showAppConfirm("¿Estás seguro de que quieres eliminar este template?", async () => {
-            await executeDeleteWaTemplate();
-        });
+        window.showAppConfirm("¿Estás seguro de que quieres eliminar esta plantilla?", doDelete);
     } else {
-        if (!confirm("Are you sure you want to delete this template?")) return;
-        executeDeleteWaTemplate();
+        if (confirm("¿Estás seguro de que quieres eliminar esta plantilla?")) doDelete();
     }
 };
 
-async function executeDeleteWaTemplate() {
-    let templates = window.waTemplates ? [...window.waTemplates] : [];
-    templates = templates.filter(t => t.id !== activeTemplateId);
+window.promptCreateWaSection = async function(selectInEditor = false) {
+    const secName = prompt("Nombre de la nueva sección (ej: Cursos, Tarifas, WhatsApp):");
+    if (!secName || !secName.trim()) return;
+    
+    const cleanName = secName.trim();
+    let sections = window.getWaSections();
+    if (sections.map(s => s.toLowerCase()).includes(cleanName.toLowerCase())) {
+        if (window.showToast) window.showToast("La sección ya existe.");
+        if (selectInEditor) {
+            const match = sections.find(s => s.toLowerCase() === cleanName.toLowerCase());
+            window.populateWaTemplateSectionDropdown(match);
+        }
+        return;
+    }
+    
+    sections.push(cleanName);
+    window.waTemplateSections = sections;
     
     if (typeof window.saveWaTemplatesToFirebase === 'function') {
-        const success = await window.saveWaTemplatesToFirebase(templates);
-        if (success) {
-            window.waTemplates = templates;
-            if (window.showToast) window.showToast("Template deleted.");
-            
-            activeTemplateId = null;
-            document.getElementById('wa-tpl-name').value = '';
-            document.getElementById('wa-tpl-body').value = '';
-            const emptyState = document.getElementById('wa-template-empty-state');
-            if (emptyState) emptyState.classList.remove('hidden');
-            
-            window.renderWaTemplateList();
-        } else {
-            if (window.showAppAlert) window.showAppAlert("Error al eliminar.");
-        }
+        await window.saveWaTemplatesToFirebase(window.waTemplates || [], sections);
     }
-}
+    
+    if (window.showToast) window.showToast(`Sección "${cleanName}" creada.`);
+    window.renderWaTemplateList();
+    
+    if (selectInEditor) {
+        window.populateWaTemplateSectionDropdown(cleanName);
+    } else {
+        const curSec = document.getElementById('wa-tpl-section')?.value || 'General';
+        window.populateWaTemplateSectionDropdown(curSec);
+    }
+};
+
+window.promptRenameWaSection = async function(oldName) {
+    if (oldName === 'General') {
+        if (window.showToast) window.showToast("La sección 'General' no se puede renombrar.");
+        return;
+    }
+    
+    const newName = prompt(`Renombrar sección "${oldName}" a:`, oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    
+    const cleanNew = newName.trim();
+    let sections = window.getWaSections().map(s => s === oldName ? cleanNew : s);
+    window.waTemplateSections = sections;
+    
+    let templates = window.waTemplates ? [...window.waTemplates] : [];
+    templates.forEach(t => {
+        if ((t.section || t.category) === oldName) {
+            t.section = cleanNew;
+        }
+    });
+    window.waTemplates = templates;
+    
+    if (typeof window.saveWaTemplatesToFirebase === 'function') {
+        await window.saveWaTemplatesToFirebase(templates, sections);
+    }
+    
+    if (window.showToast) window.showToast(`Sección renombrada a "${cleanNew}".`);
+    window.renderWaTemplateList();
+    
+    const curSec = document.getElementById('wa-tpl-section')?.value;
+    window.populateWaTemplateSectionDropdown(curSec === oldName ? cleanNew : curSec);
+};
+
+window.promptDeleteWaSection = async function(secName) {
+    if (secName === 'General') {
+        if (window.showToast) window.showToast("La sección 'General' no se puede eliminar.");
+        return;
+    }
+    
+    const confirmDelete = confirm(`¿Eliminar la sección "${secName}"?\nLas plantillas dentro de esta sección se moverán a "General".`);
+    if (!confirmDelete) return;
+    
+    let sections = window.getWaSections().filter(s => s !== secName);
+    window.waTemplateSections = sections;
+    
+    let templates = window.waTemplates ? [...window.waTemplates] : [];
+    templates.forEach(t => {
+        if ((t.section || t.category) === secName) {
+            t.section = 'General';
+        }
+    });
+    window.waTemplates = templates;
+    
+    if (typeof window.saveWaTemplatesToFirebase === 'function') {
+        await window.saveWaTemplatesToFirebase(templates, sections);
+    }
+    
+    if (window.showToast) window.showToast(`Sección "${secName}" eliminada.`);
+    window.renderWaTemplateList();
+    
+    const curSec = document.getElementById('wa-tpl-section')?.value;
+    window.populateWaTemplateSectionDropdown(curSec === secName ? 'General' : curSec);
+};
 
 window.copyWaTemplateText = function() {
     const text = document.getElementById('wa-tpl-body').value;
-    
     if (!text.trim()) {
         if (window.showAppAlert) window.showAppAlert("No hay texto para copiar.");
         return;
@@ -549,11 +922,24 @@ window.copyWaTemplateText = function() {
     
     navigator.clipboard.writeText(text).then(() => {
         if (window.showToast) window.showToast("¡Texto copiado al portapapeles!");
+        const copyBtn = document.getElementById('btn-copy-wa-template');
+        if (copyBtn) {
+            const orig = copyBtn.innerHTML;
+            copyBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg> ¡Copiado!`;
+            copyBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+            copyBtn.classList.add('bg-emerald-700');
+            setTimeout(() => {
+                copyBtn.innerHTML = orig;
+                copyBtn.classList.remove('bg-emerald-700');
+                copyBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+            }, 1800);
+        }
     }).catch(err => {
         console.error('Error copying text: ', err);
         if (window.showAppAlert) window.showAppAlert('Error al copiar el texto.');
     });
 };
+
 window.formatWaTemplateText = function(type) {
     const textarea = document.getElementById('wa-tpl-body');
     if (!textarea) return;
@@ -620,14 +1006,12 @@ window.formatWaTemplateText = function(type) {
     textarea.focus();
     textarea.setSelectionRange(startAction, endAction);
     
-    // Using execCommand preserves the native undo stack
     if (!document.execCommand('insertText', false, replacement)) {
-        // Fallback for browsers that don't support execCommand on textarea
         textarea.value = beforeText + replacement + afterText;
     }
     
-    // Reselect the core text inside/outside the markers
     textarea.setSelectionRange(newStart, newStart + newSelectionLength);
+    window.updateWaTemplateStats();
 };
 
 window.undoWaTemplateText = function() {
@@ -635,6 +1019,7 @@ window.undoWaTemplateText = function() {
     if (textarea) {
         textarea.focus();
         document.execCommand('undo');
+        window.updateWaTemplateStats();
     }
 };
 
@@ -643,28 +1028,30 @@ window.redoWaTemplateText = function() {
     if (textarea) {
         textarea.focus();
         document.execCommand('redo');
+        window.updateWaTemplateStats();
     }
 };
 
 window.translateAllWaTemplates = async function() {
     let templates = window.waTemplates ? [...window.waTemplates] : [];
     if (templates.length === 0) {
-        if (window.showAppAlert) window.showAppAlert("No hay templates para traducir.");
+        if (window.showAppAlert) window.showAppAlert("No hay plantillas para traducir.");
         return;
     }
 
-    if (window.showAppConfirm) {
-        window.showAppConfirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todos los templates?", async () => {
-            await executeTranslateAll(templates);
-        });
-    } else {
-        if (!confirm("This will automatically translate all templates into the missing languages. Continue?")) return;
+    const doTranslate = async () => {
         await executeTranslateAll(templates);
+    };
+
+    if (window.showAppConfirm) {
+        window.showAppConfirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todas las plantillas?", doTranslate);
+    } else {
+        if (confirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todas las plantillas?")) doTranslate();
     }
 };
 
 async function executeTranslateAll(templates) {
-    if (window.showToast) window.showToast("Traduciendo templates, por favor espera (esto puede tardar unos segundos)...", 5000);
+    if (window.showToast) window.showToast("Traduciendo plantillas, por favor espera...", 6000);
 
     const languages = ['es', 'en', 'nl', 'fr'];
     const uniqueNames = [...new Set(templates.map(t => t.name))];
@@ -675,16 +1062,17 @@ async function executeTranslateAll(templates) {
         if (!sourceTemplate) continue;
 
         for (const targetLang of languages) {
-            const exists = templates.some(t => t.name === name && t.lang === targetLang);
+            const exists = templates.some(t => t.name === name && (t.lang || 'es') === targetLang);
             if (!exists) {
                 try {
-                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceTemplate.body)}&langpair=${sourceTemplate.lang}|${targetLang}`);
+                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceTemplate.body)}&langpair=${sourceTemplate.lang || 'es'}|${targetLang}`);
                     const data = await res.json();
                     
                     if (data.responseData && data.responseData.translatedText) {
                         templates.push({
                             id: 'tpl_' + Date.now() + Math.random().toString(36).substr(2, 5),
                             name: name,
+                            section: sourceTemplate.section || sourceTemplate.category || 'General',
                             body: data.responseData.translatedText,
                             lang: targetLang
                         });
@@ -700,7 +1088,7 @@ async function executeTranslateAll(templates) {
 
     if (changesMade) {
         if (typeof window.saveWaTemplatesToFirebase === 'function') {
-            const success = await window.saveWaTemplatesToFirebase(templates);
+            const success = await window.saveWaTemplatesToFirebase(templates, window.getWaSections());
             if (success) {
                 window.waTemplates = templates;
                 if (window.showToast) window.showToast("¡Traducciones completadas y guardadas!");
@@ -710,6 +1098,6 @@ async function executeTranslateAll(templates) {
             }
         }
     } else {
-        if (window.showToast) window.showToast("Todos los templates ya están traducidos en todos los idiomas.");
+        if (window.showToast) window.showToast("Todas las plantillas ya están traducidas en todos los idiomas.");
     }
 }

@@ -647,6 +647,7 @@ function startFirestoreListeners() {
                 
                 // Load WhatsApp Templates if available
                 window.waTemplates = data.waTemplates || [];
+                window.waTemplateSections = data.waTemplateSections || ['General', 'WhatsApp', 'Cursos', 'Tarifas', 'Logística'];
                 if (typeof window.renderWaTemplateList === 'function') {
                     window.renderWaTemplateList();
                 }
@@ -1491,11 +1492,15 @@ window.repairAllManifestNames = async function() {
         console.error("❌ [CRM Sweep] Error running repair sweep:", err);
     }
 };
-window.saveWaTemplatesToFirebase = async function(templates) {
+window.saveWaTemplatesToFirebase = async function(templates, sections) {
     try {
-        await db.collection("mangamar_directory").doc("settings").set({
-            waTemplates: templates
-        }, { merge: true });
+        const payload = { waTemplates: templates };
+        if (sections && Array.isArray(sections)) {
+            payload.waTemplateSections = sections;
+        } else if (window.waTemplateSections && Array.isArray(window.waTemplateSections)) {
+            payload.waTemplateSections = window.waTemplateSections;
+        }
+        await db.collection("mangamar_directory").doc("settings").set(payload, { merge: true });
         return true;
     } catch(e) {
         console.error("Error saving WA Templates: ", e);
