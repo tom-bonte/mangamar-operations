@@ -1,11 +1,26 @@
-const admin = require('firebase-admin');
+let initializeApp, cert, getFirestore;
+
+try {
+    const adminApp = require('firebase-admin/app');
+    const adminFirestore = require('firebase-admin/firestore');
+    initializeApp = adminApp.initializeApp;
+    cert = adminApp.cert;
+    getFirestore = adminFirestore.getFirestore;
+} catch (e) {
+    const admin = require('firebase-admin');
+    initializeApp = admin.initializeApp ? admin.initializeApp.bind(admin) : admin.default.initializeApp.bind(admin.default);
+    cert = (admin.credential && admin.credential.cert) 
+        ? admin.credential.cert.bind(admin.credential) 
+        : (admin.cert || (admin.default && admin.default.credential && admin.default.credential.cert));
+    getFirestore = admin.firestore ? admin.firestore.bind(admin) : admin.default.firestore.bind(admin.default);
+}
 
 // 1. Initialize Firebase Admin SDK using service account credentials from ENV
 const firebaseKey = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-admin.initializeApp({
-    credential: admin.credential.cert(firebaseKey)
+const app = initializeApp({
+    credential: cert(firebaseKey)
 });
-const db = admin.firestore();
+const db = getFirestore(app);
 
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID; // The folder ID of "maganmar app archives"
 const BACKUP_WEBAPP_URL = process.env.BACKUP_WEBAPP_URL;       // The deployed Apps Script URL
