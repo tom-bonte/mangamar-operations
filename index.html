@@ -5432,9 +5432,9 @@
                         </button>
                     </div>
 
-                    <button type="button" onclick="window.translateAllWaTemplates()" class="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 rounded-xl text-xs font-black transition-all border border-indigo-200/70 shadow-2xs" title="Traduce automáticamente los templates que falten en otros idiomas">
-                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
-                        <span>Traducir Todo</span>
+                    <button type="button" id="btn-translate-all-wa" onclick="window.translateAllWaTemplates()" class="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-indigo-700 rounded-xl text-xs font-black transition-all border border-indigo-200/80 shadow-2xs" title="Traduce automáticamente los templates con Gemini IA a todos los idiomas">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <span>Traducir Todo (IA)</span>
                     </button>
 
                     <button type="button" onclick="document.getElementById('wa-template-modal').classList.add('hidden')" class="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors ml-1" title="Cerrar">
@@ -5524,6 +5524,11 @@
                                 <button type="button" onclick="undoWaTemplateText()" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-2xs rounded-lg transition-all" title="Deshacer"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg></button>
                                 <button type="button" onclick="redoWaTemplateText()" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-2xs rounded-lg transition-all" title="Rehacer"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path></svg></button>
                             </div>
+
+                            <button type="button" onclick="window.translateCurrentWaTemplate()" class="px-3 py-1.5 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 border border-purple-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5" title="Traducir este template a los otros idiomas con Gemini IA">
+                                <svg class="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                <span>Traducir con IA</span>
+                            </button>
                         </div>
 
                         <!-- Textarea -->

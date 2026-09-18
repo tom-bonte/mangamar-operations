@@ -11,6 +11,9 @@ const firebaseConfig = {
     appId: "1:242126338137:web:c32d20d4697545a172d948"
 };
 
+// Google Gemini API Configuration for Multilingual AI Translations
+const GEMINI_API_KEY = "AIzaSyAJzPf4CL_-nflaXiZuOFADTkBM8g12CmQ";
+
 // Core Application Constants
 const TIMES = ['07:00', '09:00', '10:30', '12:00', '15:00', '16:30', '18:00'];
 

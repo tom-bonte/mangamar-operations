@@ -1110,6 +1110,68 @@ window.redoWaTemplateText = function() {
     }
 };
 
+// ==========================================
+// Google Gemini Multilingual AI Translation
+// ==========================================
+
+window.translateTextWithGemini = async function(text, targetLang, sourceLang = 'es') {
+    if (!text || !text.trim()) return '';
+    const langNames = {
+        es: 'Spanish (Español)',
+        en: 'English',
+        nl: 'Dutch (Nederlands)',
+        fr: 'French (Français)'
+    };
+    const targetName = langNames[targetLang] || targetLang;
+    const sourceName = langNames[sourceLang] || sourceLang;
+
+    const apiKey = (typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY) 
+        ? GEMINI_API_KEY 
+        : 'AIzaSyAJzPf4CL_-nflaXiZuOFADTkBM8g12CmQ';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+
+    const systemPrompt = `You are a professional multilingual translator for Mangamar Dive Center in Cabo de Palos, Spain.
+Translate the provided WhatsApp message template from ${sourceName} into natural, native-sounding ${targetName}.
+CRITICAL RULES:
+1. Maintain all WhatsApp formatting (*bold*, _italic_, ~strikethrough~).
+2. Preserve all emojis exactly as they are.
+3. Preserve all IBAN bank accounts, URLs, names (like Mangamar, Cabo de Palos, Bajo de Fuera, Naranjito, Scuba Medic), prices (€), and numbers unchanged.
+4. Preserve template placeholders like {{SCHEDULE}} exactly.
+5. Use natural, authentic scuba diving terminology for ${targetName} (e.g. for Dutch: wrakduik, marien reservaat, materiaalhuur, kantduik, etc.).
+6. Output ONLY the translated message text directly, without any intro, explanation, quotes, or markdown code blocks.`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            systemInstruction: {
+                parts: [{ text: systemPrompt }]
+            },
+            contents: [{
+                parts: [{ text: text }]
+            }],
+            generationConfig: {
+                temperature: 0.2
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData?.error?.message || `Gemini API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    let translated = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!translated) throw new Error("No response from Gemini");
+
+    translated = translated.trim();
+    if (translated.startsWith('```') && translated.endsWith('```')) {
+        translated = translated.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+    }
+    return translated;
+};
+
 window.translateAllWaTemplates = async function() {
     let templates = window.waTemplates ? [...window.waTemplates] : [];
     if (templates.length === 0) {
@@ -1121,44 +1183,58 @@ window.translateAllWaTemplates = async function() {
         await executeTranslateAll(templates);
     };
 
+    const confirmMsg = "¿Quieres traducir y generar con Gemini IA las versiones en los idiomas que faltan (inglés, holandés, francés) para todos tus templates?";
     if (window.showAppConfirm) {
-        window.showAppConfirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todos los templates?", doTranslate);
+        window.showAppConfirm(confirmMsg, doTranslate);
     } else {
-        if (confirm("¿Quieres traducir y crear automáticamente las versiones en los idiomas que faltan para todos los templates?")) doTranslate();
+        if (confirm(confirmMsg)) doTranslate();
     }
 };
 
 async function executeTranslateAll(templates) {
-    if (window.showToast) window.showToast("Traduciendo templates, por favor espera...", 6000);
+    const btn = document.getElementById('btn-translate-all-wa');
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin w-4 h-4 text-indigo-600 inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>Traduciendo con IA...</span>`;
+    }
+
+    if (window.showToast) window.showToast("Iniciando traducción con Gemini IA...", 4000);
 
     const languages = ['es', 'en', 'nl', 'fr'];
     const uniqueNames = [...new Set(templates.map(t => t.name))];
     let changesMade = false;
+    let totalTranslated = 0;
 
-    for (const name of uniqueNames) {
-        const sourceTemplate = templates.find(t => t.name === name);
-        if (!sourceTemplate) continue;
+    for (let i = 0; i < uniqueNames.length; i++) {
+        const name = uniqueNames[i];
+        // Prefer Spanish as the primary source template if available
+        const sourceTemplate = templates.find(t => t.name === name && (t.lang || 'es') === 'es') || templates.find(t => t.name === name);
+        if (!sourceTemplate || !sourceTemplate.body) continue;
+
+        const srcLang = sourceTemplate.lang || 'es';
 
         for (const targetLang of languages) {
-            const exists = templates.some(t => t.name === name && (t.lang || 'es') === targetLang);
-            if (!exists) {
+            if (targetLang === srcLang) continue;
+
+            const existingIndex = templates.findIndex(t => t.name === name && (t.lang || 'es') === targetLang);
+            if (existingIndex === -1) {
                 try {
-                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceTemplate.body)}&langpair=${sourceTemplate.lang || 'es'}|${targetLang}`);
-                    const data = await res.json();
+                    if (window.showToast) window.showToast(`Traduciendo "${name}" a ${targetLang.toUpperCase()} con IA...`, 3000);
+                    const translatedBody = await window.translateTextWithGemini(sourceTemplate.body, targetLang, srcLang);
                     
-                    if (data.responseData && data.responseData.translatedText) {
-                        templates.push({
-                            id: 'tpl_' + Date.now() + Math.random().toString(36).substr(2, 5),
-                            name: name,
-                            section: sourceTemplate.section || sourceTemplate.category || 'General',
-                            body: data.responseData.translatedText,
-                            lang: targetLang
-                        });
-                        changesMade = true;
-                        await new Promise(r => setTimeout(r, 600)); // Respect rate limits
-                    }
+                    templates.push({
+                        id: 'tpl_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                        name: name,
+                        section: sourceTemplate.section || sourceTemplate.category || 'General',
+                        body: translatedBody,
+                        lang: targetLang
+                    });
+                    changesMade = true;
+                    totalTranslated++;
                 } catch (e) {
-                    console.error("Translation error", e);
+                    console.error(`Error translating ${name} to ${targetLang}:`, e);
                 }
             }
         }
@@ -1169,13 +1245,98 @@ async function executeTranslateAll(templates) {
             const success = await window.saveWaTemplatesToFirebase(templates, window.getWaSections());
             if (success) {
                 window.waTemplates = templates;
-                if (window.showToast) window.showToast("¡Traducciones completadas y guardadas!");
+                if (window.showToast) window.showToast(`¡Completado! Se generaron ${totalTranslated} traducciones con Gemini IA.`);
                 window.renderWaTemplateList();
             } else {
-                if (window.showAppAlert) window.showAppAlert("Error al guardar traducciones.");
+                if (window.showAppAlert) window.showAppAlert("Error al guardar traducciones en la base de datos.");
             }
         }
     } else {
-        if (window.showToast) window.showToast("Todos los templates ya están traducidos en todos los idiomas.");
+        if (window.showToast) window.showToast("Todos los templates ya tienen traducciones en todos los idiomas.");
+    }
+
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
     }
 }
+
+window.translateCurrentWaTemplate = async function() {
+    if (!activeTemplateId) {
+        if (window.showAppAlert) window.showAppAlert("Selecciona o guarda un template primero.");
+        return;
+    }
+
+    const curName = document.getElementById('wa-tpl-name').value.trim() || 'Sin nombre';
+    const curBody = document.getElementById('wa-tpl-body').value;
+    const curSec = document.getElementById('wa-tpl-section').value || 'General';
+    const srcLang = window.waTemplateLang || 'es';
+
+    if (!curBody.trim()) {
+        if (window.showAppAlert) window.showAppAlert("El template está vacío.");
+        return;
+    }
+
+    const languages = ['es', 'en', 'nl', 'fr'];
+    const targetLangs = languages.filter(l => l !== srcLang);
+
+    const confirmMsg = `¿Traducir este template a ${targetLangs.map(l => l.toUpperCase()).join(', ')} con Gemini IA?`;
+    
+    const doTranslateSingle = async () => {
+        let templates = window.waTemplates ? [...window.waTemplates] : [];
+        const curIdx = templates.findIndex(t => t.id === activeTemplateId);
+        if (curIdx >= 0) {
+            templates[curIdx].name = curName;
+            templates[curIdx].body = curBody;
+            templates[curIdx].section = curSec;
+        } else {
+            templates.push({
+                id: activeTemplateId,
+                name: curName,
+                body: curBody,
+                section: curSec,
+                lang: srcLang
+            });
+        }
+
+        if (window.showToast) window.showToast("Traduciendo template con Gemini IA...", 4000);
+
+        let count = 0;
+        for (const targetLang of targetLangs) {
+            try {
+                const translated = await window.translateTextWithGemini(curBody, targetLang, srcLang);
+                const matchIdx = templates.findIndex(t => t.name.trim().toLowerCase() === curName.toLowerCase() && (t.lang || 'es') === targetLang);
+                if (matchIdx >= 0) {
+                    templates[matchIdx].body = translated;
+                    templates[matchIdx].section = curSec;
+                } else {
+                    templates.push({
+                        id: 'tpl_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                        name: curName,
+                        section: curSec,
+                        body: translated,
+                        lang: targetLang
+                    });
+                }
+                count++;
+            } catch(e) {
+                console.error(`Error translating to ${targetLang}:`, e);
+            }
+        }
+
+        if (typeof window.saveWaTemplatesToFirebase === 'function') {
+            const success = await window.saveWaTemplatesToFirebase(templates, window.getWaSections());
+            if (success) {
+                window.waTemplates = templates;
+                if (window.showToast) window.showToast(`¡Traducido a ${count} idiomas con Gemini IA!`);
+                window.renderWaTemplateList();
+            }
+        }
+    };
+
+    if (window.showAppConfirm) {
+        window.showAppConfirm(confirmMsg, doTranslateSingle);
+    } else {
+        if (confirm(confirmMsg)) doTranslateSingle();
+    }
+};
