@@ -56,6 +56,19 @@ window.crmShardsReported = new Set();
 window.crmShardDocId = function(n) { return n === 1 ? 'master_list' : 'master_list_' + n; };
 window.crmShardListeners = {}; // shard n -> unsubscribe fn, prevents duplicate listeners
 
+// [MANGAMAR-MIGRATION] phase4-shard-writer v1 — 2026-09-19
+window.__lastShardJson = {}; // shard n -> JSON of the clients array this tab last wrote to it
+
+// Records a failed directory save and alerts staff with a blocking alert (toast as fallback)
+function reportMasterWriteFailure(caller, message) {
+    window.__lastMasterWriteError = { caller, message, at: Date.now() };
+    if (typeof showAppAlert === 'function') {
+        try { showAppAlert("❌ ERROR: No se pudo guardar en la nube. Avisa a Abel y no sigas editando fichas."); } catch (_) {}
+    } else if (typeof showToast === 'function') {
+        try { showToast("❌ ERROR: No se pudo guardar en la nube — avisa a Abel"); } catch (_) {}
+    }
+}
+
 /**
  * Safe wrapper for ALL master_list writes.
  * Refuses to write if:
@@ -90,10 +103,14 @@ window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad)
         // If it's a regular runtime write, perform a smart merge with the latest Firestore DB
         // to prevent overwriting customers added by other concurrent tabs since load time.
         if (!isInitialLoad) {
-            console.log(`🔄 [SafeWrite] '${caller}' fetching latest master_list for smart merge...`);
-            const doc = await db.collection('mangamar_directory').doc('master_list').get();
-            if (doc.exists) {
-                const latestDbClients = doc.data().clients || [];
+            console.log(`🔄 [SafeWrite] '${caller}' fetching latest CRM shards for smart merge...`);
+            const shardDocs = await Promise.all(
+                Array.from({ length: window.crmShardCount }, (_, i) =>
+                    db.collection('mangamar_directory').doc(window.crmShardDocId(i + 1)).get())
+            );
+            if (shardDocs.some(d => d.exists)) {
+                const latestDbClients = [];
+                shardDocs.forEach(d => { if (d.exists) latestDbClients.push(...(d.data().clients || [])); });
                 const localKeys = new Set((clientsArray || []).map(c => window.getClientKey(c)).filter(Boolean));
                 const loadedKeys = window.loadedDnis || new Set();
 
@@ -126,17 +143,65 @@ window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad)
         }
 
         const finalCount = finalClientsToWrite.length;
-        console.log(`✅ [SafeWrite] '${caller}' writing ${finalCount} clients to master_list.`);
-        
-        await db.collection('mangamar_directory').doc('master_list')
-            .update({ clients: finalClientsToWrite })
-            .catch(e => {
-                if (e.code === 'not-found') {
-                    return db.collection('mangamar_directory').doc('master_list')
-                        .set({ clients: finalClientsToWrite }, { merge: true });
+
+        // Split into shards of CHUNK clients, in array order (shard 1 = master_list)
+        const CHUNK = 800;
+        const shardJsons = [];
+        for (let i = 0; i < finalClientsToWrite.length; i += CHUNK) {
+            shardJsons.push(JSON.stringify(finalClientsToWrite.slice(i, i + CHUNK)));
+        }
+        if (shardJsons.length === 0) shardJsons.push('[]');
+
+        // Hard guard: Firestore documents max out at 1 MiB
+        if (shardJsons.some(j => j.length > 900000)) {
+            console.error(`🚨 [SafeWrite] Chunk too large — aborting`);
+            reportMasterWriteFailure(caller, 'Chunk too large — aborting');
+            return;
+        }
+
+        const batch = db.batch();
+        const changedShards = [];
+        shardJsons.forEach((json, i) => {
+            const n = i + 1;
+            if (window.__lastShardJson[n] === json) return; // unchanged since our last write
+            batch.set(db.collection('mangamar_directory').doc(window.crmShardDocId(n)), { clients: JSON.parse(json) });
+            changedShards.push(n);
+        });
+
+        const newShardCount = shardJsons.length;
+
+        // Empty any leftover shards beyond the new count. crmShardCount in settings is NOT
+        // decreased, so the emptied shards stay listened to and never resurface stale clients.
+        for (let n = newShardCount + 1; n <= window.crmShardCount; n++) {
+            if (window.__lastShardJson[n] === '[]') continue;
+            batch.set(db.collection('mangamar_directory').doc(window.crmShardDocId(n)), { clients: [] });
+            changedShards.push(n);
+        }
+
+        const shardCountGrew = newShardCount > window.crmShardCount;
+        if (shardCountGrew) {
+            batch.set(db.collection('mangamar_directory').doc('settings'), { crmShardCount: newShardCount }, { merge: true });
+        }
+
+        console.log(`✅ [SafeWrite] '${caller}' writing ${finalCount} clients across ${newShardCount} shard(s) (changed: ${changedShards.join(', ') || 'none'}).`);
+
+        if (changedShards.length > 0 || shardCountGrew) {
+            await batch.commit();
+        }
+
+        changedShards.forEach(n => { window.__lastShardJson[n] = n <= newShardCount ? shardJsons[n - 1] : '[]'; });
+
+        if (shardCountGrew) {
+            const previousShardCount = window.crmShardCount;
+            window.crmShardCount = newShardCount;
+            localStorage.setItem('mangamar_crm_shard_count', String(newShardCount));
+            // Idempotent: attach listeners for the new shards in case the settings listener already saw the new count
+            if (typeof window.attachCrmShardListener === 'function') {
+                for (let n = previousShardCount + 1; n <= newShardCount; n++) {
+                    window.attachCrmShardListener(n);
                 }
-                throw e;
-            });
+            }
+        }
 
         // Update local state to match what was written
         customerDatabase = finalClientsToWrite;
@@ -150,6 +215,7 @@ window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad)
         }
     } catch (e) {
         console.error(`❌ [SafeWrite] Write from '${caller}' failed:`, e);
+        reportMasterWriteFailure(caller, e.message);
     }
 };
 
@@ -608,7 +674,8 @@ function startFirestoreListeners() {
                 compileAndMerge();
             }
 
-            if (cleanClients.length < rawClients.length || crmNamesModified) {
+            // A partial rebuild must never write: it only holds the shards reported so far
+            if (allShardsReported && (cleanClients.length < rawClients.length || crmNamesModified)) {
                 console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicates or corrected ALL CAPS formatting.`);
                 // Use isInitialLoad=true because this IS the initial load writing back
                 window.safeMasterListWrite(cleanClients, 'auto-heal-on-load', true);

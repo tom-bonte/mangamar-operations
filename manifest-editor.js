@@ -1873,20 +1873,10 @@ window.cleanOrphanedInsurance = async function(dni) {
             // Delete from DB
             await db.collection('mangamar_customers').doc(dni).update({ insurance: firebase.firestore.FieldValue.delete() });
             
-            // Delete from Master List
-            const masterRef = db.collection('mangamar_directory').doc('master_list');
-            const masterDoc = await masterRef.get();
-            if (masterDoc.exists) {
-                let clients = masterDoc.data().clients || [];
-                let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(dni));
-                if (idx > -1) {
-                    delete clients[idx].insurance;
-                    await masterRef.set({ clients }, { merge: true });
-                }
-            }
-            
-            // Delete from UI Memory and refresh
+            // Delete from UI Memory, then sync the directory
             delete profile.insurance;
+            await window.safeMasterListWrite(customerDatabase, 'clean-orphaned-insurance');
+
             if (typeof renderGroups === 'function') renderGroups();
         }
     } catch (e) { console.error("Garbage Collector Error:", e); }
@@ -1947,22 +1937,11 @@ window.setIns = async function(type) {
         guest.insurance = 0; 
         if (guest.dni) {
             db.collection('mangamar_customers').doc(guest.dni).update({ insurance: firebase.firestore.FieldValue.delete(), insuranceEdited: true }).catch(e=>{});
-            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
-            masterDocRef.get().then(doc => {
-                if (doc.exists) {
-                    let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-                    if (idx > -1) {
-                        delete clients[idx].insurance;
-                        clients[idx].insuranceEdited = true;
-                        masterDocRef.set({ clients }, { merge: true });
-                    }
-                }
-            });
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) {
                 delete profile.insurance;
                 profile.insuranceEdited = true;
+                window.safeMasterListWrite(customerDatabase, 'insurance-remove');
             }
         }
     } else if (type === 'Propio') {
@@ -1979,19 +1958,7 @@ window.setIns = async function(type) {
             
             db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true, lastManualEditTimestamp: now }, { merge: true });
             
-            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
-            masterDocRef.get().then(doc => {
-                if (doc.exists) {
-                    let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-                    if (idx > -1) {
-                        clients[idx].insurance = newIns;
-                        clients[idx].insuranceEdited = true;
-                        clients[idx].lastManualEditTimestamp = now;
-                        masterDocRef.set({ clients }, { merge: true });
-                    }
-                }
-            });
+            if (profile) window.safeMasterListWrite(customerDatabase, 'insurance-propio');
         }
     } else {
         guest.insurance = type; 
@@ -2017,19 +1984,7 @@ window.setIns = async function(type) {
             
             db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true, lastManualEditTimestamp: now }, { merge: true });
             
-            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
-            masterDocRef.get().then(doc => {
-                if (doc.exists) {
-                    let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-                    if (idx > -1) {
-                        clients[idx].insurance = newIns;
-                        clients[idx].insuranceEdited = true;
-                        clients[idx].lastManualEditTimestamp = now;
-                        masterDocRef.set({ clients }, { merge: true });
-                    }
-                }
-            });
+            if (profile) window.safeMasterListWrite(customerDatabase, 'insurance-set');
         }
     }
     
@@ -2212,22 +2167,11 @@ window.saveSeguroPropioChanges = async function() {
         guest.insurance = 0;
         if (guest.dni) {
             db.collection('mangamar_customers').doc(guest.dni).update({ insurance: firebase.firestore.FieldValue.delete(), insuranceEdited: true }).catch(e=>{});
-            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
-            masterDocRef.get().then(doc => {
-                if (doc.exists) {
-                    let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-                    if (idx > -1) {
-                        delete clients[idx].insurance;
-                        clients[idx].insuranceEdited = true;
-                        masterDocRef.set({ clients }, { merge: true }).catch(e => console.error("Error saving master list:", e));
-                    }
-                }
-            });
             const profile = customerDatabase.find(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
             if (profile) {
                 delete profile.insurance;
                 profile.insuranceEdited = true;
+                window.safeMasterListWrite(customerDatabase, 'seguro-propio-clear');
             }
         }
     } else {
@@ -2247,20 +2191,8 @@ window.saveSeguroPropioChanges = async function() {
             // Save to Firestore for this customer
             db.collection('mangamar_customers').doc(guest.dni).set({ insurance: newIns, insuranceEdited: true, lastManualEditTimestamp: now }, { merge: true }).catch(e => console.error("Error saving insurance to Firestore:", e));
             
-            // Update master_list
-            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
-            masterDocRef.get().then(doc => {
-                if (doc.exists) {
-                    let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-                    if (idx > -1) {
-                        clients[idx].insurance = newIns;
-                        clients[idx].insuranceEdited = true;
-                        clients[idx].lastManualEditTimestamp = now;
-                        masterDocRef.set({ clients }, { merge: true }).catch(e => console.error("Error saving master list:", e));
-                    }
-                }
-            });
+            // Update CRM directory
+            if (profile) window.safeMasterListWrite(customerDatabase, 'seguro-propio-save');
         }
     }
     
@@ -2345,20 +2277,8 @@ window.toggleTramitado = function() {
                 lastManualEditTimestamp: now
             }, { merge: true }).catch(e => console.error("Error updating CRM insurance:", e));
             
-            // Save to master_list directory
-            const masterDocRef = db.collection('mangamar_directory').doc('master_list');
-            masterDocRef.get().then(doc => {
-                if (doc.exists) {
-                    let clients = doc.data().clients || [];
-                    let idx = clients.findIndex(c => window.normalizeDni(c.dni) === window.normalizeDni(guest.dni));
-                    if (idx > -1) {
-                        clients[idx].insurance = profile.insurance;
-                        clients[idx].insuranceEdited = true;
-                        clients[idx].lastManualEditTimestamp = now;
-                        masterDocRef.set({ clients }, { merge: true });
-                    }
-                }
-            });
+            // Save to CRM directory
+            window.safeMasterListWrite(customerDatabase, 'toggle-tramitado');
         }
     }
 

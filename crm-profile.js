@@ -1950,13 +1950,11 @@ window.executeDeleteCustomer = function () {
             // 2. Delete main document
             await db.collection('mangamar_customers').doc(dni).delete();
 
-            // 3. Remove from master_list
-            let docSnap = await db.collection('mangamar_directory').doc('master_list').get();
-            if (docSnap.exists) {
-                let data = docSnap.data().clients || [];
-                let updated = data.filter(c => c.dni !== dni);
-                await window.safeMasterListWrite(updated, 'delete-customer');
-            }
+            // 3. Remove from CRM directory (re-filter: a shard snapshot may have rebuilt customerDatabase meanwhile)
+            await window.safeMasterListWrite(
+                customerDatabase.filter(c => !window.isSameDni(c.dni, dni)),
+                'delete-customer'
+            );
 
             // 4. Remove customer from every trip booking (manifest groups, guests, and waitlists) month-wide
             if (typeof mergedAllocations !== 'undefined') {
