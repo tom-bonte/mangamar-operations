@@ -55,6 +55,7 @@ window.crmShardCount = parseInt(localStorage.getItem('mangamar_crm_shard_count')
 window.crmShardsReported = new Set();
 window.crmShardDocId = function(n) { return n === 1 ? 'master_list' : 'master_list_' + n; };
 window.crmShardListeners = {}; // shard n -> unsubscribe fn, prevents duplicate listeners
+window.__autoHealRan = false; // auto-heal may write at most once per session (its own write re-triggers rebuilds)
 
 // [MANGAMAR-MIGRATION] phase4-shard-writer v1 — 2026-09-19
 window.__lastShardJson = {}; // shard n -> JSON of the clients array this tab last wrote to it
@@ -675,10 +676,15 @@ function startFirestoreListeners() {
             }
 
             // A partial rebuild must never write: it only holds the shards reported so far
-            if (allShardsReported && (cleanClients.length < rawClients.length || crmNamesModified)) {
+            if (allShardsReported && !window.__autoHealRan && (cleanClients.length < rawClients.length || crmNamesModified)) {
+                // Set BEFORE the write so the rebuilds triggered by that write cannot re-enter
+                window.__autoHealRan = true;
                 console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicates or corrected ALL CAPS formatting.`);
                 // Use isInitialLoad=true because this IS the initial load writing back
                 window.safeMasterListWrite(cleanClients, 'auto-heal-on-load', true);
+            } else if (allShardsReported) {
+                // First complete rebuild found nothing to fix — disarm so it cannot fire later
+                window.__autoHealRan = true;
             }
 
             // Trigger one-time automatic manifest size repair on load to shrink DB documents
