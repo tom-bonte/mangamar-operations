@@ -48,6 +48,14 @@ window.crmLoadedClientCount = 0; // Track how many clients were in the last succ
 window.loadedDnis = new Set(); // Tracks client keys present when this tab loaded/synced to prevent overwriting new additions
 window.dniRedirects = {}; // Global dictionary mapping wrong/old DNI -> correct/new DNI
 
+// [MANGAMAR-MIGRATION] phase2-shard-reader v1 — 2026-09-19
+// CRM directory shards: shard 1 = master_list, shard n = master_list_n
+window.crmShards = {};
+window.crmShardCount = parseInt(localStorage.getItem('mangamar_crm_shard_count'), 10) || 1;
+window.crmShardsReported = new Set();
+window.crmShardDocId = function(n) { return n === 1 ? 'master_list' : 'master_list_' + n; };
+window.crmShardListeners = {}; // shard n -> unsubscribe fn, prevents duplicate listeners
+
 /**
  * Safe wrapper for ALL master_list writes.
  * Refuses to write if:
@@ -454,6 +462,214 @@ function startFirestoreListeners() {
         });
         // CRM Master List (Heavy 1MB Download - Deferred to prioritize critical schedule bandwidth on load)
         let crmFetchStarted = false;
+
+        // Rebuilds the flat customerDatabase from all loaded shards, concatenated in ascending shard order.
+        window.rebuildCustomerDatabase = function() {
+            let rawClients = [];
+            for (let n = 1; n <= window.crmShardCount; n++) {
+                // Shallow-copy so in-place normalization below never mutates the cached shard data
+                (window.crmShards[n] || []).forEach(c => rawClients.push({ ...c }));
+            }
+            let dedupMap = new Map();
+            let nonDniClients = [];
+            let crmNamesModified = false;
+
+            // Merge any locally added clients while loading
+            if (!window.crmLoaded && customerDatabase && customerDatabase.length > 0) {
+                customerDatabase.forEach(localClient => {
+                    if (localClient.dni) {
+                        const exists = rawClients.some(rc => rc.dni && window.isSameDni(rc.dni, localClient.dni));
+                        if (!exists) {
+                            console.log("📥 [CRM Loading] Merging locally added client during load window:", localClient.nombre, localClient.dni);
+                            rawClients.push(localClient);
+                            crmNamesModified = true;
+                        }
+                    }
+                });
+            }
+
+            rawClients.forEach(c => {
+                // Standardize capitalization to Title-Case (Never allow ALL CAPS)
+                if (c.nombre) {
+                    const formattedNombre = window.formatNameStr(c.nombre);
+                    if (c.nombre !== formattedNombre) {
+                        c.nombre = formattedNombre;
+                        crmNamesModified = true;
+                    }
+                }
+                if (c.apellido) {
+                    const formattedApellido = window.formatNameStr(c.apellido);
+                    if (c.apellido !== formattedApellido) {
+                        c.apellido = formattedApellido;
+                        crmNamesModified = true;
+                    }
+                }
+
+                if (c.dni && c.dni.trim() !== '') {
+                    const originalDni = c.dni;
+                    const key = window.normalizeDni(originalDni);
+                    c.dni = key;
+
+                    if (originalDni !== key) {
+                        window.migrateCustomerHistory(originalDni, key);
+                    }
+
+                    if (dedupMap.has(key)) {
+                        let existing = dedupMap.get(key);
+                        
+                        // UNCONDITIONAL NEWEST ENTRY OVERWRITE:
+                        // 'c' appears LATER in rawClients array than 'existing' (newer Make.com or Jotform submission),
+                        // so 'c' UNCONDITIONAL WINS for all fields!
+                        let merged = { ...existing, ...c };
+                        
+                        // Respect manual staff lock flags ONLY if existing had manual staff edits that are newer than 'c'
+                        const isNewer = typeof window.isJotformNewerThanManualEdit === 'function' 
+                            ? window.isJotformNewerThanManualEdit(existing, c) 
+                            : (!existing.lastManualEditTimestamp);
+
+                        if (!isNewer && existing.lastManualEditTimestamp) {
+                            // Existing manual staff edit is NEWER than 'c' -> preserve staff-edited fields!
+                            if (existing.nombre) merged.nombre = existing.nombre;
+                            if (existing.apellido) merged.apellido = existing.apellido;
+                            if (existing.dob) merged.dob = existing.dob;
+                            if (existing.titulacion) merged.titulacion = existing.titulacion;
+                            if (existing.dives !== undefined) merged.dives = existing.dives;
+                            if (existing.insurance) merged.insurance = existing.insurance;
+                            merged.lastManualEditTimestamp = existing.lastManualEditTimestamp;
+                        }
+                        
+                        // Ensure clean standardized types & dates
+                        merged.dni = key;
+                        if (merged.dob) merged.dob = window.normalizeDateStr(merged.dob) || merged.dob;
+                        if (merged.insurance && typeof merged.insurance === 'object') {
+                            merged.insurance = {
+                                type: merged.insurance.type || 'S/N',
+                                expiry: window.normalizeDateStr(merged.insurance.expiry) || merged.insurance.expiry || ''
+                            };
+                        }
+                        if (merged.dives !== undefined && merged.dives !== null && merged.dives !== '') {
+                            const numD = parseInt(merged.dives, 10);
+                            merged.dives = !isNaN(numD) ? numD : merged.dives;
+                        }
+
+                        dedupMap.set(key, merged);
+                    } else {
+                        dedupMap.set(key, c);
+                    }
+                } else {
+                    nonDniClients.push(c);
+                }
+            });
+
+            const cleanClients = [...dedupMap.values(), ...nonDniClients];
+
+            // 🛡️ Safety guard: never replace a known-good CRM with a dramatically smaller one
+            if (window.crmLoadedClientCount > 10 && cleanClients.length < window.crmLoadedClientCount * 0.9) {
+                console.warn(`🛡️ [CRM] Rebuild rejected: ${cleanClients.length} clients vs known-good ${window.crmLoadedClientCount}`);
+                return;
+            }
+
+            customerDatabase = cleanClients;
+            
+            window.loadedDnis = new Set(cleanClients.map(c => window.getClientKey(c)).filter(Boolean));
+
+            // Only a complete rebuild (every shard reported) may mark loaded, set known-good count, or write the cache
+            const allShardsReported = window.crmShardsReported.size >= window.crmShardCount;
+
+            // ✅ Mark CRM as fully loaded — now safe for all downstream writes
+            if (allShardsReported) window.crmLoaded = true;
+            if (allShardsReported) window.crmLoadedClientCount = cleanClients.length;
+            window.lastFetchedCerts = null; // Ensure certs will re-map with full CRM names
+            if (allShardsReported) {
+                console.log(`✅ [CRM] Loaded ${cleanClients.length} clients. SafeWrite guards are now active.`);
+            } else {
+                console.log(`⏳ [CRM] Partial rebuild: ${cleanClients.length} clients from ${window.crmShardsReported.size}/${window.crmShardCount} shards.`);
+            }
+
+            // Save lightweight cache to localStorage for instant app reload (complete rebuilds only)
+            if (allShardsReported) {
+                try {
+                    const minified = cleanClients.map(c => ({
+                        dni: c.dni,
+                        dob: c.dob,
+                        nombre: c.nombre,
+                        apellido: c.apellido,
+                        email: c.email,
+                        telefono: c.telefono
+                    }));
+                    localStorage.setItem('mangamar_cached_crm_v1', JSON.stringify(minified));
+                } catch (cacheErr) {
+                    console.warn("Could not cache CRM to localStorage:", cacheErr);
+                }
+            }
+
+            // Re-merge and render manifests now that the CRM database has loaded!
+            if (typeof compileAndMerge === 'function') {
+                compileAndMerge();
+            }
+
+            if (cleanClients.length < rawClients.length || crmNamesModified) {
+                console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicates or corrected ALL CAPS formatting.`);
+                // Use isInitialLoad=true because this IS the initial load writing back
+                window.safeMasterListWrite(cleanClients, 'auto-heal-on-load', true);
+            }
+
+            // Trigger one-time automatic manifest size repair on load to shrink DB documents
+            if (!localStorage.getItem('manifest_size_repair_v2')) {
+                localStorage.setItem('manifest_size_repair_v2', 'true');
+                console.log("🚀 Running automatic one-time database manifest size repair...");
+                setTimeout(() => {
+                    window.repairAllManifestNames();
+                }, 2000);
+            }
+            /*
+            setTimeout(() => {
+                if (typeof window.repairAllManifestNames === 'function') {
+                    window.repairAllManifestNames();
+                }
+            }, 3000);
+            */
+
+            // If CRM modal table is open, refresh it now that data has loaded
+            const crmModal = document.getElementById('crm-modal');
+            if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
+                renderCrmTable();
+            }
+
+            // If Día de Hoy modal is open, refresh it now that data has loaded
+            const todayModal = document.getElementById('today-divers-modal');
+            if (todayModal && !todayModal.classList.contains('hidden') && typeof switchTodayTab === 'function') {
+                switchTodayTab(window.activeTodayTab || 'today');
+            }
+
+            // If Group Link modal is open, refresh it so DNI members display their correct names from CRM
+            const groupModal = document.getElementById('group-link-modal');
+            if (groupModal && !groupModal.classList.contains('hidden') && typeof window.openGroupLinkModal === 'function') {
+                window.openGroupLinkModal(window._editingGroupId || window._editingGroupName, true, true);
+            }
+
+            // If Manifest modal is open, re-render it now that CRM data has loaded
+            if (typeof activeBoatItem !== 'undefined' && activeBoatItem && typeof renderGroups === 'function') {
+                renderGroups();
+            }
+        };
+
+        // Attaches the onSnapshot listener for CRM shard n (no-op if already attached)
+        window.attachCrmShardListener = function(n) {
+            if (window.crmShardListeners[n]) return;
+            window.crmShardListeners[n] = db.collection("mangamar_directory").doc(window.crmShardDocId(n)).onSnapshot((doc) => {
+                if (doc.exists) {
+                    window.crmShards[n] = doc.data().clients || [];
+                    window.crmShardsReported.add(n);
+                    window.rebuildCustomerDatabase();
+                }
+            }, (e) => {
+                console.error("Error loading CRM database snapshot:", e);
+                delete window.crmShardListeners[n];
+                if (!window.crmLoaded) crmFetchStarted = false;
+            });
+        };
+
         window.loadCrmDatabase = function() {
             if (crmFetchStarted || window.crmLoaded) return;
             crmFetchStarted = true;
@@ -461,180 +677,9 @@ function startFirestoreListeners() {
                 clearTimeout(window.crmLoadTimeout);
                 window.crmLoadTimeout = null;
             }
-            db.collection("mangamar_directory").doc("master_list").onSnapshot((doc) => {
-                if (doc.exists) {
-                    let rawClients = doc.data().clients || [];
-                    let dedupMap = new Map();
-                    let nonDniClients = [];
-                    let crmNamesModified = false;
-    
-                    // Merge any locally added clients while loading
-                    if (!window.crmLoaded && customerDatabase && customerDatabase.length > 0) {
-                        customerDatabase.forEach(localClient => {
-                            if (localClient.dni) {
-                                const exists = rawClients.some(rc => rc.dni && window.isSameDni(rc.dni, localClient.dni));
-                                if (!exists) {
-                                    console.log("📥 [CRM Loading] Merging locally added client during load window:", localClient.nombre, localClient.dni);
-                                    rawClients.push(localClient);
-                                    crmNamesModified = true;
-                                }
-                            }
-                        });
-                    }
-    
-                    rawClients.forEach(c => {
-                        // Standardize capitalization to Title-Case (Never allow ALL CAPS)
-                        if (c.nombre) {
-                            const formattedNombre = window.formatNameStr(c.nombre);
-                            if (c.nombre !== formattedNombre) {
-                                c.nombre = formattedNombre;
-                                crmNamesModified = true;
-                            }
-                        }
-                        if (c.apellido) {
-                            const formattedApellido = window.formatNameStr(c.apellido);
-                            if (c.apellido !== formattedApellido) {
-                                c.apellido = formattedApellido;
-                                crmNamesModified = true;
-                            }
-                        }
-
-                        if (c.dni && c.dni.trim() !== '') {
-                            const originalDni = c.dni;
-                            const key = window.normalizeDni(originalDni);
-                            c.dni = key;
-    
-                            if (originalDni !== key) {
-                                window.migrateCustomerHistory(originalDni, key);
-                            }
-    
-                            if (dedupMap.has(key)) {
-                                let existing = dedupMap.get(key);
-                                
-                                // UNCONDITIONAL NEWEST ENTRY OVERWRITE:
-                                // 'c' appears LATER in rawClients array than 'existing' (newer Make.com or Jotform submission),
-                                // so 'c' UNCONDITIONAL WINS for all fields!
-                                let merged = { ...existing, ...c };
-                                
-                                // Respect manual staff lock flags ONLY if existing had manual staff edits that are newer than 'c'
-                                const isNewer = typeof window.isJotformNewerThanManualEdit === 'function' 
-                                    ? window.isJotformNewerThanManualEdit(existing, c) 
-                                    : (!existing.lastManualEditTimestamp);
-
-                                if (!isNewer && existing.lastManualEditTimestamp) {
-                                    // Existing manual staff edit is NEWER than 'c' -> preserve staff-edited fields!
-                                    if (existing.nombre) merged.nombre = existing.nombre;
-                                    if (existing.apellido) merged.apellido = existing.apellido;
-                                    if (existing.dob) merged.dob = existing.dob;
-                                    if (existing.titulacion) merged.titulacion = existing.titulacion;
-                                    if (existing.dives !== undefined) merged.dives = existing.dives;
-                                    if (existing.insurance) merged.insurance = existing.insurance;
-                                    merged.lastManualEditTimestamp = existing.lastManualEditTimestamp;
-                                }
-                                
-                                // Ensure clean standardized types & dates
-                                merged.dni = key;
-                                if (merged.dob) merged.dob = window.normalizeDateStr(merged.dob) || merged.dob;
-                                if (merged.insurance && typeof merged.insurance === 'object') {
-                                    merged.insurance = {
-                                        type: merged.insurance.type || 'S/N',
-                                        expiry: window.normalizeDateStr(merged.insurance.expiry) || merged.insurance.expiry || ''
-                                    };
-                                }
-                                if (merged.dives !== undefined && merged.dives !== null && merged.dives !== '') {
-                                    const numD = parseInt(merged.dives, 10);
-                                    merged.dives = !isNaN(numD) ? numD : merged.dives;
-                                }
-
-                                dedupMap.set(key, merged);
-                            } else {
-                                dedupMap.set(key, c);
-                            }
-                        } else {
-                            nonDniClients.push(c);
-                        }
-                    });
-    
-                    const cleanClients = [...dedupMap.values(), ...nonDniClients];
-                    customerDatabase = cleanClients;
-                    
-                    window.loadedDnis = new Set(cleanClients.map(c => window.getClientKey(c)).filter(Boolean));
-    
-                    // ✅ Mark CRM as fully loaded — now safe for all downstream writes
-                    window.crmLoaded = true;
-                    window.crmLoadedClientCount = cleanClients.length;
-                    window.lastFetchedCerts = null; // Ensure certs will re-map with full CRM names
-                    console.log(`✅ [CRM] Loaded ${cleanClients.length} clients. SafeWrite guards are now active.`);
-
-                    // Save lightweight cache to localStorage for instant app reload
-                    try {
-                        const minified = cleanClients.map(c => ({
-                            dni: c.dni,
-                            dob: c.dob,
-                            nombre: c.nombre,
-                            apellido: c.apellido,
-                            email: c.email,
-                            telefono: c.telefono
-                        }));
-                        localStorage.setItem('mangamar_cached_crm_v1', JSON.stringify(minified));
-                    } catch (cacheErr) {
-                        console.warn("Could not cache CRM to localStorage:", cacheErr);
-                    }
-    
-                    // Re-merge and render manifests now that the CRM database has loaded!
-                    if (typeof compileAndMerge === 'function') {
-                        compileAndMerge();
-                    }
-    
-                    if (cleanClients.length < rawClients.length || crmNamesModified) {
-                        console.log(`🧹 CRM Auto-Heal: Merged ${rawClients.length - cleanClients.length} duplicates or corrected ALL CAPS formatting.`);
-                        // Use isInitialLoad=true because this IS the initial load writing back
-                        window.safeMasterListWrite(cleanClients, 'auto-heal-on-load', true);
-                    }
-    
-                    // Trigger one-time automatic manifest size repair on load to shrink DB documents
-                    if (!localStorage.getItem('manifest_size_repair_v2')) {
-                        localStorage.setItem('manifest_size_repair_v2', 'true');
-                        console.log("🚀 Running automatic one-time database manifest size repair...");
-                        setTimeout(() => {
-                            window.repairAllManifestNames();
-                        }, 2000);
-                    }
-                    /*
-                    setTimeout(() => {
-                        if (typeof window.repairAllManifestNames === 'function') {
-                            window.repairAllManifestNames();
-                        }
-                    }, 3000);
-                    */
-    
-                    // If CRM modal table is open, refresh it now that data has loaded
-                    const crmModal = document.getElementById('crm-modal');
-                    if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
-                        renderCrmTable();
-                    }
-
-                    // If Día de Hoy modal is open, refresh it now that data has loaded
-                    const todayModal = document.getElementById('today-divers-modal');
-                    if (todayModal && !todayModal.classList.contains('hidden') && typeof switchTodayTab === 'function') {
-                        switchTodayTab(window.activeTodayTab || 'today');
-                    }
-
-                    // If Group Link modal is open, refresh it so DNI members display their correct names from CRM
-                    const groupModal = document.getElementById('group-link-modal');
-                    if (groupModal && !groupModal.classList.contains('hidden') && typeof window.openGroupLinkModal === 'function') {
-                        window.openGroupLinkModal(window._editingGroupId || window._editingGroupName, true, true);
-                    }
-
-                    // If Manifest modal is open, re-render it now that CRM data has loaded
-                    if (typeof activeBoatItem !== 'undefined' && activeBoatItem && typeof renderGroups === 'function') {
-                        renderGroups();
-                    }
-                }
-            }, (e) => {
-                console.error("Error loading CRM database snapshot:", e);
-                if (!window.crmLoaded) crmFetchStarted = false;
-            });
+            for (let n = 1; n <= window.crmShardCount; n++) {
+                window.attachCrmShardListener(n);
+            }
         };
         window.crmLoadTimeout = setTimeout(window.loadCrmDatabase, 1500);
 
@@ -644,6 +689,20 @@ function startFirestoreListeners() {
                 const data = doc.data();
                 window.adminPassword = data.adminPassword || "manga321";
                 window.dniRedirects = data.dniRedirects || {};
+
+                // Sharded CRM: pick up newly added shards (never decrease the count at runtime)
+                if (Number.isInteger(data.crmShardCount) && data.crmShardCount > window.crmShardCount) {
+                    const previousShardCount = window.crmShardCount;
+                    window.crmShardCount = data.crmShardCount;
+                    localStorage.setItem('mangamar_crm_shard_count', String(window.crmShardCount));
+                    console.log(`🧩 [CRM] Shard count increased ${previousShardCount} → ${window.crmShardCount}`);
+                    // If the CRM load has not started yet, loadCrmDatabase will attach all shards itself
+                    if (crmFetchStarted || window.crmLoaded) {
+                        for (let n = previousShardCount + 1; n <= window.crmShardCount; n++) {
+                            window.attachCrmShardListener(n);
+                        }
+                    }
+                }
                 
                 // Load WhatsApp Templates if available
                 window.waTemplates = data.waTemplates || [];
