@@ -1,5 +1,8 @@
 console.log("CACHE BROKEN v9 - NEW ENGINE LOADED");
 
+// [MANGAMAR-MIGRATION] phase1-debt-throttle v1 — 2026-09-19
+window._debtFetchTimes = window._debtFetchTimes || new Map();
+
 // --- LOCAL ORIGIN-ISOLATED CSS ZOOM ENGINE ---
 (function() {
     let currentZoom = parseFloat(sessionStorage.getItem('mangamar_local_zoom') || '1.0');
@@ -1007,13 +1010,13 @@ function buildBoatCard(trip, boatId, time, dateStr, isCompact = false, isConflic
                     
                     const now = Date.now();
                     const shouldFetch = (outstandingDebt === undefined) || 
-                                        (g.paymentStatus === 'paid' && outstandingDebt > 0 && (!customerInfo.lastDebtFetchTime || now - customerInfo.lastDebtFetchTime > 8000));
+                                        (g.paymentStatus === 'paid' && outstandingDebt > 0 && (!window._debtFetchTimes.get(g.dni) || now - window._debtFetchTimes.get(g.dni) > 8000));
                     
                     if (shouldFetch && !g.cancelled) {
                         if (!window._fetchingDnis) window._fetchingDnis = new Set();
                         if (!window._fetchingDnis.has(g.dni)) {
                             window._fetchingDnis.add(g.dni);
-                            customerInfo.lastDebtFetchTime = now;
+                            window._debtFetchTimes.set(g.dni, now);
                             db.collection('mangamar_customers').doc(g.dni).get().then(snap => {
                                 if (snap.exists) {
                                     const debtVal = snap.data().outstandingDebt;
