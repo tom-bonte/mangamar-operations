@@ -83,6 +83,7 @@ function reportMasterWriteFailure(caller, message) {
  * @param {Array} clientsArray - The clients array to write
  * @param {string} [caller='unknown'] - Name of calling function for logging
  * @param {boolean} [isInitialLoad=false] - Skip crmLoaded check for the initial load itself
+ * @returns {Promise<boolean>} true if the write completed (or nothing changed), false if blocked or failed. Never rejects.
  */
 window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad) {
     caller = caller || 'unknown';
@@ -92,7 +93,7 @@ window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad)
     // Safety 1: CRM hasn't loaded yet — refuse all writes except the initial load
     if (!isInitialLoad && !window.crmLoaded) {
         console.warn(`🛡️ [SafeWrite] BLOCKED write from '${caller}': CRM not yet loaded. (${count} clients vs ${knownGood} known-good)`);
-        return Promise.resolve();
+        return false;
     }
 
     // Safety 2: Writing significantly fewer clients than we know exist → catastrophic data loss prevention
@@ -100,7 +101,7 @@ window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad)
     const minSafe = knownGood > 10 ? Math.floor(knownGood * 0.80) : 0;
     if (knownGood > 10 && count < minSafe) {
         console.error(`🚨 [SafeWrite] BLOCKED write from '${caller}': Only ${count} clients vs ${knownGood} known-good. Catastrophic data loss prevented!`);
-        return Promise.resolve();
+        return false;
     }
 
     try {
@@ -162,7 +163,7 @@ window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad)
         if (shardJsons.some(j => j.length > 900000)) {
             console.error(`🚨 [SafeWrite] Chunk too large — aborting`);
             reportMasterWriteFailure(caller, 'Chunk too large — aborting');
-            return;
+            return false;
         }
 
         const batch = db.batch();
@@ -219,9 +220,11 @@ window.safeMasterListWrite = async function(clientsArray, caller, isInitialLoad)
         if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
             renderCrmTable();
         }
+        return true;
     } catch (e) {
         console.error(`❌ [SafeWrite] Write from '${caller}' failed:`, e);
         reportMasterWriteFailure(caller, e.message);
+        return false;
     }
 };
 
@@ -731,6 +734,11 @@ function startFirestoreListeners() {
             if (typeof activeBoatItem !== 'undefined' && activeBoatItem && typeof renderGroups === 'function') {
                 renderGroups();
             }
+
+            // Shards finished loading: fold any inbox registrations that arrived before crmLoaded
+            if (allShardsReported && typeof window.tryFoldInbox === 'function') {
+                window.tryFoldInbox();
+            }
         };
 
         // Attaches the onSnapshot listener for CRM shard n (no-op if already attached)
@@ -920,6 +928,88 @@ function startFirestoreListeners() {
                 }
             });
             window.globalPendingCerts = certMap;
+        });
+
+        // [MANGAMAR-MIGRATION] phase5-inbox-listener v1 — 2026-09-19
+        // Make.com writes each new Jotform registration to mangamar_inbox/{dni}, already in directory shape.
+        window.__pendingInboxDocs = []; // latest inbox snapshot's documents, read by tryFoldInbox
+
+        // Adds inbox registrations missing from customerDatabase. Never overwrites an existing entry.
+        function mergeInboxDocs(docs) {
+            if (!Array.isArray(window.customerDatabase)) window.customerDatabase = [];
+            let mergedCount = 0;
+
+            docs.forEach((doc) => {
+                const data = doc.data() || {};
+                const ins = data.insurance;
+                const hasInsurance = ins && typeof ins.type === 'string' && ins.type !== '';
+                const numDives = parseInt(data.dives, 10);
+                const entry = {
+                    dni: window.normalizeDni(doc.id),
+                    nombre: window.cleanDuplicatedName(window.formatNameStr(data.nombre)),
+                    apellido: '',
+                    email: data.email,
+                    telefono: data.telefono,
+                    titulacion: data.titulacion || 'Sin Titulación',
+                    dob: window.normalizeDateStr(data.dob),
+                    dives: !isNaN(numDives) ? numDives : data.dives,
+                    insurance: hasInsurance
+                        ? { type: ins.type, expiry: window.normalizeDateStr(ins.expiry) || ins.expiry || '' }
+                        : null
+                };
+
+                const key = window.getClientKey(entry);
+                const exists = window.customerDatabase.some(c =>
+                    window.getClientKey(c) === key || (c.dni && window.isSameDni(c.dni, entry.dni)));
+                if (!exists) {
+                    window.customerDatabase.push(entry);
+                    mergedCount++;
+                }
+            });
+
+            if (mergedCount > 0) {
+                console.log(`📥 [Inbox] ${mergedCount} new registrations merged`);
+                const crmModal = document.getElementById('crm-modal');
+                if (crmModal && !crmModal.classList.contains('hidden') && typeof renderCrmTable === 'function') {
+                    renderCrmTable();
+                }
+            }
+        }
+
+        // Folds pending inbox documents into the directory shards, then deletes them from the inbox.
+        // Called from the inbox snapshot handler and from complete CRM rebuilds.
+        window.tryFoldInbox = async function() {
+            const docs = window.__pendingInboxDocs;
+            if (window.crmLoaded !== true) return;
+            if (window.crmShardsReported.size < window.crmShardCount) return;
+            if (!docs || docs.length === 0) return;
+            if (window.__inboxFolding === true) return;
+
+            window.__inboxFolding = true;
+            try {
+                // A rebuild may have replaced customerDatabase since the snapshot: re-merge so the write includes every pending doc
+                mergeInboxDocs(docs);
+                const errorBefore = window.__lastMasterWriteError;
+                const written = await window.safeMasterListWrite(window.customerDatabase, 'inbox-fold');
+                if (written === true && window.__lastMasterWriteError === errorBefore) {
+                    const batch = db.batch();
+                    docs.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                    console.log(`🧹 [Inbox] ${docs.length} documents folded into shards and cleared`);
+                }
+            } catch (e) {
+                console.error("❌ [Inbox] Fold failed:", e);
+            } finally {
+                window.__inboxFolding = false;
+            }
+        };
+
+        db.collection("mangamar_inbox").onSnapshot((snapshot) => {
+            window.__pendingInboxDocs = snapshot.docs;
+            mergeInboxDocs(snapshot.docs);
+            window.tryFoldInbox();
+        }, (e) => {
+            console.error("Error loading inbox snapshot:", e);
         });
     }, 100);
 }
