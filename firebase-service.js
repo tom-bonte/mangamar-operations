@@ -40,6 +40,11 @@ try {
 } catch (e) {
     console.warn("Could not parse cached CRM:", e);
 }
+// DNIs that came from the startup cache: these are stale cache, never "locally added" clients.
+// Empty Set when there was no (valid) cache, since customerDatabase is then still [].
+window.__cachedDnisAtStartup = new Set(
+    (customerDatabase || []).map(c => c.dni ? window.normalizeDni(c.dni) : '').filter(Boolean)
+);
 
 // Set to true ONLY after the full master_list has been fetched and loaded.
 // Any code that writes to master_list should check this flag first.
@@ -541,10 +546,13 @@ function startFirestoreListeners() {
             let nonDniClients = [];
             let crmNamesModified = false;
 
+            // Only a complete rebuild (every shard reported) may mark loaded, set known-good count, write the cache, or migrate history
+            const allShardsReported = window.crmShardsReported.size >= window.crmShardCount;
+
             // Merge any locally added clients while loading
             if (!window.crmLoaded && customerDatabase && customerDatabase.length > 0) {
                 customerDatabase.forEach(localClient => {
-                    if (localClient.dni) {
+                    if (localClient.dni && !window.__cachedDnisAtStartup.has(window.normalizeDni(localClient.dni))) {
                         const exists = rawClients.some(rc => rc.dni && window.isSameDni(rc.dni, localClient.dni));
                         if (!exists) {
                             console.log("📥 [CRM Loading] Merging locally added client during load window:", localClient.nombre, localClient.dni);
@@ -577,7 +585,8 @@ function startFirestoreListeners() {
                     const key = window.normalizeDni(originalDni);
                     c.dni = key;
 
-                    if (originalDni !== key) {
+                    // History migration writes and deletes mangamar_customers/{oldDni}: complete rebuilds only
+                    if (allShardsReported && originalDni !== key) {
                         window.migrateCustomerHistory(originalDni, key);
                     }
 
@@ -639,9 +648,6 @@ function startFirestoreListeners() {
             customerDatabase = cleanClients;
             
             window.loadedDnis = new Set(cleanClients.map(c => window.getClientKey(c)).filter(Boolean));
-
-            // Only a complete rebuild (every shard reported) may mark loaded, set known-good count, or write the cache
-            const allShardsReported = window.crmShardsReported.size >= window.crmShardCount;
 
             // ✅ Mark CRM as fully loaded — now safe for all downstream writes
             if (allShardsReported) window.crmLoaded = true;
