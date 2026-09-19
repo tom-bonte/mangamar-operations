@@ -4076,7 +4076,10 @@ async function saveBoatData(itemToSave = activeBoatItem) {
                 if (historyWrites > 0) {
                     await historyBatch.commit();
                     const affectedDnis = [...removedDnis, ...validGuests.map(g => g.dni)];
-                    if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
+                    // Debounced (2s) so repeated saves collapse into one recalculation
+                    if (typeof window.queueOutstandingDebtRecalc === 'function') {
+                        window.queueOutstandingDebtRecalc(affectedDnis, 2000);
+                    } else if (typeof window.updateMultipleCustomersOutstandingDebt === 'function') {
                         window.updateMultipleCustomersOutstandingDebt(affectedDnis);
                     }
                 }

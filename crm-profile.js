@@ -2234,6 +2234,22 @@ window.updateMultipleCustomersOutstandingDebt = async function(dnis) {
     }
 };
 
+// Debounced entry point for debt recalculation. Shares the pending Set and timer with the
+// daily-grid path in app.js (window._pendingDebtRecalcDnis / window._debtRecalcTimer), so
+// DNIs from both sources are flushed together in a single updateMultipleCustomersOutstandingDebt call.
+window.queueOutstandingDebtRecalc = function(dnis, delayMs) {
+    if (!dnis || dnis.length === 0) return;
+    if (!window._pendingDebtRecalcDnis) window._pendingDebtRecalcDnis = new Set();
+    dnis.forEach(dni => { if (dni) window._pendingDebtRecalcDnis.add(dni); });
+    clearTimeout(window._debtRecalcTimer);
+    window._debtRecalcTimer = setTimeout(() => {
+        const pendingDnis = Array.from(window._pendingDebtRecalcDnis);
+        window._pendingDebtRecalcDnis.clear();
+        window._debtRecalcTimer = null;
+        window.updateMultipleCustomersOutstandingDebt(pendingDnis);
+    }, delayMs);
+};
+
 window.clearHistorialDateFilters = function() {
     const fromEl = document.getElementById('historial-filter-from');
     const toEl = document.getElementById('historial-filter-to');

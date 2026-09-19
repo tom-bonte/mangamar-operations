@@ -1318,15 +1318,23 @@ window.mergeAndRender = function mergeAndRender() {
         // from overwriting the RAM state to prevent "1 change behind" and lost updates!
         const timeSinceEdit = Date.now() - (window.lastLocalEditTime || 0);
         if (window.isSaving || window.hasPendingSave || window.hasPendingWrites || window.isManifestDirty || timeSinceEdit < 2500) {
-            console.log("⏳ Skipping remote sync overwrite: local save or recent edit is in progress.");
+            // Log once per contiguous run of skips (this branch re-fires every ~160ms while locked out)
+            if (!window.__syncSkipLogged) {
+                console.log("⏳ Skipping remote sync overwrite: local save or recent edit is in progress.");
+                window.__syncSkipLogged = true;
+            }
             // Schedule a deferred sync to catch up once the lockout window expires
             const delay = Math.max(0, 2500 - timeSinceEdit);
             clearTimeout(window.deferredSyncTimer);
             window.deferredSyncTimer = setTimeout(() => {
-                console.log("⏳ Re-evaluating deferred sync...");
                 if (typeof compileAndMerge === 'function') compileAndMerge();
             }, delay + 100);
         } else {
+            // A skip run just ended and the sync is proceeding
+            if (window.__syncSkipLogged) {
+                console.log("⏳ Re-evaluating deferred sync...");
+                window.__syncSkipLogged = false;
+            }
             const freshTrip = mergedAllocations.find(t => t.id === window.activeBoatItem.id);
             if (freshTrip) {
                 // Determine fresh groups, falling back to flat guests mapped to a group if it is a Visor trip with 0 group passengers
