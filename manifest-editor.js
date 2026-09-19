@@ -3365,8 +3365,10 @@ window.queueSaveForTrip = function(item) {
     
     (async () => {
         let lastSuccess = false;
+        let iterations = 0;
         try {
             while (true) {
+                iterations++;
                 const writeStartTime = Date.now();
                 queue.hasPending = false;
                 hasPendingSave = Object.values(window.saveQueues).some(q => q.hasPending);
@@ -3383,6 +3385,8 @@ window.queueSaveForTrip = function(item) {
             console.error(`Queue save failed for trip ${tripId}:`, e);
             lastSuccess = false;
         } finally {
+            // Timing instrumentation: read by manualSaveBoatData's ⏱️ log
+            window.__lastSaveIterations = iterations;
             queue.isSaving = false;
             
             isSaving = Object.values(window.saveQueues).some(q => q.isSaving);
@@ -4318,11 +4322,13 @@ window.manualSaveBoatData = async function(andClose = false) {
     }
     showToast("⏳ Guardando salida internamente...");
 
+    // Cancel any pending autosave on both paths so it cannot fire mid-save and force a second write
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = null;
+
     if (andClose) {
         // Instantly hide modal and clean up active timers/frames
         if (modal) modal.classList.add('hidden');
-        clearTimeout(autoSaveTimeout);
-        autoSaveTimeout = null;
         if (_renderGroupsRAF) {
             cancelAnimationFrame(_renderGroupsRAF);
             _renderGroupsRAF = null;
@@ -4338,6 +4344,8 @@ window.manualSaveBoatData = async function(andClose = false) {
         if (typeof mergeAndRender === 'function') mergeAndRender();
     }
 
+    const caller = andClose ? 'Guardar y Cerrar' : 'Guardar';
+    const saveStartTime = performance.now();
     try {
         window.isManifestDirty = true;
         const success = await window.queueSaveForTrip(itemToSave);
@@ -4350,6 +4358,9 @@ window.manualSaveBoatData = async function(andClose = false) {
         console.error("Error in manualSaveBoatData:", err);
         showToast("⚠️ Ocurrió un error al guardar en segundo plano");
     } finally {
+        const ms = Math.round(performance.now() - saveStartTime);
+        const n = window.__lastSaveIterations || 0;
+        console.log(`⏱️ [Save] ${caller} took ${ms}ms, ${n} write(s)`);
         if (btn) {
             btn.innerHTML = originalContent;
             btn.disabled = false;
