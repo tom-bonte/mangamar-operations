@@ -2015,7 +2015,9 @@ window.executeDeleteCustomer = function () {
     })();
 };
 
-window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite = false) {
+// debtBatch (optional): { batch, size } — when provided, the customer write is queued on
+// debtBatch.batch instead of awaited, so the caller can commit all customers in one round trip.
+window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite = false, debtBatch = null) {
     if (!dni) return 0;
     try {
         const dObj = new Date();
@@ -2180,7 +2182,12 @@ window.updateCustomerOutstandingDebt = async function(dni, skipMasterListWrite =
                 const cleanDatabase = JSON.parse(JSON.stringify(customerDatabase));
                 await window.safeMasterListWrite(cleanDatabase, 'update-outstanding-debt-single');
             }
-            await db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true });
+            if (debtBatch) {
+                debtBatch.batch.set(db.collection('mangamar_customers').doc(dni), { outstandingDebt: totalAPagar }, { merge: true });
+                debtBatch.size++;
+            } else {
+                await db.collection('mangamar_customers').doc(dni).set({ outstandingDebt: totalAPagar }, { merge: true });
+            }
         }
         return totalAPagar;
     } catch (e) {
@@ -2195,8 +2202,18 @@ window.updateMultipleCustomersOutstandingDebt = async function(dnis) {
 
     // Process each DNI sequentially but skip the master_list write per-iteration.
     // This reduces N master_list writes down to 1 at the end.
+    // Customer writes are collected into one batch so they occupy the write stream
+    // for a single round trip instead of N sequential ones.
+    const debtBatch = { batch: db.batch(), size: 0 };
     for (const dni of uniqueDnis) {
-        await window.updateCustomerOutstandingDebt(dni, true /* skipMasterListWrite */);
+        await window.updateCustomerOutstandingDebt(dni, true /* skipMasterListWrite */, debtBatch);
+    }
+    if (debtBatch.size > 0) {
+        try {
+            await debtBatch.batch.commit();
+        } catch (e) {
+            console.error("Error updating customer outstanding debt:", e);
+        }
     }
 
     // Single master_list write for all updated customers at once
