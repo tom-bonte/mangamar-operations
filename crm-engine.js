@@ -1869,12 +1869,7 @@ window.saveJotformClientsToCache = function(clients) {
             localStorage.setItem(JOTFORM_CACHE_KEY, JSON.stringify(cacheObj));
         }
 
-        if (typeof db !== 'undefined') {
-            db.collection('mangamar_directory').doc('jotform_cache').set({
-                clients: deduplicated,
-                timestamp: Date.now()
-            }, { merge: true }).catch(e => console.warn("Firestore jotform cache save error:", e));
-        }
+        // [MANGAMAR-MIGRATION] phase6-drop-jotform-firestore-cache v1 — 2026-09-19
     } catch (e) {
         console.warn("Error saving Jotform cache:", e);
     }
@@ -1924,21 +1919,7 @@ window.fetchJotformClientsData = async function(forceRefresh = false, targetDni 
                 return cached;
             }
 
-            if (typeof db !== 'undefined') {
-                try {
-                    const snap = await db.collection('mangamar_directory').doc('jotform_cache').get();
-                    if (snap.exists && snap.data() && Array.isArray(snap.data().clients)) {
-                        const fsData = snap.data();
-                        window._jotformClientsCache = fsData;
-                        if (typeof localStorage !== 'undefined') localStorage.setItem(JOTFORM_CACHE_KEY, JSON.stringify(fsData));
-                        if (Date.now() - fsData.timestamp < JOTFORM_CACHE_TTL) {
-                            return fsData.clients;
-                        }
-                    }
-                } catch (errFs) {
-                    console.warn("Error reading Firestore Jotform cache:", errFs);
-                }
-            }
+            // [MANGAMAR-MIGRATION] phase6-drop-jotform-firestore-cache v1 — 2026-09-19
         }
 
         const fetchUrl = normDni 
