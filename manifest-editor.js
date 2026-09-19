@@ -177,7 +177,16 @@ function openManageBoatModal(tripOrId, boatId, time, dateStr, isNavBackForward =
     window.isManifestDirty = false; // Reset dirty tracking when opening a modal
     window.hasPendingSave = false;
     if (typeof hasPendingSave !== 'undefined') hasPendingSave = false;
-    
+
+    // Never inherit a disabled state from a previous, still-unconfirmed manual save
+    ['btn-manual-save', 'btn-manual-save-close'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.disabled = false;
+            el.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    });
+
     if (typeof window.initManifestHoverPopups === 'function') window.initManifestHoverPopups();
     if (window.isStaffLoggedIn) {
         showToast("🔒 Acceso denegado: El Personal no tiene permiso para abrir manifiestos.", "error");
@@ -4299,8 +4308,14 @@ window.manualSaveBoatData = async function(andClose = false) {
     // 1. Sync DOM to RAM synchronously FIRST before disabling inputs or modifying state
     syncDOMToActiveBoatItem();
 
-    if (btn) btn.disabled = true;
-    if (btnClose) btnClose.disabled = true;
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+    if (btnClose) {
+        btnClose.disabled = true;
+        btnClose.classList.add('opacity-50', 'cursor-not-allowed');
+    }
     showToast("⏳ Guardando salida internamente...");
 
     if (andClose) {
@@ -4338,10 +4353,12 @@ window.manualSaveBoatData = async function(andClose = false) {
         if (btn) {
             btn.innerHTML = originalContent;
             btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
         if (btnClose) {
             btnClose.innerHTML = originalCloseContent;
             btnClose.disabled = false;
+            btnClose.classList.remove('opacity-50', 'cursor-not-allowed');
         }
     }
 };
